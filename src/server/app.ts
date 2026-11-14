@@ -2,6 +2,7 @@ import { resolve } from 'node:path';
 import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
 import type { Db } from './db/client.js';
+import { eventsRoutes } from './routes/events.js';
 import { healthRoutes } from './routes/health.js';
 
 export interface AppOptions {
@@ -16,6 +17,7 @@ export async function buildApp({ db, serveWeb = false, logger = false }: AppOpti
   app.decorate('db', db);
 
   await app.register(healthRoutes);
+  await app.register(eventsRoutes);
 
   if (serveWeb) {
     await app.register(fastifyStatic, { root: resolve('dist/web') });
