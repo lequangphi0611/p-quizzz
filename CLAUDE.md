@@ -8,6 +8,8 @@ p-quizzz is a practice-quiz app that runs **locally on one mentor's machine**; m
 
 **`docs/PRODUCT.md` is the source of truth for business rules** (Vietnamese). Read it before implementing any feature, and update it first when a business rule changes. Do not restate its rules here.
 
+**`docs/architecture.md` is the implementation contract**: data model, session state machine, API endpoints, auth, SSE and the chosen libraries. Work is split into stories in `docs/stories/`. When implementing a story, follow `docs/stories/README.md` (scope rules, Definition of Done, dependency order). Do not change the contract silently.
+
 The rules that most often affect code:
 - **Exam** (question content, imported from Markdown) is separate from **Session** (one run of an exam). Sessions have a `mode`; only `self_paced` is in scope now, while `live` is phase 2, so don't hard-code a single mode.
 - Session lifecycle: `DRAFT → LOBBY → RUNNING → CLOSED → FINALIZED`. Answers and explanations are revealed only from `CLOSED` onward.

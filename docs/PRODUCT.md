@@ -125,7 +125,14 @@ Spec đầy đủ: **[docs/exam-format.md](exam-format.md)**. Các quyết đị
 
 ## 7. Vấn đề mở (cần chốt khi triển khai)
 
-1. **Tie-break xếp hạng** khi bằng điểm — đề xuất: ai nộp sớm hơn xếp trên.
-2. Màn hình chiếu có cần bảo vệ bằng mã không, hay URL công khai trong LAN là đủ?
+Các mục dưới đây đã lấy **mặc định** để chia story (2026-11-14) — chờ mentor xác nhận:
+
+1. Tie-break xếp hạng: bằng điểm → ai nộp sớm hơn xếp trên.
+2. Màn hình chiếu: URL công khai trong LAN, không cần mã (chỉ hiện tên + điểm, không hiện đáp án).
 3. ~~Cú pháp metadata~~ — đã chốt: `{essay, points=N}` cuối tiêu đề.
-4. Sửa đề sau khi đã có phiên dùng đề đó: cho sửa (versioning) hay bắt import đề mới?
+4. Đề **bất biến** sau khi import; muốn sửa → import đề mới. Chỉ xoá được đề chưa dùng cho phiên nào.
+5. Tối đa **1 phiên hoạt động** (lobby/running) cùng lúc — 1 mentor, 1 phòng; member mở URL gốc là vào đúng phiên.
+6. Đóng phiên khi member đang làm dở → **tự nộp** với câu trả lời đã lưu.
+7. Vào trễ (phiên đang chạy) → chờ mentor duyệt. Vào lúc lobby → vào thẳng (mentor vẫn kick được).
+8. Mỗi lần làm lại được trộn thứ tự mới.
+9. Chấm tự luận cho phép điểm lẻ 0.5.
