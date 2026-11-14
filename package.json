@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "exam:check": "tsx scripts/check-exam.ts"
   },
   "dependencies": {
     "@fastify/static": "^10.1.11",

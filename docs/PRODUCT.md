@@ -109,44 +109,23 @@ DRAFT ──open──▶ LOBBY ──start──▶ RUNNING ──close──�
 - Câu điền đáp án ngắn
 - Giới hạn thời gian làm bài
 
-## 6. Định dạng đề Markdown (draft)
+## 6. Định dạng đề Markdown
 
-```markdown
----
-title: Ôn tập Git cơ bản
-description: Tuần 3
----
+Spec đầy đủ: **[docs/exam-format.md](exam-format.md)**. Các quyết định chính:
+- Một file Markdown duy nhất vừa để duyệt vừa để import; validate bằng `npm run exam:check`.
+- Thuộc tính câu hỏi đặt ở cuối tiêu đề: `{essay}`, `{points=N}`. Key lạ là lỗi (bắt lỗi gõ sai).
+- Đáp án luôn bị trộn → validator cảnh báo đáp án kiểu "tất cả các đáp án trên".
+- Đề thật không commit vào repo (member có thể đọc được đáp án); chỉ commit `exams/examples/`.
 
-## Lệnh nào tạo branch mới và chuyển sang branch đó?
-- [ ] git branch new
-- [x] git checkout -b new
-- [ ] git merge new
-> `checkout -b` = tạo + chuyển trong một lệnh.
-
-## Những lệnh nào thay đổi lịch sử commit?
-- [x] git rebase
-- [x] git commit --amend
-- [ ] git status
-
-## Giải thích sự khác nhau giữa merge và rebase. {essay, points=5}
-> Đáp án mẫu: merge giữ nguyên lịch sử và tạo merge commit; rebase viết lại commit lên base mới...
-```
-
-Quy ước:
-- Frontmatter: `title` (bắt buộc), `description` (tuỳ chọn).
-- Mỗi câu bắt đầu bằng `## `. Nội dung câu hỗ trợ Markdown đầy đủ, **kể cả code block** (render + highlight offline).
-- `- [x]` / `- [ ]`: đáp án. **1** `[x]` → single; **≥ 2** `[x]` → multi.
-- Không có đáp án + `{essay}` → tự luận.
-- `{points=N}`: điểm của câu (mặc định 1).
-- Blockquote `>` cuối câu: giải thích (trắc nghiệm) hoặc đáp án mẫu/rubric (tự luận).
-
-Validate tối thiểu: thiếu title; câu không có `[x]` mà không đánh dấu essay; câu trắc nghiệm < 2 đáp án; câu trùng nội dung; points không hợp lệ.
-
-> Repo sẽ có 1 skill cho Claude mô tả format này để soạn đề luôn đúng chuẩn.
+### Quy trình soạn đề
+1. Mentor yêu cầu Claude soạn đề (skill `exam-authoring`): chủ đề, số câu, tỉ lệ loại câu, độ khó.
+2. Claude soạn vào `exams/<slug>.md`, tự chạy `exam:check` đến khi 0 lỗi.
+3. Mentor duyệt chính file đó; Claude sửa theo góp ý, check lại.
+4. Mentor import file vào app (màn hình import + preview — chưa làm).
 
 ## 7. Vấn đề mở (cần chốt khi triển khai)
 
 1. **Tie-break xếp hạng** khi bằng điểm — đề xuất: ai nộp sớm hơn xếp trên.
 2. Màn hình chiếu có cần bảo vệ bằng mã không, hay URL công khai trong LAN là đủ?
-3. Cú pháp metadata `{essay, points=5}` có cần thay bằng dạng khác thân thiện hơn khi soạn?
+3. ~~Cú pháp metadata~~ — đã chốt: `{essay, points=N}` cuối tiêu đề.
 4. Sửa đề sau khi đã có phiên dùng đề đó: cho sửa (versioning) hay bắt import đề mới?

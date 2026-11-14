@@ -12,7 +12,7 @@ The rules that most often affect code:
 - **Exam** (question content, imported from Markdown) is separate from **Session** (one run of an exam). Sessions have a `mode`; only `self_paced` is in scope now, while `live` is phase 2, so don't hard-code a single mode.
 - Session lifecycle: `DRAFT → LOBBY → RUNNING → CLOSED → FINALIZED`. Answers and explanations are revealed only from `CLOSED` onward.
 - Retakes are allowed only for exams with no essay questions (best attempt counts); exams with essays get one attempt.
-- The Markdown exam format (PRODUCT.md §6) is both what the mentor reviews and what is imported. There is no intermediate conversion format.
+- The Markdown exam format (`docs/exam-format.md`) is both what the mentor reviews and what is imported. There is no intermediate conversion format. When writing or editing exams, use the `exam-authoring` skill.
 
 ## Commands
 
@@ -23,6 +23,7 @@ npm test           # vitest run
 npx vitest run src/server/app.test.ts -t "returns ok"   # single file / single test
 npm run typecheck  # tsc --noEmit (no separate lint step yet)
 npm run db:generate  # drizzle-kit: generate migration after editing src/server/db/schema.ts
+npm run exam:check -- exams/<file>.md   # validate exam Markdown; exit 1 on errors
 ```
 
 The server runs TypeScript directly via `tsx` in both dev and `start`; there is no server compile step. Env overrides: `PORT`, `HOST`, `DB_FILE` (see `src/server/config.ts`).
@@ -38,6 +39,7 @@ Single npm package (ESM), three source areas under `src/`:
   - Drizzle schema in `db/schema.ts`, migrations output to `db/migrations/`. SQLite file defaults to `data/p-quizzz.db` (gitignored).
 - `src/web/`: React 19 SPA. This is the Vite `root` (see `vite.config.ts`), and builds to `dist/web`.
 - `src/shared/`: types and pure logic shared by both sides (API contracts). It must not import Node or DOM APIs.
+  - `exam-format/`: line-based parser + validator for exam Markdown. It is the single implementation used by the CLI (`scripts/check-exam.ts`), and later by the server import endpoint and the web preview. Errors and warnings carry 1-based line numbers and Vietnamese messages for the mentor. Changing the format means updating `docs/exam-format.md`, the parser and `parse.test.ts` together.
 
 Imports use `.js` extensions on relative paths (ESM + `moduleResolution: Bundler`).
 
@@ -47,4 +49,5 @@ Imports use `.js` extensions on relative paths (ESM + `moduleResolution: Bundler
 - **Cross-platform:** the mentor's OS is not fixed. npm scripts must not use POSIX-only syntax such as `VAR=x cmd`. Use CLI flags or `config.ts` instead.
 - The server binds `0.0.0.0` so LAN members can connect.
 - Realtime updates (lobby, projector leaderboard) are needed in the MVP. Use SSE or polling now; WebSocket is reserved for the phase-2 live mode.
+- Real exams live in `exams/` (gitignored, since they contain answers and members may read the repo). Only `exams/examples/` is committed.
 - Code and comments are in English; user-facing UI text and docs are in Vietnamese.

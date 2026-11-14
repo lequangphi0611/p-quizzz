@@ -3,3 +3,7 @@ dist/
 data/
 *.log
 .DS_Store
+
+# Real exams contain answers; members may have repo access. Only examples are committed.
+exams/*
+!exams/examples/
