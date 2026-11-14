@@ -1,0 +1,15 @@
+:root{
+--ease-standard:cubic-bezier(.2,0,.2,1); /* @kind other */
+--ease-pop:cubic-bezier(.34,1.4,.64,1); /* @kind other */
+--dur-fast:120ms; /* @kind other */
+--dur-base:180ms; /* @kind other */
+--dur-slow:280ms; /* @kind other */
+--dur-pop:420ms; /* @kind other */
+}
+@keyframes pq-pop-in{0%{opacity:0;transform:scale(.85)}100%{opacity:1;transform:scale(1)}}
+@keyframes pq-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){:root{--dur-fast:0ms; /* @kind other */
+--dur-base:0ms; /* @kind other */
+--dur-slow:0ms; /* @kind other */
+--dur-pop:0ms; /* @kind other */
+}}

@@ -1,0 +1,8 @@
+:root{
+--space-0:0;--space-1:2px;--space-2:4px;--space-3:6px;--space-4:8px;--space-5:12px;--space-6:16px;--space-7:20px;--space-8:24px;--space-9:32px;--space-10:40px;--space-11:56px;--space-12:80px;
+--tap-min:48px;
+--member-max:640px;--admin-max:1200px;--admin-nav-h:56px;
+--gutter-phone:16px;--gutter-desk:32px;
+--card-pad:20px;--card-pad-phone:16px;
+--bp-tablet:768px;/* @kind spacing */--bp-desk:1024px;/* @kind spacing */
+}
