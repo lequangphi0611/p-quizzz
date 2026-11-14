@@ -1,0 +1,50 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Product context
+
+p-quizzz is a practice-quiz app that runs **locally on one mentor's machine**; members join from browsers over a **LAN**. One mentor, no member accounts: members type a display name per session.
+
+**`docs/PRODUCT.md` is the source of truth for business rules** (Vietnamese). Read it before implementing any feature, and update it first when a business rule changes. Do not restate its rules here.
+
+The rules that most often affect code:
+- **Exam** (question content, imported from Markdown) is separate from **Session** (one run of an exam). Sessions have a `mode`; only `self_paced` is in scope now, while `live` is phase 2, so don't hard-code a single mode.
+- Session lifecycle: `DRAFT → LOBBY → RUNNING → CLOSED → FINALIZED`. Answers and explanations are revealed only from `CLOSED` onward.
+- Retakes are allowed only for exams with no essay questions (best attempt counts); exams with essays get one attempt.
+- The Markdown exam format (PRODUCT.md §6) is both what the mentor reviews and what is imported. There is no intermediate conversion format.
+
+## Commands
+
+```bash
+npm run dev        # Vite on :5173 (proxies /api → :3000) + Fastify via tsx watch on :3000
+npm start          # vite build, then Fastify serves API + dist/web on :3000 (--serve-web flag)
+npm test           # vitest run
+npx vitest run src/server/app.test.ts -t "returns ok"   # single file / single test
+npm run typecheck  # tsc --noEmit (no separate lint step yet)
+npm run db:generate  # drizzle-kit: generate migration after editing src/server/db/schema.ts
+```
+
+The server runs TypeScript directly via `tsx` in both dev and `start`; there is no server compile step. Env overrides: `PORT`, `HOST`, `DB_FILE` (see `src/server/config.ts`).
+
+## Architecture
+
+Single npm package (ESM), three source areas under `src/`:
+
+- `src/server/`: Fastify 5 + better-sqlite3 + Drizzle ORM.
+  - `app.ts` `buildApp()` assembles the app **without listening**. Tests call it with `createDb(':memory:')` and use `app.inject()`. `index.ts` is the only entry point that listens, opens the real DB file and prints LAN URLs.
+  - The DB is attached to the instance as `app.db` (typed via module augmentation in `app.ts`).
+  - Routes are Fastify plugins in `routes/`, registered in `buildApp()`. All API paths start with `/api/`. With `--serve-web`, every other GET falls back to `index.html` (SPA).
+  - Drizzle schema in `db/schema.ts`, migrations output to `db/migrations/`. SQLite file defaults to `data/p-quizzz.db` (gitignored).
+- `src/web/`: React 19 SPA. This is the Vite `root` (see `vite.config.ts`), and builds to `dist/web`.
+- `src/shared/`: types and pure logic shared by both sides (API contracts). It must not import Node or DOM APIs.
+
+Imports use `.js` extensions on relative paths (ESM + `moduleResolution: Bundler`).
+
+## Constraints
+
+- **Offline-first:** the LAN may have no internet. Do not load anything from CDNs, Google Fonts or external APIs at runtime; bundle every asset.
+- **Cross-platform:** the mentor's OS is not fixed. npm scripts must not use POSIX-only syntax such as `VAR=x cmd`. Use CLI flags or `config.ts` instead.
+- The server binds `0.0.0.0` so LAN members can connect.
+- Realtime updates (lobby, projector leaderboard) are needed in the MVP. Use SSE or polling now; WebSocket is reserved for the phase-2 live mode.
+- Code and comments are in English; user-facing UI text and docs are in Vietnamese.
