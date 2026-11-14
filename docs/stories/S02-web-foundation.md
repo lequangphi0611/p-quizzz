@@ -18,10 +18,10 @@ Các story UI sau dùng chung router, API client, component Markdown và layout.
 Logic gọi API thật của từng màn hình, trang login (S03).
 
 ## Acceptance criteria
-- [ ] `npm run dev` → mọi route §8 mở được, F5 ở route con không 404 (dev và `npm start`).
-- [ ] `npm run build` không có request ra ngoài (kiểm tra `dist/web` không chứa URL `http(s)://` tới CDN/font).
-- [ ] `<Markdown>` render đúng code block có highlight, bảng GFM, inline code.
-- [ ] Giao diện dùng được ở bề ngang 360px.
+- [x] `npm run dev` → mọi route §8 mở được, F5 ở route con không 404 (dev và `npm start`).
+- [x] `npm run build` không có request ra ngoài (kiểm tra `dist/web` không chứa URL `http(s)://` tới CDN/font).
+- [x] `<Markdown>` render đúng code block có highlight, bảng GFM, inline code.
+- [x] Giao diện dùng được ở bề ngang 360px.
 
 ## Test bắt buộc
 - `api.ts`: ném `ApiError` đúng status/message (mock `fetch`), gắn header token đúng session.

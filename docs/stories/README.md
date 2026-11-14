@@ -27,13 +27,13 @@ Mỗi story là một file tự đủ ngữ cảnh để một model/người im
 
 | Story | Tên | Phụ thuộc | Trạng thái |
 |---|---|---|---|
-| [S01](S01-db-schema.md) | DB schema + migrate | — | ⬜ |
-| [S02](S02-web-foundation.md) | Nền tảng web | — | ⬜ |
-| [S03](S03-mentor-auth.md) | Xác thực mentor | S01, S02 | ⬜ |
+| [S01](S01-db-schema.md) | DB schema + migrate | — | ✅ |
+| [S02](S02-web-foundation.md) | Nền tảng web | — | ✅ |
+| [S03](S03-mentor-auth.md) | Xác thực mentor | S01, S02 | ✅ |
 | [S04](S04-exam-import-api.md) | API import đề | S01, S03 | ⬜ |
 | [S05](S05-exam-import-ui.md) | UI import & quản lý đề | S04 | ⬜ |
 | [S06](S06-session-lifecycle-api.md) | API vòng đời phiên | S01, S03 | ⬜ |
-| [S07](S07-realtime-sse.md) | Realtime SSE | S01, S02 | ⬜ |
+| [S07](S07-realtime-sse.md) | Realtime SSE | S01, S02 | ✅ |
 | [S08](S08-join-participants-api.md) | API vào phiên & quản lý người tham gia | S06, S07 | ⬜ |
 | [S09](S09-mentor-session-ui.md) | UI điều khiển phiên (mentor) | S05, S08 | ⬜ |
 | [S10](S10-member-join-ui.md) | UI vào phiên & phòng chờ (member) | S08 | ⬜ |

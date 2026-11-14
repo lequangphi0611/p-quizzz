@@ -15,11 +15,11 @@ Mọi story backend dựa trên schema này. Contract: [architecture.md §2](../
 API, logic nghiệp vụ.
 
 ## Acceptance criteria
-- [ ] Server khởi động trên DB mới tạo đủ bảng; khởi động lại không lỗi (migrate idempotent).
-- [ ] Unique `(attempt_id, question_id)` trên `answers`; unique `token` trên `participants`.
-- [ ] Foreign key bật (`foreign_keys = ON`); xoá exam cascade xoá questions/options (sessions **không** cascade — chặn ở tầng API).
-- [ ] Cột điểm đạt được là `real`, `points` là integer (architecture §2).
-- [ ] Cột JSON (`question_order`, `option_order`, `selected_option_ids`) dùng `text({ mode: 'json' }).$type<...>()` có type đúng.
+- [x] Server khởi động trên DB mới tạo đủ bảng; khởi động lại không lỗi (migrate idempotent).
+- [x] Unique `(attempt_id, question_id)` trên `answers`; unique `token` trên `participants`.
+- [x] Foreign key bật (`foreign_keys = ON`); xoá exam cascade xoá questions/options (sessions **không** cascade — chặn ở tầng API).
+- [x] Cột điểm đạt được là `real`, `points` là integer (architecture §2).
+- [x] Cột JSON (`question_order`, `option_order`, `selected_option_ids`) dùng `text({ mode: 'json' }).$type<...>()` có type đúng.
 
 ## Test bắt buộc
 - Migrate trên `:memory:` tạo đủ bảng (query `sqlite_master`).

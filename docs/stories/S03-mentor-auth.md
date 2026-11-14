@@ -12,10 +12,10 @@ Chỉ mentor được quản lý đề/phiên. App chạy LAN nên chỉ cần m
 - Test helper `loginAsMentor(app)` trả về header cookie dùng cho `app.inject()`.
 
 ## Acceptance criteria
-- [ ] `setup` khi đã setup → 409. Mật khẩu < 6 ký tự → 400.
-- [ ] Sai mật khẩu → 401, thông báo chung "Sai mật khẩu".
-- [ ] Gọi `/api/admin/<bất kỳ route được bảo vệ>` không cookie → 401.
-- [ ] Mật khẩu không bao giờ được log hay trả về.
+- [x] `setup` khi đã setup → 409. Mật khẩu < 6 ký tự → 400.
+- [x] Sai mật khẩu → 401, thông báo chung "Sai mật khẩu".
+- [x] Gọi `/api/admin/<bất kỳ route được bảo vệ>` không cookie → 401.
+- [x] Mật khẩu không bao giờ được log hay trả về.
 
 ## Test bắt buộc
 - Luồng setup → status `loggedIn` → logout → status `loggedIn: false` → login.
