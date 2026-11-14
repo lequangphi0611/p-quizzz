@@ -4,6 +4,7 @@ import fastifyCookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
 import type { Db } from './db/client.js';
 import { adminRoutes as adminRoutesPlugin } from './routes/admin.js';
+import { eventsRoutes } from './routes/events.js';
 import { healthRoutes } from './routes/health.js';
 
 export interface AppOptions {
@@ -22,6 +23,7 @@ export async function buildApp({ db, serveWeb = false, logger = false, adminRout
   await app.register(fastifyCookie);
   await app.register(healthRoutes);
   await app.register(adminRoutesPlugin, { protectedRoutes });
+  await app.register(eventsRoutes);
 
   if (serveWeb) {
     await app.register(fastifyStatic, { root: resolve('dist/web') });

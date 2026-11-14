@@ -12,10 +12,10 @@ Lobby và màn hình chiếu cần cập nhật tức thì. Contract: [architect
 - Trang demo tạm không cần; viết test.
 
 ## Acceptance criteria
-- [ ] 2 client cùng subscribe 1 session đều nhận event; client session khác không nhận.
-- [ ] Ngắt client → listener bị gỡ (không rò rỉ).
-- [ ] Event không chứa dữ liệu nghiệp vụ (`data: {}`).
-- [ ] Hoạt động qua Vite proxy khi `npm run dev` (kiểm tay; nếu proxy buffer, cấu hình lại proxy trong `vite.config.ts`).
+- [x] 2 client cùng subscribe 1 session đều nhận event; client session khác không nhận.
+- [x] Ngắt client → listener bị gỡ (không rò rỉ).
+- [x] Event không chứa dữ liệu nghiệp vụ (`data: {}`).
+- [x] Hoạt động qua Vite proxy khi `npm run dev` (kiểm tay; nếu proxy buffer, cấu hình lại proxy trong `vite.config.ts`).
 
 ## Test bắt buộc
 - Unit test event bus (publish/subscribe/unsubscribe, cô lập theo session).
