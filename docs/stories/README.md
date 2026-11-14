@@ -29,7 +29,7 @@ Mỗi story là một file tự đủ ngữ cảnh để một model/người im
 |---|---|---|---|
 | [S01](S01-db-schema.md) | DB schema + migrate | — | ✅ |
 | [S02](S02-web-foundation.md) | Nền tảng web | — | ✅ |
-| [S03](S03-mentor-auth.md) | Xác thực mentor | S01, S02 | ⬜ |
+| [S03](S03-mentor-auth.md) | Xác thực mentor | S01, S02 | ✅ |
 | [S04](S04-exam-import-api.md) | API import đề | S01, S03 | ⬜ |
 | [S05](S05-exam-import-ui.md) | UI import & quản lý đề | S04 | ⬜ |
 | [S06](S06-session-lifecycle-api.md) | API vòng đời phiên | S01, S03 | ⬜ |

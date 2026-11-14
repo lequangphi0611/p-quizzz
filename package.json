@@ -19,6 +19,7 @@
     "exam:check": "tsx scripts/check-exam.ts"
   },
   "dependencies": {
+    "@fastify/cookie": "^11.1.5",
     "@fastify/static": "^10.1.11",
     "@tailwindcss/vite": "^4.3.5",
     "better-sqlite3": "^13.2.0",

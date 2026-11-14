@@ -1,11 +1,12 @@
+import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { buildApp } from '../app.js';
 import { createDb, type Db } from '../db/client.js';
 import { exams, options, questions } from '../db/schema.js';
 
 // App + in-memory DB (already migrated) for route tests.
-export async function createTestApp() {
+export async function createTestApp(opts: { adminRoutes?: FastifyPluginAsync[] } = {}) {
   const db = createDb(':memory:');
-  const app = await buildApp({ db });
+  const app = await buildApp({ db, ...opts });
   return { app, db };
 }
 
@@ -49,4 +50,15 @@ export function seedExam(db: Db, overrides: ExamOverrides = {}) {
     .run();
 
   return exam;
+}
+
+export const TEST_PASSWORD = 'test-password';
+
+// Sets the mentor password if needed, logs in, and returns headers carrying the auth cookie for app.inject().
+export async function loginAsMentor(app: FastifyInstance): Promise<{ cookie: string }> {
+  const status = (await app.inject({ method: 'GET', url: '/api/admin/status' })).json<{ setupDone: boolean }>();
+  const res = await app.inject({ method: 'POST', url: status.setupDone ? '/api/admin/login' : '/api/admin/setup', payload: { password: TEST_PASSWORD } });
+  const c = res.cookies.find(x => x.name === 'pq_admin');
+  if (!c) throw new Error(`loginAsMentor failed: ${res.statusCode} ${res.body}`);
+  return { cookie: `pq_admin=${c.value}` };
 }
