@@ -5,15 +5,17 @@ import { Icon } from './ui/Icon.js';
 export type OptionResult = 'correct' | 'wrong' | 'missed' | 'neutral';
 
 // One answer row. Interactive when no `result` is given (exam taking); read-only for preview/review.
-export function AnswerOption({ kind = 'single', text, selected = false, result, onClick, disabled = false }: {
+export function AnswerOption({ kind = 'single', text, selected = false, result, onClick, disabled = false, chosenLabel = 'Bạn chọn' }: {
   kind?: 'single' | 'multi'; text: string; selected?: boolean; result?: OptionResult; onClick?: () => void; disabled?: boolean;
+  /** Tag on a wrong pick: "Bạn chọn" to the member, "Đã chọn" when the mentor reads someone else's attempt. */
+  chosenLabel?: string;
 }) {
   const [hover, setHover] = useState(false);
   let bg = 'var(--paper)', border = 'var(--border-strong)', dash = 'solid', mark = 'var(--ink-300)', fill = 'transparent';
   let tag: [string, string, string] | null = null;
   if (selected) { bg = 'var(--selected-bg)'; border = 'var(--selected-border)'; mark = 'var(--brand-600)'; fill = 'var(--brand-600)'; }
   if (result === 'correct') { bg = 'var(--correct-surface)'; border = 'var(--correct-500)'; mark = fill = 'var(--correct-600)'; tag = ['circle-check', 'Đúng', 'var(--correct-600)']; }
-  if (result === 'wrong') { bg = 'var(--wrong-surface)'; border = 'var(--wrong-500)'; mark = fill = 'var(--wrong-600)'; tag = ['circle-x', 'Bạn chọn', 'var(--wrong-600)']; }
+  if (result === 'wrong') { bg = 'var(--wrong-surface)'; border = 'var(--wrong-500)'; mark = fill = 'var(--wrong-600)'; tag = ['circle-x', chosenLabel, 'var(--wrong-600)']; }
   if (result === 'missed') { bg = 'var(--paper)'; border = 'var(--correct-500)'; dash = 'dashed'; mark = 'var(--correct-600)'; fill = 'transparent'; tag = ['check', 'Đáp án đúng', 'var(--correct-600)']; }
   if (result === 'neutral') { bg = 'var(--paper)'; border = 'var(--border-hairline)'; mark = 'var(--ink-300)'; fill = 'transparent'; }
   const isOn = selected || result === 'correct' || result === 'wrong';

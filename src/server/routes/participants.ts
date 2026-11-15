@@ -6,7 +6,7 @@ import { ServiceError } from '../services/errors.js';
 import { requireParticipant } from '../auth/participant.js';
 import { exams, participants, questions, sessions } from '../db/schema.js';
 import { approveParticipant, joinSession, kickParticipant, renameParticipant, toParticipantInfo } from '../services/participants.js';
-import { getMeAttemptState } from '../services/attempts.js';
+import { getMeAttemptState, getParticipantReview } from '../services/attempts.js';
 import { attemptRoutes } from './attempts.js';
 import { fail, parseId } from './util.js';
 
@@ -80,6 +80,17 @@ export async function meRoutes(app: FastifyInstance) {
 
 // Mentor routes. Registered inside the requireMentor scope of /api/admin (see buildApp).
 export async function participantsRoutes(app: FastifyInstance) {
+  // Who took part and how they answered (the "view the session again" screen). Any session status.
+  app.get<{ Params: { id: string } }>('/participants/:id/review', async (req, reply) => {
+    const id = parseId(req.params.id);
+    if (!id) return reply.code(404).send({ error: 'Không tìm thấy người tham gia' });
+    try {
+      return getParticipantReview(app.db, id);
+    } catch (err) {
+      return fail(reply, err);
+    }
+  });
+
   app.patch<{ Params: { id: string } }>('/participants/:id', async (req, reply) => {
     const id = parseId(req.params.id);
     if (!id) return reply.code(404).send({ error: 'Không tìm thấy người tham gia' });

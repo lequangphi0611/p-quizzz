@@ -28,8 +28,8 @@ const label = { font: 'var(--type-label)', textTransform: 'uppercase', letterSpa
 
 // `preview` (mentor): correct answers marked, explanation shown.
 // `review` (member after close, S16): compares `selectedIds` / `answerText` with the key and shows the score.
-export function QuestionPreview({ question: q, index = 0, mode = 'preview', selectedIds = [], answerText, manualScore, feedback }: {
-  question: PreviewQuestion; index?: number; mode?: 'preview' | 'review'; selectedIds?: number[]; answerText?: string; manualScore?: number | null; feedback?: string | null;
+export function QuestionPreview({ question: q, index = 0, mode = 'preview', selectedIds = [], answerText, manualScore, feedback, chosenLabel }: {
+  question: PreviewQuestion; index?: number; mode?: 'preview' | 'review'; selectedIds?: number[]; answerText?: string; manualScore?: number | null; feedback?: string | null; chosenLabel?: string;
 }) {
   const sel = new Set(selectedIds);
   const review = mode === 'review';
@@ -61,7 +61,7 @@ export function QuestionPreview({ question: q, index = 0, mode = 'preview', sele
             let result: OptionResult | undefined;
             if (!review) result = o.isCorrect ? 'correct' : 'neutral';
             else result = chosen ? (o.isCorrect ? 'correct' : 'wrong') : o.isCorrect ? 'missed' : 'neutral';
-            return <AnswerOption key={idOf(o, i)} kind={q.type === 'multi' ? 'multi' : 'single'} text={o.text} result={result} selected={chosen} />;
+            return <AnswerOption key={idOf(o, i)} kind={q.type === 'multi' ? 'multi' : 'single'} text={o.text} result={result} selected={chosen} chosenLabel={chosenLabel} />;
           })}
         </div>
       )}

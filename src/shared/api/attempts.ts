@@ -97,6 +97,13 @@ export interface ReviewQuestion {
   feedback: string | null; // mentor's comment on an essay
 }
 
+// GET /api/admin/participants/:id/review — mentor only. `attempt` is null until the person has submitted.
+export interface ParticipantReview {
+  participant: { id: number; displayName: string; status: 'active' | 'pending' | 'kicked'; joinedAt: number };
+  state: 'none' | 'doing' | 'submitted';
+  attempt: ReviewView | null;
+}
+
 export interface ReviewView {
   attemptId: number;
   attemptNo: number;

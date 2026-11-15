@@ -79,6 +79,7 @@ Mọi body/response là JSON. Lỗi: `{ error: string }` (tiếng Việt, hiển
 | PATCH | `/participants/:id` | `{ displayName }` đổi tên |
 | POST | `/participants/:id/{kick,approve}` | |
 | GET | `/sessions/:id/grading` | Câu tự luận + bài làm của các attempt được tính, nhóm theo câu |
+| GET | `/participants/:id/review` | Bài làm của một người trong phiên (lượt duy nhất): từng câu theo thứ tự họ thấy, lựa chọn của họ, đáp án đúng, giải thích, điểm. Xem được ở mọi trạng thái phiên (chỉ mentor). `{ participant, state, attempt: ReviewView \| null }` |
 | PUT | `/answers/:id/grade` | `{ score, feedback? }`, 0 ≤ score ≤ points; chỉ khi session `closed` |
 
 ### Công khai / member

@@ -82,7 +82,7 @@ DRAFT ──open──▶ LOBBY ──start──▶ RUNNING ──close──�
 ### 4.6 Kết quả & xếp hạng
 - **Member**: thấy điểm của mình + bảng xếp hạng phiên (cập nhật realtime). Đáp án + giải thích chỉ hiện khi phiên `CLOSED`.
 - **Màn hình chiếu**: trang lớn, realtime — lobby (ai đã vào), trong phiên (ai đã nộp, xếp hạng). Nhãn "Tạm tính" cho đến `FINALIZED`.
-- Mỗi phiên độc lập — **không** có xếp hạng tích luỹ qua các phiên. Mentor xem lại được các phiên cũ.
+- Mỗi phiên độc lập — **không** có xếp hạng tích luỹ qua các phiên. Mentor xem lại được các phiên cũ qua **id phiên**: ai đã tham gia (kể cả người bị kick, chờ duyệt), điểm, bảng xếp hạng cuối, và bài làm chi tiết từng người (họ chọn gì, đáp án đúng, giải thích, điểm và nhận xét tự luận).
 
 ## 5. Phạm vi
 

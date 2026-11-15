@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import type { ReviewView } from '../../shared/api/index.js';
-import { QuestionPreview, type PreviewQuestion } from '../components/QuestionPreview.js';
+import { ReviewQuestions } from '../components/ReviewQuestions.js';
 import { Button } from '../components/ui/Button.js';
 import { Card } from '../components/ui/Card.js';
 import { ErrorMessage } from '../components/ui/ErrorMessage.js';
@@ -53,17 +53,7 @@ export function ReviewPage() {
             </span>
           </div>
         </Card>
-        {review.questions.map((q, i) => {
-          const question: PreviewQuestion = {
-            type: q.type, prompt: q.prompt, body: q.body, points: q.points, explanation: q.explanation,
-            options: q.options.map(o => ({ id: o.id, text: o.text, isCorrect: o.isCorrect })),
-          };
-          return (
-            <QuestionPreview key={q.id} index={i} mode="review" question={question}
-              selectedIds={q.selectedOptionIds ?? []} answerText={q.textAnswer ?? undefined}
-              manualScore={q.type === 'essay' ? q.score : undefined} feedback={q.feedback} />
-          );
-        })}
+        <ReviewQuestions review={review} />
         <div>{back}</div>
       </div>
     );

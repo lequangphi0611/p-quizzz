@@ -6,6 +6,7 @@ import type {
   MemberAnswer,
   MemberQuestion,
   ParticipantProgress,
+  ParticipantReview,
   ReviewQuestion,
   ReviewView,
   SubmitResponse,
@@ -133,6 +134,14 @@ export function getAttemptReview(db: Db, participant: ParticipantRow, attemptId:
   if (session.status !== 'closed' && session.status !== 'finalized') throw new ServiceError(403, 'Đáp án sẽ hiện khi phiên thi kết thúc');
   if (!attempt.submittedAt) throw new ServiceError(409, 'Lượt này chưa được nộp');
 
+  return buildReviewView(db, attempt, session);
+}
+
+type SessionRow = ReturnType<typeof getSession>;
+
+// The review content itself: no access rules here. Callers decide who may see it (the member after the close,
+// or the mentor at any time).
+function buildReviewView(db: DbOrTx, attempt: AttemptRow, session: SessionRow): ReviewView {
   const content = loadExamContent(db, session.examId);
   const byId = new Map(content.questions.map(q => [q.id, q]));
   const saved = new Map(db.select().from(answers).where(eq(answers.attemptId, attempt.id)).all().map(a => [a.questionId, a]));
@@ -160,12 +169,25 @@ export function getAttemptReview(db: Db, participant: ParticipantRow, attemptId:
   return {
     attemptId: attempt.id,
     attemptNo: attempt.attemptNo,
-    submittedAt: ms(attempt.submittedAt),
+    submittedAt: ms(attempt.submittedAt!), // callers only pass submitted attempts
     score: totalScore(attempt),
     maxScore: exam.totalPoints,
     official: session.status === 'finalized',
     questions: qs,
   };
+}
+
+// Mentor's view of one person's work in a session (any status; the route is mentor-only). The attempt is the
+// participant's single submitted one; while it is still being written, or never started, there is nothing to show yet.
+export function getParticipantReview(db: Db, participantId: number): ParticipantReview {
+  const p = db.select().from(participants).where(eq(participants.id, participantId)).get();
+  if (!p) throw new ServiceError(404, 'Không tìm thấy người tham gia');
+  const session = getSession(db, p.sessionId);
+  const mine = db.select().from(attempts).where(eq(attempts.participantId, participantId)).orderBy(asc(attempts.attemptNo)).all();
+  const submitted = mine.find(a => a.submittedAt);
+  const info = { id: p.id, displayName: p.displayName, status: p.status, joinedAt: ms(p.joinedAt) };
+  if (submitted) return { participant: info, state: 'submitted', attempt: buildReviewView(db, submitted, session) };
+  return { participant: info, state: mine.length > 0 ? 'doing' : 'none', attempt: null };
 }
 
 // The attempt block of GET /api/me.

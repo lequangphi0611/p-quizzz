@@ -149,6 +149,9 @@ function SessionDetailView({ initial }: { initial: SessionDetailData }) {
         <StatusBadge status={detail.status} />
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Button variant="secondary" icon="presentation" onClick={() => window.open('/screen', '_blank')}>Mở màn hình chiếu</Button>
+          {(detail.status === 'closed' || detail.status === 'finalized') && (
+            <Button variant="secondary" icon="list-checks" onClick={() => nav(`/admin/sessions/${detail.id}/review`)}>Xem lại phiên</Button>
+          )}
           {detail.status === 'closed' && detail.exam.hasEssay && (
             <Button variant="secondary" icon="pencil" onClick={() => nav(`/admin/sessions/${detail.id}/grading`)}>Chấm tự luận</Button>
           )}

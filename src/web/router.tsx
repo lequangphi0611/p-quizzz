@@ -9,6 +9,7 @@ import { Grading, gradingLoader } from './pages/Grading.js';
 import { MemberHome } from './pages/MemberHome.js';
 import { ReviewPage } from './pages/ReviewPage.js';
 import { ScreenPage } from './pages/ScreenPage.js';
+import { SessionReview, sessionReviewLoader } from './pages/SessionReview.js';
 import { ExamDetail, examDetailLoader } from './pages/ExamDetail.js';
 import { ExamImport } from './pages/ExamImport.js';
 import { ExamList, examListLoader } from './pages/ExamList.js';
@@ -68,6 +69,7 @@ export const router = createBrowserRouter([
       { path: '/admin/exams/:id', loader: examDetailLoader, element: <ExamDetail /> },
       { path: '/admin/sessions', loader: sessionListLoader, element: <SessionList /> },
       { path: '/admin/sessions/:id', loader: sessionDetailLoader, element: <SessionDetail /> },
+      { path: '/admin/sessions/:id/review', loader: sessionReviewLoader, element: <SessionReview /> },
       { path: '/admin/sessions/:id/grading', loader: gradingLoader, element: <Grading /> },
     ],
   },
