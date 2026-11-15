@@ -98,7 +98,14 @@ export function SessionList() {
                     <td style={td}><StatusBadge status={s.status} /></td>
                     <td className="pq-tabular" style={{ ...td, fontFamily: 'var(--font-mono)' }}>{s.participantCount}</td>
                     <td style={{ ...td, color: 'var(--text-meta)' }}>{formatDate(s.createdAt)}</td>
-                    <td style={{ ...td, textAlign: 'right', color: 'var(--text-faint)' }}><Icon name="chevron-right" /></td>
+                    <td style={{ ...td, textAlign: 'right' }} onClick={e => e.stopPropagation()}>
+                      {/* One click from the list: finished sessions go straight to the review, others to the control page. */}
+                      {s.status === 'closed' || s.status === 'finalized' ? (
+                        <Button size="sm" variant="secondary" icon="list-checks" onClick={() => nav(`/admin/sessions/${s.id}/review`)}>Xem lại</Button>
+                      ) : (
+                        <Button size="sm" variant="secondary" icon="chevron-right" onClick={() => nav(`/admin/sessions/${s.id}`)}>Điều khiển</Button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
