@@ -7,7 +7,7 @@
 Thiết kế màn **"Thảo luận"** cho p-quizzz, dùng đúng **p-quizzz Design System** (token màu, typography, spacing, radius, motion, icon Lucide, và các component: `Button`, `Card`, `ConfirmDialog`, `ErrorMessage`, `Spinner`, `StatusBadge`, `TextField`, `Icon`, `Markdown`, `AnswerOption`, `QuestionNav`, `QuestionPreview`, `SaveIndicator`, `ScreenLayout`). Toàn bộ chữ trên UI bằng **tiếng Việt**.
 
 ## Bối cảnh
-p-quizzz là app luyện thi chạy trên máy một mentor; học viên vào bằng điện thoại qua mạng LAN. Sau khi **đóng phiên thi**, mentor mở màn này và **chiếu lên máy chiếu** để cả lớp cùng mổ xẻ từng câu: cả lớp đã chọn gì, đáp án đúng, lời giải, và các bài tự luận. Câu tự luận chưa chấm thì cả lớp đi **từng bài**, bàn với nhau, rồi **mentor nhập điểm** ngay trên màn (học viên không thao tác). Cuối buổi mentor **chốt kết quả**.
+p-quizzz là app luyện thi chạy trên máy một mentor; học viên vào bằng laptop hoặc điện thoại qua mạng LAN. Sau khi **đóng phiên thi**, mentor mở màn này và **chiếu lên máy chiếu** để cả lớp cùng mổ xẻ từng câu: cả lớp đã chọn gì, đáp án đúng, lời giải, và các bài tự luận. Câu tự luận chưa chấm thì cả lớp đi **từng bài**, bàn với nhau, rồi **mentor nhập điểm** ngay trên màn (học viên không thao tác). Cuối buổi mentor **chốt kết quả**.
 
 Người thao tác: mentor, dùng chuột/bàn phím trên laptop, màn hình laptop chính là màn được chiếu.
 Người xem: 10–30 học viên ngồi cách màn chiếu 3–8 m.

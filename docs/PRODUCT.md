@@ -7,7 +7,7 @@
 
 - Một mentor dẫn một nhóm member trong dự án. Cần công cụ **ôn luyện vui, đỡ chán**, mentor có thể mở thi nhiều lần.
 - **Không phải** công cụ thi có hệ quả → chống gian lận ở mức tối thiểu, ưu tiên trải nghiệm và tốc độ vận hành.
-- Chạy **local trên máy mentor**, member truy cập qua **mạng LAN** bằng trình duyệt.
+- Chạy **local trên máy mentor**, member truy cập qua **mạng LAN** bằng trình duyệt — **phần lớn từ laptop/desktop, một số từ điện thoại**; giao diện member phải dùng tốt trên cả hai (không thiết kế riêng cho điện thoại).
 
 ### Thước đo thành công (MVP)
 - Mentor đi từ "có file đề MD đã duyệt" → "member đang làm bài" trong **< 3 phút**.
@@ -82,7 +82,7 @@ DRAFT ──open──▶ LOBBY ──start──▶ RUNNING ──close──�
 ### 4.6 Kết quả & xếp hạng
 - **Member**: thấy điểm của mình + bảng xếp hạng phiên (cập nhật realtime). Đáp án + giải thích chỉ hiện khi phiên `CLOSED`.
 - **Màn hình chiếu**: trang lớn, realtime — lobby (ai đã vào), trong phiên (ai đã nộp, xếp hạng). Nhãn "Tạm tính" cho đến `FINALIZED`. Công khai trong LAN: **chỉ tên và điểm**, không bao giờ có đáp án hay bài làm.
-- **Chế độ thảo luận** (sau khi đóng phiên): mentor chiếu **từng câu** lên cho cả lớp cùng mổ xẻ — đề, phân bố lựa chọn của cả lớp, đáp án đúng + lời giải (ẩn trước, bấm mới hiện), và các bài tự luận **ẩn danh**. Tự luận chưa chấm thì cả lớp đi từng bài, bàn rồi **mentor nhập điểm** ngay tại đó; xong thì chốt kết quả. Chỉ mở trong giao diện mentor (máy chiếu là máy mentor); member theo dõi trên màn chiếu và đối chiếu bài của mình ở trang "Xem lại bài" trên điện thoại.
+- **Chế độ thảo luận** (sau khi đóng phiên): mentor chiếu **từng câu** lên cho cả lớp cùng mổ xẻ — đề, phân bố lựa chọn của cả lớp, đáp án đúng + lời giải (ẩn trước, bấm mới hiện), và các bài tự luận **ẩn danh**. Tự luận chưa chấm thì cả lớp đi từng bài, bàn rồi **mentor nhập điểm** ngay tại đó; xong thì chốt kết quả. Chỉ mở trong giao diện mentor (máy chiếu là máy mentor); member theo dõi trên màn chiếu và đối chiếu bài của mình ở trang "Xem lại bài" trên máy của mình.
 - Mỗi phiên độc lập — **không** có xếp hạng tích luỹ qua các phiên. Mentor xem lại được các phiên cũ qua **id phiên**: ai đã tham gia (kể cả người bị kick, chờ duyệt), điểm, bảng xếp hạng cuối, và bài làm chi tiết từng người (họ chọn gì, đáp án đúng, giải thích, điểm và nhận xét tự luận).
 
 ## 5. Phạm vi
