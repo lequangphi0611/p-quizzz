@@ -119,6 +119,15 @@ describe('parseExam — warnings (exam still valid)', () => {
     expect(warnings.some((w) => w.message.includes('Nên có giải thích'))).toBe(true);
   });
 
+  it('warns about images that point outside the LAN, but not local ones', () => {
+    const src = fm('## Q ![x](https://evil.test/a.png)\n- [x] a\n- [ ] b\n> g\n\n## R ![y](/img/a.png)\n- [x] a\n- [ ] b\n> g');
+    const { exam, warnings } = parseExam(src);
+    expect(exam).not.toBeNull();
+    const ext = warnings.filter(w => w.message.includes('bên ngoài'));
+    expect(ext).toHaveLength(1);
+    expect(ext[0]!.line).toBeGreaterThan(0);
+  });
+
   it('does not flag ordinary wording like "cả hai mục"', () => {
     const { warnings } = parseExam(fm('## Q\n- [x] Xuất hiện ở cả hai mục\n- [ ] Untracked\n> x'));
     expect(warnings).toEqual([]);

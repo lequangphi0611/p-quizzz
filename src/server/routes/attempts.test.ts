@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { AttemptView, MeResponse, SubmitResponse } from '../../shared/api/index.js';
 import { answers, attempts, questions } from '../db/schema.js';
 import { bus } from '../events.js';
-import { roomCodeOf, seedExam } from '../test/helpers.js';
+import { joinAs, roomCodeOf, seedExam } from '../test/helpers.js';
 import { allKeys, KEY_LEAKS, world } from '../test/world.js';
 
 describe('POST /api/me/attempts — starting', () => {
@@ -112,7 +112,7 @@ describe('one attempt per session (PRODUCT.md §4.4)', () => {
 
     const next = (await w.admin('/sessions', { examId: w.exam.id })).json<{ id: number }>();
     await w.admin(`/sessions/${next.id}/open`);
-    const token = (await w.app.inject({ method: 'POST', url: `/api/sessions/${next.id}/join`, payload: { displayName: 'Dũng', roomCode: roomCodeOf(w.app, next.id) } })).json<{ token: string }>().token;
+    const token = await joinAs(w.app, next.id, 'Dũng'); // lobby: the helper approves like the mentor
     await w.admin(`/sessions/${next.id}/start`);
     const again = w.asMember(token);
     const v = (await again.start()).json<AttemptView>();

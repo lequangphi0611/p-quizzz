@@ -197,13 +197,14 @@ export function MemberHome() {
     case 'pending':
     case 'lobby': {
       const pending = screen === 'pending';
+      const inLobby = me!.session.status === 'lobby'; // pending before the start: the mentor lets people into the room first
       return page(
         <PageCard desk={desk} center>
-          <StatusBadge status={pending ? 'running' : 'lobby'} label={pending ? 'Phiên đang diễn ra' : 'Phòng chờ'} />
+          <StatusBadge status={pending && !inLobby ? 'running' : 'lobby'} label={pending && !inLobby ? 'Phiên đang diễn ra' : 'Phòng chờ'} />
           <HeroIcon name={pending ? 'hourglass' : 'users'} tone={pending ? 'warn' : 'brand'} />
           <div style={{ display: 'grid', gap: 6 }}>
             <h1 style={mText.h1}>{pending ? 'Chờ mentor duyệt' : 'Chờ mentor bắt đầu'}</h1>
-            <p style={mText.meta}>{pending ? 'Phiên đã bắt đầu trước khi bạn vào. Mentor cần duyệt thì bạn mới làm bài được.' : 'Giữ trang này mở — màn hình tự chuyển khi phiên bắt đầu.'}</p>
+            <p style={mText.meta}>{pending ? (inLobby ? 'Mentor sẽ duyệt tên bạn để vào phòng. Giữ trang này mở — màn hình tự chuyển khi được duyệt.' : 'Phiên đã bắt đầu trước khi bạn vào. Mentor cần duyệt thì bạn mới làm bài được.') : 'Giữ trang này mở — màn hình tự chuyển khi phiên bắt đầu.'}</p>
           </div>
           <InfoBox>
             <InfoRow icon="file-text" k="Đề" v={me!.session.title} />
@@ -220,7 +221,7 @@ export function MemberHome() {
         <PageCard desk={desk} center>
           <HeroIcon name="user-x" tone="ink" />
           <h1 style={mText.h1}>Bạn đã được mời ra khỏi phiên</h1>
-          <p style={mText.meta}>Mentor đã mời bạn ra khỏi phiên{title ? ` “${title}”` : ''}. Nếu có nhầm lẫn, hãy báo mentor. Bạn có thể vào lại bằng một tên khác.</p>
+          <p style={mText.meta}>Mentor đã mời bạn ra khỏi phiên{title ? ` “${title}”` : ''}. Nếu có nhầm lẫn, hãy báo mentor. Bạn có thể xin vào lại bằng cách nhập tên và mã phòng lần nữa.</p>
           <Button variant="secondary" size="lg" icon="arrow-left" block={!desk} onClick={() => { if (activeId !== null) clearParticipantToken(activeId); setHasToken(false); setMe(null); setMeState('idle'); }}>
             Về trang vào phòng
           </Button>

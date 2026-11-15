@@ -1,7 +1,7 @@
 // Autosave engine for the exam-taking screen. Framework-free so its guarantees can be tested:
 //  • a choice is sent at once, typed text after a quiet period (debounce) — rapid edits collapse into one request;
 //  • per question only one request is in flight, and the newest value always goes last (no out-of-order overwrite);
-//  • a failed save is remembered and retried on demand, never silently dropped;
+//  • a failed save is remembered and retried automatically (2s, 5s, then every 10s) and on demand, never silently dropped;
 //  • flushAll() lets "submit" and "next question" wait until everything typed is on the server.
 
 export type SaveState = 'saved' | 'saving' | 'error';
@@ -15,9 +15,11 @@ export class AnswerSaver {
   private timers = new Map<number, ReturnType<typeof setTimeout>>();
   private running = new Map<number, Promise<void>>();
   private disposed = false;
+  private retryTimer: ReturnType<typeof setTimeout> | null = null;
+  private retryStep = 0;
   lastError: unknown = null;
 
-  constructor(private send: SendFn, private onChange: (state: SaveState) => void = () => {}, private debounceMs = 500) {}
+  constructor(private send: SendFn, private onChange: (state: SaveState) => void = () => {}, private debounceMs = 500, private retryDelays: readonly number[] = [2000, 5000, 10000]) {}
 
   get state(): SaveState {
     if (this.failed.size > 0) return 'error';
@@ -51,9 +53,11 @@ export class AnswerSaver {
         try {
           await this.send(questionId, this.latest.get(questionId)!);
           this.failed.delete(questionId);
+          if (this.failed.size === 0) this.resetRetry();
         } catch (err) {
           this.lastError = err;
           this.failed.add(questionId);
+          this.scheduleRetry();
           if (!this.dirty.has(questionId)) break; // nothing newer to try; stay failed until retry()
         }
         this.emit();
@@ -61,6 +65,19 @@ export class AnswerSaver {
     })().finally(() => { this.running.delete(questionId); this.emit(); });
     this.running.set(questionId, run);
     return run;
+  }
+
+  // Back off instead of hammering a server that is down; a restart or a dropped Wi-Fi heals without the member doing anything.
+  private scheduleRetry(): void {
+    if (this.disposed || this.retryTimer) return;
+    const delay = this.retryDelays[Math.min(this.retryStep, this.retryDelays.length - 1)];
+    this.retryStep++;
+    this.retryTimer = setTimeout(() => { this.retryTimer = null; if (this.failed.size > 0) void this.retry(); }, delay);
+  }
+
+  private resetRetry(): void {
+    this.retryStep = 0;
+    if (this.retryTimer) { clearTimeout(this.retryTimer); this.retryTimer = null; }
   }
 
   /** Send everything now (skipping the debounce wait) and wait. True when nothing is left unsaved. */
@@ -81,6 +98,7 @@ export class AnswerSaver {
 
   dispose(): void {
     this.disposed = true;
+    this.resetRetry();
     for (const t of this.timers.values()) clearTimeout(t);
     this.timers.clear();
   }

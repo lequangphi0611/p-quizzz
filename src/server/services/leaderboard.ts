@@ -19,7 +19,8 @@ export function buildLeaderboard(db: Db, sessionId: number): LeaderboardResponse
   const names = new Map(db.select({ id: participants.id, name: participants.displayName }).from(participants).where(eq(participants.sessionId, sessionId)).all().map(p => [p.id, p.name]));
   const entries = [...countedAttempts(db, sessionId)].map(([pid, a]) => ({
     displayName: names.get(pid) ?? '',
-    score: totalScore(a),
+    // PRODUCT §4.5: until the session is finalized only the automatic part counts; essay points the mentor has entered stay hidden.
+    score: session.status === 'finalized' ? totalScore(a) : a.autoScore ?? 0,
     maxScore: session.totalPoints,
     submittedAt: a.submittedAt!.getTime(),
   }));

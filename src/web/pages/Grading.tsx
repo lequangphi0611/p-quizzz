@@ -37,7 +37,14 @@ function AnswerCard({ answer, points, label, locked, onSaved }: {
 
   async function save() {
     if (locked || saving || !dirty) return;
-    if (!check.ok) { if (score.trim() !== '') setError(check.message); return; } // feedback alone waits for a score
+    if (!check.ok) {
+      if (score.trim() !== '') setError(check.message);
+      else if (answer.manualScore !== null) { // a grade cannot be withdrawn: put the saved score back instead of leaving the field blank while the server keeps it
+        setScore(formatScore(answer.manualScore));
+        setError('Không bỏ trống được điểm đã chấm. Nhập điểm mới (có thể là 0).');
+      }
+      return; // feedback alone waits for a score
+    }
     setSaving(true);
     setError('');
     try {

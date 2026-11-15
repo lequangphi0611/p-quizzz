@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { and, eq, inArray, isNotNull } from 'drizzle-orm';
 import type { GradeResponse, GradingAnswer, GradingQuestion, GradingView } from '../../shared/api/index.js';
 import { pickCountedAttempt, totalScore } from '../../shared/scoring.js';
@@ -8,6 +9,13 @@ import { ServiceError } from './errors.js';
 import type { DbOrTx } from './sessions.js';
 
 type AttemptRow = typeof attempts.$inferSelect;
+
+// Stable, per-question shuffle key: the same session + question always gives the same order, different questions give
+// different orders, and it is unrelated to ids or join order. Grading and the discussion screen share it, so "Bài #3"
+// names the same essay in both and the numbering never reveals who joined first.
+export const shuffleKey = (sessionId: number, questionId: number, answerId: number) =>
+  createHash('sha256').update(`${sessionId}:${questionId}:${answerId}`).digest('hex');
+const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 // The attempt of each active participant that counts: their single submitted attempt
 // (kicked members and people who never submitted have none).
@@ -93,7 +101,7 @@ export function getGradingView(db: Db, sessionId: number): GradingView {
     answers: rows
       .filter(r => r.question.id === q.id)
       .map(r => { const pid = byAttempt.get(r.answer.attemptId)!; return toAnswer(r.answer, pid, names.get(pid) ?? ''); })
-      .sort((a, b) => a.participantId - b.participantId),
+      .sort((a, b) => cmp(shuffleKey(sessionId, q.id, a.answerId), shuffleKey(sessionId, q.id, b.answerId))),
   }));
   const all = out.flatMap(q => q.answers);
   return { sessionId, status: info.status, graded: all.filter(a => a.manualScore !== null).length, total: all.length, questions: out };

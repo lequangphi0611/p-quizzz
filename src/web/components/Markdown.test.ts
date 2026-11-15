@@ -13,6 +13,21 @@ describe('<Markdown>', () => {
     expect(html).toContain('hljs-string');
   });
 
+  it('never renders a remote image (offline LAN, and it would leak the viewer IP); shows a placeholder instead', () => {
+    for (const src of ['https://evil.test/a.png', 'http://evil.test/a.png', '//evil.test/a.png', 'HTTPS://EVIL.TEST/a.png']) {
+      const html = render(`![sơ đồ](${src})`);
+      expect(html).not.toContain('<img');
+      expect(html).not.toContain('evil.test');
+      expect(html).toContain('Ảnh ngoài bị chặn');
+    }
+  });
+
+  it('keeps same-origin and data: images', () => {
+    expect(render('![a](/assets/a.png)')).toContain('<img');
+    expect(render('![a](a.png)')).toContain('<img');
+    expect(render('![a](data:image/png;base64,AAAA)')).toContain('<img');
+  });
+
   it('renders GFM tables', () => {
     const html = render('| a | b |\n|---|---|\n| 1 | 2 |');
     expect(html).toContain('<table');

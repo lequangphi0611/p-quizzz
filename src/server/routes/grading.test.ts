@@ -57,10 +57,21 @@ describe('GET /api/admin/sessions/:id/grading', () => {
     expect(v).toMatchObject({ status: 'closed', graded: 0, total: 2 });
     expect(v.questions).toHaveLength(1);
     expect(v.questions[0]).toMatchObject({ id: s.essayQ!.id, prompt: 'Essay?', points: 4 });
-    expect(v.questions[0]!.answers.map(a => [a.displayName, a.textAnswer, a.manualScore, a.feedback])).toEqual([
+    expect(v.questions[0]!.answers.map(a => [a.displayName, a.textAnswer, a.manualScore, a.feedback]).sort()).toEqual([
       ['An', 'merge giữ lịch sử', null, null],
       ['Bình', 'rebase viết lại', null, null],
     ]);
+  });
+
+  it('lists answers in a shuffled order, not join order, so "Bài #n" does not reveal who joined first', async () => {
+    const names = ['An', 'Bình', 'Chi', 'Dũng', 'Em', 'Giang', 'Hà', 'Khoa'];
+    const s = await setup({ names });
+    for (const n of names) await s.submit(n, `bài của ${n}`);
+    await s.close();
+    const order = (await s.view()).questions[0]!.answers.map(a => a.displayName);
+    expect([...order].sort()).toEqual([...names].sort());
+    expect(order).not.toEqual(names);
+    expect((await s.view()).questions[0]!.answers.map(a => a.displayName)).toEqual(order); // stable between requests
   });
 
   it('includes an attempt that closing the session submitted, and a blank essay as null text', async () => {
@@ -71,7 +82,7 @@ describe('GET /api/admin/sessions/:id/grading', () => {
     await s.submit('Bình', null); // submitted without writing the essay
     await s.close();
     const answers = (await s.view()).questions[0]!.answers;
-    expect(answers.map(a => [a.displayName, a.textAnswer])).toEqual([['An', 'viết dở'], ['Bình', null]]);
+    expect(answers.map(a => [a.displayName, a.textAnswer]).sort()).toEqual([['An', 'viết dở'], ['Bình', null]]);
   });
 
   it('leaves out kicked members and members who never submitted', async () => {
@@ -150,7 +161,7 @@ describe('PUT /api/admin/answers/:id/grade', () => {
     expect((await s.answerOf('An')).feedback).toBeNull();
   });
 
-  it("adds to the member's total on the leaderboard, and regrading replaces rather than adds", async () => {
+  it('essay points the mentor has entered stay off the provisional leaderboard until finalize (PRODUCT §4.5), and regrading replaces rather than adds', async () => {
     const s = await setup({ names: ['An', 'Bình'] });
     await s.submit('An', 'a'); // 3 automatic points each
     await s.submit('Bình', 'b');
@@ -159,9 +170,15 @@ describe('PUT /api/admin/answers/:id/grade', () => {
 
     await s.grade('An', { score: 4 });
     await s.grade('Bình', { score: 1.5 });
-    expect((await s.board()).entries.map(e => [e.displayName, e.score])).toEqual([['An', 7], ['Bình', 4.5]]);
-    await s.grade('An', { score: 1 }); // regrade: 3 + 1, not 3 + 4 + 1
-    expect((await s.board()).entries.map(e => [e.displayName, e.score])).toEqual([['Bình', 4.5], ['An', 4]]);
+    await s.grade('An', { score: 1 }); // regrade: the manual part is replaced, not added to
+    const provisional = await s.board();
+    expect(provisional.provisional).toBe(true);
+    expect(provisional.entries.map(e => [e.displayName, e.score])).toEqual([['An', 3], ['Bình', 3]]); // still automatic part only
+
+    await s.finalize();
+    const official = await s.board();
+    expect(official.provisional).toBe(false);
+    expect(official.entries.map(e => [e.displayName, e.score])).toEqual([['Bình', 4.5], ['An', 4]]); // 3 + 1.5, 3 + 1
   });
 
   it('only while the session is closed: 409 while running, and 409 after finalize with the score unchanged', async () => {

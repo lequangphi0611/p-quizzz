@@ -22,6 +22,7 @@ function CreateForm({ exams, initialExamId, onCancel }: { exams: ExamSummary[]; 
   const nav = useNavigate();
   const [examId, setExamId] = useState<number | ''>(exams.some(e => e.id === initialExamId) ? initialExamId! : '');
   const [shuffle, setShuffle] = useState(true);
+  const [autoApprove, setAutoApprove] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -30,7 +31,7 @@ function CreateForm({ exams, initialExamId, onCancel }: { exams: ExamSummary[]; 
     setBusy(true);
     setError('');
     try {
-      const s = await api.post<SessionDetail>('/api/admin/sessions', { examId, shuffle });
+      const s = await api.post<SessionDetail>('/api/admin/sessions', { examId, shuffle, autoApprove });
       nav(`/admin/sessions/${s.id}`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Không tạo được phiên');
@@ -51,6 +52,10 @@ function CreateForm({ exams, initialExamId, onCancel }: { exams: ExamSummary[]; 
         <label style={{ display: 'flex', alignItems: 'center', gap: 10, font: 'var(--type-ui)', color: 'var(--text-title)', cursor: 'pointer' }}>
           <input type="checkbox" checked={shuffle} onChange={e => setShuffle(e.target.checked)} style={{ width: 18, height: 18, accentColor: 'var(--brand-600)' }} />
           Trộn thứ tự câu hỏi và đáp án cho từng người
+        </label>
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, font: 'var(--type-ui)', color: 'var(--text-title)', cursor: 'pointer' }}>
+          <input type="checkbox" checked={autoApprove} onChange={e => setAutoApprove(e.target.checked)} style={{ width: 18, height: 18, marginTop: 2, accentColor: 'var(--brand-600)' }} />
+          <span>Tự động duyệt người vào<br /><span style={{ font: 'var(--type-meta)', color: 'var(--text-meta)' }}>Tắt: bạn duyệt từng tên (tránh một người vào bằng nhiều tên). Bật khi cả nhóm là người quen.</span></span>
         </label>
         {error && <ErrorMessage message={error} />}
         <div style={{ display: 'flex', gap: 8 }}>

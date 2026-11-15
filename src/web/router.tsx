@@ -1,4 +1,4 @@
-import { createBrowserRouter, Outlet, redirect, useLocation, useNavigate, useRouteError } from 'react-router';
+import { createBrowserRouter, isRouteErrorResponse, Outlet, redirect, useLocation, useNavigate, useRouteError } from 'react-router';
 import type { AdminStatus } from '../shared/api/index.js';
 import { api } from './lib/api.js';
 import { ErrorMessage } from './components/ui/ErrorMessage.js';
@@ -50,14 +50,28 @@ const loading = <div style={{ minHeight: '100vh', display: 'grid', placeItems: '
 
 function RouteError() {
   const err = useRouteError();
+  if (isRouteErrorResponse(err) && err.status === 404) return <NotFound />;
   return <div style={{ padding: 24, maxWidth: 480 }}><ErrorMessage title="Không tải được trang" message={err instanceof Error ? err.message : 'Có lỗi xảy ra'} onRetry={() => location.reload()} /></div>;
+}
+
+// Unknown address (typo, old link): say so in plain Vietnamese instead of React Router's developer screen.
+function NotFound() {
+  return (
+    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
+      <div style={{ maxWidth: 420, display: 'grid', gap: 12, textAlign: 'center' }}>
+        <h1 style={{ font: 'var(--type-h1)', margin: 0 }}>Không tìm thấy trang</h1>
+        <p style={{ font: 'var(--type-ui)', color: 'var(--text-meta)', margin: 0 }}>Đường dẫn này không tồn tại hoặc đã cũ. Quay lại trang chính để vào phòng thi.</p>
+        <a href="/" style={{ font: 'var(--type-ui)', fontWeight: 600, color: 'var(--brand-600)' }}>Về trang chính</a>
+      </div>
+    </div>
+  );
 }
 
 // Route table follows docs/architecture.md §8. Real screens replace the placeholders in later stories.
 export const router = createBrowserRouter([
-  { path: '/', element: <MemberHome /> }, // renders its own <MemberLayout> (title and name depend on its state)
-  { path: '/review/:attemptId', element: <ReviewPage /> }, // member: own attempt with the answer key, once the session is over
-  { path: '/screen', element: <ScreenPage /> }, // public projector page; scales its own 1920×1080 stage
+  { path: '/', element: <MemberHome />, errorElement: <RouteError /> }, // renders its own <MemberLayout> (title and name depend on its state)
+  { path: '/review/:attemptId', element: <ReviewPage />, errorElement: <RouteError /> }, // member: own attempt with the answer key, once the session is over
+  { path: '/screen', element: <ScreenPage />, errorElement: <RouteError /> }, // public projector page; scales its own 1920×1080 stage
   { path: '/admin/login', loader: loginLoader, element: <AdminLogin />, errorElement: <RouteError />, hydrateFallbackElement: loading },
   // Projector discussion (S17): mentor-only, full-screen, outside the admin chrome; loads its own data (with its own states).
   { path: '/admin/sessions/:id/discuss', loader: requireLogin, element: <DiscussionPage />, errorElement: <RouteError />, hydrateFallbackElement: loading },
@@ -76,4 +90,5 @@ export const router = createBrowserRouter([
       { path: '/admin/sessions/:id/grading', loader: gradingLoader, element: <Grading /> },
     ],
   },
+  { path: '*', element: <NotFound /> },
 ]);

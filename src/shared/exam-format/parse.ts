@@ -170,6 +170,11 @@ export function parseExam(source: string): ParseResult {
   if (q) finalize(q);
   if (questions.length === 0 && errors.length === 0) err(1, 'Đề chưa có câu hỏi nào (mỗi câu bắt đầu bằng `## `).');
 
+  // The app runs offline on a LAN: an image from the internet will not load, and loading it would leak members' IPs.
+  lines.forEach((text, idx) => {
+    if (/!\[[^\]]*\]\(\s*(?:https?:)?\/\/[^)]*\)/i.test(text)) warn(idx + 1, 'Ảnh trỏ tới địa chỉ bên ngoài sẽ bị chặn (app chạy offline trong LAN). Hãy bỏ ảnh hoặc mô tả bằng chữ.');
+  });
+
   errors.sort((a, b) => a.line - b.line);
   warnings.sort((a, b) => a.line - b.line);
 
