@@ -46,6 +46,7 @@ export interface AttemptSummary {
   submittedAt: number;
   score: number;
   maxScore: number;
+  essayScore: number | null; // essay points graded so far (attempt total, not per question) (null = none graded yet); official once the session is finalized
 }
 
 export interface CurrentAttempt {

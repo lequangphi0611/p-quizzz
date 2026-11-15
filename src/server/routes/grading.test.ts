@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { AttemptView, GradeResponse, GradingView, LeaderboardResponse, SessionDetail } from '../../shared/api/index.js';
+import type { AttemptView, GradeResponse, GradingView, LeaderboardResponse, MeResponse, SessionDetail } from '../../shared/api/index.js';
 import { answers } from '../db/schema.js';
 import { bus } from '../events.js';
 import { world } from '../test/world.js';
@@ -107,6 +107,16 @@ describe('PUT /api/admin/answers/:id/grade', () => {
     expect(body).toMatchObject({ graded: 1, total: 2, answer: { displayName: 'An', manualScore: 3.5, feedback: 'Tốt, thiếu rủi ro rebase' } });
     expect((await s.answerOf('An')).manualScore).toBe(3.5);
     expect((await s.answerOf('Bình')).manualScore).toBeNull();
+  });
+
+  it("the member's own summary carries the essay total once graded (null before)", async () => {
+    const s = await setup();
+    await s.submit('An', 'a');
+    await s.close();
+    const mine = async () => (await s.members.get('An')!.me()).json<MeResponse>().attempt.submitted[0]!;
+    expect(await mine()).toMatchObject({ score: 3, maxScore: 3, essayScore: null });
+    await s.grade('An', { score: 2.5 });
+    expect(await mine()).toMatchObject({ score: 3, essayScore: 2.5 });
   });
 
   it('accepts 0, the maximum and half points; rejects out-of-range, non-half and non-numeric scores with 400', async () => {

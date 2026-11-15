@@ -94,7 +94,7 @@ Mọi body/response là JSON. Lỗi: `{ error: string }` (tiếng Việt, hiển
 | GET | `/api/sessions/:id/participants` | — | Chỉ `{ displayName }[]` của participant `active` (cho màn hình chiếu) |
 | GET | `/api/sessions/:id/leaderboard` | — | Xem §6 |
 | GET | `/api/sessions/:id/events` | — | SSE, xem §7 |
-| GET | `/api/me` | participant | participant + session (id, title, status, `participantCount` = số người `active`, `questionCount`, `totalPoints`, `hasEssay`) + `attempt: { current, submitted[], canStartNew }` (lượt đang làm, lượt đã nộp với điểm tự động, `canStartNew` = chưa có lượt nào và phiên đang `running`) |
+| GET | `/api/me` | participant | participant + session (id, title, status, `participantCount` = số người `active`, `questionCount`, `totalPoints`, `hasEssay`) + `attempt: { current, submitted[], canStartNew }` (lượt đang làm, lượt đã nộp với điểm tự động `score/maxScore` và `essayScore` = tổng điểm tự luận đã chấm hoặc `null`, `canStartNew` = chưa có lượt nào và phiên đang `running`) |
 | POST | `/api/me/attempts` | participant | Bắt đầu lượt. Cần session `running`, participant `active`; mỗi participant chỉ có 1 lượt/phiên (đã có lượt → 409) |
 | GET | `/api/me/attempts/:id` | participant | Câu hỏi theo thứ tự đã trộn + câu trả lời đã lưu |
 | PUT | `/api/me/attempts/:id/answers/:questionId` | participant | `{ selectedOptionIds }` hoặc `{ textAnswer }` — autosave |

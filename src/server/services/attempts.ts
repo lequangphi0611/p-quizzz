@@ -43,7 +43,7 @@ const maxAutoScore = (c: ExamContent) => c.questions.filter(q => q.type !== 'ess
 const ms = (d: Date) => d.getTime();
 
 function toSummary(a: AttemptRow, maxScore: number): AttemptSummary {
-  return { id: a.id, attemptNo: a.attemptNo, submittedAt: ms(a.submittedAt!), score: a.autoScore ?? 0, maxScore };
+  return { id: a.id, attemptNo: a.attemptNo, submittedAt: ms(a.submittedAt!), score: a.autoScore ?? 0, maxScore, essayScore: a.manualScore ?? null };
 }
 
 function getOwnedAttempt(db: DbOrTx, participantId: number, attemptId: number): AttemptRow {

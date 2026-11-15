@@ -282,7 +282,7 @@ describe('GET /api/me — attempt state', () => {
       await w.an.submit(v.id);
       const a = (await w.an.me()).json<MeResponse>().attempt;
       expect(a.current).toBeNull();
-      expect(a.submitted).toEqual([{ id: v.id, attemptNo: 1, submittedAt: expect.any(Number), score: 1, maxScore: 3 }]);
+      expect(a.submitted).toEqual([{ id: v.id, attemptNo: 1, submittedAt: expect.any(Number), score: 1, maxScore: 3, essayScore: null }]);
       expect(a.canStartNew).toBe(false);
     }
   });
