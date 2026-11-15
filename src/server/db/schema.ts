@@ -51,18 +51,25 @@ export const options = sqliteTable(
 );
 
 // No cascade from exams: deleting an exam that has sessions is blocked (API layer returns a friendly error).
-export const sessions = sqliteTable('sessions', {
-  id: id(),
-  examId: integer('exam_id').notNull().references(() => exams.id),
-  mode: text('mode', { enum: ['self_paced', 'live'] }).notNull().default('self_paced'),
-  status: text('status', { enum: ['draft', 'lobby', 'running', 'closed', 'finalized'] }).notNull().default('draft'),
-  shuffle: integer('shuffle', { mode: 'boolean' }).notNull().default(true),
-  createdAt: ts('created_at').notNull(),
-  openedAt: ts('opened_at'),
-  startedAt: ts('started_at'),
-  closedAt: ts('closed_at'),
-  finalizedAt: ts('finalized_at'),
-});
+export const sessions = sqliteTable(
+  'sessions',
+  {
+    id: id(),
+    examId: integer('exam_id').notNull().references(() => exams.id),
+    mode: text('mode', { enum: ['self_paced', 'live'] }).notNull().default('self_paced'),
+    status: text('status', { enum: ['draft', 'lobby', 'running', 'closed', 'finalized'] }).notNull().default('draft'),
+    shuffle: integer('shuffle', { mode: 'boolean' }).notNull().default(true),
+    // 6 random digits, generated when the session is opened (null while draft). Members need it to join.
+    roomCode: text('room_code'),
+    createdAt: ts('created_at').notNull(),
+    openedAt: ts('opened_at'),
+    startedAt: ts('started_at'),
+    closedAt: ts('closed_at'),
+    finalizedAt: ts('finalized_at'),
+  },
+  // Unique across all sessions (NULLs, i.e. drafts, may repeat): an old link can never reach a newer session.
+  t => [uniqueIndex('sessions_room_code_uq').on(t.roomCode)],
+);
 
 export const participants = sqliteTable(
   'participants',

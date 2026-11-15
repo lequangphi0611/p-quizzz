@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import type { ActiveSession, JoinResponse, MeResponse } from '../../shared/api/index.js';
+import { ROOM_CODE_LENGTH, type ActiveSession, type JoinResponse, type MeResponse } from '../../shared/api/index.js';
 import { MemberLayout } from '../layouts/MemberLayout.js';
 import { Button } from '../components/ui/Button.js';
 import { Card } from '../components/ui/Card.js';
@@ -11,6 +11,7 @@ import { api, ApiError, clearParticipantToken, getCurrentSessionId, getParticipa
 import { decideScreen, type MeState } from '../lib/member-screen.js';
 import { useSessionEvents } from '../lib/useSessionEvents.js';
 import { Leaderboard } from '../components/Leaderboard.js';
+import { cleanRoomCode, formatRoomCode, recallRoomCode, rememberRoomCode, roomFromSearch } from '../lib/room-code.js';
 import { MemberExam, ResultView } from './MemberExam.js';
 
 const POLL_MS = 5000;
@@ -30,23 +31,31 @@ function CenterCard({ icon, title, children }: { icon?: React.ReactNode; title: 
   );
 }
 
-function JoinForm({ session, onJoined }: { session: ActiveSession; onJoined: () => Promise<void> }) {
+function JoinForm({ session, linkRoom, onJoined }: { session: ActiveSession; linkRoom: string; onJoined: () => Promise<void> }) {
+  const [room, setRoom] = useState(() => linkRoom || recallRoomCode(session.id));
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [roomError, setRoomError] = useState('');
+  const [nameError, setNameError] = useState('');
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (busy || !name.trim()) return;
+    if (busy || !name.trim() || room.length !== ROOM_CODE_LENGTH) return;
     setBusy(true);
-    setError('');
+    setRoomError('');
+    setNameError('');
     try {
-      const res = await api.post<JoinResponse>(`/api/sessions/${session.id}/join`, { displayName: name });
+      const res = await api.post<JoinResponse>(`/api/sessions/${session.id}/join`, { displayName: name, roomCode: room });
       setParticipantToken(session.id, res.token);
       setCurrentSessionId(session.id);
+      rememberRoomCode(session.id, room);
+      window.history.replaceState(null, '', '/'); // the code in the address bar has done its job
       await onJoined();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không vào được phiên');
+      const message = err instanceof ApiError ? err.message : 'Không vào được phiên';
+      const aboutRoom = err instanceof ApiError && (err.status === 403 || err.status === 429 || /mã phòng/i.test(err.message));
+      if (aboutRoom) setRoomError(err instanceof ApiError && err.status === 403 ? 'Mã phòng không đúng — hỏi lại mentor' : message);
+      else setNameError(message);
       setBusy(false);
     }
   }
@@ -55,10 +64,11 @@ function JoinForm({ session, onJoined }: { session: ActiveSession; onJoined: () 
     <form onSubmit={submit} style={center}>
       <div style={{ display: 'grid', gap: 6 }}>
         <h1 style={h1}>Vào phiên thi</h1>
-        <p style={meta}>Tên này sẽ hiện trên bảng xếp hạng.{session.status === 'running' && ' Phiên đã bắt đầu — sau khi vào, bạn cần chờ mentor duyệt.'}</p>
+        <p style={meta}>Nhập mã phòng mentor cho và tên của bạn — tên này sẽ hiện trên bảng xếp hạng.{session.status === 'running' && ' Phiên đã bắt đầu — sau khi vào, bạn cần chờ mentor duyệt.'}</p>
       </div>
-      <TextField label="Tên của bạn" size="lg" value={name} onChange={v => { setName(v); setError(''); }} placeholder="vd. Minh Anh" maxLength={30} autoFocus autoComplete="nickname" error={error} />
-      <Button type="submit" size="lg" block icon="log-in" loading={busy} disabled={!name.trim()}>{session.status === 'running' ? 'Xin vào phiên' : 'Vào phòng chờ'}</Button>
+      <TextField label="Mã phòng" size="lg" mono inputMode="numeric" value={formatRoomCode(room)} onChange={v => { setRoom(cleanRoomCode(v)); setRoomError(''); }} placeholder="6 chữ số" maxLength={7} autoComplete="off" autoFocus={room.length !== ROOM_CODE_LENGTH} error={roomError} />
+      <TextField label="Tên của bạn" size="lg" value={name} onChange={v => { setName(v); setNameError(''); }} placeholder="vd. Minh Anh" maxLength={30} autoFocus={room.length === ROOM_CODE_LENGTH} autoComplete="nickname" error={nameError} />
+      <Button type="submit" size="lg" block icon="log-in" loading={busy} disabled={!name.trim() || room.length !== ROOM_CODE_LENGTH}>{session.status === 'running' ? 'Xin vào phiên' : 'Vào phòng chờ'}</Button>
     </form>
   );
 }
@@ -69,6 +79,7 @@ export function MemberHome() {
   const [hasToken, setHasToken] = useState(false);
   const [me, setMe] = useState<MeResponse | null>(null);
   const [meState, setMeState] = useState<MeState>('idle');
+  const [linkRoom] = useState(() => roomFromSearch(window.location.search)); // from a join link: /?room=482913
   // The session whose state we follow: the active one, else the one this browser last joined (so the result
   // stays on screen after the mentor closes the session).
   const [remembered, setRemembered] = useState<number | null>(() => {
@@ -148,7 +159,7 @@ export function MemberHome() {
       case 'none':
         return <div style={center}><CenterCard icon={<Icon name="clock" size={32} color="var(--text-faint)" />} title="Chưa có phiên thi nào đang mở"><p style={meta}>Trang sẽ tự cập nhật khi mentor mở phiên.</p></CenterCard></div>;
       case 'join':
-        return <JoinForm session={active!} onJoined={async () => { setRemembered(active!.id); await fetchMe(active!.id); }} />;
+        return <JoinForm session={active!} linkRoom={linkRoom} onJoined={async () => { setRemembered(active!.id); await fetchMe(active!.id); }} />;
       case 'pending':
         return <div style={center}><CenterCard icon={<Spinner size={28} />} title="Đang chờ mentor duyệt"><p style={meta}>Phiên đã bắt đầu. Mentor sẽ cho bạn vào trong giây lát — màn hình tự chuyển khi được duyệt.</p></CenterCard></div>;
       case 'lobby':

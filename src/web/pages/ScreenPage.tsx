@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import type { ActiveSession, LeaderboardResponse, PublicParticipant } from '../../shared/api/index.js';
+import type { ActiveSession, LeaderboardResponse, PublicParticipant, ScreenRoom } from '../../shared/api/index.js';
 import { LeaderboardView } from '../components/Leaderboard.js';
 import { ScreenLayout } from '../layouts/ScreenLayout.js';
-import { api } from '../lib/api.js';
+import { api, ApiError } from '../lib/api.js';
 import { useJoinHost } from '../lib/join-url.js';
+import { formatRoomCode } from '../lib/room-code.js';
 import { useSessionEvents } from '../lib/useSessionEvents.js';
 
 const POLL_MS = 5000;
@@ -34,12 +35,20 @@ function JoinAddress({ host }: { host: string }) {
   return <span style={{ font: '700 var(--fs-screen-hero)/1 var(--font-mono)', color: 'var(--sun-400)', wordBreak: 'break-all' }}>{host}</span>;
 }
 
-function Lobby({ names, host }: { names: string[]; host: string }) {
+function Lobby({ names, host, roomCode, roomHidden }: { names: string[]; host: string; roomCode: string | null; roomHidden: boolean }) {
   return (
     <div style={{ display: 'grid', gridTemplateRows: 'auto 1fr', gap: 48, height: '100%' }}>
-      <div style={{ display: 'grid', gap: 16 }}>
-        <span style={label}>Mở trình duyệt và vào</span>
-        <JoinAddress host={host} />
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 96, flexWrap: 'wrap' }}>
+        <div style={{ display: 'grid', gap: 16 }}>
+          <span style={label}>Mở trình duyệt và vào</span>
+          <JoinAddress host={host} />
+        </div>
+        <div style={{ display: 'grid', gap: 16 }}>
+          <span style={label}>Mã phòng</span>
+          {roomCode
+            ? <span style={{ font: '700 var(--fs-screen-hero)/1 var(--font-mono)', color: '#fff', letterSpacing: '0.08em' }}>{formatRoomCode(roomCode)}</span>
+            : <span style={{ font: '600 40px/1.2 var(--font-sans)', color: 'var(--screen-meta)' }}>{roomHidden ? 'Hỏi mentor mã phòng' : '…'}</span>}
+        </div>
       </div>
       <div style={{ display: 'grid', gap: 24, alignContent: 'start', minHeight: 0 }}>
         <span style={label}>Đã vào · <span style={{ color: '#fff', fontFamily: 'var(--font-mono)' }}>{names.length}</span></span>
@@ -82,6 +91,8 @@ export function ScreenPage() {
   const [latest, setLatest] = useState<ActiveSession | null | undefined>(undefined);
   const [names, setNames] = useState<string[]>([]);
   const [board, setBoard] = useState<LeaderboardResponse | null>(null);
+  const [roomCode, setRoomCode] = useState<string | null>(null);
+  const [roomHidden, setRoomHidden] = useState(false); // this machine is not the mentor's: the server will not hand out the code
   const join = useJoinHost();
   const idRef = useRef<number | null>(null);
   idRef.current = latest?.id ?? null;
@@ -101,6 +112,12 @@ export function ScreenPage() {
       setNames(p.map(x => x.displayName));
       setBoard(b);
     } catch { /* the next event or poll refreshes */ }
+    try {
+      const r = await api.get<ScreenRoom>('/api/screen/room');
+      if (idRef.current === id) { setRoomCode(r.roomCode); setRoomHidden(false); }
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 403) { setRoomCode(null); setRoomHidden(true); }
+    }
   }, []);
 
   useEffect(() => {
@@ -111,7 +128,7 @@ export function ScreenPage() {
 
   // A different session (the mentor opened the next one): drop the old data and load the new.
   const id = latest?.id ?? null;
-  useEffect(() => { setNames([]); setBoard(null); void fetchData(); }, [id, fetchData]);
+  useEffect(() => { setNames([]); setBoard(null); setRoomCode(null); void fetchData(); }, [id, fetchData]);
 
   useSessionEvents(id, {
     session: () => { void fetchLatest(); void fetchData(); },
@@ -122,7 +139,7 @@ export function ScreenPage() {
   const status = latest?.status;
   let body: ReactNode = null;
   if (latest === null) body = <Waiting host={join.host} />;
-  else if (status === 'lobby') body = <Lobby names={names} host={join.host} />;
+  else if (status === 'lobby') body = <Lobby names={names} host={join.host} roomCode={roomCode} roomHidden={roomHidden} />;
   else if (status === 'running') body = <Running board={board} total={names.length} />;
   else if (status === 'closed' || status === 'finalized') body = <Ended board={board} />;
 
@@ -131,7 +148,7 @@ export function ScreenPage() {
       <ScreenLayout
         examTitle={latest?.title}
         status={status === 'lobby' || status === 'running' || status === 'closed' || status === 'finalized' ? status : undefined}
-        joinUrl={status === 'running' || status === 'closed' || status === 'finalized' ? join.host : undefined}
+        joinUrl={status === 'running' ? (roomCode ? `${join.host} · ${formatRoomCode(roomCode)}` : join.host) : status === 'closed' || status === 'finalized' ? join.host : undefined}
       >
         {body}
       </ScreenLayout>

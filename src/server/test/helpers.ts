@@ -1,10 +1,12 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { buildApp } from '../app.js';
+import type { JoinLimiter } from '../auth/join-limiter.js';
 import { createDb, type Db } from '../db/client.js';
-import { exams, options, questions } from '../db/schema.js';
+import { eq } from 'drizzle-orm';
+import { exams, options, questions, sessions } from '../db/schema.js';
 
 // App + in-memory DB (already migrated) for route tests.
-export async function createTestApp(opts: { adminRoutes?: FastifyPluginAsync[]; allowRemoteAdmin?: boolean; lanIps?: () => string[] } = {}) {
+export async function createTestApp(opts: { adminRoutes?: FastifyPluginAsync[]; allowRemoteAdmin?: boolean; lanIps?: () => string[]; joinLimiter?: JoinLimiter } = {}) {
   const db = createDb(':memory:');
   const app = await buildApp({ db, ...opts });
   return { app, db };
@@ -63,9 +65,16 @@ export async function loginAsMentor(app: FastifyInstance): Promise<{ cookie: str
   return { cookie: `pq_admin=${c.value}` };
 }
 
+// The room code of a session (what the mentor shows members). Tests read it from the DB.
+export function roomCodeOf(app: FastifyInstance, sessionId: number): string {
+  const row = app.db.select({ code: sessions.roomCode }).from(sessions).where(eq(sessions.id, sessionId)).get();
+  if (!row?.code) throw new Error(`session ${sessionId} has no room code yet (is it opened?)`);
+  return row.code;
+}
+
 // Joins a session as a member and returns the participant token (works while the session is in lobby/running).
 export async function joinAs(app: FastifyInstance, sessionId: number, displayName: string): Promise<string> {
-  const res = await app.inject({ method: 'POST', url: `/api/sessions/${sessionId}/join`, payload: { displayName } });
+  const res = await app.inject({ method: 'POST', url: `/api/sessions/${sessionId}/join`, payload: { displayName, roomCode: roomCodeOf(app, sessionId) } });
   if (res.statusCode !== 201) throw new Error(`joinAs failed: ${res.statusCode} ${res.body}`);
   return res.json<{ token: string }>().token;
 }

@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { and, eq, ne } from 'drizzle-orm';
 import { displayNameKey, type JoinResponse, type SessionParticipantInfo } from '../../shared/api/index.js';
 import { ACTIVE_STATUSES } from '../../shared/session-state.js';
@@ -50,13 +50,17 @@ function getParticipant(db: DbOrTx, id: number): ParticipantRow {
   return p;
 }
 
-// `displayName` must already be normalized (DisplayNameBody does that).
-export function joinSession(db: Db, sessionId: number, displayName: string): JoinResponse {
+const sameCode = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
+
+// `displayName` must already be normalized and `roomCode` digits-only (JoinBody does both).
+export function joinSession(db: Db, sessionId: number, displayName: string, roomCode: string): JoinResponse {
   const token = randomBytes(32).toString('base64url');
   const row = inTransaction(db, tx => {
-    const s = tx.select({ status: sessions.status }).from(sessions).where(eq(sessions.id, sessionId)).get();
+    const s = tx.select({ status: sessions.status, roomCode: sessions.roomCode }).from(sessions).where(eq(sessions.id, sessionId)).get();
     if (!s) throw new ServiceError(404, 'Không tìm thấy phiên');
     if (!ACTIVE_STATUSES.includes(s.status)) throw new ServiceError(409, 'Phiên thi không mở');
+    // The only 403 joinSession throws: the route counts it towards the per-address limit.
+    if (!s.roomCode || !sameCode(s.roomCode, roomCode)) throw new ServiceError(403, 'Mã phòng không đúng');
     assertNameFree(tx, sessionId, displayName);
     // In the lobby everyone is let in; once running, latecomers wait for the mentor (PRODUCT.md §7.7).
     const status = s.status === 'lobby' ? 'active' : 'pending';

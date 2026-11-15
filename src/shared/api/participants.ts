@@ -20,6 +20,19 @@ export const DisplayNameBody = z.object({
     .refine(s => [...s].length <= MAX_NAME_LENGTH, `Tên tối đa ${MAX_NAME_LENGTH} ký tự`),
 });
 
+export const ROOM_CODE_LENGTH = 6;
+
+/** Digits only: members may paste "482 913" or "482-913". */
+export const normalizeRoomCode = (raw: string): string => raw.replace(/\D/g, '');
+
+// POST /api/sessions/:id/join. The code is validated for format here and for correctness on the server.
+export const JoinBody = DisplayNameBody.extend({
+  roomCode: z
+    .string({ error: 'Nhập mã phòng' })
+    .transform(normalizeRoomCode)
+    .refine(s => s.length === ROOM_CODE_LENGTH, `Mã phòng gồm ${ROOM_CODE_LENGTH} chữ số`),
+});
+
 // The token is returned here and nowhere else.
 export interface JoinResponse {
   token: string;

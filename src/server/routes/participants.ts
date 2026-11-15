@@ -1,6 +1,8 @@
 import { and, count, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
-import { DisplayNameBody, type MeResponse, type PublicParticipant } from '../../shared/api/index.js';
+import { DisplayNameBody, JoinBody, type MeResponse, type PublicParticipant } from '../../shared/api/index.js';
+import { createJoinLimiter, type JoinLimiter } from '../auth/join-limiter.js';
+import { ServiceError } from '../services/errors.js';
 import { requireParticipant } from '../auth/participant.js';
 import { exams, participants, questions, sessions } from '../db/schema.js';
 import { approveParticipant, joinSession, kickParticipant, renameParticipant, toParticipantInfo } from '../services/participants.js';
@@ -10,16 +12,22 @@ import { fail, parseId } from './util.js';
 
 const badBody = (issue: { message: string } | undefined) => ({ error: issue?.message ?? 'Dữ liệu không hợp lệ' });
 
-// Public: a member joins the active session by typing a name.
-export async function joinRoutes(app: FastifyInstance) {
+// Public: a member joins the active session with its room code and a name.
+export async function joinRoutes(app: FastifyInstance, opts: { limiter?: JoinLimiter } = {}) {
+  const limiter = opts.limiter ?? createJoinLimiter();
   app.post<{ Params: { id: string } }>('/api/sessions/:id/join', async (req, reply) => {
+    // Guessing the 6-digit code is slowed down per client address (req.ip is the socket peer, see buildApp).
+    const wait = limiter.retryAfter(req.ip);
+    if (wait > 0) return reply.code(429).header('Retry-After', String(wait)).send({ error: `Nhập sai mã phòng quá nhiều lần. Thử lại sau ${wait} giây` });
+
     const sessionId = parseId(req.params.id);
     if (!sessionId) return reply.code(404).send({ error: 'Không tìm thấy phiên' });
-    const body = DisplayNameBody.safeParse(req.body);
+    const body = JoinBody.safeParse(req.body);
     if (!body.success) return reply.code(400).send(badBody(body.error.issues[0]));
     try {
-      return reply.code(201).send(joinSession(app.db, sessionId, body.data.displayName));
+      return reply.code(201).send(joinSession(app.db, sessionId, body.data.displayName, body.data.roomCode));
     } catch (err) {
+      if (err instanceof ServiceError && err.status === 403) limiter.fail(req.ip);
       return fail(reply, err);
     }
   });

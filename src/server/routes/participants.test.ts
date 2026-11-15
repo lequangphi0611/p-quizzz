@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { JoinResponse, MeResponse, SessionDetail } from '../../shared/api/index.js';
 import { bus } from '../events.js';
-import { createTestApp, joinAs, loginAsMentor, seedExam } from '../test/helpers.js';
+import { createTestApp, joinAs, loginAsMentor, roomCodeOf, seedExam } from '../test/helpers.js';
 
 async function setup(opts: { hasEssay?: boolean } = {}) {
   const { app, db } = await createTestApp();
@@ -14,7 +14,14 @@ async function setup(opts: { hasEssay?: boolean } = {}) {
     for (const a of steps) await act(s.id, a);
     return s.id;
   };
-  const join = (sessionId: number, payload: unknown) => app.inject({ method: 'POST', url: `/api/sessions/${sessionId}/join`, payload: payload as object });
+  // Adds the session's real room code unless the test supplies its own (or the session has none yet).
+  const join = (sessionId: number, payload: unknown, remoteAddress?: string) => {
+    let body = payload;
+    if (body && typeof body === 'object' && !('roomCode' in body)) {
+      try { body = { ...body, roomCode: roomCodeOf(app, sessionId) }; } catch { /* draft session: no code */ }
+    }
+    return app.inject({ method: 'POST', url: `/api/sessions/${sessionId}/join`, payload: body as object, remoteAddress });
+  };
   const me = (token?: string) => app.inject({ url: '/api/me', headers: token ? { 'x-participant-token': token } : {} });
   const detail = async (id: number) => (await app.inject({ url: `/api/admin/sessions/${id}`, headers })).json<SessionDetail>();
   const admin = (method: 'PATCH' | 'POST', url: string, payload?: object) => app.inject({ method, url: `/api/admin${url}`, headers, payload });
@@ -43,11 +50,11 @@ describe('POST /api/sessions/:id/join', () => {
 
   it('a draft session → 409 "Phiên thi không mở"; unknown or malformed session → 404', async () => {
     const { newSession, join, app } = await setup();
-    const res = await join(await newSession('draft'), { displayName: 'An' });
+    const res = await join(await newSession('draft'), { displayName: 'An', roomCode: '123456' }); // a draft has no code yet; the status check comes first
     expect(res.statusCode).toBe(409);
     expect(res.json()).toEqual({ error: 'Phiên thi không mở' });
-    expect((await join(999, { displayName: 'An' })).statusCode).toBe(404);
-    expect((await app.inject({ method: 'POST', url: '/api/sessions/abc/join', payload: { displayName: 'An' } })).statusCode).toBe(404);
+    expect((await join(999, { displayName: 'An', roomCode: '123456' })).statusCode).toBe(404);
+    expect((await app.inject({ method: 'POST', url: '/api/sessions/abc/join', payload: { displayName: 'An', roomCode: '123456' } })).statusCode).toBe(404);
   });
 
   it('closed (essay exam) and finalized (multiple-choice exam) sessions are not joinable', async () => {

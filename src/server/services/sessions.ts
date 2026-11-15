@@ -13,6 +13,7 @@ import { publish } from '../events.js';
 import { autoSubmitOpenAttempts, getSessionProgress, NO_PROGRESS } from './attempts.js';
 import { ServiceError } from './errors.js';
 import { countUngradedEssays } from './grading.js';
+import { newRoomCode } from './room-code.js';
 
 type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 export type DbOrTx = Db | Tx;
@@ -37,6 +38,7 @@ const summaryColumns = {
   mode: sessions.mode,
   status: sessions.status,
   shuffle: sessions.shuffle,
+  roomCode: sessions.roomCode,
   createdAt: sessions.createdAt,
   openedAt: sessions.openedAt,
   startedAt: sessions.startedAt,
@@ -143,6 +145,7 @@ export function transitionSession(db: Db, id: number, action: SessionAction): Se
       const other = tx.select({ id: sessions.id }).from(sessions).where(and(inArray(sessions.status, [...ACTIVE_STATUSES]), ne(sessions.id, id))).get();
       if (other) throw new ServiceError(409, 'Đang có phiên thi khác hoạt động');
       patch.openedAt = now;
+      patch.roomCode = newRoomCode(tx); // fresh code every time a session opens
     } else if (action === 'start') {
       patch.startedAt = now;
     } else if (action === 'close') {

@@ -15,6 +15,7 @@ export interface SessionSummary {
   mode: SessionMode;
   status: SessionStatus;
   shuffle: boolean;
+  roomCode: string | null; // mentor-only; null until the session is opened
   createdAt: number; // epoch ms
   openedAt: number | null;
   startedAt: number | null;
@@ -47,6 +48,11 @@ export interface SessionParticipantDetail extends SessionParticipantInfo {
 export interface SessionDetail extends SessionSummary {
   exam: { id: number; title: string; hasEssay: boolean; totalPoints: number };
   participants: SessionParticipantDetail[];
+}
+
+// GET /api/screen/room — only answers on the mentor's machine (the projector). Never exposed publicly.
+export interface ScreenRoom {
+  roomCode: string | null;
 }
 
 // GET /api/sessions/active (public). `null` when no session is in lobby/running.
