@@ -1,3 +1,4 @@
+import type { ParticipantProgress } from '../../shared/api/index.js';
 import type { SessionAction, SessionStatus } from '../../shared/session-state.js';
 
 export interface ActionSpec {
@@ -24,6 +25,15 @@ export const ACTION_FOR_STATUS: Record<SessionStatus, ActionSpec | null> = {
   finalized: null,
 };
 
-// Progress of one member while the exam runs. S11 will supply attempt data; until then everything is unknown.
-export interface ProgressInfo { label: string; attempts: number | null }
-export const UNKNOWN_PROGRESS: ProgressInfo = { label: '—', attempts: null };
+// How the mentor's progress column reads, per member (data comes from GET /api/admin/sessions/:id).
+export const PROGRESS_LABEL: Record<ParticipantProgress['state'], { label: string; color: string }> = {
+  none: { label: 'Chưa bắt đầu', color: 'var(--text-faint)' },
+  doing: { label: 'Đang làm', color: 'var(--brand-700)' },
+  submitted: { label: 'Đã nộp', color: 'var(--correct-600)' },
+};
+
+/** "7,5/9" — comma decimals like the rest of the UI; "—" while nothing is submitted. */
+export function formatProgressScore(p: ParticipantProgress): string {
+  if (p.countedScore === null) return '—';
+  return `${String(p.countedScore).replace('.', ',')}/${p.maxScore}`;
+}

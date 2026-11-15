@@ -10,6 +10,7 @@ import {
 import type { Db } from '../db/client.js';
 import { exams, participants, sessions } from '../db/schema.js';
 import { publish } from '../events.js';
+import { autoSubmitOpenAttempts, getSessionProgress, NO_PROGRESS } from './attempts.js';
 import { ServiceError } from './errors.js';
 
 type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
@@ -18,11 +19,12 @@ export type DbOrTx = Db | Tx;
 
 // ── Hooks implemented by later stories ──────────────────────────────────────────────────────────
 /**
- * Runs inside the close transaction, before the status changes.
- * TODO(S11): submit every unsubmitted attempt with its saved answers (auto-grading included).
- * Skip participants with status 'kicked': a kicked member's attempts never count (S08).
+ * Runs inside the close transaction, before the status changes: submits and scores every unfinished attempt with
+ * its saved answers (kicked members' attempts are skipped, they never count). Returns how many were submitted.
  */
-export function onSessionClosing(_db: DbOrTx, _sessionId: number): void {}
+export function onSessionClosing(db: DbOrTx, sessionId: number): number {
+  return autoSubmitOpenAttempts(db, sessionId);
+}
 
 /**
  * Whether `finalize` may proceed.
@@ -93,9 +95,13 @@ export function getSessionDetail(db: DbOrTx, id: number): SessionDetail {
     .from(participants)
     .where(eq(participants.sessionId, id))
     .orderBy(participants.id)
-    .all()
-    .map(p => ({ ...p, joinedAt: p.joinedAt.getTime() }));
-  return { ...toSummary(row), exam, participants: people };
+    .all();
+  const progress = getSessionProgress(db, id, exam.hasEssay, exam.totalPoints);
+  return {
+    ...toSummary(row),
+    exam,
+    participants: people.map(p => ({ ...p, joinedAt: p.joinedAt.getTime(), progress: progress.get(p.id) ?? NO_PROGRESS(exam.totalPoints) })),
+  };
 }
 
 export function getActiveSession(db: Db): ActiveSession | null {
@@ -111,6 +117,7 @@ export function getActiveSession(db: Db): ActiveSession | null {
 
 // Applies a lifecycle action atomically, stamps the matching timestamp(s), then signals SSE listeners.
 export function transitionSession(db: Db, id: number, action: SessionAction): SessionDetail {
+  let autoSubmitted = 0;
   db.transaction(tx => {
     const s = tx.select().from(sessions).where(eq(sessions.id, id)).get();
     if (!s) throw new ServiceError(404, 'Không tìm thấy phiên');
@@ -131,7 +138,7 @@ export function transitionSession(db: Db, id: number, action: SessionAction): Se
     } else if (action === 'start') {
       patch.startedAt = now;
     } else if (action === 'close') {
-      onSessionClosing(tx, id);
+      autoSubmitted = onSessionClosing(tx, id);
       patch.closedAt = now;
       const exam = tx.select({ hasEssay: exams.hasEssay }).from(exams).where(eq(exams.id, s.examId)).get()!;
       if (!exam.hasEssay) {
@@ -148,5 +155,9 @@ export function transitionSession(db: Db, id: number, action: SessionAction): Se
   });
 
   publish(id, 'session');
+  if (autoSubmitted > 0) {
+    publish(id, 'leaderboard'); // closing just submitted people's work
+    publish(id, 'participants');
+  }
   return getSessionDetail(db, id);
 }

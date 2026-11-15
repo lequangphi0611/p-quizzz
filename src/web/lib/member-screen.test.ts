@@ -7,7 +7,7 @@ const active = (status: 'lobby' | 'running' = 'lobby'): ActiveSession => ({ id: 
 const me = (p: 'active' | 'pending' | 'kicked', s: SessionStatus, sessionId = 1): MeResponse => ({
   participant: { id: 1, displayName: 'An', status: p, joinedAt: 0 },
   session: { id: sessionId, title: 'Đề', status: s, participantCount: 3 },
-  attempt: null,
+  attempt: { current: null, submitted: [], canStartNew: false },
 });
 const screen = (a: ActiveSession | null | undefined, hasToken: boolean, m: MeResponse | null, meState: MeState = m ? 'ok' : 'idle') =>
   decideScreen({ active: a, hasToken, me: m, meState });

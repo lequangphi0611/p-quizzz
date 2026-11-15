@@ -31,9 +31,22 @@ export interface SessionParticipantInfo {
   joinedAt: number; // epoch ms
 }
 
+// Mentor's view of one member's work. `countedScore` is the counted attempt's score so far
+// (automatic + manual graded so far); null until something is submitted.
+export interface ParticipantProgress {
+  state: 'none' | 'doing' | 'submitted';
+  attempts: number; // attempts started, including one in progress
+  countedScore: number | null;
+  maxScore: number; // exam total points
+}
+
+export interface SessionParticipantDetail extends SessionParticipantInfo {
+  progress: ParticipantProgress;
+}
+
 export interface SessionDetail extends SessionSummary {
   exam: { id: number; title: string; hasEssay: boolean; totalPoints: number };
-  participants: SessionParticipantInfo[];
+  participants: SessionParticipantDetail[];
 }
 
 // GET /api/sessions/active (public). `null` when no session is in lobby/running.

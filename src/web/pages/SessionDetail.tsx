@@ -9,7 +9,7 @@ import { Icon } from '../components/ui/Icon.js';
 import { StatusBadge } from '../components/ui/StatusBadge.js';
 import { th, td } from '../components/ui/tableStyles.js';
 import { api, ApiError } from '../lib/api.js';
-import { ACTION_FOR_STATUS, UNKNOWN_PROGRESS } from '../lib/session-ui.js';
+import { ACTION_FOR_STATUS, formatProgressScore, PROGRESS_LABEL } from '../lib/session-ui.js';
 import { useSessionEvents } from '../lib/useSessionEvents.js';
 
 export const sessionDetailLoader = ({ params }: LoaderFunctionArgs) => api.get<SessionDetailData>(`/api/admin/sessions/${params.id}`);
@@ -151,7 +151,7 @@ function SessionDetailView({ initial }: { initial: SessionDetailData }) {
             </p>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead><tr><th style={th}>Tên</th>{showProgress && <><th style={th}>Tiến độ</th><th style={th}>Lượt</th></>}<th style={th} /></tr></thead>
+              <thead><tr><th style={th}>Tên</th>{showProgress && <><th style={th}>Tiến độ</th><th style={th}>Lượt</th><th style={th}>Điểm tạm tính</th></>}<th style={th} /></tr></thead>
               <tbody>
                 {active.map(p => (
                   <tr key={p.id}>
@@ -159,8 +159,9 @@ function SessionDetailView({ initial }: { initial: SessionDetailData }) {
                       <NameCell p={p} disabled={working} readOnly={finalized} onSave={name => run(async () => { await api.patch(`/api/admin/participants/${p.id}`, { displayName: name }); await refetch(); }, 'Không đổi được tên')} />
                     </td>
                     {showProgress && <>
-                      <td style={{ ...td, color: 'var(--text-faint)' }}>{UNKNOWN_PROGRESS.label}</td>
-                      <td style={{ ...td, fontFamily: 'var(--font-mono)', color: 'var(--text-faint)' }}>{UNKNOWN_PROGRESS.attempts ?? '—'}</td>
+                      <td style={{ ...td, color: PROGRESS_LABEL[p.progress.state].color }}>{PROGRESS_LABEL[p.progress.state].label}</td>
+                      <td className="pq-tabular" style={{ ...td, fontFamily: 'var(--font-mono)' }}>{p.progress.attempts}</td>
+                      <td className="pq-tabular" style={{ ...td, fontFamily: 'var(--font-mono)' }}>{formatProgressScore(p.progress)}</td>
                     </>}
                     <td style={{ ...td, textAlign: 'right' }}>
                       {!finalized && <Button size="sm" variant="ghost" icon="user-x" disabled={working} onClick={() => setDialog({ kind: 'kick', p })}>Kick</Button>}

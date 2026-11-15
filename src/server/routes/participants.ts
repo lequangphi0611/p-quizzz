@@ -4,6 +4,8 @@ import { DisplayNameBody, type MeResponse } from '../../shared/api/index.js';
 import { requireParticipant } from '../auth/participant.js';
 import { exams, participants, sessions } from '../db/schema.js';
 import { approveParticipant, joinSession, kickParticipant, renameParticipant, toParticipantInfo } from '../services/participants.js';
+import { getMeAttemptState } from '../services/attempts.js';
+import { attemptRoutes } from './attempts.js';
 import { fail, parseId } from './util.js';
 
 const badBody = (issue: { message: string } | undefined) => ({ error: issue?.message ?? 'Dữ liệu không hợp lệ' });
@@ -23,12 +25,14 @@ export async function joinRoutes(app: FastifyInstance) {
   });
 }
 
-// Member routes under /api/me, behind requireParticipant. S11 adds /attempts here.
+// Member routes under /api/me, behind requireParticipant.
 export async function meRoutes(app: FastifyInstance) {
   app.decorateRequest('participant', null);
   await app.register(
     async me => {
       me.addHook('onRequest', requireParticipant(app.db));
+
+      await me.register(attemptRoutes);
 
       me.get('/', async (req): Promise<MeResponse> => {
         const p = req.participant!;
@@ -43,7 +47,7 @@ export async function meRoutes(app: FastifyInstance) {
           .from(participants)
           .where(and(eq(participants.sessionId, p.sessionId), eq(participants.status, 'active')))
           .get()!;
-        return { participant: toParticipantInfo(p), session: { ...s, participantCount: n }, attempt: null };
+        return { participant: toParticipantInfo(p), session: { ...s, participantCount: n }, attempt: getMeAttemptState(app.db, p) };
       });
     },
     { prefix: '/api/me' },

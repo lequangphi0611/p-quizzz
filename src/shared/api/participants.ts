@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { SessionStatus } from '../session-state.js';
+import type { MeAttemptState } from './attempts.js';
 import type { SessionParticipantInfo } from './sessions.js';
 
 export const MAX_NAME_LENGTH = 30;
@@ -25,10 +26,10 @@ export interface JoinResponse {
   participant: SessionParticipantInfo;
 }
 
-// GET /api/me. `attempt` is filled in by S11.
+// GET /api/me.
 export interface MeResponse {
   participant: SessionParticipantInfo;
   // participantCount = members with status 'active' (the lobby shows "N người đã vào").
   session: { id: number; title: string; status: SessionStatus; participantCount: number };
-  attempt: null;
+  attempt: MeAttemptState;
 }

@@ -112,7 +112,7 @@ describe('GET /api/me', () => {
     expect((await me('nope')).statusCode).toBe(401);
   });
 
-  it('returns the participant and the session; attempt is null until S11', async () => {
+  it('returns the participant, the session and the attempt state', async () => {
     const { newSession, join, me } = await setup();
     const sid = await newSession('lobby');
     const { token } = (await join(sid, { displayName: 'An' })).json<JoinResponse>();
@@ -121,7 +121,7 @@ describe('GET /api/me', () => {
     expect(res.json<MeResponse>()).toEqual({
       participant: { id: expect.any(Number), displayName: 'An', status: 'active', joinedAt: expect.any(Number) },
       session: { id: sid, title: 'Đề Git', status: 'lobby', participantCount: 1 },
-      attempt: null,
+      attempt: { current: null, submitted: [], canStartNew: false }, // lobby: nothing to start yet
     });
   });
 

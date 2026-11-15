@@ -22,9 +22,9 @@ Lõi nghiệp vụ: bắt đầu lượt, trộn câu, autosave, nộp, chấm, 
 - Chỉ chủ lượt mới truy cập được lượt đó (khác participant → 404).
 
 ## Acceptance criteria
-- [ ] Mọi quy tắc trên có test.
-- [ ] **Test không lộ đáp án**: response của mọi endpoint `/api/me/*` trước khi đóng phiên không chứa key `isCorrect`/`is_correct`/`explanation` (kiểm đệ quy trên JSON).
-- [ ] Đóng phiên khi có người đang làm → lượt đó được nộp và chấm.
+- [x] Mọi quy tắc trên có test.
+- [x] **Test không lộ đáp án**: response của mọi endpoint `/api/me/*` trước khi đóng phiên không chứa key `isCorrect`/`is_correct`/`explanation` (kiểm đệ quy trên JSON).
+- [x] Đóng phiên khi có người đang làm → lượt đó được nộp và chấm.
 
 ## Test bắt buộc
 - `scoreAnswer`: single đúng/sai/bỏ trống; multi đúng hết/thiếu/thừa; essay → null.
