@@ -79,6 +79,7 @@ Mọi body/response là JSON. Lỗi: `{ error: string }` (tiếng Việt, hiển
 | PATCH | `/participants/:id` | `{ displayName }` đổi tên |
 | POST | `/participants/:id/{kick,approve}` | |
 | GET | `/sessions/:id/grading` | Câu tự luận + bài làm của các attempt được tính, nhóm theo câu |
+| GET | `/sessions/:id/discussion` | Chế độ thảo luận (S17). Chỉ khi `closed`/`finalized` (khác → 409). Mỗi câu theo `position`: nội dung, lời giải, options kèm `isCorrect` và **số người chọn**; thống kê đúng/sai/bỏ trống; câu tự luận: các bài **ẩn danh** `{ answerId, label: "Bài #k", textAnswer, manualScore, feedback }` theo thứ tự trộn cố định. **Không** trả `displayName`/`participantId`. Chấm điểm dùng `PUT /answers/:id/grade` |
 | GET | `/participants/:id/review` | Bài làm của một người trong phiên (lượt duy nhất): từng câu theo thứ tự họ thấy, lựa chọn của họ, đáp án đúng, giải thích, điểm. Xem được ở mọi trạng thái phiên (chỉ mentor). `{ participant, state, attempt: ReviewView \| null }` |
 | PUT | `/answers/:id/grade` | `{ score, feedback? }`, 0 ≤ score ≤ points; chỉ khi session `closed` |
 
@@ -134,5 +135,7 @@ Hàm thuần trong `src/shared/scoring.ts`:
 | `/admin/exams` · `/admin/exams/import` · `/admin/exams/:id` | mentor | Danh sách đề · import + preview · chi tiết đề |
 | `/admin/sessions` · `/admin/sessions/:id` | mentor | Lịch sử phiên · điều khiển phiên (lobby, tiến độ, đóng) |
 | `/admin/sessions/:id/grading` | mentor | Chấm tự luận |
+| `/admin/sessions/:id/review` | mentor | Xem lại phiên: ai tham gia, bài từng người |
+| `/admin/sessions/:id/discuss` | mentor | Chế độ thảo luận: chiếu từng câu, chấm tự luận cùng lớp (S17) |
 
 Gọi API qua `src/web/lib/api.ts` (wrapper `fetch`, tự gắn token member, ném lỗi có `message` từ `{ error }`). UI text tiếng Việt.
