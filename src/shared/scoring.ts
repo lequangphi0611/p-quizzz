@@ -40,3 +40,27 @@ export function pickCountedAttempt<T extends CountableAttempt>(attempts: readonl
   if (hasEssay) return submitted[0]!;
   return submitted.reduce((best, a) => (a.score > best.score ? a : best));
 }
+
+export interface RankableEntry {
+  displayName: string;
+  score: number;
+  submittedAt: number; // epoch ms of the counted attempt
+}
+
+/**
+ * Leaderboard order: higher score first; equal score → earlier submission first (PRODUCT.md §7.1).
+ * Entries with the same score AND the same submission time share a rank, and the next rank skips
+ * ahead as in sports tables (1, 1, 3).
+ */
+export function rankLeaderboard<T extends RankableEntry>(rows: readonly T[]): (T & { rank: number })[] {
+  const sorted = [...rows].sort(
+    (a, b) => b.score - a.score || a.submittedAt - b.submittedAt || a.displayName.localeCompare(b.displayName, 'vi'),
+  );
+  const out: (T & { rank: number })[] = [];
+  sorted.forEach((row, i) => {
+    const prev = out[i - 1];
+    const tied = prev !== undefined && prev.score === row.score && prev.submittedAt === row.submittedAt;
+    out.push({ ...row, rank: tied ? prev.rank : i + 1 });
+  });
+  return out;
+}

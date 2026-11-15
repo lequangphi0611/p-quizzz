@@ -74,6 +74,7 @@ export function renameParticipant(db: Db, id: number, displayName: string): Sess
     return tx.update(participants).set({ displayName }).where(eq(participants.id, id)).returning().get();
   });
   publish(row.sessionId, 'participants');
+  publish(row.sessionId, 'leaderboard'); // the ranking shows names
   return toParticipantInfo(row);
 }
 
@@ -86,6 +87,7 @@ export function kickParticipant(db: Db, id: number): SessionParticipantInfo {
     return tx.update(participants).set({ status: 'kicked' }).where(eq(participants.id, id)).returning().get();
   });
   publish(row.sessionId, 'participants');
+  publish(row.sessionId, 'leaderboard'); // a kicked member leaves the ranking
   return toParticipantInfo(row);
 }
 

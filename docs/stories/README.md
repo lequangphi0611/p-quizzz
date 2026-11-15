@@ -39,7 +39,7 @@ Mỗi story là một file tự đủ ngữ cảnh để một model/người im
 | [S10](S10-member-join-ui.md) | UI vào phiên & phòng chờ (member) | S08 | ✅ |
 | [S11](S11-attempt-api.md) | API làm bài & chấm tự động | S08 | ✅ |
 | [S12](S12-exam-taking-ui.md) | UI làm bài | S10, S11 | ✅ |
-| [S13](S13-leaderboard.md) | Bảng xếp hạng (API + UI member) | S11 | ⬜ |
+| [S13](S13-leaderboard.md) | Bảng xếp hạng (API + UI member) | S11 | ✅ |
 | [S14](S14-projector-screen.md) | Màn hình chiếu | S13 | ⬜ |
 | [S15](S15-essay-grading.md) | Chấm tự luận & chốt phiên | S11, S09 | ⬜ |
 | [S16](S16-review-after-close.md) | Xem lại bài sau khi đóng phiên | S12 | ⬜ |

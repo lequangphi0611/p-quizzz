@@ -245,26 +245,27 @@ describe('admin session detail', () => {
 });
 
 describe('realtime signal', () => {
-  it('publishes "participants" on join, rename, kick and approve — and not when a call fails', async () => {
+  it('join/approve → participants; rename/kick → participants + leaderboard — and nothing when a call fails', async () => {
     const { newSession, join, admin, idOf } = await setup();
     const sid = await newSession('running');
     const events: string[] = [];
     const off = bus.subscribe(sid, t => events.push(t));
+    const take = () => events.splice(0).sort();
 
     await join(sid, { displayName: 'An' });
-    expect(events).toEqual(['participants']);
+    expect(take()).toEqual(['participants']);
     const id = await idOf(sid, 'An');
     await admin('POST', `/participants/${id}/approve`);
+    expect(take()).toEqual(['participants']);
     await admin('PATCH', `/participants/${id}`, { displayName: 'Anh' });
+    expect(take()).toEqual(['leaderboard', 'participants']); // the ranking shows names
     await admin('POST', `/participants/${id}/kick`);
-    expect(events).toEqual(['participants', 'participants', 'participants', 'participants']);
+    expect(take()).toEqual(['leaderboard', 'participants']); // a kicked member leaves the ranking
 
-    events.length = 0;
     await join(sid, { displayName: '' }); // 400
     await admin('POST', `/participants/${id}/kick`); // 409
     await admin('POST', `/participants/${id}/approve`); // 409
-    await join(sid, { displayName: 'Bình' }); // ok, +1
-    expect(events).toEqual(['participants']);
+    expect(take()).toEqual([]);
     off();
   });
 });

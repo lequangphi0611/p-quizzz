@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pickCountedAttempt, scoreAnswer, totalScore, type ScorableQuestion } from './scoring.js';
+import { pickCountedAttempt, rankLeaderboard, scoreAnswer, totalScore, type ScorableQuestion } from './scoring.js';
 
 const single: ScorableQuestion = { type: 'single', points: 2, options: [{ id: 1, isCorrect: false }, { id: 2, isCorrect: true }, { id: 3, isCorrect: false }] };
 const multi: ScorableQuestion = { type: 'multi', points: 3, options: [{ id: 1, isCorrect: true }, { id: 2, isCorrect: true }, { id: 3, isCorrect: false }, { id: 4, isCorrect: false }] };
@@ -72,5 +72,39 @@ describe('pickCountedAttempt', () => {
     const input = [a(2, 1, 200), a(1, 1, 100)];
     pickCountedAttempt(input, false);
     expect(input.map(x => x.id)).toEqual([2, 1]);
+  });
+});
+
+describe('rankLeaderboard', () => {
+  const e = (displayName: string, score: number, submittedAt: number) => ({ displayName, score, submittedAt });
+  const names = (rows: { displayName: string }[]) => rows.map(r => r.displayName);
+
+  it('orders by score, highest first', () => {
+    expect(names(rankLeaderboard([e('b', 5, 1), e('a', 9, 2), e('c', 7, 3)]))).toEqual(['a', 'c', 'b']);
+  });
+  it('equal score: whoever submitted earlier ranks higher', () => {
+    const out = rankLeaderboard([e('late', 5, 300), e('early', 5, 100), e('mid', 5, 200)]);
+    expect(names(out)).toEqual(['early', 'mid', 'late']);
+    expect(out.map(r => r.rank)).toEqual([1, 2, 3]);
+  });
+  it('same score and same instant share a rank; the next rank skips (1, 1, 3)', () => {
+    const out = rankLeaderboard([e('x', 9, 100), e('y', 9, 100), e('z', 5, 50)]);
+    expect(out.map(r => r.rank)).toEqual([1, 1, 3]);
+  });
+  it('a three-way tie, then the rest: 1, 1, 1, 4', () => {
+    expect(rankLeaderboard([e('a', 9, 1), e('b', 9, 1), e('c', 9, 1), e('d', 2, 1)]).map(r => r.rank)).toEqual([1, 1, 1, 4]);
+  });
+  it('handles half points', () => {
+    expect(names(rankLeaderboard([e('a', 7, 1), e('b', 7.5, 2)]))).toEqual(['b', 'a']);
+  });
+  it('is deterministic for full ties (by name) and keeps extra fields', () => {
+    const out = rankLeaderboard([{ ...e('Bình', 3, 1), id: 2 }, { ...e('An', 3, 1), id: 1 }]);
+    expect(out.map(r => [r.displayName, r.id, r.rank])).toEqual([['An', 1, 1], ['Bình', 2, 1]]);
+  });
+  it('empty in, empty out; does not mutate the input', () => {
+    expect(rankLeaderboard([])).toEqual([]);
+    const input = [e('b', 1, 1), e('a', 2, 1)];
+    rankLeaderboard(input);
+    expect(names(input)).toEqual(['b', 'a']);
   });
 });

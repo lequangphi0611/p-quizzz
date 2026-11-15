@@ -11,9 +11,9 @@ Bảng xếp hạng tạo không khí thi đua — mục tiêu "đỡ chán". Co
 - Gắn vào màn hình kết quả của member (S12) — nếu S12 chưa merge, chỉ export component và ghi chú trong báo cáo.
 
 ## Acceptance criteria
-- [ ] Member chưa nộp bài không xuất hiện; người bị kick không xuất hiện.
-- [ ] Đề trắc nghiệm làm lại: điểm hiển thị là lượt cao nhất.
-- [ ] Sau khi chấm tự luận và chốt phiên, điểm cập nhật và mất nhãn "Tạm tính".
+- [x] Member chưa nộp bài không xuất hiện; người bị kick không xuất hiện.
+- [x] Đề trắc nghiệm làm lại: điểm hiển thị là lượt cao nhất.
+- [x] Sau khi chấm tự luận và chốt phiên, điểm cập nhật và mất nhãn "Tạm tính".
 
 ## Test bắt buộc
 - API: thứ tự theo điểm, hoà điểm theo thời gian nộp, loại người kick/chưa nộp, `provisional` theo trạng thái.

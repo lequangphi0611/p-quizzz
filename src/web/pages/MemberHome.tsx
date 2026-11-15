@@ -10,6 +10,7 @@ import { TextField } from '../components/ui/TextField.js';
 import { api, ApiError, clearParticipantToken, getCurrentSessionId, getParticipantToken, setCurrentSessionId, setParticipantToken } from '../lib/api.js';
 import { decideScreen, type MeState } from '../lib/member-screen.js';
 import { useSessionEvents } from '../lib/useSessionEvents.js';
+import { Leaderboard } from '../components/Leaderboard.js';
 import { MemberExam, ResultView } from './MemberExam.js';
 
 const POLL_MS = 5000;
@@ -161,7 +162,7 @@ export function MemberHome() {
       case 'running':
         return null; // rendered by <MemberExam> below, with its own layout
       case 'ended':
-        return <ResultView me={me!} ended onStart={async () => {}} />;
+        return <ResultView me={me!} ended onStart={async () => {}}><Leaderboard sessionId={me!.session.id} highlightName={me!.participant.displayName} /></ResultView>;
       case 'kicked':
         return (
           <div style={center}>
@@ -175,6 +176,8 @@ export function MemberHome() {
   })();
 
   // The exam screen brings its own layout (sticky footer, session title).
-  if (screen === 'running') return <MemberExam me={me!} onChanged={refreshMe} />;
+  if (screen === 'running') {
+    return <MemberExam me={me!} onChanged={refreshMe} leaderboard={<Leaderboard sessionId={me!.session.id} highlightName={me!.participant.displayName} />} />;
+  }
   return <MemberLayout sessionTitle={title} displayName={name}>{view}</MemberLayout>;
 }

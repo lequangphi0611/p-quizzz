@@ -5,6 +5,7 @@ import fastifyStatic from '@fastify/static';
 import type { Db } from './db/client.js';
 import { adminRoutes as adminRoutesPlugin } from './routes/admin.js';
 import { examsRoutes } from './routes/exams.js';
+import { leaderboardRoutes } from './routes/leaderboard.js';
 import { joinRoutes, meRoutes, participantsRoutes } from './routes/participants.js';
 import { publicSessionsRoutes, sessionsRoutes } from './routes/sessions.js';
 import { eventsRoutes } from './routes/events.js';
@@ -33,6 +34,7 @@ export async function buildApp({ db, serveWeb = false, logger = false, allowRemo
   await app.register(adminRoutesPlugin, { protectedRoutes, allowRemote: allowRemoteAdmin });
   await app.register(eventsRoutes);
   await app.register(publicSessionsRoutes);
+  await app.register(leaderboardRoutes);
   await app.register(joinRoutes);
   await app.register(meRoutes);
 
