@@ -6,6 +6,7 @@ export type SessionMode = 'self_paced' | 'live';
 export const CreateSessionBody = z.object({
   examId: z.number().int().positive('Chọn một đề'),
   shuffle: z.boolean().optional(),
+  autoApprove: z.boolean().optional(), // let everyone in without the mentor's approval (default false)
 });
 
 export interface SessionSummary {
@@ -15,6 +16,7 @@ export interface SessionSummary {
   mode: SessionMode;
   status: SessionStatus;
   shuffle: boolean;
+  autoApprove: boolean;
   roomCode: string | null; // mentor-only; null until the session is opened
   createdAt: number; // epoch ms
   openedAt: number | null;

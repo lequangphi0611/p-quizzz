@@ -133,7 +133,7 @@ Các mục dưới đây đã lấy **mặc định** để chia story (2026-11-
 4. Đề **bất biến** sau khi import; muốn sửa → import đề mới. Chỉ xoá được đề chưa dùng cho phiên nào.
 5. Tối đa **1 phiên hoạt động** (lobby/running) cùng lúc — 1 mentor, 1 phòng. Member vào bằng **link có mã phòng** hoặc mở URL gốc rồi nhập mã (xem mục 16).
 6. Đóng phiên khi member đang làm dở → **tự nộp** với câu trả lời đã lưu.
-7. Vào trễ (phiên đang chạy) → chờ mentor duyệt. Vào lúc lobby → vào thẳng (mentor vẫn kick được).
+7. **Mentor duyệt người vào** (2026-11-15, đổi từ "lobby vào thẳng"). Mặc định mọi người vào phiên (lobby hay đang chạy) đều ở trạng thái chờ duyệt, mentor bấm Duyệt từng người hoặc "Duyệt tất cả". Lý do: một người có thể vào bằng nhiều tên để làm nhiều lượt hoặc dò đáp án qua điểm. Giới hạn đã biết: chỉ hiệu quả khi mentor biết mặt cả nhóm, tên nghe hợp lý thì không phân biệt được. Khi nhóm toàn người quen, mentor bật **"Tự động duyệt người vào"** lúc tạo phiên: ai nhập đúng mã phòng là vào thẳng (kể cả vào trễ); mentor vẫn kick được.
 8. ~~Mỗi lần làm lại được trộn thứ tự mới.~~ — bỏ (2026-11-15): không còn làm lại trong cùng một phiên (mục 15).
 9. Chấm tự luận cho phép điểm lẻ 0.5.
 10. Import **không chặn trùng file** (2026-11-15): vì đề bất biến và "sửa = import mới", import nhiều bản giống nhau là bình thường; bản trùng chưa dùng thì xoá được. Chống bấm Import hai lần bằng cách khoá nút khi đang gửi (UI). Cảnh báo "file này đã import ngày X" (so `source_markdown`) để backlog.

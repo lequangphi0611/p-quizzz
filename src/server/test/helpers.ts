@@ -3,7 +3,7 @@ import { buildApp } from '../app.js';
 import type { JoinLimiter } from '../auth/join-limiter.js';
 import { createDb, type Db } from '../db/client.js';
 import { eq } from 'drizzle-orm';
-import { exams, options, questions, sessions } from '../db/schema.js';
+import { exams, options, participants, questions, sessions } from '../db/schema.js';
 
 // App + in-memory DB (already migrated) for route tests.
 export async function createTestApp(opts: { adminRoutes?: FastifyPluginAsync[]; allowRemoteAdmin?: boolean; lanIps?: () => string[]; joinLimiter?: JoinLimiter } = {}) {
@@ -73,8 +73,13 @@ export function roomCodeOf(app: FastifyInstance, sessionId: number): string {
 }
 
 // Joins a session as a member and returns the participant token (works while the session is in lobby/running).
-export async function joinAs(app: FastifyInstance, sessionId: number, displayName: string): Promise<string> {
+// Everyone joins as `pending`. In the lobby this helper plays the mentor and lets them in straight away (what most tests
+// want); once the session runs, latecomers stay pending, as in production. Pass `approve: false` to keep them pending.
+export async function joinAs(app: FastifyInstance, sessionId: number, displayName: string, opts: { approve?: boolean } = {}): Promise<string> {
   const res = await app.inject({ method: 'POST', url: `/api/sessions/${sessionId}/join`, payload: { displayName, roomCode: roomCodeOf(app, sessionId) } });
   if (res.statusCode !== 201) throw new Error(`joinAs failed: ${res.statusCode} ${res.body}`);
-  return res.json<{ token: string }>().token;
+  const { token } = res.json<{ token: string }>();
+  const lobby = app.db.select({ s: sessions.status }).from(sessions).where(eq(sessions.id, sessionId)).get()?.s === 'lobby';
+  if (lobby && opts.approve !== false) app.db.update(participants).set({ status: 'active' }).where(eq(participants.token, token)).run();
+  return token;
 }

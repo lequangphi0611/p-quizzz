@@ -59,6 +59,7 @@ export const sessions = sqliteTable(
     mode: text('mode', { enum: ['self_paced', 'live'] }).notNull().default('self_paced'),
     status: text('status', { enum: ['draft', 'lobby', 'running', 'closed', 'finalized'] }).notNull().default('draft'),
     shuffle: integer('shuffle', { mode: 'boolean' }).notNull().default(true),
+    autoApprove: integer('auto_approve', { mode: 'boolean' }).notNull().default(false),
     // 6 random digits, generated when the session is opened (null while draft). Members need it to join.
     roomCode: text('room_code'),
     createdAt: ts('created_at').notNull(),

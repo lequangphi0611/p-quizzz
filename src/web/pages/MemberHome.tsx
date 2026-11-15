@@ -197,13 +197,14 @@ export function MemberHome() {
     case 'pending':
     case 'lobby': {
       const pending = screen === 'pending';
+      const inLobby = me!.session.status === 'lobby'; // pending before the start: the mentor lets people into the room first
       return page(
         <PageCard desk={desk} center>
-          <StatusBadge status={pending ? 'running' : 'lobby'} label={pending ? 'Phiên đang diễn ra' : 'Phòng chờ'} />
+          <StatusBadge status={pending && !inLobby ? 'running' : 'lobby'} label={pending && !inLobby ? 'Phiên đang diễn ra' : 'Phòng chờ'} />
           <HeroIcon name={pending ? 'hourglass' : 'users'} tone={pending ? 'warn' : 'brand'} />
           <div style={{ display: 'grid', gap: 6 }}>
             <h1 style={mText.h1}>{pending ? 'Chờ mentor duyệt' : 'Chờ mentor bắt đầu'}</h1>
-            <p style={mText.meta}>{pending ? 'Phiên đã bắt đầu trước khi bạn vào. Mentor cần duyệt thì bạn mới làm bài được.' : 'Giữ trang này mở — màn hình tự chuyển khi phiên bắt đầu.'}</p>
+            <p style={mText.meta}>{pending ? (inLobby ? 'Mentor sẽ duyệt tên bạn để vào phòng. Giữ trang này mở — màn hình tự chuyển khi được duyệt.' : 'Phiên đã bắt đầu trước khi bạn vào. Mentor cần duyệt thì bạn mới làm bài được.') : 'Giữ trang này mở — màn hình tự chuyển khi phiên bắt đầu.'}</p>
           </div>
           <InfoBox>
             <InfoRow icon="file-text" k="Đề" v={me!.session.title} />

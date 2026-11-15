@@ -136,6 +136,7 @@ function SessionDetailView({ initial }: { initial: SessionDetailData }) {
     setDialog(null); // on failure the message shows on the page behind the dialog
   }
 
+  const approveAll = (list: { id: number }[]) => run(async () => { for (const p of list) await api.post(`/api/admin/participants/${p.id}/approve`); await refetch(); }, 'Không duyệt hết được');
   const participantAction = (path: string, fallback: string) => run(async () => { await api.post(path); await refetch(); }, fallback);
 
   return (
@@ -201,8 +202,9 @@ function SessionDetailView({ initial }: { initial: SessionDetailData }) {
         <div style={{ display: 'grid', gap: 20, flex: '1 1 300px', maxWidth: 420 }}>
           <JoinCard status={detail.status} roomCode={detail.roomCode} />
           {pending.length > 0 && (
-            <Card title={`Chờ duyệt · ${pending.length}`} subtitle="Vào trễ khi phiên đang chạy">
+            <Card title={`Chờ duyệt · ${pending.length}`} subtitle={detail.status === 'lobby' ? 'Duyệt để học viên vào phòng chờ' : 'Vào trễ khi phiên đang chạy'}>
               <div style={{ display: 'grid', gap: 8 }}>
+                {pending.length > 1 && <Button size="sm" icon="users" disabled={working} onClick={() => void approveAll(pending)}>Duyệt tất cả ({pending.length})</Button>}
                 {pending.map(p => (
                   <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ font: 'var(--type-ui)', fontWeight: 600, flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>{p.displayName}</span>

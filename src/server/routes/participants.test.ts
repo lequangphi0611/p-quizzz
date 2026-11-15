@@ -30,15 +30,33 @@ async function setup(opts: { hasEssay?: boolean } = {}) {
 }
 
 describe('POST /api/sessions/:id/join', () => {
-  it('lobby → active, returns a 32-byte base64url token and the participant (public, no cookie)', async () => {
-    const { newSession, join } = await setup();
+  it('a session created with autoApprove lets everyone straight in, in the lobby and after the start', async () => {
+    const { app, headers, newSession, join, me, act } = await setup();
+    const sid = await newSession('draft');
+    expect((await app.inject({ method: 'GET', url: `/api/admin/sessions/${sid}`, headers })).json<SessionDetail>().autoApprove).toBe(false); // default: mentor approves
+    const s = (await app.inject({ method: 'POST', url: '/api/admin/sessions', headers, payload: { examId: 1, autoApprove: true } })).json<SessionDetail>();
+    expect(s.autoApprove).toBe(true);
+    await act(s.id, 'open');
+    const a = (await join(s.id, { displayName: 'An' })).json<JoinResponse>();
+    expect(a.participant.status).toBe('active');
+    await act(s.id, 'start');
+    const late = (await join(s.id, { displayName: 'Bình' })).json<JoinResponse>();
+    expect(late.participant.status).toBe('active'); // the mentor opted out of the gate for latecomers too
+    expect((await me(late.token)).json<MeResponse>().session.participantCount).toBe(2);
+  });
+
+  it('lobby → pending until the mentor approves; returns a 32-byte base64url token and the participant (public, no cookie)', async () => {
+    const { newSession, join, me, admin, idOf } = await setup();
     const sid = await newSession('lobby');
     const res = await join(sid, { displayName: 'An' });
     expect(res.statusCode).toBe(201);
     const body = res.json<JoinResponse>();
     expect(body.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
-    expect(body.participant).toMatchObject({ displayName: 'An', status: 'active' });
+    expect(body.participant).toMatchObject({ displayName: 'An', status: 'pending' }); // one name per real person: the mentor lets people in
     expect(Object.keys(body.participant)).not.toContain('token');
+    expect((await me(body.token)).json<MeResponse>().session.participantCount).toBe(0); // not in the room yet
+    expect((await admin('POST', `/participants/${await idOf(sid, 'An')}/approve`)).statusCode).toBe(200);
+    expect((await me(body.token)).json<MeResponse>().participant.status).toBe('active');
   });
 
   it('running → pending (waits for the mentor)', async () => {
@@ -120,9 +138,10 @@ describe('GET /api/me', () => {
   });
 
   it('returns the participant, the session and the attempt state', async () => {
-    const { newSession, join, me } = await setup();
+    const { newSession, join, me, admin, idOf } = await setup();
     const sid = await newSession('lobby');
     const { token } = (await join(sid, { displayName: 'An' })).json<JoinResponse>();
+    await admin('POST', `/participants/${await idOf(sid, 'An')}/approve`);
     const res = await me(token);
     expect(res.statusCode).toBe(200);
     expect(res.json<MeResponse>()).toEqual({
@@ -138,6 +157,7 @@ describe('GET /api/me', () => {
     const { token } = (await join(sid, { displayName: 'An' })).json<JoinResponse>();
     await join(sid, { displayName: 'Bình' });
     await join(sid, { displayName: 'Chi' });
+    for (const n of ['An', 'Bình', 'Chi']) await admin('POST', `/participants/${await idOf(sid, n)}/approve`);
     expect((await me(token)).json<MeResponse>().session.participantCount).toBe(3);
     await admin('POST', `/participants/${await idOf(sid, 'Chi')}/kick`);
     expect((await me(token)).json<MeResponse>().session.participantCount).toBe(2);
@@ -240,13 +260,15 @@ describe('mentor: kick / approve / rename', () => {
 
 describe('admin session detail', () => {
   it('lists participants with id, displayName, status and joinedAt', async () => {
-    const { newSession, join, detail } = await setup();
+    const { newSession, join, detail, admin, idOf } = await setup();
     const sid = await newSession();
     await join(sid, { displayName: 'An' });
     await join(sid, { displayName: 'Bình' });
+    expect((await detail(sid)).participants.map(p => [p.displayName, p.status])).toEqual([['An', 'pending'], ['Bình', 'pending']]);
+    await admin('POST', `/participants/${await idOf(sid, 'An')}/approve`);
     const d = await detail(sid);
-    expect(d.participantCount).toBe(2);
-    expect(d.participants.map(p => [p.displayName, p.status])).toEqual([['An', 'active'], ['Bình', 'active']]);
+    expect(d.participantCount).toBe(1);
+    expect(d.participants.map(p => [p.displayName, p.status])).toEqual([['An', 'active'], ['Bình', 'pending']]);
     expect(d.participants[0]!.joinedAt).toBeGreaterThan(0);
   });
 });

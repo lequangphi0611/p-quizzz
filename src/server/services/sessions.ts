@@ -38,6 +38,7 @@ const summaryColumns = {
   mode: sessions.mode,
   status: sessions.status,
   shuffle: sessions.shuffle,
+  autoApprove: sessions.autoApprove,
   roomCode: sessions.roomCode,
   createdAt: sessions.createdAt,
   openedAt: sessions.openedAt,
@@ -67,12 +68,12 @@ const toSummary = (r: SummaryRow): SessionSummary => ({
 
 const selectSummary = (db: DbOrTx) => db.select(summaryColumns).from(sessions).innerJoin(exams, eq(sessions.examId, exams.id));
 
-export function createSession(db: Db, input: { examId: number; shuffle?: boolean }): SessionDetail {
+export function createSession(db: Db, input: { examId: number; shuffle?: boolean; autoApprove?: boolean }): SessionDetail {
   const exam = db.select({ id: exams.id }).from(exams).where(eq(exams.id, input.examId)).get();
   if (!exam) throw new ServiceError(404, 'Không tìm thấy đề');
   const row = db
     .insert(sessions)
-    .values({ examId: input.examId, mode: 'self_paced', shuffle: input.shuffle ?? true, createdAt: new Date() })
+    .values({ examId: input.examId, mode: 'self_paced', shuffle: input.shuffle ?? true, autoApprove: input.autoApprove ?? false, createdAt: new Date() })
     .returning({ id: sessions.id })
     .get();
   return getSessionDetail(db, row.id);

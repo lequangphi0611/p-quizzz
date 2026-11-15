@@ -15,6 +15,13 @@
       "when": 1794707320305,
       "tag": "0001_yummy_captain_midlands",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1794756938197,
+      "tag": "0002_aspiring_photon",
+      "breakpoints": true
     }
   ]
 }
