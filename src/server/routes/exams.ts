@@ -11,6 +11,7 @@ import {
 import { parseExam, type ParsedExam } from '../../shared/exam-format/index.js';
 import type { Db } from '../db/client.js';
 import { exams, options, questions } from '../db/schema.js';
+import { fail, parseId } from './util.js';
 
 const summaryColumns = {
   id: exams.id,
@@ -81,11 +82,6 @@ export function createExam(db: Db, parsed: ParsedExam, sourceMarkdown: string): 
     return exam.id;
   });
 }
-
-const parseId = (raw: string) => {
-  const id = Number(raw);
-  return Number.isInteger(id) && id > 0 ? id : null;
-};
 
 // Mentor exam routes. Registered inside the requireMentor scope of /api/admin (see buildApp).
 // There is deliberately no update route: exams are immutable once imported.

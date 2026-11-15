@@ -8,7 +8,7 @@ export class ApiError extends Error {
   }
 }
 
-const tokenKey = (sessionId: number | string) => `pq-participant-token:${sessionId}`;
+const tokenKey = (sessionId: number | string) => `pq:participant:${sessionId}`;
 
 // localStorage can throw (private mode, blocked storage) or be missing — never let that break the UI.
 export function setParticipantToken(sessionId: number | string, token: string): void {

@@ -96,4 +96,24 @@ describe('GET /api/admin/participants/:id/review', () => {
     expect(r.state).toBe('submitted');
     expect(r.attempt!.questions.find(q => q.id === s.single.q.id)).toMatchObject({ selectedOptionIds: [s.single.opts[0]!.id], score: 1 });
   });
+
+  it('a kicked member who never submitted is not "doing" once the session is closed', async () => {
+    const s = await setup();
+    await s.bao.start();
+    await s.admin(`/participants/${await s.idOf('Bảo')}/kick`);
+    await s.admin(`/sessions/${s.session.id}/close`);
+    expect((await s.review('Bảo')).json<ParticipantReview>().state).toBe('none');
+    const row = (await s.detail()).participants.find(p => p.displayName === 'Bảo')!;
+    expect(row.progress.state).toBe('none');
+  });
+
+  it('kick, rename and approve are refused once the session is finalized', async () => {
+    const s = await setup({ essay: false });
+    await s.admin(`/sessions/${s.session.id}/close`);
+    await s.admin(`/sessions/${s.session.id}/finalize`);
+    const id = await s.idOf('An');
+    expect((await s.admin(`/participants/${id}/kick`)).statusCode).toBe(409);
+    expect((await s.app.inject({ method: 'PATCH', url: `/api/admin/participants/${id}`, headers: s.headers, payload: { displayName: 'Mới' } })).statusCode).toBe(409);
+    expect((await s.admin(`/participants/${id}/approve`)).statusCode).toBe(409);
+  });
 });

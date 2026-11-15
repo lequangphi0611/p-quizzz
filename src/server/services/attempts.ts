@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 import type {
   AttemptSummary,
   AttemptView,
@@ -39,6 +39,10 @@ function loadExamContent(db: DbOrTx, examId: number): ExamContent {
 
 // Most the automatic part can give: every non-essay question.
 const maxAutoScore = (c: ExamContent) => c.questions.filter(q => q.type !== 'essay').reduce((s, q) => s + q.points, 0);
+
+// Same value as maxAutoScore, from one aggregate query (GET /api/me is polled by every member).
+const maxAutoScoreOf = (db: DbOrTx, examId: number) =>
+  db.select({ s: sql<number>`coalesce(sum(${questions.points}), 0)` }).from(questions).where(and(eq(questions.examId, examId), ne(questions.type, 'essay'))).get()?.s ?? 0;
 
 const ms = (d: Date) => d.getTime();
 
@@ -187,13 +191,16 @@ export function getParticipantReview(db: Db, participantId: number): Participant
   const submitted = mine.find(a => a.submittedAt);
   const info = { id: p.id, displayName: p.displayName, status: p.status, joinedAt: ms(p.joinedAt) };
   if (submitted) return { participant: info, state: 'submitted', attempt: buildReviewView(db, submitted, session) };
-  return { participant: info, state: mine.length > 0 ? 'doing' : 'none', attempt: null };
+  // A kicked member's open attempt is never auto-submitted, so don't call it "doing" once the session is over.
+  const over = session.status === 'closed' || session.status === 'finalized';
+  const doing = mine.length > 0 && !(p.status === 'kicked' && over);
+  return { participant: info, state: doing ? 'doing' : 'none', attempt: null };
 }
 
 // The attempt block of GET /api/me.
 export function getMeAttemptState(db: Db, participant: ParticipantRow): MeAttemptState {
   const session = getSession(db, participant.sessionId);
-  const max = maxAutoScore(loadExamContent(db, session.examId));
+  const max = maxAutoScoreOf(db, session.examId);
   const mine = db.select().from(attempts).where(eq(attempts.participantId, participant.id)).orderBy(asc(attempts.attemptNo)).all();
   const current = mine.find(a => !a.submittedAt) ?? null;
   const submitted = mine.filter(a => a.submittedAt).map(a => toSummary(a, max));
@@ -306,12 +313,16 @@ export function getSessionProgress(db: DbOrTx, sessionId: number, totalPoints: n
   const byParticipant = new Map<number, AttemptRow[]>();
   for (const { attempt } of rows) byParticipant.set(attempt.participantId, [...(byParticipant.get(attempt.participantId) ?? []), attempt]);
 
+  const sess = db.select({ status: sessions.status }).from(sessions).where(eq(sessions.id, sessionId)).get();
+  const over = sess?.status === 'closed' || sess?.status === 'finalized';
+  const kicked = new Set(db.select({ id: participants.id }).from(participants).where(and(eq(participants.sessionId, sessionId), eq(participants.status, 'kicked'))).all().map(p => p.id));
+
   const result = new Map<number, ParticipantProgress>();
   for (const [pid, list] of byParticipant) {
     const counted = pickCountedAttempt(list.map(a => ({ id: a.id, submittedAt: a.submittedAt ? ms(a.submittedAt) : null, score: totalScore(a) })));
-    const doing = list.some(a => !a.submittedAt);
+    const doing = list.some(a => !a.submittedAt) && !(over && kicked.has(pid));
     result.set(pid, {
-      state: doing ? 'doing' : 'submitted',
+      state: doing ? 'doing' : list.some(a => a.submittedAt) ? 'submitted' : 'none',
       attempts: list.length,
       countedScore: counted ? counted.score : null,
       maxScore: totalPoints,

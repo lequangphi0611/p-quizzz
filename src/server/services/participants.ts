@@ -32,14 +32,16 @@ function assertNameFree(db: DbOrTx, sessionId: number, name: string, exceptId?: 
   if (others.some(o => o.id !== exceptId && displayNameKey(o.displayName) === key)) throw new ServiceError(409, NAME_TAKEN);
 }
 
-const isUniqueViolation = (err: unknown) => err instanceof Error && 'code' in err && String(err.code).startsWith('SQLITE_CONSTRAINT');
+// Only the display-name index counts as a name clash; any other constraint failure (token, foreign key...) is a real bug.
+const isNameViolation = (err: unknown) =>
+  err instanceof Error && 'code' in err && err.code === 'SQLITE_CONSTRAINT_UNIQUE' && err.message.includes('participants_session_name_uq');
 
-// Runs `fn` in a transaction, turning a unique-index violation into the friendly 409.
+// Runs `fn` in a transaction, turning a name-index violation into the friendly 409.
 function inTransaction<T>(db: Db, fn: (tx: Parameters<Parameters<Db['transaction']>[0]>[0]) => T): T {
   try {
     return db.transaction(fn);
   } catch (err) {
-    if (isUniqueViolation(err)) throw new ServiceError(409, NAME_TAKEN);
+    if (isNameViolation(err)) throw new ServiceError(409, NAME_TAKEN);
     throw err;
   }
 }
@@ -48,6 +50,12 @@ function getParticipant(db: DbOrTx, id: number): ParticipantRow {
   const p = db.select().from(participants).where(eq(participants.id, id)).get();
   if (!p) throw new ServiceError(404, 'Không tìm thấy người tham gia');
   return p;
+}
+
+// Results become official at FINALIZED; from then on nobody may be kicked, renamed or approved.
+function assertNotFinalized(db: DbOrTx, sessionId: number) {
+  const s = db.select({ status: sessions.status }).from(sessions).where(eq(sessions.id, sessionId)).get();
+  if (s?.status === 'finalized') throw new ServiceError(409, 'Phiên đã chốt kết quả, không sửa danh sách người tham gia được');
 }
 
 const sameCode = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
@@ -73,6 +81,7 @@ export function joinSession(db: Db, sessionId: number, displayName: string, room
 export function renameParticipant(db: Db, id: number, displayName: string): SessionParticipantInfo {
   const row = inTransaction(db, tx => {
     const p = getParticipant(tx, id);
+    assertNotFinalized(tx, p.sessionId);
     if (p.status === 'kicked') throw new ServiceError(409, 'Người này đã bị mời ra khỏi phiên');
     assertNameFree(tx, p.sessionId, displayName, id);
     return tx.update(participants).set({ displayName }).where(eq(participants.id, id)).returning().get();
@@ -87,6 +96,7 @@ export function renameParticipant(db: Db, id: number, displayName: string): Sess
 export function kickParticipant(db: Db, id: number): SessionParticipantInfo {
   const row = db.transaction(tx => {
     const p = getParticipant(tx, id);
+    assertNotFinalized(tx, p.sessionId);
     if (p.status === 'kicked') throw new ServiceError(409, 'Người này đã bị mời ra khỏi phiên');
     return tx.update(participants).set({ status: 'kicked' }).where(eq(participants.id, id)).returning().get();
   });
@@ -99,6 +109,9 @@ export function approveParticipant(db: Db, id: number): SessionParticipantInfo {
   const row = db.transaction(tx => {
     const p = getParticipant(tx, id);
     if (p.status !== 'pending') throw new ServiceError(409, 'Chỉ duyệt được người đang chờ duyệt');
+    // Approving only makes sense while people can still work.
+    const s = tx.select({ status: sessions.status }).from(sessions).where(eq(sessions.id, p.sessionId)).get();
+    if (!s || !ACTIVE_STATUSES.includes(s.status)) throw new ServiceError(409, 'Phiên thi đã đóng, không duyệt thêm người được');
     return tx.update(participants).set({ status: 'active' }).where(eq(participants.id, id)).returning().get();
   });
   publish(row.sessionId, 'participants');

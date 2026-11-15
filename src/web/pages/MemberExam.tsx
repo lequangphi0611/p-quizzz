@@ -222,16 +222,18 @@ function TakingView({ me, attemptId, onChanged }: { me: MeResponse; attemptId: n
 
   // One saver per attempt. A 409 means the session closed (or the attempt was already submitted): hand over to the parent.
   useEffect(() => {
+    let sessionEnded = false;
     const saver = new AnswerSaver(
       async (qid, payload: AnswerPayload) => {
         try { await api.put(`/api/me/attempts/${attemptId}/answers/${qid}`, payload); }
-        catch (err) { if (err instanceof ApiError && err.status === 409) { setClosed(true); void onChanged(); } throw err; }
+        catch (err) { if (err instanceof ApiError && err.status === 409) { sessionEnded = true; setClosed(true); void onChanged(); } throw err; }
       },
       setSave,
     );
     saverRef.current = saver;
     const back = () => { void saver.retry(); }; // come back online → save what failed
-    const beforeUnload = (e: BeforeUnloadEvent) => { if (saver.state !== 'saved') e.preventDefault(); };
+    // After a 409 nothing more can be saved, so don't trap the member with a "leave site?" prompt.
+    const beforeUnload = (e: BeforeUnloadEvent) => { if (!sessionEnded && saver.state !== 'saved') e.preventDefault(); };
     window.addEventListener('online', back);
     window.addEventListener('beforeunload', beforeUnload);
     return () => { window.removeEventListener('online', back); window.removeEventListener('beforeunload', beforeUnload); void saver.flushAll().finally(() => saver.dispose()); };

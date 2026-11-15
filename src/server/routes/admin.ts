@@ -26,7 +26,7 @@ export async function adminRoutes(app: FastifyInstance, opts: { protectedRoutes?
         if (auth.isSetup()) return reply.code(409).send({ error: 'Đã thiết lập mật khẩu rồi' });
         const body = PasswordBody.safeParse(req.body);
         if (!body.success) return reply.code(400).send({ error: body.error.issues[0]?.message ?? 'Dữ liệu không hợp lệ' });
-        await auth.setPassword(body.data.password);
+        if (!(await auth.setPassword(body.data.password))) return reply.code(409).send({ error: 'Đã thiết lập mật khẩu rồi' });
         setCookie(reply);
         return { ok: true };
       });

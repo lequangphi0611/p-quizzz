@@ -53,10 +53,14 @@ const ESSAY_ROWS = (db: DbOrTx, attemptIds: number[]) =>
  * Essay answers (of counted attempts) still waiting for a score. A blank answer needs a score too (usually 0).
  * This is what blocks `finalize` (S06 calls it from the transition).
  */
+export function essayProgress(db: DbOrTx, sessionId: number): { graded: number; total: number } {
+  const rows = ESSAY_ROWS(db, [...countedAttempts(db, sessionId).values()].map(a => a.id));
+  return { graded: rows.filter(r => r.answer.manualScore !== null).length, total: rows.length };
+}
+
 export function countUngradedEssays(db: DbOrTx, sessionId: number): number {
-  const info = sessionInfo(db, sessionId);
-  const counted = [...countedAttempts(db, sessionId).values()];
-  return ESSAY_ROWS(db, counted.map(a => a.id)).filter(r => r.answer.manualScore === null).length;
+  const { graded, total } = essayProgress(db, sessionId);
+  return total - graded;
 }
 
 const toAnswer = (a: typeof answers.$inferSelect, participantId: number, displayName: string): GradingAnswer => ({
@@ -124,9 +128,8 @@ export function gradeAnswer(db: Db, answerId: number, input: { score: number; fe
     const sum = tx.select({ s: answers.manualScore }).from(answers).where(and(eq(answers.attemptId, row.attempt.id), isNotNull(answers.manualScore))).all().reduce((t, r) => t + (r.s ?? 0), 0);
     tx.update(attempts).set({ manualScore: sum }).where(eq(attempts.id, row.attempt.id)).run();
 
-    const ungraded = countUngradedEssays(tx, row.participant.sessionId);
-    const total = ESSAY_ROWS(tx, [...countedAttempts(tx, row.participant.sessionId).values()].map(a => a.id)).length;
-    return { sessionId: row.participant.sessionId, answer: toAnswer(updated, row.participant.id, row.participant.displayName), graded: total - ungraded, total };
+    const { graded, total } = essayProgress(tx, row.participant.sessionId);
+    return { sessionId: row.participant.sessionId, answer: toAnswer(updated, row.participant.id, row.participant.displayName), graded, total };
   });
   publish(result.sessionId, 'leaderboard');
   return { answer: result.answer, graded: result.graded, total: result.total };

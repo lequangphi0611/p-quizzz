@@ -72,4 +72,10 @@ describe('mentor auth', () => {
     expect(stored).toMatch(/^[0-9a-f]{32}:[0-9a-f]{128}$/);
     expect(stored).not.toContain(TEST_PASSWORD);
   });
+
+  it('two concurrent setups: exactly one wins, the other gets 409 (not 500)', async () => {
+    const { app } = await createTestApp();
+    const codes = (await Promise.all([post(app, '/api/admin/setup', { password: 'secret1' }), post(app, '/api/admin/setup', { password: 'secret2' })])).map(r => r.statusCode).sort();
+    expect(codes).toEqual([200, 409]);
+  });
 });

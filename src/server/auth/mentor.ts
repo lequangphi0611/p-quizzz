@@ -33,8 +33,12 @@ export function createMentorAuth(db: Db) {
 
   return {
     isSetup: () => getHash() !== null,
-    async setPassword(password: string) {
-      db.insert(appMeta).values({ key: META_KEY, value: await hashPassword(password), updatedAt: new Date() }).run();
+    // Returns false when a password already exists. The insert is the atomic check (the key is the primary key),
+    // so two concurrent setups cannot both win even though hashing awaits in between.
+    async setPassword(password: string): Promise<boolean> {
+      const value = await hashPassword(password);
+      const res = db.insert(appMeta).values({ key: META_KEY, value, updatedAt: new Date() }).onConflictDoNothing().run();
+      return res.changes > 0;
     },
     async checkPassword(password: string) {
       const stored = getHash();
