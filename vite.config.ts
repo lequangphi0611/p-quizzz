@@ -11,7 +11,8 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
-    proxy: { '/api': 'http://localhost:3000' },
+    // xfwd passes the browser's real IP to the server, which uses it to keep /api/admin/* mentor-machine-only.
+    proxy: { '/api': { target: 'http://localhost:3000', xfwd: true } },
   },
   test: { root: '.', include: ['src/**/*.test.ts'] },
 });

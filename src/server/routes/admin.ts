@@ -1,11 +1,12 @@
 import type { FastifyInstance, FastifyPluginAsync, FastifyReply } from 'fastify';
 import { PasswordBody, type AdminStatus } from '../../shared/api/index.js';
+import { requireLocal } from '../auth/local-only.js';
 import { ADMIN_COOKIE, createMentorAuth, requireMentor } from '../auth/mentor.js';
 
 // Mentor API under /api/admin.
 // Public: status, setup, login, logout. Everything registered in `protectedRoutes` sits behind requireMentor —
 // later stories add their route plugins to that list (see buildApp).
-export async function adminRoutes(app: FastifyInstance, opts: { protectedRoutes?: FastifyPluginAsync[] } = {}) {
+export async function adminRoutes(app: FastifyInstance, opts: { protectedRoutes?: FastifyPluginAsync[]; allowRemote?: boolean } = {}) {
   const auth = createMentorAuth(app.db);
 
   const setCookie = (reply: FastifyReply) =>
@@ -13,6 +14,9 @@ export async function adminRoutes(app: FastifyInstance, opts: { protectedRoutes?
 
   await app.register(
     async admin => {
+      // First hook of the whole /api/admin scope (public and protected routes alike): mentor machine only.
+      admin.addHook('onRequest', requireLocal(opts.allowRemote ?? false));
+
       admin.get('/status', async (req): Promise<AdminStatus> => ({
         setupDone: auth.isSetup(),
         loggedIn: auth.hasToken(req.cookies[ADMIN_COOKIE]),

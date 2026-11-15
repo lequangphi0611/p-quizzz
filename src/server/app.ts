@@ -14,19 +14,23 @@ export interface AppOptions {
   db: Db;
   serveWeb?: boolean;
   logger?: boolean;
+  /** Let machines other than the mentor's reach /api/admin/*. Off by default: members share the LAN. */
+  allowRemoteAdmin?: boolean;
   /** Extra route plugins mounted inside the requireMentor scope of /api/admin (stories add theirs here; tests use it for probes). */
   adminRoutes?: FastifyPluginAsync[];
 }
 
 // Builds the Fastify app without listening, so tests can use app.inject().
-export async function buildApp({ db, serveWeb = false, logger = false, adminRoutes: extraAdminRoutes = [] }: AppOptions) {
+export async function buildApp({ db, serveWeb = false, logger = false, allowRemoteAdmin = false, adminRoutes: extraAdminRoutes = [] }: AppOptions) {
   const protectedRoutes = [examsRoutes, sessionsRoutes, participantsRoutes, ...extraAdminRoutes];
-  const app = Fastify({ logger });
+  // Honour X-Forwarded-For only when the direct peer is this machine (the Vite dev proxy). A LAN client
+  // connecting straight to the server is not trusted, so it cannot forge its address.
+  const app = Fastify({ logger, trustProxy: ['127.0.0.1', '::1'] });
   app.decorate('db', db);
 
   await app.register(fastifyCookie);
   await app.register(healthRoutes);
-  await app.register(adminRoutesPlugin, { protectedRoutes });
+  await app.register(adminRoutesPlugin, { protectedRoutes, allowRemote: allowRemoteAdmin });
   await app.register(eventsRoutes);
   await app.register(publicSessionsRoutes);
   await app.register(joinRoutes);
