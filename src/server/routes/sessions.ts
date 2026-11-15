@@ -1,18 +1,8 @@
-import type { FastifyInstance, FastifyReply } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import { CreateSessionBody, type ActiveSession } from '../../shared/api/index.js';
 import { SESSION_ACTIONS, type SessionAction } from '../../shared/session-state.js';
-import { createSession, getActiveSession, getSessionDetail, listSessions, SessionError, transitionSession } from '../services/sessions.js';
-
-const parseId = (raw: string) => {
-  const id = Number(raw);
-  return Number.isInteger(id) && id > 0 ? id : null;
-};
-
-// Maps service errors to `{ error }` responses; anything else is a real bug and is rethrown.
-function fail(reply: FastifyReply, err: unknown) {
-  if (err instanceof SessionError) return reply.code(err.status).send({ error: err.message });
-  throw err;
-}
+import { createSession, getActiveSession, getSessionDetail, listSessions, transitionSession } from '../services/sessions.js';
+import { fail, parseId } from './util.js';
 
 // Mentor session routes. Registered inside the requireMentor scope of /api/admin (see buildApp).
 export async function sessionsRoutes(app: FastifyInstance) {

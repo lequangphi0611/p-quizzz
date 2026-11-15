@@ -223,7 +223,7 @@ describe('GET /sessions', () => {
       { sessionId: a.id, displayName: 'An', token: 'ta', status: 'active', joinedAt: new Date() },
       { sessionId: b.id, displayName: 'Bình', token: 'tb', status: 'pending', joinedAt: new Date() },
     ]).run();
-    expect((await get(a.id)).participants).toEqual([{ id: expect.any(Number), displayName: 'An', status: 'active' }]);
+    expect((await get(a.id)).participants).toEqual([{ id: expect.any(Number), displayName: 'An', status: 'active', joinedAt: expect.any(Number) }]);
   });
 });
 

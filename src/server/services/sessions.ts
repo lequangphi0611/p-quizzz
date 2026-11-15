@@ -10,22 +10,17 @@ import {
 import type { Db } from '../db/client.js';
 import { exams, participants, sessions } from '../db/schema.js';
 import { publish } from '../events.js';
+import { ServiceError } from './errors.js';
 
 type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 export type DbOrTx = Db | Tx;
 
-// Carries the HTTP status and a Vietnamese message that routes send as `{ error }`.
-export class SessionError extends Error {
-  constructor(readonly status: 400 | 404 | 409, message: string) {
-    super(message);
-    this.name = 'SessionError';
-  }
-}
 
 // ── Hooks implemented by later stories ──────────────────────────────────────────────────────────
 /**
  * Runs inside the close transaction, before the status changes.
  * TODO(S11): submit every unsubmitted attempt with its saved answers (auto-grading included).
+ * Skip participants with status 'kicked': a kicked member's attempts never count (S08).
  */
 export function onSessionClosing(_db: DbOrTx, _sessionId: number): void {}
 
@@ -76,7 +71,7 @@ const selectSummary = (db: DbOrTx) => db.select(summaryColumns).from(sessions).i
 
 export function createSession(db: Db, input: { examId: number; shuffle?: boolean }): SessionDetail {
   const exam = db.select({ id: exams.id }).from(exams).where(eq(exams.id, input.examId)).get();
-  if (!exam) throw new SessionError(404, 'Không tìm thấy đề');
+  if (!exam) throw new ServiceError(404, 'Không tìm thấy đề');
   const row = db
     .insert(sessions)
     .values({ examId: input.examId, mode: 'self_paced', shuffle: input.shuffle ?? true, createdAt: new Date() })
@@ -91,14 +86,15 @@ export function listSessions(db: Db): SessionSummary[] {
 
 export function getSessionDetail(db: DbOrTx, id: number): SessionDetail {
   const row = selectSummary(db).where(eq(sessions.id, id)).get();
-  if (!row) throw new SessionError(404, 'Không tìm thấy phiên');
+  if (!row) throw new ServiceError(404, 'Không tìm thấy phiên');
   const exam = db.select({ id: exams.id, title: exams.title, hasEssay: exams.hasEssay, totalPoints: exams.totalPoints }).from(exams).where(eq(exams.id, row.examId)).get()!;
   const people = db
-    .select({ id: participants.id, displayName: participants.displayName, status: participants.status })
+    .select({ id: participants.id, displayName: participants.displayName, status: participants.status, joinedAt: participants.joinedAt })
     .from(participants)
     .where(eq(participants.sessionId, id))
     .orderBy(participants.id)
-    .all();
+    .all()
+    .map(p => ({ ...p, joinedAt: p.joinedAt.getTime() }));
   return { ...toSummary(row), exam, participants: people };
 }
 
@@ -117,11 +113,11 @@ export function getActiveSession(db: Db): ActiveSession | null {
 export function transitionSession(db: Db, id: number, action: SessionAction): SessionDetail {
   db.transaction(tx => {
     const s = tx.select().from(sessions).where(eq(sessions.id, id)).get();
-    if (!s) throw new SessionError(404, 'Không tìm thấy phiên');
+    if (!s) throw new ServiceError(404, 'Không tìm thấy phiên');
 
     const next = nextStatus(s.status, action);
     if (!next) {
-      throw new SessionError(409, `Không thể ${SESSION_ACTION_VERB[action]} khi phiên đang ở trạng thái "${SESSION_STATUS_LABEL[s.status]}"`);
+      throw new ServiceError(409, `Không thể ${SESSION_ACTION_VERB[action]} khi phiên đang ở trạng thái "${SESSION_STATUS_LABEL[s.status]}"`);
     }
 
     const now = new Date();
@@ -130,7 +126,7 @@ export function transitionSession(db: Db, id: number, action: SessionAction): Se
     if (action === 'open') {
       // At most one session in lobby/running (PRODUCT.md §7.5). The transaction makes check-and-set atomic.
       const other = tx.select({ id: sessions.id }).from(sessions).where(and(inArray(sessions.status, [...ACTIVE_STATUSES]), ne(sessions.id, id))).get();
-      if (other) throw new SessionError(409, 'Đang có phiên thi khác hoạt động');
+      if (other) throw new ServiceError(409, 'Đang có phiên thi khác hoạt động');
       patch.openedAt = now;
     } else if (action === 'start') {
       patch.startedAt = now;
@@ -144,7 +140,7 @@ export function transitionSession(db: Db, id: number, action: SessionAction): Se
         patch.finalizedAt = now;
       }
     } else {
-      if (!canFinalize(tx, id)) throw new SessionError(409, 'Còn câu tự luận chưa chấm điểm');
+      if (!canFinalize(tx, id)) throw new ServiceError(409, 'Còn câu tự luận chưa chấm điểm');
       patch.finalizedAt = now;
     }
 

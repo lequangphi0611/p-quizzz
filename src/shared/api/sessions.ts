@@ -23,11 +23,12 @@ export interface SessionSummary {
   participantCount: number; // participants with status 'active'
 }
 
-// Minimal participant row; S08 adds progress/attempt info on top.
+// Never carries the participant token.
 export interface SessionParticipantInfo {
   id: number;
   displayName: string;
   status: 'active' | 'pending' | 'kicked';
+  joinedAt: number; // epoch ms
 }
 
 export interface SessionDetail extends SessionSummary {

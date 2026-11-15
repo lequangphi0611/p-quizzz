@@ -62,3 +62,10 @@ export async function loginAsMentor(app: FastifyInstance): Promise<{ cookie: str
   if (!c) throw new Error(`loginAsMentor failed: ${res.statusCode} ${res.body}`);
   return { cookie: `pq_admin=${c.value}` };
 }
+
+// Joins a session as a member and returns the participant token (works while the session is in lobby/running).
+export async function joinAs(app: FastifyInstance, sessionId: number, displayName: string): Promise<string> {
+  const res = await app.inject({ method: 'POST', url: `/api/sessions/${sessionId}/join`, payload: { displayName } });
+  if (res.statusCode !== 201) throw new Error(`joinAs failed: ${res.statusCode} ${res.body}`);
+  return res.json<{ token: string }>().token;
+}

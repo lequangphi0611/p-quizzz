@@ -5,6 +5,7 @@ import fastifyStatic from '@fastify/static';
 import type { Db } from './db/client.js';
 import { adminRoutes as adminRoutesPlugin } from './routes/admin.js';
 import { examsRoutes } from './routes/exams.js';
+import { joinRoutes, meRoutes, participantsRoutes } from './routes/participants.js';
 import { publicSessionsRoutes, sessionsRoutes } from './routes/sessions.js';
 import { eventsRoutes } from './routes/events.js';
 import { healthRoutes } from './routes/health.js';
@@ -19,7 +20,7 @@ export interface AppOptions {
 
 // Builds the Fastify app without listening, so tests can use app.inject().
 export async function buildApp({ db, serveWeb = false, logger = false, adminRoutes: extraAdminRoutes = [] }: AppOptions) {
-  const protectedRoutes = [examsRoutes, sessionsRoutes, ...extraAdminRoutes];
+  const protectedRoutes = [examsRoutes, sessionsRoutes, participantsRoutes, ...extraAdminRoutes];
   const app = Fastify({ logger });
   app.decorate('db', db);
 
@@ -28,6 +29,8 @@ export async function buildApp({ db, serveWeb = false, logger = false, adminRout
   await app.register(adminRoutesPlugin, { protectedRoutes });
   await app.register(eventsRoutes);
   await app.register(publicSessionsRoutes);
+  await app.register(joinRoutes);
+  await app.register(meRoutes);
 
   if (serveWeb) {
     await app.register(fastifyStatic, { root: resolve('dist/web') });

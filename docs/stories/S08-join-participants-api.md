@@ -20,8 +20,8 @@ Member không có tài khoản: nhập tên khi vào phiên; mentor thấy ai v�
 - Join lại cùng trình duyệt: web dùng token đã lưu (S10) — API không cần xử lý đặc biệt.
 
 ## Acceptance criteria
-- [ ] Toàn bộ quy tắc trên có test.
-- [ ] Token không xuất hiện trong bất kỳ response nào ngoài response của `join`.
+- [x] Toàn bộ quy tắc trên có test.
+- [x] Token không xuất hiện trong bất kỳ response nào ngoài response của `join`.
 
 ## Test bắt buộc
 - Join lobby/running/closed; trùng tên; tên rỗng/quá dài; kick → 403; approve pending; rename trùng → 409; event `participants` được publish.
