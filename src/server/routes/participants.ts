@@ -1,8 +1,8 @@
-import { eq } from 'drizzle-orm';
+import { and, count, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { DisplayNameBody, type MeResponse } from '../../shared/api/index.js';
 import { requireParticipant } from '../auth/participant.js';
-import { exams, sessions } from '../db/schema.js';
+import { exams, participants, sessions } from '../db/schema.js';
 import { approveParticipant, joinSession, kickParticipant, renameParticipant, toParticipantInfo } from '../services/participants.js';
 import { fail, parseId } from './util.js';
 
@@ -38,7 +38,12 @@ export async function meRoutes(app: FastifyInstance) {
           .innerJoin(exams, eq(sessions.examId, exams.id))
           .where(eq(sessions.id, p.sessionId))
           .get()!;
-        return { participant: toParticipantInfo(p), session: s, attempt: null };
+        const { n } = app.db
+          .select({ n: count() })
+          .from(participants)
+          .where(and(eq(participants.sessionId, p.sessionId), eq(participants.status, 'active')))
+          .get()!;
+        return { participant: toParticipantInfo(p), session: { ...s, participantCount: n }, attempt: null };
       });
     },
     { prefix: '/api/me' },

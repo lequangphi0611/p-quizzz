@@ -28,6 +28,7 @@ export interface JoinResponse {
 // GET /api/me. `attempt` is filled in by S11.
 export interface MeResponse {
   participant: SessionParticipantInfo;
-  session: { id: number; title: string; status: SessionStatus };
+  // participantCount = members with status 'active' (the lobby shows "N người đã vào").
+  session: { id: number; title: string; status: SessionStatus; participantCount: number };
   attempt: null;
 }

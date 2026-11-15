@@ -17,14 +17,27 @@ export function setParticipantToken(sessionId: number | string, token: string): 
 export function getParticipantToken(sessionId: number | string): string | null {
   try { return localStorage.getItem(tokenKey(sessionId)); } catch { return null; }
 }
+export function clearParticipantToken(sessionId: number | string): void {
+  try { localStorage.removeItem(tokenKey(sessionId)); } catch { /* ignore */ }
+}
+
+// /api/me/* carries no session id in its path, so a member's calls use the session they last joined/resumed.
+const CURRENT_KEY = 'pq-current-session';
+export function setCurrentSessionId(sessionId: number | string): void {
+  try { localStorage.setItem(CURRENT_KEY, String(sessionId)); } catch { /* ignore */ }
+}
+export function getCurrentSessionId(): string | null {
+  try { return localStorage.getItem(CURRENT_KEY); } catch { return null; }
+}
 
 // Member endpoints live under /api/sessions/:id/…; attach that session's token when we have one.
 const SESSION_PATH = /^\/api\/sessions\/(\d+)(?:\/|$|\?)/;
+const ME_PATH = /^\/api\/me(?:\/|$|\?)/;
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const headers: Record<string, string> = {};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
-  const sessionId = SESSION_PATH.exec(path)?.[1];
+  const sessionId = SESSION_PATH.exec(path)?.[1] ?? (ME_PATH.test(path) ? getCurrentSessionId() : null);
   const token = sessionId ? getParticipantToken(sessionId) : null;
   if (token) headers['X-Participant-Token'] = token;
 

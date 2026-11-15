@@ -36,7 +36,7 @@ Mỗi story là một file tự đủ ngữ cảnh để một model/người im
 | [S07](S07-realtime-sse.md) | Realtime SSE | S01, S02 | ✅ |
 | [S08](S08-join-participants-api.md) | API vào phiên & quản lý người tham gia | S06, S07 | ✅ |
 | [S09](S09-mentor-session-ui.md) | UI điều khiển phiên (mentor) | S05, S08 | ✅ |
-| [S10](S10-member-join-ui.md) | UI vào phiên & phòng chờ (member) | S08 | ⬜ |
+| [S10](S10-member-join-ui.md) | UI vào phiên & phòng chờ (member) | S08 | ✅ |
 | [S11](S11-attempt-api.md) | API làm bài & chấm tự động | S08 | ⬜ |
 | [S12](S12-exam-taking-ui.md) | UI làm bài | S10, S11 | ⬜ |
 | [S13](S13-leaderboard.md) | Bảng xếp hạng (API + UI member) | S11 | ⬜ |

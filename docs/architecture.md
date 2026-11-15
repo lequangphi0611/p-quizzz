@@ -89,7 +89,7 @@ Mọi body/response là JSON. Lỗi: `{ error: string }` (tiếng Việt, hiển
 | GET | `/api/sessions/:id/participants` | — | Chỉ `{ displayName }[]` của participant `active` (cho màn hình chiếu) |
 | GET | `/api/sessions/:id/leaderboard` | — | Xem §6 |
 | GET | `/api/sessions/:id/events` | — | SSE, xem §7 |
-| GET | `/api/me` | participant | participant + session (status) + attempt hiện tại / đã nộp |
+| GET | `/api/me` | participant | participant + session (id, title, status, `participantCount` = số người `active`) + attempt hiện tại / đã nộp |
 | POST | `/api/me/attempts` | participant | Bắt đầu lượt. Cần session `running`, participant `active`, không có lượt đang dở, đúng luật làm lại |
 | GET | `/api/me/attempts/:id` | participant | Câu hỏi theo thứ tự đã trộn + câu trả lời đã lưu |
 | PUT | `/api/me/attempts/:id/answers/:questionId` | participant | `{ selectedOptionIds }` hoặc `{ textAnswer }` — autosave |

@@ -4,18 +4,14 @@ import { api } from './lib/api.js';
 import { ErrorMessage } from './components/ui/ErrorMessage.js';
 import { AdminLogin } from './pages/AdminLogin.js';
 import { AdminLayout } from './layouts/AdminLayout.js';
-import { MemberLayout } from './layouts/MemberLayout.js';
 import { ScreenLayout } from './layouts/ScreenLayout.js';
+import { MemberHome } from './pages/MemberHome.js';
 import { Placeholder } from './pages/Placeholder.js';
 import { ExamDetail, examDetailLoader } from './pages/ExamDetail.js';
 import { ExamImport } from './pages/ExamImport.js';
 import { ExamList, examListLoader } from './pages/ExamList.js';
 import { SessionDetail, sessionDetailLoader } from './pages/SessionDetail.js';
 import { SessionList, sessionListLoader } from './pages/SessionList.js';
-
-function MemberShell() {
-  return <MemberLayout><Outlet /></MemberLayout>;
-}
 
 function AdminShell() {
   const nav = useNavigate();
@@ -56,7 +52,7 @@ function ScreenShell() {
 
 // Route table follows docs/architecture.md §8. Real screens replace the placeholders in later stories.
 export const router = createBrowserRouter([
-  { element: <MemberShell />, children: [{ path: '/', element: <Placeholder title="Vào phiên thi" story="S10" /> }] },
+  { path: '/', element: <MemberHome /> }, // renders its own <MemberLayout> (title and name depend on its state)
   { element: <ScreenShell />, children: [{ path: '/screen', element: <Placeholder title="Màn hình chiếu" story="S14" /> }] },
   { path: '/admin/login', loader: loginLoader, element: <AdminLogin />, errorElement: <RouteError /> },
   {

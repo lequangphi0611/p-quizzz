@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, api, getParticipantToken, setParticipantToken } from './api.js';
+import { ApiError, api, clearParticipantToken, getParticipantToken, setCurrentSessionId, setParticipantToken } from './api.js';
 
 function stubStorage() {
   const m = new Map<string, string>();
-  vi.stubGlobal('localStorage', { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v) });
+  vi.stubGlobal('localStorage', { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) });
 }
 function stubFetch(status: number, body: unknown) {
   const fn = vi.fn(async () => new Response(body === undefined ? null : JSON.stringify(body), { status }));
@@ -52,6 +52,29 @@ describe('api', () => {
     fn = stubFetch(200, {});
     await api.get('/api/exams'); // not a session path
     expect(headersOf(fn)['X-Participant-Token']).toBeUndefined();
+  });
+
+  it('/api/me/* uses the token of the current session', async () => {
+    setParticipantToken(1, 'tok-1');
+    setParticipantToken(2, 'tok-2');
+    setCurrentSessionId(2);
+    let fn = stubFetch(200, {});
+    await api.get('/api/me');
+    expect(headersOf(fn)['X-Participant-Token']).toBe('tok-2');
+    fn = stubFetch(200, {});
+    await api.put('/api/me/attempts/5/answers/9', {});
+    expect(headersOf(fn)['X-Participant-Token']).toBe('tok-2');
+    fn = stubFetch(200, {});
+    await api.get('/api/menu'); // only /api/me and /api/me/… count
+    expect(headersOf(fn)['X-Participant-Token']).toBeUndefined();
+  });
+
+  it('clearParticipantToken removes only that session\'s token', () => {
+    setParticipantToken(1, 'a');
+    setParticipantToken(2, 'b');
+    clearParticipantToken(1);
+    expect(getParticipantToken(1)).toBeNull();
+    expect(getParticipantToken(2)).toBe('b');
   });
 
   it('sends JSON bodies with the right method', async () => {

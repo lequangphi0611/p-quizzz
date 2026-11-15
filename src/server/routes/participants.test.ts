@@ -120,9 +120,23 @@ describe('GET /api/me', () => {
     expect(res.statusCode).toBe(200);
     expect(res.json<MeResponse>()).toEqual({
       participant: { id: expect.any(Number), displayName: 'An', status: 'active', joinedAt: expect.any(Number) },
-      session: { id: sid, title: 'Đề Git', status: 'lobby' },
+      session: { id: sid, title: 'Đề Git', status: 'lobby', participantCount: 1 },
       attempt: null,
     });
+  });
+
+  it('participantCount counts active members only (not pending or kicked)', async () => {
+    const { newSession, join, me, admin, idOf, act } = await setup();
+    const sid = await newSession('lobby');
+    const { token } = (await join(sid, { displayName: 'An' })).json<JoinResponse>();
+    await join(sid, { displayName: 'Bình' });
+    await join(sid, { displayName: 'Chi' });
+    expect((await me(token)).json<MeResponse>().session.participantCount).toBe(3);
+    await admin('POST', `/participants/${await idOf(sid, 'Chi')}/kick`);
+    expect((await me(token)).json<MeResponse>().session.participantCount).toBe(2);
+    await act(sid, 'start');
+    await join(sid, { displayName: 'Dũng' }); // pending: not counted
+    expect((await me(token)).json<MeResponse>().session.participantCount).toBe(2);
   });
 
   it('a pending member can call it and sees status pending; the session status follows the mentor', async () => {
