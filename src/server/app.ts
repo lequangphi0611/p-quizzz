@@ -5,6 +5,7 @@ import fastifyStatic from '@fastify/static';
 import type { Db } from './db/client.js';
 import { adminRoutes as adminRoutesPlugin } from './routes/admin.js';
 import { examsRoutes } from './routes/exams.js';
+import { gradingRoutes } from './routes/grading.js';
 import { leaderboardRoutes } from './routes/leaderboard.js';
 import { networkRoutes } from './routes/network.js';
 import { joinRoutes, meRoutes, participantsRoutes, publicParticipantsRoutes } from './routes/participants.js';
@@ -26,7 +27,7 @@ export interface AppOptions {
 
 // Builds the Fastify app without listening, so tests can use app.inject().
 export async function buildApp({ db, serveWeb = false, logger = false, allowRemoteAdmin = false, lanIps, adminRoutes: extraAdminRoutes = [] }: AppOptions) {
-  const protectedRoutes = [examsRoutes, sessionsRoutes, participantsRoutes, ...extraAdminRoutes];
+  const protectedRoutes = [examsRoutes, sessionsRoutes, participantsRoutes, gradingRoutes, ...extraAdminRoutes];
   // Honour X-Forwarded-For only when the direct peer is this machine (the Vite dev proxy). A LAN client
   // connecting straight to the server is not trusted, so it cannot forge its address.
   const app = Fastify({ logger, trustProxy: ['127.0.0.1', '::1'] });

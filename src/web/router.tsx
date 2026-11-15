@@ -2,11 +2,12 @@ import { createBrowserRouter, Outlet, redirect, useLocation, useNavigate, useRou
 import type { AdminStatus } from '../shared/api/index.js';
 import { api } from './lib/api.js';
 import { ErrorMessage } from './components/ui/ErrorMessage.js';
+import { Spinner } from './components/ui/Spinner.js';
 import { AdminLogin } from './pages/AdminLogin.js';
 import { AdminLayout } from './layouts/AdminLayout.js';
+import { Grading, gradingLoader } from './pages/Grading.js';
 import { MemberHome } from './pages/MemberHome.js';
 import { ScreenPage } from './pages/ScreenPage.js';
-import { Placeholder } from './pages/Placeholder.js';
 import { ExamDetail, examDetailLoader } from './pages/ExamDetail.js';
 import { ExamImport } from './pages/ExamImport.js';
 import { ExamList, examListLoader } from './pages/ExamList.js';
@@ -41,6 +42,9 @@ async function loginLoader() {
   return s;
 }
 
+// Shown while a route's loader runs on a hard page load (instead of a blank page).
+const loading = <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}><Spinner block label="Đang tải…" /></div>;
+
 function RouteError() {
   const err = useRouteError();
   return <div style={{ padding: 24, maxWidth: 480 }}><ErrorMessage title="Không tải được trang" message={err instanceof Error ? err.message : 'Có lỗi xảy ra'} onRetry={() => location.reload()} /></div>;
@@ -50,18 +54,19 @@ function RouteError() {
 export const router = createBrowserRouter([
   { path: '/', element: <MemberHome /> }, // renders its own <MemberLayout> (title and name depend on its state)
   { path: '/screen', element: <ScreenPage /> }, // public projector page; scales its own 1920×1080 stage
-  { path: '/admin/login', loader: loginLoader, element: <AdminLogin />, errorElement: <RouteError /> },
+  { path: '/admin/login', loader: loginLoader, element: <AdminLogin />, errorElement: <RouteError />, hydrateFallbackElement: loading },
   {
     element: <AdminShell />,
     loader: requireLogin,
     errorElement: <RouteError />,
+    hydrateFallbackElement: loading,
     children: [
       { path: '/admin/exams', loader: examListLoader, element: <ExamList /> },
       { path: '/admin/exams/import', element: <ExamImport /> },
       { path: '/admin/exams/:id', loader: examDetailLoader, element: <ExamDetail /> },
       { path: '/admin/sessions', loader: sessionListLoader, element: <SessionList /> },
       { path: '/admin/sessions/:id', loader: sessionDetailLoader, element: <SessionDetail /> },
-      { path: '/admin/sessions/:id/grading', element: <Placeholder title="Chấm tự luận" story="S15" /> },
+      { path: '/admin/sessions/:id/grading', loader: gradingLoader, element: <Grading /> },
     ],
   },
 ]);

@@ -81,9 +81,9 @@ describe('GET /api/sessions/:id/leaderboard', () => {
     expect((await r.board()).entries.map(e => [e.rank, e.displayName])).toEqual([[1, 'An'], [1, 'Bình'], [3, 'Chi']]);
   });
 
-  it('exam with essays: manual points are added, and the label goes from provisional to official on finalize', async () => {
+  it('exam with essays: graded points are added, and the label goes from provisional to official on finalize', async () => {
     const r = await room({ essay: true, names: ['An', 'Bình'] });
-    const an = await r.play('An', 3);
+    await r.play('An', 3);
     await r.play('Bình', 3);
     let b = await r.board();
     expect(b.provisional).toBe(true);
@@ -92,7 +92,12 @@ describe('GET /api/sessions/:id/leaderboard', () => {
 
     await r.admin(`/sessions/${r.session.id}/close`);
     expect((await r.board()).provisional).toBe(true); // closed: essays still to grade
-    r.db.update(attempts).set({ manualScore: 4 }).where(eq(attempts.id, an)).run(); // what S15 will do
+
+    const view = (await r.app.inject({ url: `/api/admin/sessions/${r.session.id}/grading`, headers: r.headers })).json<{ questions: { answers: { answerId: number; displayName: string }[] }[] }>();
+    const grade = (name: string, score: number) =>
+      r.app.inject({ method: 'PUT', url: `/api/admin/answers/${view.questions[0]!.answers.find(a => a.displayName === name)!.answerId}/grade`, headers: r.headers, payload: { score } });
+    await grade('An', 4);
+    await grade('Bình', 0);
     b = await r.board();
     expect(b.entries.map(e => [e.displayName, e.score])).toEqual([['An', 7], ['Bình', 3]]);
 

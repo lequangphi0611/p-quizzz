@@ -12,12 +12,13 @@ import { exams, participants, sessions } from '../db/schema.js';
 import { publish } from '../events.js';
 import { autoSubmitOpenAttempts, getSessionProgress, NO_PROGRESS } from './attempts.js';
 import { ServiceError } from './errors.js';
+import { countUngradedEssays } from './grading.js';
 
 type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 export type DbOrTx = Db | Tx;
 
 
-// ── Hooks implemented by later stories ──────────────────────────────────────────────────────────
+// ── Closing hook ────────────────────────────────────────────────────────────────────────────────
 /**
  * Runs inside the close transaction, before the status changes: submits and scores every unfinished attempt with
  * its saved answers (kicked members' attempts are skipped, they never count). Returns how many were submitted.
@@ -26,13 +27,6 @@ export function onSessionClosing(db: DbOrTx, sessionId: number): number {
   return autoSubmitOpenAttempts(db, sessionId);
 }
 
-/**
- * Whether `finalize` may proceed.
- * TODO(S15): true only when every essay answer of each counted attempt has a manual score.
- */
-export function canFinalize(_db: DbOrTx, _sessionId: number): boolean {
-  return true;
-}
 // ────────────────────────────────────────────────────────────────────────────────────────────────
 
 // Qualified names inside the subquery: drizzle would render a bare "id" that resolves to the wrong table.
@@ -161,7 +155,9 @@ export function transitionSession(db: Db, id: number, action: SessionAction): Se
         patch.finalizedAt = now;
       }
     } else {
-      if (!canFinalize(tx, id)) throw new ServiceError(409, 'Còn câu tự luận chưa chấm điểm');
+      // Official results need every counted essay answer scored (blank ones too — usually 0).
+      const missing = countUngradedEssays(tx, id);
+      if (missing > 0) throw new ServiceError(409, `Còn ${missing} bài tự luận chưa chấm điểm`);
       patch.finalizedAt = now;
     }
 
