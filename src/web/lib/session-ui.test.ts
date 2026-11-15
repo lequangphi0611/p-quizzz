@@ -10,9 +10,9 @@ describe('ACTION_FOR_STATUS', () => {
     }
   });
 
-  it('only start and close ask for confirmation', () => {
+  it('start, close and finalize (irreversible) ask for confirmation; opening the lobby does not', () => {
     const confirming = Object.values(ACTION_FOR_STATUS).filter(s => s?.confirm).map(s => s!.action);
-    expect(confirming).toEqual(['start', 'close']);
+    expect(confirming).toEqual(['start', 'close', 'finalize']);
   });
 
   it('the start confirmation mentions how many people are waiting', () => {

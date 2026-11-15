@@ -21,7 +21,10 @@ export const ACTION_FOR_STATUS: Record<SessionStatus, ActionSpec | null> = {
     action: 'close', label: 'Đóng phiên', icon: 'door-open', variant: 'danger',
     confirm: { title: 'Đóng phiên thi?', confirmLabel: 'Đóng phiên', body: () => 'Bài đang làm dở sẽ được tự nộp với câu trả lời đã lưu.' },
   },
-  closed: { action: 'finalize', label: 'Chốt kết quả', icon: 'flag', variant: 'primary' },
+  closed: {
+    action: 'finalize', label: 'Chốt kết quả', icon: 'flag', variant: 'primary',
+    confirm: { title: 'Chốt kết quả?', confirmLabel: 'Chốt kết quả', body: () => 'Điểm sẽ thành chính thức, bảng xếp hạng bỏ nhãn "Tạm tính" và không sửa điểm được nữa.' },
+  },
   finalized: null,
 };
 

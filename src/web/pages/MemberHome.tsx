@@ -221,7 +221,7 @@ export function MemberHome() {
         <PageCard desk={desk} center>
           <HeroIcon name="user-x" tone="ink" />
           <h1 style={mText.h1}>Bạn đã được mời ra khỏi phiên</h1>
-          <p style={mText.meta}>Mentor đã mời bạn ra khỏi phiên{title ? ` “${title}”` : ''}. Nếu có nhầm lẫn, hãy báo mentor. Bạn có thể vào lại bằng một tên khác.</p>
+          <p style={mText.meta}>Mentor đã mời bạn ra khỏi phiên{title ? ` “${title}”` : ''}. Nếu có nhầm lẫn, hãy báo mentor. Bạn có thể xin vào lại bằng cách nhập tên và mã phòng lần nữa.</p>
           <Button variant="secondary" size="lg" icon="arrow-left" block={!desk} onClick={() => { if (activeId !== null) clearParticipantToken(activeId); setHasToken(false); setMe(null); setMeState('idle'); }}>
             Về trang vào phòng
           </Button>

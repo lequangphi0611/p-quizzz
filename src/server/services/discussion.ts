@@ -1,15 +1,9 @@
-import { createHash } from 'node:crypto';
 import { eq, inArray } from 'drizzle-orm';
 import type { DiscussionAnswer, DiscussionQuestion, DiscussionView } from '../../shared/api/index.js';
 import type { Db } from '../db/client.js';
 import { answers, exams, options, questions } from '../db/schema.js';
 import { ServiceError } from './errors.js';
-import { countedAttempts, sessionInfo } from './grading.js';
-
-// Stable, per-question shuffle key: the same session + question always gives the same order,
-// different questions give different orders, and it is unrelated to ids or join order.
-const shuffleKey = (sessionId: number, questionId: number, answerId: number) =>
-  createHash('sha256').update(`${sessionId}:${questionId}:${answerId}`).digest('hex');
+import { countedAttempts, sessionInfo, shuffleKey } from './grading.js';
 
 const isBlankText = (t: string | null) => !t || t.trim() === '';
 

@@ -42,8 +42,9 @@ export function MemberLayout({ children, sessionTitle, displayName, footer, vari
       </div>
     );
   }
+  // minHeight in dvh (not %): a % of an auto-height parent does nothing, which left the footer floating mid-screen on tablets.
   return (
-    <div style={{ minHeight: '100%', background: 'var(--surface-page)', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100dvh', background: 'var(--surface-page)', display: 'flex', flexDirection: 'column' }}>
       <header style={{ position: 'sticky', top: 0, zIndex: 5, background: 'var(--paper)', borderBottom: '1px solid var(--border-hairline)' }}>
         <div style={{ maxWidth: 'var(--member-max)', margin: '0 auto', height: 52, padding: '0 var(--gutter-phone)', display: 'flex', alignItems: 'center', gap: 10 }}>
           {wordmark(18)}

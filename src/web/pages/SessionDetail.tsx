@@ -233,8 +233,8 @@ function SessionDetailView({ initial }: { initial: SessionDetailData }) {
       <ConfirmDialog
         open={dialog?.kind === 'kick'}
         tone="danger"
-        title={dialog?.kind === 'kick' ? `Kick ${dialog.p.displayName}?` : ''}
-        confirmLabel="Kick"
+        title={dialog?.kind === 'kick' ? `${dialog.p.status === 'pending' ? 'Từ chối' : 'Kick'} ${dialog.p.displayName}?` : ''}
+        confirmLabel={dialog?.kind === 'kick' && dialog.p.status === 'pending' ? 'Từ chối' : 'Kick'}
         busy={working}
         onCancel={() => setDialog(null)}
         onConfirm={async () => {
@@ -243,7 +243,7 @@ function SessionDetailView({ initial }: { initial: SessionDetailData }) {
           setDialog(null);
         }}
       >
-        Người này sẽ bị loại khỏi phiên và không xuất hiện trên bảng xếp hạng.
+        {dialog?.kind === 'kick' && dialog.p.status === 'pending' ? 'Người này sẽ không vào được phiên (họ có thể xin vào lại bằng cách nhập tên và mã phòng).' : 'Người này sẽ bị loại khỏi phiên và không xuất hiện trên bảng xếp hạng.'}
       </ConfirmDialog>
     </div>
   );
