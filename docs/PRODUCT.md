@@ -136,3 +136,5 @@ Các mục dưới đây đã lấy **mặc định** để chia story (2026-11-
 7. Vào trễ (phiên đang chạy) → chờ mentor duyệt. Vào lúc lobby → vào thẳng (mentor vẫn kick được).
 8. Mỗi lần làm lại được trộn thứ tự mới.
 9. Chấm tự luận cho phép điểm lẻ 0.5.
+10. Import **không chặn trùng file** (2026-11-15): vì đề bất biến và "sửa = import mới", import nhiều bản giống nhau là bình thường; bản trùng chưa dùng thì xoá được. Chống bấm Import hai lần bằng cách khoá nút khi đang gửi (UI). Cảnh báo "file này đã import ngày X" (so `source_markdown`) để backlog.
+11. **Chưa có archive đề** (2026-11-15), hoãn khỏi MVP. Khi làm: thêm cột `archived_at` vào `exams`; archive = ẩn khỏi danh sách chọn để tạo phiên mới, **không** xoá mềm — đề vẫn hiện trong lịch sử phiên và trang chấm điểm. Làm khi danh sách đề rối hoặc khi có lịch sử phiên (S09). Giả định đang dùng: mentor ít sửa đề sau khi đã chạy phiên; nếu ngược lại thì kéo lên ngay sau MVP.
