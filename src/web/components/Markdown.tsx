@@ -26,7 +26,19 @@ const components: Components = {
   },
 };
 
-export function Markdown({ source, className }: { source: string; className?: string }) {
+// Option texts and question prompts are one-liners: render without the block <p> wrapper.
+const inlineComponents: Components = { ...components, p: ({ children }) => <>{children}</> };
+
+export function Markdown({ source, className, inlineOnly = false }: { source: string; className?: string; inlineOnly?: boolean }) {
+  if (inlineOnly) {
+    return (
+      <span className={className}>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[[rehypeHighlight, { detect: false }]]} components={inlineComponents}>
+          {source}
+        </ReactMarkdown>
+      </span>
+    );
+  }
   return (
     <div className={className}>
       <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[[rehypeHighlight, { detect: false }]]} components={components}>

@@ -7,6 +7,9 @@ import { AdminLayout } from './layouts/AdminLayout.js';
 import { MemberLayout } from './layouts/MemberLayout.js';
 import { ScreenLayout } from './layouts/ScreenLayout.js';
 import { Placeholder } from './pages/Placeholder.js';
+import { ExamDetail, examDetailLoader } from './pages/ExamDetail.js';
+import { ExamImport } from './pages/ExamImport.js';
+import { ExamList, examListLoader } from './pages/ExamList.js';
 
 function MemberShell() {
   return <MemberLayout><Outlet /></MemberLayout>;
@@ -59,9 +62,9 @@ export const router = createBrowserRouter([
     loader: requireLogin,
     errorElement: <RouteError />,
     children: [
-      { path: '/admin/exams', element: <Placeholder title="Đề thi" story="S05" /> },
-      { path: '/admin/exams/import', element: <Placeholder title="Import đề" story="S05" /> },
-      { path: '/admin/exams/:id', element: <Placeholder title="Chi tiết đề" story="S05" /> },
+      { path: '/admin/exams', loader: examListLoader, element: <ExamList /> },
+      { path: '/admin/exams/import', element: <ExamImport /> },
+      { path: '/admin/exams/:id', loader: examDetailLoader, element: <ExamDetail /> },
       { path: '/admin/sessions', element: <Placeholder title="Phiên thi" story="S09" /> },
       { path: '/admin/sessions/:id', element: <Placeholder title="Điều khiển phiên" story="S09" /> },
       { path: '/admin/sessions/:id/grading', element: <Placeholder title="Chấm tự luận" story="S15" /> },

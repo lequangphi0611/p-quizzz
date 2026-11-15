@@ -24,4 +24,10 @@ describe('<Markdown>', () => {
     expect(html).toContain('<code class="rounded');
     expect(html).not.toContain('hljs');
   });
+
+  it('inlineOnly renders inline code without a block <p> wrapper', () => {
+    const html = renderToStaticMarkup(createElement(Markdown, { source: 'Chạy `git add`', inlineOnly: true }));
+    expect(html).not.toContain('<p');
+    expect(html).toContain('<code');
+  });
 });

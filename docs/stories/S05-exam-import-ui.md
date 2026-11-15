@@ -14,10 +14,10 @@ Bước cuối của quy trình soạn đề ([PRODUCT.md §6](../PRODUCT.md)): 
 - Component preview câu hỏi đặt ở `src/web/components/QuestionPreview.tsx` để S16 tái dùng.
 
 ## Acceptance criteria
-- [ ] Import file mẫu `exams/examples/git-co-ban.md` thành công bằng cả 3 cách đưa nội dung vào.
-- [ ] File lỗi: thấy đúng số dòng, bấm lỗi nhảy tới dòng, không import được.
-- [ ] Code block trong câu hỏi hiển thị có highlight.
-- [ ] Bấm Import nhiều lần liên tiếp chỉ tạo đúng 1 đề (nút khoá khi đang gửi).
+- [x] Import file mẫu `exams/examples/git-co-ban.md` thành công bằng cả 3 cách đưa nội dung vào.
+- [x] File lỗi: thấy đúng số dòng, bấm lỗi nhảy tới dòng, không import được.
+- [x] Code block trong câu hỏi hiển thị có highlight.
+- [x] Bấm Import nhiều lần liên tiếp chỉ tạo đúng 1 đề (nút khoá khi đang gửi).
 
 ## Test bắt buộc
 - Không bắt buộc test UI tự động; ghi rõ các luồng đã thao tác tay trong báo cáo.
