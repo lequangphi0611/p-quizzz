@@ -25,7 +25,7 @@ Hiện tại giao diện học viên là **một cột hẹp 640px** (thiết k�
 2. **Phòng chờ**: tên đề, tên của mình, số người đã vào, thông điệp "Chờ mentor bắt đầu". **Chờ duyệt** (vào muộn khi phiên đang chạy). **Bị mời ra khỏi phiên**.
 3. **Bắt đầu làm bài**: thẻ tóm tắt (số câu, tổng điểm, "Mỗi người làm 1 lần") + nút "Bắt đầu làm bài".
 4. **Đang làm bài** — màn quan trọng nhất:
-   - **Máy tính**: đề xuất bố cục tận dụng chiều ngang, ví dụ: cột trái **danh sách câu** (`QuestionNav` dạng lưới/danh sách, đánh dấu đã trả lời / chưa trả lời) + tiến độ "Đã trả lời 7/12" + nút **Nộp bài** luôn thấy; vùng giữa **một câu** với đề rộng, code block đủ rộng để không phải cuộn ngang với đoạn code 80 ký tự; ô tự luận **cao, font monospace**, đủ cho ~20 dòng code. Gợi ý **phím tắt** (vd. `←`/`→` câu trước/sau, `1`–`9` chọn phương án) và cách hiển thị gợi ý phím tắt mà không rối.
+   - **Máy tính**: đề xuất bố cục tận dụng chiều ngang, ví dụ: cột trái **danh sách câu** (`QuestionNav` dạng lưới/danh sách, đánh dấu đã trả lời / chưa trả lời) + tiến độ "Đã trả lời 7/12" + nút **Nộp bài** luôn thấy; vùng giữa **một câu** với đề rộng, code block đủ rộng để không phải cuộn ngang với đoạn code 80 ký tự; ô tự luận **cao, font monospace**, đủ cho ~20 dòng code. **Phím tắt** `←`/`→` câu trước/sau, `1`–`9` chọn phương án — tắt khi đang gõ trong ô nhập (xem "Đã quyết").
    - **Điện thoại**: một câu mỗi màn, `QuestionNav` gọn (cuộn ngang hoặc mở dạng bảng), thanh dưới cố định: Câu trước · Câu sau · Nộp bài.
    - Các loại câu: **một đáp án** (radio), **nhiều đáp án** (checkbox, ghi rõ "Chọn tất cả đáp án đúng"), **tự luận**. Phương án có thể chứa code inline.
    - Trạng thái: đang lưu, đã lưu, lỗi lưu, **mất mạng** ("Mất kết nối — bài vẫn được giữ, sẽ lưu lại khi có mạng"), câu chưa trả lời.
@@ -56,6 +56,10 @@ Thêm một câu giả có code block dài ~30 dòng, dòng dài ~100 ký tự, 
 - Ghi chú tương tác: phím tắt trên máy tính, focus/hover, hành vi thanh cố định trên điện thoại, chuyển động (motion token, có biến thể giảm chuyển động).
 - Nếu cần thay đổi component (vd. `MemberLayout` có biến thể rộng, `QuestionNav` dạng dọc cho sidebar), mô tả props và biến thể để bổ sung vào design system.
 
+## Đã quyết (PO, 2026-11-15)
+- Trên máy tính: **mỗi màn một câu**, kèm danh sách câu bên cạnh (không cuộn cả đề).
+- Có phím tắt trên máy tính (`←`/`→` câu trước/sau, `1`–`9` chọn phương án), nhưng **tắt khi con trỏ đang ở ô nhập** (ô tự luận, ô tên…), để gõ không bị nhảy câu hay chọn nhầm.
+
 ## Câu hỏi mở để designer đề xuất
-- Trên máy tính, hiện **một câu mỗi màn** hay **cuộn cả đề** (kèm danh sách câu bám theo)? Nêu đánh đổi.
 - Chiều rộng tối đa của vùng đọc đề trên màn rất rộng (1920px+) để chữ không quá dài dòng mà code vẫn đủ chỗ.
+- Cách hiển thị gợi ý phím tắt cho người mới mà không rối giao diện.
