@@ -11,7 +11,7 @@ type AttemptRow = typeof attempts.$inferSelect;
 
 // The attempt of each active participant that counts: their single submitted attempt
 // (kicked members and people who never submitted have none).
-function countedAttempts(db: DbOrTx, sessionId: number): Map<number, AttemptRow> {
+export function countedAttempts(db: DbOrTx, sessionId: number): Map<number, AttemptRow> {
   const rows = db
     .select({ attempt: attempts })
     .from(attempts)
@@ -28,7 +28,7 @@ function countedAttempts(db: DbOrTx, sessionId: number): Map<number, AttemptRow>
   return out;
 }
 
-function sessionInfo(db: DbOrTx, sessionId: number) {
+export function sessionInfo(db: DbOrTx, sessionId: number) {
   const s = db
     .select({ status: sessions.status, hasEssay: exams.hasEssay, examId: exams.id })
     .from(sessions)

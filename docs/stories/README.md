@@ -43,7 +43,7 @@ Mỗi story là một file tự đủ ngữ cảnh để một model/người im
 | [S14](S14-projector-screen.md) | Màn hình chiếu | S13 | ✅ |
 | [S15](S15-essay-grading.md) | Chấm tự luận & chốt phiên | S11, S09 | ✅ |
 | [S16](S16-review-after-close.md) | Xem lại bài sau khi đóng phiên | S12 | ✅ |
-| [S17](S17-discussion-mode.md) | Chế độ thảo luận sau phiên | S13, S15, S16 | ⬜ |
+| [S17](S17-discussion-mode.md) | Chế độ thảo luận sau phiên | S13, S15, S16 | ✅ |
 
 ## Thứ tự & song song
 

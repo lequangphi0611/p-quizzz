@@ -5,6 +5,7 @@ import { ErrorMessage } from './components/ui/ErrorMessage.js';
 import { Spinner } from './components/ui/Spinner.js';
 import { AdminLogin } from './pages/AdminLogin.js';
 import { AdminLayout } from './layouts/AdminLayout.js';
+import { DiscussionPage } from './pages/DiscussionPage.js';
 import { Grading, gradingLoader } from './pages/Grading.js';
 import { MemberHome } from './pages/MemberHome.js';
 import { ReviewPage } from './pages/ReviewPage.js';
@@ -58,6 +59,8 @@ export const router = createBrowserRouter([
   { path: '/review/:attemptId', element: <ReviewPage /> }, // member: own attempt with the answer key, once the session is over
   { path: '/screen', element: <ScreenPage /> }, // public projector page; scales its own 1920×1080 stage
   { path: '/admin/login', loader: loginLoader, element: <AdminLogin />, errorElement: <RouteError />, hydrateFallbackElement: loading },
+  // Projector discussion (S17): mentor-only, full-screen, outside the admin chrome; loads its own data (with its own states).
+  { path: '/admin/sessions/:id/discuss', loader: requireLogin, element: <DiscussionPage />, errorElement: <RouteError />, hydrateFallbackElement: loading },
   {
     element: <AdminShell />,
     loader: requireLogin,

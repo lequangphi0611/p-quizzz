@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { ActiveSession, LeaderboardResponse, PublicParticipant, ScreenRoom } from '../../shared/api/index.js';
 import { LeaderboardView } from '../components/Leaderboard.js';
+import { ScreenStage } from '../components/screen/ScreenStage.js';
 import { ScreenLayout } from '../layouts/ScreenLayout.js';
 import { api, ApiError } from '../lib/api.js';
 import { useJoinHost } from '../lib/join-url.js';
@@ -8,28 +9,9 @@ import { formatRoomCode } from '../lib/room-code.js';
 import { useSessionEvents } from '../lib/useSessionEvents.js';
 
 const POLL_MS = 5000;
-const STAGE_W = 1920;
-const STAGE_H = 1080;
 
 const label = { font: '600 32px/1.2 var(--font-sans)', textTransform: 'uppercase', letterSpacing: 'var(--tracking-label)', color: 'var(--screen-meta)' } as const;
 const chip = { padding: '14px 24px', borderRadius: 'var(--radius-lg)', background: 'var(--screen-panel)', border: '1px solid var(--screen-line)', font: '600 36px/1.2 var(--font-sans)', color: '#fff', animation: 'pq-pop-in var(--dur-pop) var(--ease-pop)' } as const;
-
-// The page is laid out once for a 1920×1080 projector and scaled to whatever window it is shown in,
-// so text keeps its proportions (≥ 32px at full HD) on any screen.
-function ScreenStage({ children }: { children: ReactNode }) {
-  const fit = () => Math.min(window.innerWidth / STAGE_W, window.innerHeight / STAGE_H);
-  const [scale, setScale] = useState(fit);
-  useEffect(() => {
-    const on = () => setScale(fit());
-    window.addEventListener('resize', on);
-    return () => window.removeEventListener('resize', on);
-  }, []);
-  return (
-    <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: 'var(--screen-bg)' }}>
-      <div style={{ position: 'absolute', left: '50%', top: '50%', width: STAGE_W, height: STAGE_H, transform: `translate(-50%, -50%) scale(${scale})` }}>{children}</div>
-    </div>
-  );
-}
 
 function JoinAddress({ host }: { host: string }) {
   return <span style={{ font: '700 var(--fs-screen-hero)/1 var(--font-mono)', color: 'var(--sun-400)', wordBreak: 'break-all' }}>{host}</span>;

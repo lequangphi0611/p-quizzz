@@ -19,6 +19,15 @@
 --status-finalized-ink:var(--brand-700);--status-finalized-surface:var(--brand-100);
 /* Projector (ScreenLayout) — dark, high-contrast */
 --screen-bg:#0F1218;--screen-panel:#1A1F28;--screen-line:#2C3340;--screen-text:#FFFFFF;--screen-meta:#A6ADB8;
+--screen-panel-hover:#232A35;--screen-line-strong:#3E4757;--screen-hover-line:#6B7586;
+/* Projector feedback — brightened for dark; pair color with icon + text, never color alone */
+--screen-correct:#4ADE97;--screen-correct-surface:#0F2B1D;--screen-correct-border:#2FA86B;
+--screen-wrong:#FF8F85;--screen-wrong-surface:#331A1C;--screen-wrong-border:#C2413A;
+--screen-pending:var(--sun-400);--screen-pending-surface:#2E2610;
+/* Tally bars — neutral until the answer is revealed */
+--screen-bar:#7C8696;--screen-bar-track:#262D39;
+--screen-focus:#8FB0FF;--screen-focus-ring:0 0 0 3px var(--screen-bg),0 0 0 6px var(--screen-focus);/* @kind other */
+--screen-scrim:rgba(5,7,10,.72);
 /* Semantic aliases */
 --surface-page:var(--ink-050);--surface-card:var(--paper);--surface-sunken:var(--ink-100);--surface-inverse:var(--ink-900);--surface-brand:var(--brand-600);
 --text-title:var(--ink-900);--text-body:var(--ink-800);--text-meta:var(--ink-600);--text-faint:var(--ink-500);--text-inverse:var(--paper);--text-link:var(--brand-700);

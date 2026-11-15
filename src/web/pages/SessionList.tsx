@@ -101,7 +101,10 @@ export function SessionList() {
                     <td style={{ ...td, textAlign: 'right' }} onClick={e => e.stopPropagation()}>
                       {/* One click from the list: finished sessions go straight to the review, others to the control page. */}
                       {s.status === 'closed' || s.status === 'finalized' ? (
-                        <Button size="sm" variant="secondary" icon="list-checks" onClick={() => nav(`/admin/sessions/${s.id}/review`)}>Xem lại</Button>
+                        <span style={{ display: 'inline-flex', gap: 6 }}>
+                          <Button size="sm" variant="secondary" icon="message-square" onClick={() => nav(`/admin/sessions/${s.id}/discuss`)}>Thảo luận</Button>
+                          <Button size="sm" variant="secondary" icon="list-checks" onClick={() => nav(`/admin/sessions/${s.id}/review`)}>Xem lại</Button>
+                        </span>
                       ) : (
                         <Button size="sm" variant="secondary" icon="chevron-right" onClick={() => nav(`/admin/sessions/${s.id}`)}>Điều khiển</Button>
                       )}

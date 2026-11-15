@@ -1,6 +1,30 @@
+import { useState } from 'react';
+
+function ScreenCell({ i, cur, done, meta, onSelect }: { i: number; cur: boolean; done: boolean; meta?: string | null; onSelect: (i: number) => void }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button type="button" onClick={() => onSelect(i)} aria-current={cur ? 'step' : undefined} aria-label={'Câu ' + (i + 1) + (meta ? ', đã chấm ' + meta : '')}
+      onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+      style={{ minWidth: 80, height: 80, padding: meta ? '0 18px' : 0, display: 'inline-flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 'var(--radius-md)', cursor: 'pointer', fontVariantNumeric: 'tabular-nums',
+        background: cur ? 'var(--sun-400)' : hover ? 'var(--screen-panel-hover)' : 'var(--screen-panel)', color: cur ? 'var(--ink-900)' : 'var(--screen-text)',
+        border: '2px solid ' + (cur ? 'var(--sun-400)' : hover ? 'var(--screen-hover-line)' : 'var(--screen-line-strong)'), boxShadow: cur ? '0 3px 0 var(--sun-500)' : 'none', transition: 'background var(--dur-fast), border-color var(--dur-fast)' }}>
+      <span style={{ font: '700 32px/1 var(--font-mono)' }}>{i + 1}</span>
+      {meta && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, font: '600 18px/1 var(--font-mono)', color: cur ? 'var(--ink-800)' : done ? 'var(--screen-correct)' : 'var(--screen-meta)' }}>{done && <span className="pq-icon pq-icon-check" style={{ fontSize: 16 }} />}{meta}</span>}
+    </button>
+  );
+}
+
 // Row of numbered buttons: current question filled, answered ones tinted. `current` and `answered` are 0-based.
-export function QuestionNav({ count, current, answered, onSelect }: { count: number; current: number; answered: number[]; onSelect: (index: number) => void }) {
+// size="screen": projector cells; `meta[i]` adds a small second line (e.g. grading progress "2/5").
+export function QuestionNav({ count, current, answered, meta = [], size = 'md', onSelect }: { count: number; current: number; answered: number[]; meta?: (string | null | undefined)[]; size?: 'md' | 'screen'; onSelect: (index: number) => void }) {
   const done = new Set(answered);
+  if (size === 'screen') {
+    return (
+      <nav aria-label="Danh sách câu" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+        {Array.from({ length: count }, (_, i) => <ScreenCell key={i} i={i} cur={i === current} done={done.has(i)} meta={meta[i]} onSelect={onSelect} />)}
+      </nav>
+    );
+  }
   return (
     <nav aria-label="Danh sách câu" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
       {Array.from({ length: count }, (_, i) => {

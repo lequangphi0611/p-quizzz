@@ -5,6 +5,7 @@ import { LeaderboardView } from '../components/Leaderboard.js';
 import { ReviewQuestions } from '../components/ReviewQuestions.js';
 import { Card } from '../components/ui/Card.js';
 import { ErrorMessage } from '../components/ui/ErrorMessage.js';
+import { Button } from '../components/ui/Button.js';
 import { Icon } from '../components/ui/Icon.js';
 import { Spinner } from '../components/ui/Spinner.js';
 import { StatusBadge } from '../components/ui/StatusBadge.js';
@@ -101,6 +102,9 @@ export function SessionReview() {
           </div>
         </div>
         <StatusBadge status={session.status} />
+        {(session.status === 'closed' || session.status === 'finalized') && (
+          <span style={{ marginLeft: 'auto' }}><Button variant="secondary" icon="message-square" onClick={() => nav(`/admin/sessions/${session.id}/discuss`)}>Thảo luận</Button></span>
+        )}
       </div>
 
       <Card>

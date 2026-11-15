@@ -15,5 +15,21 @@ body { font-family: var(--font-sans); font-size: var(--fs-16); line-height: var(
 a { color: var(--text-link); text-underline-offset: 2px; }
 a:hover { color: var(--brand-800); }
 :focus-visible { outline: none; box-shadow: var(--focus-ring); }
+[data-theme="screen"] :focus-visible { outline: none; box-shadow: var(--screen-focus-ring); }
+[data-theme="screen"] ::selection { background: var(--brand-500); color: #fff; }
 code, kbd, pre { font-family: var(--font-mono); }
 .pq-tabular { font-variant-numeric: tabular-nums; }
+
+/* Markdown on the projector (S17 discussion). Unlayered, so it wins over Tailwind's utility classes. */
+.pq-md-screen { font-size: var(--fs-screen-content); line-height: 1.5; color: var(--screen-text); }
+.pq-md-screen p { margin: 0 0 14px; line-height: 1.5; }
+.pq-md-screen p:last-child { margin-bottom: 0; }
+.pq-md-screen ul, .pq-md-screen ol { margin: 0 0 14px; padding-left: 32px; display: grid; gap: 8px; }
+.pq-md-screen strong { color: #fff; }
+.pq-md-screen code { background: var(--screen-panel-hover); color: #fff; border: 1.5px solid var(--screen-line-strong); padding: 1px 8px; border-radius: var(--radius-xs); font-size: 0.88em; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.pq-md-screen pre { margin: 0 0 14px; background: var(--screen-bg); border: 2px solid var(--screen-line-strong); border-radius: var(--radius-md); font-size: 26px; line-height: 1.45; }
+.pq-md-screen pre code { background: transparent; border: 0; padding: 20px 24px; font-size: inherit; }
+.pq-md-screen blockquote { color: var(--screen-meta); border-color: var(--screen-line-strong); }
+.pq-md-screen th, .pq-md-screen td { border-color: var(--screen-line-strong); font-size: 24px; }
+.pq-md-screen th { background: var(--screen-panel); }
+.pq-scroll { scrollbar-color: var(--screen-line-strong) transparent; }

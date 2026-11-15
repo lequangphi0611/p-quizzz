@@ -29,7 +29,9 @@ const components: Components = {
 // Option texts and question prompts are one-liners: render without the block <p> wrapper.
 const inlineComponents: Components = { ...components, p: ({ children }) => <>{children}</> };
 
-export function Markdown({ source, className, inlineOnly = false }: { source: string; className?: string; inlineOnly?: boolean }) {
+// size="screen": projector theme (28px body, dark inline code) — styles in styles/index.css (.pq-md-screen).
+export function Markdown({ source, className, inlineOnly = false, size = 'md' }: { source: string; className?: string; inlineOnly?: boolean; size?: 'md' | 'screen' }) {
+  if (size === 'screen') className = ['pq-md-screen', className].filter(Boolean).join(' ');
   if (inlineOnly) {
     return (
       <span className={className}>
