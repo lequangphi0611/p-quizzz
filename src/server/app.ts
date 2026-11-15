@@ -4,6 +4,7 @@ import fastifyCookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
 import type { Db } from './db/client.js';
 import { adminRoutes as adminRoutesPlugin } from './routes/admin.js';
+import { examsRoutes } from './routes/exams.js';
 import { eventsRoutes } from './routes/events.js';
 import { healthRoutes } from './routes/health.js';
 
@@ -16,7 +17,8 @@ export interface AppOptions {
 }
 
 // Builds the Fastify app without listening, so tests can use app.inject().
-export async function buildApp({ db, serveWeb = false, logger = false, adminRoutes: protectedRoutes = [] }: AppOptions) {
+export async function buildApp({ db, serveWeb = false, logger = false, adminRoutes: extraAdminRoutes = [] }: AppOptions) {
+  const protectedRoutes = [examsRoutes, ...extraAdminRoutes];
   const app = Fastify({ logger });
   app.decorate('db', db);
 

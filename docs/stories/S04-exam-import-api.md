@@ -12,11 +12,11 @@ Mentor import file Markdown đã duyệt. Parser có sẵn: `src/shared/exam-for
 - Schema zod + type response ở `src/shared/api/exams.ts`.
 
 ## Acceptance criteria
-- [ ] Markdown có lỗi → 400 `{ error: 'Đề có lỗi, chưa import được', errors: ExamIssue[] }`, DB không đổi.
-- [ ] Import `exams/examples/git-co-ban.md` → đúng 4 câu, đúng type/points/position, options đúng `is_correct`.
-- [ ] `GET /exams` trả `{ id, title, description, questionCount, totalPoints, hasEssay, createdAt, sessionCount }`, mới nhất trước.
-- [ ] `DELETE` khi đã có session dùng → 409 "Đề đã được dùng cho phiên thi, không xoá được".
-- [ ] Không có API sửa đề (đề bất biến).
+- [x] Markdown có lỗi → 400 `{ error: 'Đề có lỗi, chưa import được', errors: ExamIssue[] }`, DB không đổi.
+- [x] Import `exams/examples/git-co-ban.md` → đúng 4 câu, đúng type/points/position, options đúng `is_correct`.
+- [x] `GET /exams` trả `{ id, title, description, questionCount, totalPoints, hasEssay, createdAt, sessionCount }`, mới nhất trước.
+- [x] `DELETE` khi đã có session dùng → 409 "Đề đã được dùng cho phiên thi, không xoá được".
+- [x] Không có API sửa đề (đề bất biến).
 
 ## Test bắt buộc
 - preview trả đúng `ParseResult` cho file lỗi và file hợp lệ.
