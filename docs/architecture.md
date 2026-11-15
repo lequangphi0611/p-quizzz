@@ -85,6 +85,8 @@ Mọi body/response là JSON. Lỗi: `{ error: string }` (tiếng Việt, hiển
 | Method | Path | Auth | Mô tả |
 |---|---|---|---|
 | GET | `/api/sessions/active` | — | Phiên đang `lobby`/`running` (id, title, status) hoặc `null` |
+| GET | `/api/sessions/latest` | — | Như `active`, nhưng khi không có phiên hoạt động thì trả phiên `closed`/`finalized` gần nhất (cho màn hình chiếu); `null` nếu chưa có |
+| GET | `/api/network` | — | `{ joinHosts: string[] }` — địa chỉ LAN `ip:cổng` để member gõ vào trình duyệt (cổng lấy từ Host của request) |
 | POST | `/api/sessions/:id/join` | — | `{ displayName }` → `{ token, participant }`. Lobby → `active`; running → `pending`; trùng tên → 409 |
 | GET | `/api/sessions/:id/participants` | — | Chỉ `{ displayName }[]` của participant `active` (cho màn hình chiếu) |
 | GET | `/api/sessions/:id/leaderboard` | — | Xem §6 |

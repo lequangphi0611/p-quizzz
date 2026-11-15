@@ -8,8 +8,10 @@ const MEDAL = ['var(--medal-gold)', 'var(--medal-silver)', 'var(--medal-bronze)'
 const fmt = (n: number) => String(n).replace('.', ',');
 
 // Pure presentation. `size="screen"` is the projector variant (S14).
-export function LeaderboardView({ entries, provisional, highlightName, size = 'md', limit, title = 'Bảng xếp hạng' }: {
+export function LeaderboardView({ entries, provisional, highlightName, size = 'md', limit, title = 'Bảng xếp hạng', columns = 1 }: {
   entries: LeaderboardEntry[]; provisional: boolean; highlightName?: string; size?: 'md' | 'screen'; limit?: number; title?: string;
+  /** Two columns for a long ranking on the projector. */
+  columns?: 1 | 2;
 }) {
   const big = size === 'screen';
   const rows = limit ? entries.slice(0, limit) : entries;
@@ -27,7 +29,7 @@ export function LeaderboardView({ entries, provisional, highlightName, size = 'm
         </span>
       </div>
       {rows.length === 0 && <div style={{ padding: big ? 40 : 24, textAlign: 'center', font: 'var(--type-body)', fontSize: big ? 32 : 15, color: c.meta }}>Chưa có ai nộp bài.</div>}
-      <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: big ? 10 : 0 }}>
+      <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: big ? 10 : 0, gridTemplateColumns: columns === 2 ? '1fr 1fr' : undefined, columnGap: columns === 2 ? 32 : undefined, gridAutoFlow: columns === 2 ? 'row' : undefined }}>
         {rows.map((e, i) => {
           const me = !!highlightName && e.displayName === highlightName;
           const top = e.rank <= 3;

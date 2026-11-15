@@ -10,6 +10,7 @@ import { StatusBadge } from '../components/ui/StatusBadge.js';
 import { th, td } from '../components/ui/tableStyles.js';
 import { api, ApiError } from '../lib/api.js';
 import { ACTION_FOR_STATUS, formatProgressScore, PROGRESS_LABEL } from '../lib/session-ui.js';
+import { useJoinHost } from '../lib/join-url.js';
 import { useSessionEvents } from '../lib/useSessionEvents.js';
 
 export const sessionDetailLoader = ({ params }: LoaderFunctionArgs) => api.get<SessionDetailData>(`/api/admin/sessions/${params.id}`);
@@ -17,10 +18,9 @@ export const sessionDetailLoader = ({ params }: LoaderFunctionArgs) => api.get<S
 const caption = { font: 'var(--type-label)', textTransform: 'uppercase', letterSpacing: 'var(--tracking-label)', color: 'var(--brand-700)' } as const;
 const errorText = (err: unknown, fallback: string) => (err instanceof ApiError ? err.message : fallback);
 
-// Members need an address they can reach over the LAN; "localhost" only works on the mentor's own machine.
+// The address members type. Taken from the server's LAN addresses when this page was opened as "localhost".
 function JoinUrlCard({ status }: { status: SessionDetailData['status'] }) {
-  const { host, hostname } = window.location;
-  const isLocal = /^(localhost|127\.|\[?::1\]?$)/.test(hostname);
+  const { host, unreachable } = useJoinHost();
   const open = status === 'lobby' || status === 'running';
   return (
     <Card tone="brand">
@@ -30,8 +30,8 @@ function JoinUrlCard({ status }: { status: SessionDetailData['status'] }) {
         <span style={{ font: 'var(--type-meta)', color: 'var(--text-meta)' }}>
           {open ? 'Đọc hoặc chiếu địa chỉ này cho cả phòng.' : 'Mở phòng chờ để member có thể vào.'}
         </span>
-        {isLocal && (
-          <ErrorMessage tone="warning" message={<>Bạn đang mở bằng <b>{hostname}</b> nên member không truy cập được. Mở lại bằng địa chỉ LAN (server in ra ở terminal, dạng <code>http://192.168.x.x:3000</code>).</>} />
+        {unreachable && (
+          <ErrorMessage tone="warning" message={<>Không tìm thấy địa chỉ mạng LAN của máy này. Kiểm tra máy đã kết nối Wi-Fi/mạng chưa — member không vào được bằng <b>localhost</b>.</>} />
         )}
       </div>
     </Card>

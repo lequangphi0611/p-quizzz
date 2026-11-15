@@ -115,6 +115,20 @@ export function getActiveSession(db: Db): ActiveSession | null {
   return row ?? null;
 }
 
+// For the projector: the active session, else the most recent one that has ended.
+export function getLatestSession(db: Db): ActiveSession | null {
+  const active = getActiveSession(db);
+  if (active) return active;
+  const row = db
+    .select({ id: sessions.id, title: exams.title, status: sessions.status })
+    .from(sessions)
+    .innerJoin(exams, eq(sessions.examId, exams.id))
+    .where(inArray(sessions.status, ['closed', 'finalized']))
+    .orderBy(desc(sessions.id))
+    .get();
+  return row ?? null;
+}
+
 // Applies a lifecycle action atomically, stamps the matching timestamp(s), then signals SSE listeners.
 export function transitionSession(db: Db, id: number, action: SessionAction): SessionDetail {
   let autoSubmitted = 0;

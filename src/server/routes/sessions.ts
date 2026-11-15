@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { CreateSessionBody, type ActiveSession } from '../../shared/api/index.js';
 import { SESSION_ACTIONS, type SessionAction } from '../../shared/session-state.js';
-import { createSession, getActiveSession, getSessionDetail, listSessions, transitionSession } from '../services/sessions.js';
+import { createSession, getActiveSession, getLatestSession, getSessionDetail, listSessions, transitionSession } from '../services/sessions.js';
 import { fail, parseId } from './util.js';
 
 // Mentor session routes. Registered inside the requireMentor scope of /api/admin (see buildApp).
@@ -43,4 +43,6 @@ export async function sessionsRoutes(app: FastifyInstance) {
 // Public: lets members find the room from the root URL.
 export async function publicSessionsRoutes(app: FastifyInstance) {
   app.get('/api/sessions/active', async (_req, reply) => reply.send(getActiveSession(app.db) satisfies ActiveSession | null));
+  // The projector follows the active session, or else the one that just ended.
+  app.get('/api/sessions/latest', async (_req, reply) => reply.send(getLatestSession(app.db) satisfies ActiveSession | null));
 }

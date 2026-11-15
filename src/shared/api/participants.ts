@@ -34,3 +34,8 @@ export interface MeResponse {
   session: { id: number; title: string; status: SessionStatus; participantCount: number; questionCount: number; totalPoints: number; hasEssay: boolean };
   attempt: MeAttemptState;
 }
+
+// GET /api/sessions/:id/participants — public (projector lobby). Names only: no id, token or status.
+export interface PublicParticipant {
+  displayName: string;
+}

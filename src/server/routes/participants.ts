@@ -1,6 +1,6 @@
 import { and, count, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
-import { DisplayNameBody, type MeResponse } from '../../shared/api/index.js';
+import { DisplayNameBody, type MeResponse, type PublicParticipant } from '../../shared/api/index.js';
 import { requireParticipant } from '../auth/participant.js';
 import { exams, participants, questions, sessions } from '../db/schema.js';
 import { approveParticipant, joinSession, kickParticipant, renameParticipant, toParticipantInfo } from '../services/participants.js';
@@ -22,6 +22,20 @@ export async function joinRoutes(app: FastifyInstance) {
     } catch (err) {
       return fail(reply, err);
     }
+  });
+}
+
+// Public list for the projector: who is in the room. Only `active` members, only their names, in join order.
+export async function publicParticipantsRoutes(app: FastifyInstance) {
+  app.get<{ Params: { id: string } }>('/api/sessions/:id/participants', async (req, reply): Promise<PublicParticipant[] | undefined> => {
+    const id = parseId(req.params.id);
+    if (!id || !app.db.select({ id: sessions.id }).from(sessions).where(eq(sessions.id, id)).get()) return reply.code(404).send({ error: 'Không tìm thấy phiên' });
+    return app.db
+      .select({ displayName: participants.displayName })
+      .from(participants)
+      .where(and(eq(participants.sessionId, id), eq(participants.status, 'active')))
+      .orderBy(participants.joinedAt, participants.id)
+      .all();
   });
 }
 

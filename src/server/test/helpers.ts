@@ -4,7 +4,7 @@ import { createDb, type Db } from '../db/client.js';
 import { exams, options, questions } from '../db/schema.js';
 
 // App + in-memory DB (already migrated) for route tests.
-export async function createTestApp(opts: { adminRoutes?: FastifyPluginAsync[]; allowRemoteAdmin?: boolean } = {}) {
+export async function createTestApp(opts: { adminRoutes?: FastifyPluginAsync[]; allowRemoteAdmin?: boolean; lanIps?: () => string[] } = {}) {
   const db = createDb(':memory:');
   const app = await buildApp({ db, ...opts });
   return { app, db };

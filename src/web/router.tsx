@@ -4,8 +4,8 @@ import { api } from './lib/api.js';
 import { ErrorMessage } from './components/ui/ErrorMessage.js';
 import { AdminLogin } from './pages/AdminLogin.js';
 import { AdminLayout } from './layouts/AdminLayout.js';
-import { ScreenLayout } from './layouts/ScreenLayout.js';
 import { MemberHome } from './pages/MemberHome.js';
+import { ScreenPage } from './pages/ScreenPage.js';
 import { Placeholder } from './pages/Placeholder.js';
 import { ExamDetail, examDetailLoader } from './pages/ExamDetail.js';
 import { ExamImport } from './pages/ExamImport.js';
@@ -46,14 +46,10 @@ function RouteError() {
   return <div style={{ padding: 24, maxWidth: 480 }}><ErrorMessage title="Không tải được trang" message={err instanceof Error ? err.message : 'Có lỗi xảy ra'} onRetry={() => location.reload()} /></div>;
 }
 
-function ScreenShell() {
-  return <ScreenLayout><Outlet /></ScreenLayout>;
-}
-
 // Route table follows docs/architecture.md §8. Real screens replace the placeholders in later stories.
 export const router = createBrowserRouter([
   { path: '/', element: <MemberHome /> }, // renders its own <MemberLayout> (title and name depend on its state)
-  { element: <ScreenShell />, children: [{ path: '/screen', element: <Placeholder title="Màn hình chiếu" story="S14" /> }] },
+  { path: '/screen', element: <ScreenPage /> }, // public projector page; scales its own 1920×1080 stage
   { path: '/admin/login', loader: loginLoader, element: <AdminLogin />, errorElement: <RouteError /> },
   {
     element: <AdminShell />,

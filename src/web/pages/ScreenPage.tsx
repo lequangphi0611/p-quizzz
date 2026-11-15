@@ -1,0 +1,140 @@
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import type { ActiveSession, LeaderboardResponse, PublicParticipant } from '../../shared/api/index.js';
+import { LeaderboardView } from '../components/Leaderboard.js';
+import { ScreenLayout } from '../layouts/ScreenLayout.js';
+import { api } from '../lib/api.js';
+import { useJoinHost } from '../lib/join-url.js';
+import { useSessionEvents } from '../lib/useSessionEvents.js';
+
+const POLL_MS = 5000;
+const STAGE_W = 1920;
+const STAGE_H = 1080;
+
+const label = { font: '600 32px/1.2 var(--font-sans)', textTransform: 'uppercase', letterSpacing: 'var(--tracking-label)', color: 'var(--screen-meta)' } as const;
+const chip = { padding: '14px 24px', borderRadius: 'var(--radius-lg)', background: 'var(--screen-panel)', border: '1px solid var(--screen-line)', font: '600 36px/1.2 var(--font-sans)', color: '#fff', animation: 'pq-pop-in var(--dur-pop) var(--ease-pop)' } as const;
+
+// The page is laid out once for a 1920×1080 projector and scaled to whatever window it is shown in,
+// so text keeps its proportions (≥ 32px at full HD) on any screen.
+function ScreenStage({ children }: { children: ReactNode }) {
+  const fit = () => Math.min(window.innerWidth / STAGE_W, window.innerHeight / STAGE_H);
+  const [scale, setScale] = useState(fit);
+  useEffect(() => {
+    const on = () => setScale(fit());
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+  return (
+    <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: 'var(--screen-bg)' }}>
+      <div style={{ position: 'absolute', left: '50%', top: '50%', width: STAGE_W, height: STAGE_H, transform: `translate(-50%, -50%) scale(${scale})` }}>{children}</div>
+    </div>
+  );
+}
+
+function JoinAddress({ host }: { host: string }) {
+  return <span style={{ font: '700 var(--fs-screen-hero)/1 var(--font-mono)', color: 'var(--sun-400)', wordBreak: 'break-all' }}>{host}</span>;
+}
+
+function Lobby({ names, host }: { names: string[]; host: string }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateRows: 'auto 1fr', gap: 48, height: '100%' }}>
+      <div style={{ display: 'grid', gap: 16 }}>
+        <span style={label}>Mở trình duyệt và vào</span>
+        <JoinAddress host={host} />
+      </div>
+      <div style={{ display: 'grid', gap: 24, alignContent: 'start', minHeight: 0 }}>
+        <span style={label}>Đã vào · <span style={{ color: '#fff', fontFamily: 'var(--font-mono)' }}>{names.length}</span></span>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, overflow: 'hidden' }}>{names.map(n => <span key={n} style={chip}>{n}</span>)}</div>
+      </div>
+    </div>
+  );
+}
+
+function Running({ board, total }: { board: LeaderboardResponse | null; total: number }) {
+  const submitted = board?.entries.length ?? 0;
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '460px 1fr', gap: 56, height: '100%' }}>
+      <div style={{ display: 'grid', gap: 12, alignContent: 'start' }}>
+        <span style={label}>Đã nộp</span>
+        <span className="pq-tabular" style={{ font: '700 var(--fs-screen-hero)/1 var(--font-mono)', color: '#fff' }}>{submitted}<span style={{ color: 'var(--screen-meta)', fontSize: 56 }}>/{total}</span></span>
+      </div>
+      <LeaderboardView size="screen" limit={10} entries={board?.entries ?? []} provisional={board?.provisional ?? true} />
+    </div>
+  );
+}
+
+function Ended({ board }: { board: LeaderboardResponse | null }) {
+  const entries = board?.entries ?? [];
+  return <LeaderboardView size="screen" entries={entries} provisional={board?.provisional ?? true} columns={entries.length > 8 ? 2 : 1} limit={16} />;
+}
+
+function Waiting({ host }: { host: string }) {
+  return (
+    <div style={{ height: '100%', display: 'grid', placeContent: 'center', gap: 40, textAlign: 'center' }}>
+      <span style={{ font: '800 var(--fs-screen-title)/1.1 var(--font-sans)', color: '#fff' }}>Chờ mentor mở phiên thi</span>
+      <div style={{ display: 'grid', gap: 16 }}><span style={label}>Địa chỉ để vào</span><JoinAddress host={host} /></div>
+    </div>
+  );
+}
+
+// "/screen" — public, read-only, needs no interaction: it follows the active session (else the one that just ended)
+// and switches by itself when the mentor opens the next one.
+export function ScreenPage() {
+  const [latest, setLatest] = useState<ActiveSession | null | undefined>(undefined);
+  const [names, setNames] = useState<string[]>([]);
+  const [board, setBoard] = useState<LeaderboardResponse | null>(null);
+  const join = useJoinHost();
+  const idRef = useRef<number | null>(null);
+  idRef.current = latest?.id ?? null;
+  const seq = useRef(0);
+
+  const fetchLatest = useCallback(async () => {
+    try { setLatest(await api.get<ActiveSession | null>('/api/sessions/latest')); } catch { /* keep showing what we have */ }
+  }, []);
+
+  const fetchData = useCallback(async () => {
+    const id = idRef.current;
+    if (id === null) return;
+    const n = ++seq.current;
+    try {
+      const [p, b] = await Promise.all([api.get<PublicParticipant[]>(`/api/sessions/${id}/participants`), api.get<LeaderboardResponse>(`/api/sessions/${id}/leaderboard`)]);
+      if (n !== seq.current || idRef.current !== id) return;
+      setNames(p.map(x => x.displayName));
+      setBoard(b);
+    } catch { /* the next event or poll refreshes */ }
+  }, []);
+
+  useEffect(() => {
+    void fetchLatest();
+    const t = setInterval(() => { void fetchLatest(); void fetchData(); }, POLL_MS);
+    return () => clearInterval(t);
+  }, [fetchLatest, fetchData]);
+
+  // A different session (the mentor opened the next one): drop the old data and load the new.
+  const id = latest?.id ?? null;
+  useEffect(() => { setNames([]); setBoard(null); void fetchData(); }, [id, fetchData]);
+
+  useSessionEvents(id, {
+    session: () => { void fetchLatest(); void fetchData(); },
+    participants: () => { void fetchData(); },
+    leaderboard: () => { void fetchData(); },
+  });
+
+  const status = latest?.status;
+  let body: ReactNode = null;
+  if (latest === null) body = <Waiting host={join.host} />;
+  else if (status === 'lobby') body = <Lobby names={names} host={join.host} />;
+  else if (status === 'running') body = <Running board={board} total={names.length} />;
+  else if (status === 'closed' || status === 'finalized') body = <Ended board={board} />;
+
+  return (
+    <ScreenStage>
+      <ScreenLayout
+        examTitle={latest?.title}
+        status={status === 'lobby' || status === 'running' || status === 'closed' || status === 'finalized' ? status : undefined}
+        joinUrl={status === 'running' || status === 'closed' || status === 'finalized' ? join.host : undefined}
+      >
+        {body}
+      </ScreenLayout>
+    </ScreenStage>
+  );
+}

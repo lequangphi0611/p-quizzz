@@ -14,9 +14,9 @@ Mentor chiếu lên projector để cả nhóm theo dõi. Trang công khai trong
 - Hiện thực endpoint công khai `GET /api/sessions/:id/participants` → `{ displayName }[]` (đã có trong architecture.md §5).
 
 ## Acceptance criteria
-- [ ] Đọc rõ từ xa: chữ chính ≥ 32px ở màn hình 1920×1080, tương phản cao.
-- [ ] Không cần thao tác gì trên máy chiếu suốt vòng đời phiên.
-- [ ] Không hiển thị đáp án hay bài làm.
+- [x] Đọc rõ từ xa: chữ chính ≥ 32px ở màn hình 1920×1080, tương phản cao.
+- [x] Không cần thao tác gì trên máy chiếu suốt vòng đời phiên.
+- [x] Không hiển thị đáp án hay bài làm.
 
 ## Test bắt buộc
 - API participants công khai chỉ trả tên, không trả token/id/status.
