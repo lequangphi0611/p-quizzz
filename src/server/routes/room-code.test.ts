@@ -52,6 +52,27 @@ describe('room code lifecycle', () => {
     expect(res.statusCode).toBe(403);
     expect(res.json()).toEqual({ error: 'Mã phòng không đúng' });
   });
+
+  it('a token from the previous session stays bound to it: it cannot see, join or take the next session', async () => {
+    const s = await setup();
+    const first = await s.create();
+    const code1 = (await s.admin(`/sessions/${first.id}/open`)).json<SessionDetail>().roomCode!;
+    const { token } = (await s.join(first.id, { displayName: 'An', roomCode: code1 })).json<{ token: string }>();
+    await s.admin(`/sessions/${first.id}/start`);
+    await s.admin(`/sessions/${first.id}/close`);
+    const second = await s.create();
+    await s.admin(`/sessions/${second.id}/open`);
+    await s.admin(`/sessions/${second.id}/start`);
+    const asOld = (method: 'GET' | 'POST', url: string) => s.app.inject({ method, url, headers: { 'x-participant-token': token } });
+    // /api/me still answers about the old, closed session (so the old result can be shown), never the new one.
+    const me = (await asOld('GET', '/api/me')).json<MeResponse>();
+    expect(me.session.id).toBe(first.id);
+    expect(me.session.status).toBe('finalized'); // multiple-choice only → auto-finalized on close
+    // Starting an attempt with the old token targets the closed session → refused; nothing is created in the new one.
+    expect((await asOld('POST', '/api/me/attempts')).statusCode).toBe(409);
+    const people = (await s.app.inject({ url: `/api/sessions/${second.id}/participants` })).json<PublicParticipant[]>();
+    expect(people).toEqual([]);
+  });
 });
 
 describe('POST /api/sessions/:id/join — the room code', () => {
