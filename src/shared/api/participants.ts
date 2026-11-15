@@ -30,6 +30,7 @@ export interface JoinResponse {
 export interface MeResponse {
   participant: SessionParticipantInfo;
   // participantCount = members with status 'active' (the lobby shows "N người đã vào").
-  session: { id: number; title: string; status: SessionStatus; participantCount: number };
+  // questionCount / totalPoints / hasEssay describe the exam for the start screen (counts only, no content).
+  session: { id: number; title: string; status: SessionStatus; participantCount: number; questionCount: number; totalPoints: number; hasEssay: boolean };
   attempt: MeAttemptState;
 }

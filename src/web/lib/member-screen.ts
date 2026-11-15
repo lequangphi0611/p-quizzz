@@ -8,6 +8,7 @@ export type MemberScreen = 'loading' | 'none' | 'join' | 'pending' | 'lobby' | '
 export interface ScreenInput {
   /** `undefined` while the first /api/sessions/active call is in flight; `null` when nothing is active. */
   active: ActiveSession | null | undefined;
+  /** Whether this browser holds a token for the session being shown (the active one, else the last one joined). */
   hasToken: boolean;
   me: MeResponse | null;
   meState: MeState;
@@ -16,7 +17,12 @@ export interface ScreenInput {
 // Which member screen to show at "/" (S10). Pure so every combination is testable.
 export function decideScreen({ active, hasToken, me, meState }: ScreenInput): MemberScreen {
   if (active === undefined) return 'loading';
-  if (active === null) return 'none';
+  if (active === null) {
+    // Nothing is open. A member who took part in the session that just closed still sees their result.
+    if (!hasToken || meState === 'kicked') return 'none';
+    if (!me) return meState === 'error' ? 'none' : 'loading';
+    return me.session.status === 'closed' || me.session.status === 'finalized' ? 'ended' : 'none';
+  }
   if (!hasToken) return 'join';
   if (meState === 'kicked') return 'kicked';
   // `me` may still describe a previous session while the new one loads.

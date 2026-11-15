@@ -7,9 +7,10 @@ import { ErrorMessage } from '../components/ui/ErrorMessage.js';
 import { Icon } from '../components/ui/Icon.js';
 import { Spinner } from '../components/ui/Spinner.js';
 import { TextField } from '../components/ui/TextField.js';
-import { api, ApiError, clearParticipantToken, getParticipantToken, setCurrentSessionId, setParticipantToken } from '../lib/api.js';
+import { api, ApiError, clearParticipantToken, getCurrentSessionId, getParticipantToken, setCurrentSessionId, setParticipantToken } from '../lib/api.js';
 import { decideScreen, type MeState } from '../lib/member-screen.js';
 import { useSessionEvents } from '../lib/useSessionEvents.js';
+import { MemberExam, ResultView } from './MemberExam.js';
 
 const POLL_MS = 5000;
 const center = { display: 'grid', gap: 20, paddingTop: 24 } as const;
@@ -67,7 +68,13 @@ export function MemberHome() {
   const [hasToken, setHasToken] = useState(false);
   const [me, setMe] = useState<MeResponse | null>(null);
   const [meState, setMeState] = useState<MeState>('idle');
-  const activeId = active?.id ?? null;
+  // The session whose state we follow: the active one, else the one this browser last joined (so the result
+  // stays on screen after the mentor closes the session).
+  const [remembered, setRemembered] = useState<number | null>(() => {
+    const id = Number(getCurrentSessionId());
+    return id > 0 && getParticipantToken(id) ? id : null;
+  });
+  const activeId = active ? active.id : active === null ? remembered : null;
   const activeIdRef = useRef<number | null>(null);
   activeIdRef.current = activeId;
   const meSeq = useRef(0);
@@ -96,6 +103,7 @@ export function MemberHome() {
       if (n !== meSeq.current) return;
       if (err instanceof ApiError && err.status === 401) { // unknown token (e.g. server DB was reset): start over
         clearParticipantToken(sessionId);
+        setRemembered(r => (r === sessionId ? null : r));
         setHasToken(false); setMe(null); setMeState('idle');
       } else if (err instanceof ApiError && err.status === 403) {
         setMeState('kicked');
@@ -126,8 +134,9 @@ export function MemberHome() {
   });
 
   const screen = decideScreen({ active, hasToken, me, meState });
+  const refreshMe = useCallback(async () => { if (activeIdRef.current !== null) await fetchMe(activeIdRef.current); }, [fetchMe]);
   const title = me?.session.title ?? active?.title;
-  const name = me && (screen === 'pending' || screen === 'lobby' || screen === 'running') ? me.participant.displayName : undefined;
+  const name = me && (screen === 'pending' || screen === 'lobby' || screen === 'ended') ? me.participant.displayName : undefined;
 
   const view = (() => {
     switch (screen) {
@@ -138,7 +147,7 @@ export function MemberHome() {
       case 'none':
         return <div style={center}><CenterCard icon={<Icon name="clock" size={32} color="var(--text-faint)" />} title="Chưa có phiên thi nào đang mở"><p style={meta}>Trang sẽ tự cập nhật khi mentor mở phiên.</p></CenterCard></div>;
       case 'join':
-        return <JoinForm session={active!} onJoined={() => fetchMe(active!.id)} />;
+        return <JoinForm session={active!} onJoined={async () => { setRemembered(active!.id); await fetchMe(active!.id); }} />;
       case 'pending':
         return <div style={center}><CenterCard icon={<Spinner size={28} />} title="Đang chờ mentor duyệt"><p style={meta}>Phiên đã bắt đầu. Mentor sẽ cho bạn vào trong giây lát — màn hình tự chuyển khi được duyệt.</p></CenterCard></div>;
       case 'lobby':
@@ -150,9 +159,9 @@ export function MemberHome() {
           </div>
         );
       case 'running':
-        return <div style={center}><CenterCard icon={<Icon name="play" size={32} color="var(--correct-600)" />} title="Phiên đã bắt đầu"><p style={meta}>Màn hình làm bài sẽ có ở bước tiếp theo.</p></CenterCard></div>;
+        return null; // rendered by <MemberExam> below, with its own layout
       case 'ended':
-        return <div style={center}><CenterCard icon={<Icon name="flag" size={32} color="var(--text-faint)" />} title="Phiên thi đã kết thúc" /></div>;
+        return <ResultView me={me!} ended onStart={async () => {}} />;
       case 'kicked':
         return (
           <div style={center}>
@@ -165,5 +174,7 @@ export function MemberHome() {
     }
   })();
 
+  // The exam screen brings its own layout (sticky footer, session title).
+  if (screen === 'running') return <MemberExam me={me!} onChanged={refreshMe} />;
   return <MemberLayout sessionTitle={title} displayName={name}>{view}</MemberLayout>;
 }

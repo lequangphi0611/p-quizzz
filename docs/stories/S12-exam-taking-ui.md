@@ -19,9 +19,9 @@ Màn hình member dùng nhiều nhất. Mục tiêu: không mất bài, thao tá
 - F5 giữa chừng → quay lại đúng lượt với câu trả lời đã lưu.
 
 ## Acceptance criteria
-- [ ] Trả lời vài câu, F5 → câu trả lời còn nguyên.
-- [ ] Tắt mạng (DevTools offline) khi trả lời → thấy "Lỗi lưu", bật lại → lưu được.
-- [ ] Không chỗ nào trên UI hay trong network response tiết lộ đáp án đúng khi phiên đang chạy.
+- [x] Trả lời vài câu, F5 → câu trả lời còn nguyên.
+- [x] Tắt mạng (DevTools offline) khi trả lời → thấy "Lỗi lưu", bật lại → lưu được.
+- [x] Không chỗ nào trên UI hay trong network response tiết lộ đáp án đúng khi phiên đang chạy.
 
 ## Test bắt buộc
 - Không bắt buộc test UI tự động; ghi luồng đã thao tác tay (điện thoại giả lập + desktop).

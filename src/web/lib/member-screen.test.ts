@@ -6,7 +6,7 @@ import { decideScreen, type MeState } from './member-screen.js';
 const active = (status: 'lobby' | 'running' = 'lobby'): ActiveSession => ({ id: 1, title: 'Đề', status });
 const me = (p: 'active' | 'pending' | 'kicked', s: SessionStatus, sessionId = 1): MeResponse => ({
   participant: { id: 1, displayName: 'An', status: p, joinedAt: 0 },
-  session: { id: sessionId, title: 'Đề', status: s, participantCount: 3 },
+  session: { id: sessionId, title: 'Đề', status: s, participantCount: 3, questionCount: 5, totalPoints: 10, hasEssay: true },
   attempt: { current: null, submitted: [], canStartNew: false },
 });
 const screen = (a: ActiveSession | null | undefined, hasToken: boolean, m: MeResponse | null, meState: MeState = m ? 'ok' : 'idle') =>
@@ -17,6 +17,13 @@ describe('decideScreen', () => {
   it('no active session → none (even with a stale token)', () => {
     expect(screen(null, false, null)).toBe('none');
     expect(screen(null, true, me('active', 'lobby'))).toBe('none');
+  });
+  it('no active session but the member took part in one that just closed → their result', () => {
+    expect(screen(null, true, me('active', 'closed'))).toBe('ended');
+    expect(screen(null, true, me('active', 'finalized'))).toBe('ended');
+    expect(screen(null, true, null, 'idle')).toBe('loading'); // still fetching /api/me
+    expect(screen(null, true, null, 'error')).toBe('none');
+    expect(screen(null, true, null, 'kicked')).toBe('none');
   });
   it('active session without a token → join form', () => {
     expect(screen(active(), false, null)).toBe('join');

@@ -2,7 +2,7 @@ import { and, count, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { DisplayNameBody, type MeResponse } from '../../shared/api/index.js';
 import { requireParticipant } from '../auth/participant.js';
-import { exams, participants, sessions } from '../db/schema.js';
+import { exams, participants, questions, sessions } from '../db/schema.js';
 import { approveParticipant, joinSession, kickParticipant, renameParticipant, toParticipantInfo } from '../services/participants.js';
 import { getMeAttemptState } from '../services/attempts.js';
 import { attemptRoutes } from './attempts.js';
@@ -37,7 +37,7 @@ export async function meRoutes(app: FastifyInstance) {
       me.get('/', async (req): Promise<MeResponse> => {
         const p = req.participant!;
         const s = app.db
-          .select({ id: sessions.id, title: exams.title, status: sessions.status })
+          .select({ id: sessions.id, title: exams.title, status: sessions.status, totalPoints: exams.totalPoints, hasEssay: exams.hasEssay, examId: exams.id })
           .from(sessions)
           .innerJoin(exams, eq(sessions.examId, exams.id))
           .where(eq(sessions.id, p.sessionId))
@@ -47,7 +47,9 @@ export async function meRoutes(app: FastifyInstance) {
           .from(participants)
           .where(and(eq(participants.sessionId, p.sessionId), eq(participants.status, 'active')))
           .get()!;
-        return { participant: toParticipantInfo(p), session: { ...s, participantCount: n }, attempt: getMeAttemptState(app.db, p) };
+        const { q } = app.db.select({ q: count() }).from(questions).where(eq(questions.examId, s.examId)).get()!;
+        const { examId: _examId, ...session } = s;
+        return { participant: toParticipantInfo(p), session: { ...session, participantCount: n, questionCount: q }, attempt: getMeAttemptState(app.db, p) };
       });
     },
     { prefix: '/api/me' },
