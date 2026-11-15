@@ -6,7 +6,10 @@ import type { SessionParticipantInfo } from './sessions.js';
 export const MAX_NAME_LENGTH = 30;
 
 // Trim, collapse runs of whitespace, and compose accents (NFC) so "Đạt" typed two ways is the same name.
-export const normalizeDisplayName = (raw: string): string => raw.normalize('NFC').replace(/\s+/g, ' ').trim();
+// Control characters, zero-width spaces and bidi overrides would let two names look identical (or hide a name entirely).
+// ZWJ/ZWNJ (U+200D/U+200C) stay because emoji sequences and some scripts need them.
+const INVISIBLE = /[\p{Cc}\u00AD\u061C\u200B\u200E\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/gu;
+export const normalizeDisplayName = (raw: string): string => raw.normalize('NFC').replace(INVISIBLE, '').replace(/\s+/g, ' ').trim();
 
 // Key used to compare names: case-insensitive for the whole Unicode range (SQLite's lower() only does ASCII).
 export const displayNameKey = (name: string): string => normalizeDisplayName(name).toLowerCase();

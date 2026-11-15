@@ -319,7 +319,7 @@ export function getSessionProgress(db: DbOrTx, sessionId: number, totalPoints: n
 
   const result = new Map<number, ParticipantProgress>();
   for (const [pid, list] of byParticipant) {
-    const counted = pickCountedAttempt(list.map(a => ({ id: a.id, submittedAt: a.submittedAt ? ms(a.submittedAt) : null, score: totalScore(a) })));
+    const counted = pickCountedAttempt(list.map(a => ({ id: a.id, submittedAt: a.submittedAt ? ms(a.submittedAt) : null, score: sess?.status === 'finalized' ? totalScore(a) : a.autoScore ?? 0 })));
     const doing = list.some(a => !a.submittedAt) && !(over && kicked.has(pid));
     result.set(pid, {
       state: doing ? 'doing' : list.some(a => a.submittedAt) ? 'submitted' : 'none',

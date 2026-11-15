@@ -80,7 +80,7 @@ describe('GET /api/sessions/:id/leaderboard', () => {
     expect((await r.board()).entries.map(e => [e.rank, e.displayName])).toEqual([[1, 'An'], [1, 'Bình'], [3, 'Chi']]);
   });
 
-  it('exam with essays: graded points are added, and the label goes from provisional to official on finalize', async () => {
+  it('exam with essays: graded points stay hidden while provisional and count only on finalize (PRODUCT §4.5)', async () => {
     const r = await room({ essay: true, names: ['An', 'Bình'] });
     await r.play('An', 3);
     await r.play('Bình', 3);
@@ -98,10 +98,12 @@ describe('GET /api/sessions/:id/leaderboard', () => {
     await grade('An', 4);
     await grade('Bình', 0);
     b = await r.board();
-    expect(b.entries.map(e => [e.displayName, e.score])).toEqual([['An', 7], ['Bình', 3]]);
+    expect(b.entries.map(e => [e.displayName, e.score])).toEqual([['An', 3], ['Bình', 3]]); // graded, but not official yet
 
     await r.admin(`/sessions/${r.session.id}/finalize`);
-    expect((await r.board()).provisional).toBe(false);
+    b = await r.board();
+    expect(b.provisional).toBe(false);
+    expect(b.entries.map(e => [e.displayName, e.score])).toEqual([['An', 7], ['Bình', 3]]);
   });
 
   it('shows only rank, name, score, maxScore and submittedAt — nothing that identifies or authenticates', async () => {

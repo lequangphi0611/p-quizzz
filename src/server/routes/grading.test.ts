@@ -150,7 +150,7 @@ describe('PUT /api/admin/answers/:id/grade', () => {
     expect((await s.answerOf('An')).feedback).toBeNull();
   });
 
-  it("adds to the member's total on the leaderboard, and regrading replaces rather than adds", async () => {
+  it('essay points the mentor has entered stay off the provisional leaderboard until finalize (PRODUCT §4.5), and regrading replaces rather than adds', async () => {
     const s = await setup({ names: ['An', 'Bình'] });
     await s.submit('An', 'a'); // 3 automatic points each
     await s.submit('Bình', 'b');
@@ -159,9 +159,15 @@ describe('PUT /api/admin/answers/:id/grade', () => {
 
     await s.grade('An', { score: 4 });
     await s.grade('Bình', { score: 1.5 });
-    expect((await s.board()).entries.map(e => [e.displayName, e.score])).toEqual([['An', 7], ['Bình', 4.5]]);
-    await s.grade('An', { score: 1 }); // regrade: 3 + 1, not 3 + 4 + 1
-    expect((await s.board()).entries.map(e => [e.displayName, e.score])).toEqual([['Bình', 4.5], ['An', 4]]);
+    await s.grade('An', { score: 1 }); // regrade: the manual part is replaced, not added to
+    const provisional = await s.board();
+    expect(provisional.provisional).toBe(true);
+    expect(provisional.entries.map(e => [e.displayName, e.score])).toEqual([['An', 3], ['Bình', 3]]); // still automatic part only
+
+    await s.finalize();
+    const official = await s.board();
+    expect(official.provisional).toBe(false);
+    expect(official.entries.map(e => [e.displayName, e.score])).toEqual([['Bình', 4.5], ['An', 4]]); // 3 + 1.5, 3 + 1
   });
 
   it('only while the session is closed: 409 while running, and 409 after finalize with the score unchanged', async () => {

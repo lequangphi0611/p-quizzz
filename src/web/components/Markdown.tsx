@@ -3,6 +3,9 @@ import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import type { Components } from 'react-markdown';
 
+// Same-origin paths and data: URIs only; anything with a host (http:, https:, //host) is blocked.
+const isLocalSrc = (src: unknown): src is string => typeof src === 'string' && (/^data:image\//i.test(src) || (/^\/(?!\/)/.test(src)) || !/^[a-z][a-z0-9+.-]*:|^\/\//i.test(src));
+
 // Basic typography via Tailwind classes (no typography plugin). Code colours come from highlight.js' github-dark theme.
 const components: Components = {
   p: p => <p className="my-2 leading-relaxed" {...p} />,
@@ -13,6 +16,10 @@ const components: Components = {
   h3: p => <h3 className="mt-3 mb-1 text-lg font-semibold" {...p} />,
   blockquote: p => <blockquote className="my-2 border-l-4 border-neutral-300 pl-3 text-neutral-600" {...p} />,
   a: p => <a target="_blank" rel="noreferrer" {...p} />,
+  // Offline-first + privacy: never let the browser fetch a remote image (it would fail on the LAN and reveal the viewer's IP).
+  img: ({ src, alt }) => (isLocalSrc(src)
+    ? <img src={src} alt={alt ?? ''} className="my-2 max-w-full" />
+    : <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-sm italic text-neutral-500">[Ảnh ngoài bị chặn{alt ? `: ${alt}` : ''}]</span>),
   table: p => <div className="my-3 overflow-x-auto"><table className="w-full border-collapse text-sm" {...p} /></div>,
   th: p => <th className="border border-neutral-300 bg-neutral-100 px-3 py-1.5 text-left font-semibold" {...p} />,
   td: p => <td className="border border-neutral-300 px-3 py-1.5" {...p} />,

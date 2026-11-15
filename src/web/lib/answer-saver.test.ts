@@ -127,4 +127,33 @@ describe('AnswerSaver', () => {
     expect(send).not.toHaveBeenCalled();
     expect(states.length).toBe(before);
   });
+
+  it('retries a failed save by itself with backoff, without the member doing anything', async () => {
+    let fail = true;
+    const { saver, sent } = setup(async () => { if (fail) throw new Error('server down'); });
+    saver.queue(1, { selectedOptionIds: [7] });
+    await tick();
+    expect(saver.state).toBe('error');
+    const attempts = sent.length;
+    await tick(2000); // first retry after 2s, still down
+    expect(sent.length).toBeGreaterThan(attempts);
+    expect(saver.state).toBe('error');
+    fail = false; // server is back
+    await tick(5000);
+    expect(saver.state).toBe('saved');
+    expect(sent.at(-1)).toEqual([1, { selectedOptionIds: [7] }]);
+    const n = sent.length;
+    await tick(30000); // no further traffic once saved
+    expect(sent.length).toBe(n);
+  });
+
+  it('dispose stops the automatic retries', async () => {
+    const { saver, sent } = setup(async () => { throw new Error('down'); });
+    saver.queue(1, { textAnswer: 'x' });
+    await tick();
+    saver.dispose();
+    const n = sent.length;
+    await tick(60000);
+    expect(sent.length).toBe(n);
+  });
 });
