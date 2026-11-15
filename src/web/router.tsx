@@ -7,6 +7,7 @@ import { AdminLogin } from './pages/AdminLogin.js';
 import { AdminLayout } from './layouts/AdminLayout.js';
 import { Grading, gradingLoader } from './pages/Grading.js';
 import { MemberHome } from './pages/MemberHome.js';
+import { ReviewPage } from './pages/ReviewPage.js';
 import { ScreenPage } from './pages/ScreenPage.js';
 import { ExamDetail, examDetailLoader } from './pages/ExamDetail.js';
 import { ExamImport } from './pages/ExamImport.js';
@@ -53,6 +54,7 @@ function RouteError() {
 // Route table follows docs/architecture.md §8. Real screens replace the placeholders in later stories.
 export const router = createBrowserRouter([
   { path: '/', element: <MemberHome /> }, // renders its own <MemberLayout> (title and name depend on its state)
+  { path: '/review/:attemptId', element: <ReviewPage /> }, // member: own attempt with the answer key, once the session is over
   { path: '/screen', element: <ScreenPage /> }, // public projector page; scales its own 1920×1080 stage
   { path: '/admin/login', loader: loginLoader, element: <AdminLogin />, errorElement: <RouteError />, hydrateFallbackElement: loading },
   {

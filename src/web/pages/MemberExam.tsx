@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router';
 import type { AttemptView, MeResponse, SubmitResponse } from '../../shared/api/index.js';
 import { AnswerOption } from '../components/AnswerOption.js';
 import { Markdown } from '../components/Markdown.js';
@@ -56,7 +57,10 @@ function StartCard({ session, retake, onStart }: { session: Session; retake: boo
 // ── Result ──────────────────────────────────────────────────────────────────────────────────────
 export function ResultView({ me, ended, onStart, children }: { me: MeResponse; ended: boolean; onStart: () => Promise<void>; children?: ReactNode }) {
   const { session, attempt } = me;
+  const nav = useNavigate();
   const best = headlineAttempt(attempt.submitted);
+  // The answer key opens once the session is over; until then retakes are still possible.
+  const reviewable = session.status === 'closed' || session.status === 'finalized';
   const essayPoints = best ? Math.max(0, session.totalPoints - best.maxScore) : 0;
   return (
     <div style={stack}>
@@ -85,6 +89,15 @@ export function ResultView({ me, ended, onStart, children }: { me: MeResponse; e
             ))}
           </div>
         </Card>
+      )}
+      {reviewable && attempt.submitted.length > 0 && (
+        <div style={{ display: 'grid', gap: 8 }}>
+          {attempt.submitted.map(a => (
+            <Button key={a.id} size="lg" block variant={attempt.submitted.length === 1 ? 'primary' : 'secondary'} icon="eye" onClick={() => nav(`/review/${a.id}`)}>
+              {attempt.submitted.length === 1 ? 'Xem lại bài' : `Xem lại lượt ${a.attemptNo}`}
+            </Button>
+          ))}
+        </div>
       )}
       {!ended && attempt.canStartNew && <StartCard session={session} retake onStart={onStart} />}
       {!ended && !attempt.canStartNew && best && session.hasEssay && <p style={{ ...meta, textAlign: 'center' }}>Đề có tự luận chỉ làm được 1 lượt.</p>}

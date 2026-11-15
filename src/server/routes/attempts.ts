@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import { SaveAnswerBody, type AttemptView, type SubmitResponse } from '../../shared/api/index.js';
-import { getAttemptView, saveAnswer, startAttempt, submitAttempt } from '../services/attempts.js';
+import { SaveAnswerBody, type AttemptView, type ReviewView, type SubmitResponse } from '../../shared/api/index.js';
+import { getAttemptReview, getAttemptView, saveAnswer, startAttempt, submitAttempt } from '../services/attempts.js';
 import { fail, parseId } from './util.js';
 
 const notFound = { error: 'Không tìm thấy lượt làm bài' };
@@ -21,6 +21,17 @@ export async function attemptRoutes(app: FastifyInstance) {
     if (!id) return reply.code(404).send(notFound);
     try {
       return getAttemptView(app.db, req.participant!, id);
+    } catch (err) {
+      return fail(reply, err);
+    }
+  });
+
+  // After the session closes: the member's own attempt with the answer key. 403 before that.
+  app.get<{ Params: { id: string } }>('/attempts/:id/review', async (req, reply): Promise<ReviewView | undefined> => {
+    const id = parseId(req.params.id);
+    if (!id) return reply.code(404).send(notFound);
+    try {
+      return getAttemptReview(app.db, req.participant!, id);
     } catch (err) {
       return fail(reply, err);
     }

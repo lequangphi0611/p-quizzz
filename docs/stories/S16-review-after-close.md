@@ -11,9 +11,9 @@ Giá trị học nằm ở phần này: member xem câu nào sai và vì sao. Ch
 - Khi phiên chuyển sang `closed` lúc member đang ở màn hình kết quả → nút xuất hiện ngay (event `session`).
 
 ## Acceptance criteria
-- [ ] Gọi review khi phiên `running` → 403.
-- [ ] Member chỉ xem được lượt của mình.
-- [ ] Sau finalize, điểm/nhận xét tự luận hiển thị đúng.
+- [x] Gọi review khi phiên `running` → 403.
+- [x] Member chỉ xem được lượt của mình.
+- [x] Sau finalize, điểm/nhận xét tự luận hiển thị đúng.
 
 ## Test bắt buộc
 - API: 403 trước khi đóng, nội dung đúng sau khi đóng, chặn xem lượt của người khác.

@@ -6,6 +6,8 @@ import type {
   MemberAnswer,
   MemberQuestion,
   ParticipantProgress,
+  ReviewQuestion,
+  ReviewView,
   SubmitResponse,
 } from '../../shared/api/index.js';
 import { pickCountedAttempt, scoreAnswer, totalScore } from '../../shared/scoring.js';
@@ -122,6 +124,49 @@ export function getAttemptView(db: Db, participant: ParticipantRow, attemptId: n
   const attempt = getOwnedAttempt(db, participant.id, attemptId);
   const content = loadExamContent(db, getSession(db, participant.sessionId).examId);
   return buildView(db, attempt, content);
+}
+
+// ⚠️ Carries the answer key. Refused until the session has closed, so a member who can still retake the exam
+// can never read it.
+export function getAttemptReview(db: Db, participant: ParticipantRow, attemptId: number): ReviewView {
+  const attempt = getOwnedAttempt(db, participant.id, attemptId);
+  const session = getSession(db, participant.sessionId);
+  if (session.status !== 'closed' && session.status !== 'finalized') throw new ServiceError(403, 'Đáp án sẽ hiện khi phiên thi kết thúc');
+  if (!attempt.submittedAt) throw new ServiceError(409, 'Lượt này chưa được nộp');
+
+  const content = loadExamContent(db, session.examId);
+  const byId = new Map(content.questions.map(q => [q.id, q]));
+  const saved = new Map(db.select().from(answers).where(eq(answers.attemptId, attempt.id)).all().map(a => [a.questionId, a]));
+
+  const qs: ReviewQuestion[] = attempt.questionOrder.flatMap(qid => {
+    const q = byId.get(qid);
+    if (!q) return [];
+    const a = saved.get(qid);
+    const optById = new Map((content.optionsByQuestion.get(qid) ?? []).map(o => [o.id, o]));
+    return [{
+      id: q.id,
+      type: q.type,
+      prompt: q.prompt,
+      body: q.body,
+      points: q.points,
+      explanation: q.explanation,
+      options: (attempt.optionOrder[String(qid)] ?? []).flatMap(oid => (optById.has(oid) ? [{ id: oid, text: optById.get(oid)!.text, isCorrect: optById.get(oid)!.isCorrect }] : [])),
+      selectedOptionIds: a?.selectedOptionIds ?? null,
+      textAnswer: a?.textAnswer ?? null,
+      score: q.type === 'essay' ? a?.manualScore ?? null : a?.autoScore ?? 0,
+      feedback: q.type === 'essay' ? a?.feedback ?? null : null,
+    }];
+  });
+  const exam = db.select({ totalPoints: exams.totalPoints }).from(exams).where(eq(exams.id, session.examId)).get()!;
+  return {
+    attemptId: attempt.id,
+    attemptNo: attempt.attemptNo,
+    submittedAt: ms(attempt.submittedAt),
+    score: totalScore(attempt),
+    maxScore: exam.totalPoints,
+    official: session.status === 'finalized',
+    questions: qs,
+  };
 }
 
 // The attempt block of GET /api/me.

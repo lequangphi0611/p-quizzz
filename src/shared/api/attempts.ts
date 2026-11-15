@@ -73,3 +73,36 @@ export const SaveAnswerBody = z
     textAnswer: z.string({ error: 'Câu trả lời không hợp lệ' }).max(MAX_ESSAY_LENGTH, 'Câu trả lời tối đa 10.000 ký tự').optional(),
   })
   .refine(b => (b.selectedOptionIds === undefined) !== (b.textAnswer === undefined), 'Chỉ gửi selectedOptionIds hoặc textAnswer');
+
+// ── Review (only after the session has closed) ──────────────────────────────────────────────────
+// GET /api/me/attempts/:id/review. This is the one member DTO that carries the answer key; the server
+// refuses it (403) until the session is `closed` or `finalized`.
+export interface ReviewOption {
+  id: number;
+  text: string;
+  isCorrect: boolean;
+}
+
+export interface ReviewQuestion {
+  id: number;
+  type: QuestionType;
+  prompt: string;
+  body: string;
+  points: number;
+  explanation: string | null; // why (choice questions) or model answer / rubric (essay)
+  options: ReviewOption[]; // in the order this member saw them
+  selectedOptionIds: number[] | null;
+  textAnswer: string | null;
+  score: number | null; // choice: automatic score; essay: the mentor's score, null until graded
+  feedback: string | null; // mentor's comment on an essay
+}
+
+export interface ReviewView {
+  attemptId: number;
+  attemptNo: number;
+  submittedAt: number;
+  score: number; // automatic + manual points of this attempt so far
+  maxScore: number; // exam total points
+  official: boolean; // true once the session is finalized
+  questions: ReviewQuestion[]; // in this member's attempt order
+}
