@@ -9,9 +9,9 @@ import type { DbOrTx } from './sessions.js';
 
 type AttemptRow = typeof attempts.$inferSelect;
 
-// The attempt of each active participant that counts for the ranking. An exam with essays allows one attempt,
-// so this is simply their submitted attempt (kicked members and people who never submitted have none).
-function countedAttempts(db: DbOrTx, sessionId: number, hasEssay: boolean): Map<number, AttemptRow> {
+// The attempt of each active participant that counts: their single submitted attempt
+// (kicked members and people who never submitted have none).
+function countedAttempts(db: DbOrTx, sessionId: number): Map<number, AttemptRow> {
   const rows = db
     .select({ attempt: attempts })
     .from(attempts)
@@ -22,7 +22,7 @@ function countedAttempts(db: DbOrTx, sessionId: number, hasEssay: boolean): Map<
   for (const { attempt } of rows) byParticipant.set(attempt.participantId, [...(byParticipant.get(attempt.participantId) ?? []), attempt]);
   const out = new Map<number, AttemptRow>();
   for (const [pid, list] of byParticipant) {
-    const pick = pickCountedAttempt(list.map(a => ({ id: a.id, submittedAt: a.submittedAt!.getTime(), score: totalScore(a), row: a })), hasEssay);
+    const pick = pickCountedAttempt(list.map(a => ({ id: a.id, submittedAt: a.submittedAt!.getTime(), score: totalScore(a), row: a })));
     if (pick) out.set(pid, pick.row);
   }
   return out;
@@ -55,7 +55,7 @@ const ESSAY_ROWS = (db: DbOrTx, attemptIds: number[]) =>
  */
 export function countUngradedEssays(db: DbOrTx, sessionId: number): number {
   const info = sessionInfo(db, sessionId);
-  const counted = [...countedAttempts(db, sessionId, info.hasEssay).values()];
+  const counted = [...countedAttempts(db, sessionId).values()];
   return ESSAY_ROWS(db, counted.map(a => a.id)).filter(r => r.answer.manualScore === null).length;
 }
 
@@ -73,7 +73,7 @@ export function getGradingView(db: Db, sessionId: number): GradingView {
   const info = sessionInfo(db, sessionId);
   if (info.status !== 'closed' && info.status !== 'finalized') throw new ServiceError(409, 'Chỉ chấm được sau khi đóng phiên');
 
-  const counted = countedAttempts(db, sessionId, info.hasEssay);
+  const counted = countedAttempts(db, sessionId);
   const byAttempt = new Map([...counted.entries()].map(([pid, a]) => [a.id, pid]));
   const names = new Map(db.select({ id: participants.id, name: participants.displayName }).from(participants).where(eq(participants.sessionId, sessionId)).all().map(p => [p.id, p.name]));
   const rows = ESSAY_ROWS(db, [...byAttempt.keys()]);
@@ -125,7 +125,7 @@ export function gradeAnswer(db: Db, answerId: number, input: { score: number; fe
     tx.update(attempts).set({ manualScore: sum }).where(eq(attempts.id, row.attempt.id)).run();
 
     const ungraded = countUngradedEssays(tx, row.participant.sessionId);
-    const total = ESSAY_ROWS(tx, [...countedAttempts(tx, row.participant.sessionId, session.hasEssay).values()].map(a => a.id)).length;
+    const total = ESSAY_ROWS(tx, [...countedAttempts(tx, row.participant.sessionId).values()].map(a => a.id)).length;
     return { sessionId: row.participant.sessionId, answer: toAnswer(updated, row.participant.id, row.participant.displayName), graded: total - ungraded, total };
   });
   publish(result.sessionId, 'leaderboard');

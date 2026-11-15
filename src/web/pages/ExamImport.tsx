@@ -9,7 +9,7 @@ import { ErrorMessage } from '../components/ui/ErrorMessage.js';
 import { Icon } from '../components/ui/Icon.js';
 import { TextField } from '../components/ui/TextField.js';
 import { api, ApiError } from '../lib/api.js';
-import { countByType, retakeLabel, splitSourceLines, typeCountsLabel } from '../lib/exam-summary.js';
+import { countByType, attemptRuleLabel, splitSourceLines, typeCountsLabel } from '../lib/exam-summary.js';
 
 const PREVIEW_DEBOUNCE_MS = 400;
 type View = 'edit' | 'lines';
@@ -217,7 +217,7 @@ export function ExamImport() {
           >
             <div style={{ display: 'grid', gap: 4, font: 'var(--type-ui)', color: 'var(--ink-800)' }}>
               <div><b className="pq-tabular">{exam.questions.length}</b> câu ({typeCountsLabel(countByType(exam.questions))}) · tổng <b className="pq-tabular">{exam.totalPoints}</b> điểm</div>
-              <div>{retakeLabel(exam.hasEssay)}</div>
+              <div>{attemptRuleLabel(exam.hasEssay)}</div>
             </div>
           </Card>
           {importError && <ErrorMessage message={importError} />}

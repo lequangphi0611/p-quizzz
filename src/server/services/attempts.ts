@@ -126,8 +126,7 @@ export function getAttemptView(db: Db, participant: ParticipantRow, attemptId: n
   return buildView(db, attempt, content);
 }
 
-// ⚠️ Carries the answer key. Refused until the session has closed, so a member who can still retake the exam
-// can never read it.
+// ⚠️ Carries the answer key. Refused until the session has closed, so nobody reads it while others are still working.
 export function getAttemptReview(db: Db, participant: ParticipantRow, attemptId: number): ReviewView {
   const attempt = getOwnedAttempt(db, participant.id, attemptId);
   const session = getSession(db, participant.sessionId);
@@ -172,12 +171,11 @@ export function getAttemptReview(db: Db, participant: ParticipantRow, attemptId:
 // The attempt block of GET /api/me.
 export function getMeAttemptState(db: Db, participant: ParticipantRow): MeAttemptState {
   const session = getSession(db, participant.sessionId);
-  const exam = db.select({ hasEssay: exams.hasEssay }).from(exams).where(eq(exams.id, session.examId)).get()!;
   const max = maxAutoScore(loadExamContent(db, session.examId));
   const mine = db.select().from(attempts).where(eq(attempts.participantId, participant.id)).orderBy(asc(attempts.attemptNo)).all();
   const current = mine.find(a => !a.submittedAt) ?? null;
   const submitted = mine.filter(a => a.submittedAt).map(a => toSummary(a, max));
-  const canStartNew = session.status === 'running' && participant.status === 'active' && !current && (!exam.hasEssay || submitted.length === 0);
+  const canStartNew = session.status === 'running' && participant.status === 'active' && mine.length === 0; // one attempt per session
   return {
     current: current ? { id: current.id, attemptNo: current.attemptNo, startedAt: ms(current.startedAt) } : null,
     submitted,
@@ -195,10 +193,10 @@ export function startAttempt(db: Db, participantId: number): AttemptView {
 
     const mine = tx.select().from(attempts).where(eq(attempts.participantId, participantId)).all();
     if (mine.some(a => !a.submittedAt)) throw new ServiceError(409, 'Bạn đang có một lượt làm dở');
-    const exam = tx.select({ hasEssay: exams.hasEssay }).from(exams).where(eq(exams.id, session.examId)).get()!;
-    if (exam.hasEssay && mine.length > 0) throw new ServiceError(409, 'Đề có tự luận chỉ được làm 1 lần');
+    // One attempt per participant per session, for every exam. To retake, the mentor opens a new session.
+    if (mine.length > 0) throw new ServiceError(409, 'Bạn đã nộp bài. Muốn làm lại, nhờ mentor mở phiên thi mới');
 
-    // The order is fixed here, per attempt; a retake is shuffled again (PRODUCT.md §7.8).
+    // The order is fixed here, when the attempt is created, so F5 never reshuffles it.
     const content = loadExamContent(tx, session.examId);
     const ordered = session.shuffle ? shuffled(content.questions) : content.questions;
     const optionOrder: Record<string, number[]> = {};
@@ -210,7 +208,7 @@ export function startAttempt(db: Db, participantId: number): AttemptView {
       .insert(attempts)
       .values({
         participantId,
-        attemptNo: mine.reduce((m, a) => Math.max(m, a.attemptNo), 0) + 1,
+        attemptNo: 1,
         questionOrder: ordered.map(q => q.id),
         optionOrder,
         startedAt: new Date(),
@@ -276,7 +274,7 @@ export function submitAttempt(db: Db, participantId: number, attemptId: number):
 
 // ── Mentor view ─────────────────────────────────────────────────────────────────────────────────
 // Progress of every participant in a session, keyed by participant id.
-export function getSessionProgress(db: DbOrTx, sessionId: number, hasEssay: boolean, totalPoints: number): Map<number, ParticipantProgress> {
+export function getSessionProgress(db: DbOrTx, sessionId: number, totalPoints: number): Map<number, ParticipantProgress> {
   const rows = db
     .select({ attempt: attempts })
     .from(attempts)
@@ -288,7 +286,7 @@ export function getSessionProgress(db: DbOrTx, sessionId: number, hasEssay: bool
 
   const result = new Map<number, ParticipantProgress>();
   for (const [pid, list] of byParticipant) {
-    const counted = pickCountedAttempt(list.map(a => ({ id: a.id, submittedAt: a.submittedAt ? ms(a.submittedAt) : null, score: totalScore(a) })), hasEssay);
+    const counted = pickCountedAttempt(list.map(a => ({ id: a.id, submittedAt: a.submittedAt ? ms(a.submittedAt) : null, score: totalScore(a) })));
     const doing = list.some(a => !a.submittedAt);
     result.set(pid, {
       state: doing ? 'doing' : 'submitted',

@@ -2,6 +2,8 @@
 
 **Phụ thuộc:** S11 · **Song song với:** S12, S15
 
+> **Đã đổi (2026-11-15):** mỗi participant chỉ làm **1 lượt mỗi phiên**, mọi loại đề; muốn làm lại thì mentor mở phiên mới ([PRODUCT.md §4.4, §7.15](../PRODUCT.md)). Các đoạn dưới đây nói về làm lại / lượt điểm cao nhất là bản cũ.
+
 ## Bối cảnh
 Bảng xếp hạng tạo không khí thi đua — mục tiêu "đỡ chán". Contract: [architecture.md §6](../architecture.md#6-chấm-điểm--xếp-hạng).
 

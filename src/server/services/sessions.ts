@@ -90,7 +90,7 @@ export function getSessionDetail(db: DbOrTx, id: number): SessionDetail {
     .where(eq(participants.sessionId, id))
     .orderBy(participants.id)
     .all();
-  const progress = getSessionProgress(db, id, exam.hasEssay, exam.totalPoints);
+  const progress = getSessionProgress(db, id, exam.totalPoints);
   return {
     ...toSummary(row),
     exam,

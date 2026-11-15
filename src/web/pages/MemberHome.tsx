@@ -162,7 +162,7 @@ export function MemberHome() {
       case 'running':
         return null; // rendered by <MemberExam> below, with its own layout
       case 'ended':
-        return <ResultView me={me!} ended onStart={async () => {}}><Leaderboard sessionId={me!.session.id} highlightName={me!.participant.displayName} /></ResultView>;
+        return <ResultView me={me!} ended><Leaderboard sessionId={me!.session.id} highlightName={me!.participant.displayName} /></ResultView>;
       case 'kicked':
         return (
           <div style={center}>

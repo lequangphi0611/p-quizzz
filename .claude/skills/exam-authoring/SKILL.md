@@ -13,7 +13,7 @@ Spec cú pháp: `docs/exam-format.md` (đọc trước khi soạn). Ví dụ chu
 
 ### 1. Làm rõ yêu cầu (hỏi gộp một lần, chỉ hỏi những gì còn thiếu)
 - **Chủ đề và nguồn nội dung**: mentor đưa tài liệu/link/ghi chú, hay Claude tự soạn từ kiến thức chung?
-- **Số câu và tỉ lệ loại câu** (một đáp án / nhiều đáp án / tự luận). Nếu đề có tự luận thì nhắc mentor rằng **member chỉ được làm 1 lần** và mentor phải chấm tay. Đề dùng để luyện đi luyện lại thì nên thuần trắc nghiệm.
+- **Số câu và tỉ lệ loại câu** (một đáp án / nhiều đáp án / tự luận). Nếu đề có tự luận thì nhắc mentor rằng mentor phải chấm tay các câu đó sau khi đóng phiên. (Mọi đề đều chỉ làm 1 lượt mỗi phiên; muốn làm lại thì mentor mở phiên mới.)
 - **Trình độ member** và độ khó mong muốn.
 - **Thang điểm**: mặc định mỗi câu 1 điểm, tự luận thường 3–5 điểm.
 
@@ -33,7 +33,7 @@ npm run exam:check -- exams/<slug>.md
 
 ### 4. Bàn giao cho mentor duyệt
 Trả lời ngắn gọn, gồm:
-1. Đường dẫn file và dòng tóm tắt từ `exam:check` (số câu, loại câu, tổng điểm, có cho làm lại hay không).
+1. Đường dẫn file và dòng tóm tắt từ `exam:check` (số câu, loại câu, tổng điểm, có tự luận hay không).
 2. **Những câu cần mentor soi kỹ**, kèm số dòng: câu Claude không chắc 100% đáp án, câu kiến thức phụ thuộc phiên bản/công cụ, câu có thể hiểu theo hai cách. Đây là phần giá trị nhất của bàn giao. Không chắc thì nói không chắc, không được tỏ ra tự tin.
 3. Các mặc định Claude đã tự chọn, và các cảnh báo còn giữ lại (nếu có).
 

@@ -31,7 +31,7 @@ export function buildLeaderboard(db: Db, sessionId: number): LeaderboardResponse
 
   const entries = [];
   for (const { name, list } of byParticipant.values()) {
-    const counted = pickCountedAttempt(list.map(a => ({ id: a.id, submittedAt: a.submittedAt!.getTime(), score: totalScore(a) })), session.hasEssay);
+    const counted = pickCountedAttempt(list.map(a => ({ id: a.id, submittedAt: a.submittedAt!.getTime(), score: totalScore(a) })));
     if (counted) entries.push({ displayName: name, score: counted.score, maxScore: session.totalPoints, submittedAt: counted.submittedAt! });
   }
   return { provisional: session.status !== 'finalized', entries: rankLeaderboard(entries) };

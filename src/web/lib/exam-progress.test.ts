@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatPoints, headlineAttempt, isAnswered } from './exam-progress.js';
-
-const att = (id: number, score: number) => ({ id, attemptNo: id, submittedAt: id, score, maxScore: 10 });
+import { formatPoints, isAnswered } from './exam-progress.js';
 
 describe('isAnswered', () => {
   it('a picked option or non-blank text counts', () => {
@@ -13,14 +11,6 @@ describe('isAnswered', () => {
     expect(isAnswered({ selectedOptionIds: null, textAnswer: '  \n ' })).toBe(false);
     expect(isAnswered(undefined)).toBe(false);
   });
-});
-
-describe('headlineAttempt', () => {
-  it('picks the best score; on a tie the later attempt', () => {
-    expect(headlineAttempt([att(1, 4), att(2, 8), att(3, 6)])?.id).toBe(2);
-    expect(headlineAttempt([att(1, 8), att(2, 8)])?.id).toBe(2);
-  });
-  it('null with no attempts', () => expect(headlineAttempt([])).toBeNull());
 });
 
 describe('formatPoints', () => {

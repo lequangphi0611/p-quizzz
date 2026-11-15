@@ -12,9 +12,9 @@ export function countByType(questions: { type: QuestionType }[]): ExamTypeCounts
   return counts;
 }
 
-// Retake rule from PRODUCT.md §4: exams with essays get one attempt; pure multiple-choice exams allow retakes.
-export function retakeLabel(hasEssay: boolean): string {
-  return hasEssay ? 'Có tự luận → mỗi người làm 1 lần' : 'Không có tự luận → cho làm lại (tính lượt tốt nhất)';
+// PRODUCT.md §4.4: every exam is one attempt per participant per session; essays are graded by hand afterwards.
+export function attemptRuleLabel(hasEssay: boolean): string {
+  return hasEssay ? 'Mỗi người làm 1 lượt · có tự luận → mentor chấm tay sau khi đóng phiên' : 'Mỗi người làm 1 lượt · chấm tự động';
 }
 
 export function typeCountsLabel(c: ExamTypeCounts): string {

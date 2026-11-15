@@ -2,6 +2,8 @@
 
 **Phụ thuộc:** S10, S11 · **Song song với:** S13, S15
 
+> **Đã đổi (2026-11-15):** mỗi participant chỉ làm **1 lượt mỗi phiên**, mọi loại đề; muốn làm lại thì mentor mở phiên mới ([PRODUCT.md §4.4, §7.15](../PRODUCT.md)). Các đoạn dưới đây nói về làm lại / lượt điểm cao nhất là bản cũ.
+
 ## Bối cảnh
 Màn hình member dùng nhiều nhất. Mục tiêu: không mất bài, thao tác nhanh trên điện thoại. Business: [PRODUCT.md §4.3, §4.4](../PRODUCT.md).
 

@@ -48,29 +48,21 @@ describe('totalScore', () => {
 describe('pickCountedAttempt', () => {
   const a = (id: number, score: number, submittedAt: number | null) => ({ id, score, submittedAt });
 
-  it('multiple-choice exam: highest score wins', () => {
-    expect(pickCountedAttempt([a(1, 3, 100), a(2, 7, 200), a(3, 5, 300)], false)?.id).toBe(2);
+  it('the single submitted attempt counts', () => {
+    expect(pickCountedAttempt([a(1, 7, 100)])?.id).toBe(1);
   });
-  it('tie on score → the earlier submission', () => {
-    expect(pickCountedAttempt([a(1, 5, 300), a(2, 5, 100), a(3, 5, 200)], false)?.id).toBe(2);
+  it('an attempt still in progress never counts', () => {
+    expect(pickCountedAttempt([a(1, 100, null)])).toBeNull();
+    expect(pickCountedAttempt([a(1, 100, null), a(2, 4, 50)])?.id).toBe(2);
   });
-  it('a later, lower attempt never replaces a better earlier one', () => {
-    expect(pickCountedAttempt([a(1, 9, 100), a(2, 0, 200)], false)?.id).toBe(1);
+  it('defensively, if several submitted attempts exist the earliest wins — not the best score', () => {
+    expect(pickCountedAttempt([a(1, 9, 200), a(2, 1, 100)])?.id).toBe(2);
+    expect(pickCountedAttempt([a(2, 5, 100), a(1, 5, 100)])?.id).toBe(1); // same instant: lower id
   });
-  it('ignores attempts that are not submitted', () => {
-    expect(pickCountedAttempt([a(1, 100, null), a(2, 4, 50)], false)?.id).toBe(2);
-    expect(pickCountedAttempt([a(1, 100, null)], false)).toBeNull();
-  });
-  it('exam with essays: the single (earliest) submitted attempt, regardless of score', () => {
-    expect(pickCountedAttempt([a(1, 1, 100), a(2, 9, 200)], true)?.id).toBe(1);
-  });
-  it('no attempts → null', () => {
-    expect(pickCountedAttempt([], false)).toBeNull();
-    expect(pickCountedAttempt([], true)).toBeNull();
-  });
+  it('no attempts → null', () => expect(pickCountedAttempt([])).toBeNull());
   it('does not mutate its input', () => {
     const input = [a(2, 1, 200), a(1, 1, 100)];
-    pickCountedAttempt(input, false);
+    pickCountedAttempt(input);
     expect(input.map(x => x.id)).toEqual([2, 1]);
   });
 });

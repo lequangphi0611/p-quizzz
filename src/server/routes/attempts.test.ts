@@ -78,39 +78,46 @@ describe('shuffling', () => {
     const again = (await an.get(started.id)).json<AttemptView>();
     expect(again.questions).toEqual(started.questions);
   });
-
-  it('a retake is shuffled again, independently', async () => {
-    const lobby = await world({ shuffle: true, state: 'lobby' });
-    const t = await lobby.join('Retaker');
-    await lobby.admin(`/sessions/${lobby.session.id}/start`);
-    const m = lobby.asMember(t);
-    const seen = new Set<string>();
-    for (let i = 0; i < 12; i++) {
-      const v = (await m.start()).json<AttemptView>();
-      seen.add(v.questions.map(q => q.id + ':' + q.options.map(o => o.id).join('.')).join('/'));
-      await m.submit(v.id);
-    }
-    expect(seen.size).toBeGreaterThan(1);
-  });
 });
 
-describe('retake rules', () => {
-  it('multiple-choice exam: unlimited attempts, numbered 1, 2, 3', async () => {
-    const { an } = await world({ essay: false });
-    for (const n of [1, 2, 3]) {
-      const v = (await an.start()).json<AttemptView>();
-      expect(v.attemptNo).toBe(n);
-      expect((await an.submit(v.id)).statusCode).toBe(200);
-    }
-  });
+describe('one attempt per session (PRODUCT.md §4.4)', () => {
+  const refusal = { error: 'Bạn đã nộp bài. Muốn làm lại, nhờ mentor mở phiên thi mới' };
 
-  it('exam with essays: exactly one attempt', async () => {
-    const { an } = await world({ essay: true });
+  it.each([['multiple-choice exam', false], ['exam with essays', true]])('%s: a second attempt is refused once the first is submitted', async (_name, essay) => {
+    const { an } = await world({ essay });
     const v = (await an.start()).json<AttemptView>();
+    expect(v.attemptNo).toBe(1);
     await an.submit(v.id);
     const res = await an.start();
     expect(res.statusCode).toBe(409);
-    expect(res.json()).toEqual({ error: 'Đề có tự luận chỉ được làm 1 lần' });
+    expect(res.json()).toEqual(refusal);
+    expect((await an.me()).json<MeResponse>().attempt.submitted).toHaveLength(1); // nothing was created
+  });
+
+  it('a second start while the first is still open is refused too', async () => {
+    const { an } = await world();
+    await an.start();
+    const res = await an.start();
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toEqual({ error: 'Bạn đang có một lượt làm dở' });
+  });
+
+  it('a new session lets everyone play again: the same member joins it and gets a fresh attempt #1', async () => {
+    const w = await world({ essay: false, state: 'lobby' });
+    const firstToken = await w.join('Dũng');
+    await w.admin(`/sessions/${w.session.id}/start`);
+    const first = w.asMember(firstToken);
+    await first.submit(((await first.start()).json<AttemptView>()).id);
+    await w.admin(`/sessions/${w.session.id}/close`); // multiple-choice → finalized
+
+    const next = (await w.admin('/sessions', { examId: w.exam.id })).json<{ id: number }>();
+    await w.admin(`/sessions/${next.id}/open`);
+    const token = (await w.app.inject({ method: 'POST', url: `/api/sessions/${next.id}/join`, payload: { displayName: 'Dũng' } })).json<{ token: string }>().token;
+    await w.admin(`/sessions/${next.id}/start`);
+    const again = w.asMember(token);
+    const v = (await again.start()).json<AttemptView>();
+    expect(v.attemptNo).toBe(1);
+    expect((await again.submit(v.id)).statusCode).toBe(200);
   });
 });
 
@@ -222,13 +229,15 @@ describe('POST submit — scoring', () => {
   });
 
   it('multi must match the key exactly: all right → points; one extra → 0', async () => {
-    const { an, multi } = await world();
-    const right = (await an.start()).json<AttemptView>();
-    await an.put(right.id, multi.q.id, { selectedOptionIds: [multi.opts[0]!.id, multi.opts[1]!.id] });
-    expect((await an.submit(right.id)).json<SubmitResponse>().attempt.score).toBe(2);
-    const extra = (await an.start()).json<AttemptView>();
-    await an.put(extra.id, multi.q.id, { selectedOptionIds: multi.opts.map(o => o.id) });
-    expect((await an.submit(extra.id)).json<SubmitResponse>().attempt.score).toBe(0);
+    const w = await world({ state: 'lobby' });
+    const bao = w.asMember(await w.join('Bảo')); // "An" is the other member
+    await w.admin(`/sessions/${w.session.id}/start`);
+    const right = (await w.an.start()).json<AttemptView>();
+    await w.an.put(right.id, w.multi.q.id, { selectedOptionIds: [w.multi.opts[0]!.id, w.multi.opts[1]!.id] });
+    expect((await w.an.submit(right.id)).json<SubmitResponse>().attempt.score).toBe(2);
+    const extra = (await bao.start()).json<AttemptView>();
+    await bao.put(extra.id, w.multi.q.id, { selectedOptionIds: w.multi.opts.map(o => o.id) });
+    expect((await bao.submit(extra.id)).json<SubmitResponse>().attempt.score).toBe(0);
   });
 
   it('exam with essays: essay has no automatic score; maxScore covers choice questions only; essay row exists for grading', async () => {
@@ -265,20 +274,17 @@ describe('GET /api/me — attempt state', () => {
     expect(open.canStartNew).toBe(false);
   });
 
-  it('lists submitted attempts; multiple-choice may start again, an essay exam may not', async () => {
-    const mc = await world({ essay: false });
-    const v = (await mc.an.start()).json<AttemptView>();
-    await mc.an.put(v.id, mc.single.q.id, { selectedOptionIds: [mc.single.opts[0]!.id] });
-    await mc.an.submit(v.id);
-    const a = (await mc.an.me()).json<MeResponse>().attempt;
-    expect(a.current).toBeNull();
-    expect(a.submitted).toEqual([{ id: v.id, attemptNo: 1, submittedAt: expect.any(Number), score: 1, maxScore: 3 }]);
-    expect(a.canStartNew).toBe(true);
-
-    const es = await world({ essay: true });
-    const e = (await es.an.start()).json<AttemptView>();
-    await es.an.submit(e.id);
-    expect((await es.an.me()).json<MeResponse>().attempt.canStartNew).toBe(false);
+  it('lists the submitted attempt, and no further attempt can be started — for any exam type', async () => {
+    for (const essay of [false, true]) {
+      const w = await world({ essay });
+      const v = (await w.an.start()).json<AttemptView>();
+      await w.an.put(v.id, w.single.q.id, { selectedOptionIds: [w.single.opts[0]!.id] });
+      await w.an.submit(v.id);
+      const a = (await w.an.me()).json<MeResponse>().attempt;
+      expect(a.current).toBeNull();
+      expect(a.submitted).toEqual([{ id: v.id, attemptNo: 1, submittedAt: expect.any(Number), score: 1, maxScore: 3 }]);
+      expect(a.canStartNew).toBe(false);
+    }
   });
 });
 
@@ -317,30 +323,26 @@ describe('closing the session', () => {
 });
 
 describe('mentor progress (GET /api/admin/sessions/:id)', () => {
-  it('none → doing → submitted, attempt count, and the counted (best) score', async () => {
+  it('none → doing → submitted, with the counted score', async () => {
     const { an, single, multi, detail } = await world({ essay: false });
     const progress = async () => (await detail()).participants[0]!.progress;
     expect(await progress()).toEqual({ state: 'none', attempts: 0, countedScore: null, maxScore: 3 });
 
-    const first = (await an.start()).json<AttemptView>();
+    const v = (await an.start()).json<AttemptView>();
     expect(await progress()).toMatchObject({ state: 'doing', attempts: 1, countedScore: null });
-    await an.put(first.id, single.q.id, { selectedOptionIds: [single.opts[0]!.id] });
-    await an.submit(first.id); // 1 point
-    expect(await progress()).toMatchObject({ state: 'submitted', attempts: 1, countedScore: 1 });
-
-    const second = (await an.start()).json<AttemptView>();
-    await an.put(second.id, multi.q.id, { selectedOptionIds: [multi.opts[0]!.id, multi.opts[1]!.id] });
-    await an.submit(second.id); // 2 points → best attempt
-    expect(await progress()).toMatchObject({ state: 'submitted', attempts: 2, countedScore: 2 });
-
-    await an.start(); // a third attempt in progress; the counted score stays the best submitted one
-    expect(await progress()).toMatchObject({ state: 'doing', attempts: 3, countedScore: 2 });
+    await an.put(v.id, single.q.id, { selectedOptionIds: [single.opts[0]!.id] });
+    await an.put(v.id, multi.q.id, { selectedOptionIds: [multi.opts[0]!.id, multi.opts[1]!.id] });
+    await an.submit(v.id); // 1 + 2 points
+    expect(await progress()).toMatchObject({ state: 'submitted', attempts: 1, countedScore: 3 });
   });
 });
 
 describe('realtime signals', () => {
   it('start → participants; submit → leaderboard + participants; closing with open work → leaderboard', async () => {
-    const { an, admin, session } = await world({ essay: false });
+    const w = await world({ essay: false, state: 'lobby' });
+    const { an, admin, session } = w;
+    const bao = w.asMember(await w.join('Bảo'));
+    await admin(`/sessions/${session.id}/start`);
     const seen: string[] = [];
     const off = bus.subscribe(session.id, t => seen.push(t));
     const v = (await an.start()).json<AttemptView>();
@@ -349,7 +351,7 @@ describe('realtime signals', () => {
     await an.submit(v.id);
     expect(seen.sort()).toEqual(['leaderboard', 'participants']);
 
-    await an.start();
+    await bao.start(); // still open when the mentor closes
     seen.length = 0;
     await admin(`/sessions/${session.id}/close`);
     expect(seen).toEqual(expect.arrayContaining(['session', 'leaderboard']));

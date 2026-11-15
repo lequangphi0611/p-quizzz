@@ -11,7 +11,7 @@ import { api, ApiError } from '../lib/api.js';
 import { formatPoints } from '../lib/exam-progress.js';
 
 // "/review/:attemptId" — the member's own attempt with the answer key. The server only answers once the session
-// has closed (403 before that), so a member who can still retake the exam never sees the answers.
+// has closed (403 before that), so nobody reads the answers while others are still working.
 export function ReviewPage() {
   const { attemptId } = useParams();
   const nav = useNavigate();

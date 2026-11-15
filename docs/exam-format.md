@@ -51,5 +51,5 @@ npm run exam:check -- exams/ten-de.md
 ## Lưu ý
 
 - Đáp án luôn được **trộn thứ tự** khi thi → không viết đáp án phụ thuộc vị trí hay tham chiếu đáp án khác.
-- Đề có ít nhất 1 câu tự luận → mỗi member chỉ làm **1 lần**. Đề thuần trắc nghiệm → làm lại được.
+- Mỗi member chỉ làm **1 lần** trong mỗi phiên (muốn làm lại, mentor mở phiên mới). Đề có tự luận thì mentor phải chấm tay.
 - Đề thật lưu trong `exams/` (đã gitignore vì chứa đáp án). Chỉ `exams/examples/` được commit.

@@ -62,13 +62,12 @@ describe('GET /api/sessions/:id/leaderboard', () => {
     expect((await r.board()).entries.map(e => e.displayName)).toEqual(['Bình']);
   });
 
-  it('multiple-choice retake: the highest attempt counts, not the latest', async () => {
+  it('one attempt each: a second start is refused and the ranking keeps the first score', async () => {
     const r = await room({ names: ['An'] });
-    await r.play('An', 3);
-    await r.play('An', 0); // a worse retake afterwards
+    await r.play('An', 1);
+    expect((await r.members.get('An')!.start()).statusCode).toBe(409); // no retake inside a session
     const b = await r.board();
-    expect(b.entries).toHaveLength(1);
-    expect(b.entries[0]!.score).toBe(3);
+    expect(b.entries.map(e => [e.displayName, e.score])).toEqual([['An', 1]]);
   });
 
   it('players who tie on score and on the exact submission instant share a rank (1, 1, 3)', async () => {

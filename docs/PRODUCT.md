@@ -50,7 +50,7 @@ DRAFT ──open──▶ LOBBY ──start──▶ RUNNING ──close──�
 | Trạng thái | Member | Mentor |
 |---|---|---|
 | **LOBBY** | Mở URL, nhập tên, chờ | Thấy danh sách người vào realtime, đếm số lượng, đổi tên/kick |
-| **RUNNING** | Làm bài, nộp, (làm lại nếu được phép), thấy điểm + xếp hạng | Thấy ai đã nộp; duyệt người vào trễ |
+| **RUNNING** | Làm bài, nộp (1 lượt), thấy điểm + xếp hạng | Thấy ai đã nộp; duyệt người vào trễ |
 | **CLOSED** | Không nộp được nữa; **xem đáp án + giải thích** | Chấm tự luận (nếu có) |
 | **FINALIZED** | Xem điểm chính thức | Xem lại lịch sử phiên |
 
@@ -62,12 +62,11 @@ DRAFT ──open──▶ LOBBY ──start──▶ RUNNING ──close──�
 - Tiến độ làm bài **lưu liên tục phía server**; F5 / mở lại tab → quay về đúng chỗ (token lưu ở trình duyệt).
 - Đổi máy/trình duyệt → mentor cho vào lại thủ công.
 
-### 4.4 Luật làm lại
+### 4.4 Luật làm bài: mỗi người 1 lượt
 
-| Loại đề | Số lượt | Lượt được tính |
-|---|---|---|
-| Có ≥ 1 câu tự luận | **1 lượt** | Lượt duy nhất |
-| Thuần trắc nghiệm | **Không giới hạn** (khi phiên RUNNING) | **Lượt điểm cao nhất** |
+- Mỗi participant làm **đúng 1 lượt** trong mỗi phiên, **mọi loại đề** (kể cả thuần trắc nghiệm). Nộp rồi không làm lại được.
+- Muốn làm lại: **mentor mở một phiên mới** từ cùng đề; cả nhóm vào lại phiên mới (nhập tên lại, bảng xếp hạng độc lập — mục 4.6).
+- Lượt được tính chính là lượt duy nhất đó.
 
 ### 4.5 Chấm điểm
 
@@ -91,7 +90,7 @@ DRAFT ──open──▶ LOBBY ──start──▶ RUNNING ──close──�
 - Import đề từ Markdown + validate + preview
 - Phiên chế độ tự do, lobby, mở/đóng thủ công
 - 3 loại câu: single, multi, essay
-- Trộn câu/đáp án, luật làm lại như 4.4
+- Trộn câu/đáp án; mỗi người 1 lượt như 4.4
 - Chấm tự động + màn hình chấm tay tự luận
 - Bảng xếp hạng member + màn hình chiếu (realtime mức SSE/polling)
 - Chạy offline hoàn toàn trên LAN (không phụ thuộc CDN/internet)
@@ -134,11 +133,11 @@ Các mục dưới đây đã lấy **mặc định** để chia story (2026-11-
 5. Tối đa **1 phiên hoạt động** (lobby/running) cùng lúc — 1 mentor, 1 phòng; member mở URL gốc là vào đúng phiên.
 6. Đóng phiên khi member đang làm dở → **tự nộp** với câu trả lời đã lưu.
 7. Vào trễ (phiên đang chạy) → chờ mentor duyệt. Vào lúc lobby → vào thẳng (mentor vẫn kick được).
-8. Mỗi lần làm lại được trộn thứ tự mới.
+8. ~~Mỗi lần làm lại được trộn thứ tự mới.~~ — bỏ (2026-11-15): không còn làm lại trong cùng một phiên (mục 15).
 9. Chấm tự luận cho phép điểm lẻ 0.5.
 10. Import **không chặn trùng file** (2026-11-15): vì đề bất biến và "sửa = import mới", import nhiều bản giống nhau là bình thường; bản trùng chưa dùng thì xoá được. Chống bấm Import hai lần bằng cách khoá nút khi đang gửi (UI). Cảnh báo "file này đã import ngày X" (so `source_markdown`) để backlog.
 11. **Chưa có archive đề** (2026-11-15), hoãn khỏi MVP. Khi làm: thêm cột `archived_at` vào `exams`; archive = ẩn khỏi danh sách chọn để tạo phiên mới, **không** xoá mềm — đề vẫn hiện trong lịch sử phiên và trang chấm điểm. Làm khi danh sách đề rối hoặc khi có lịch sử phiên (S09). Giả định đang dùng: mentor ít sửa đề sau khi đã chạy phiên; nếu ngược lại thì kéo lên ngay sau MVP.
 12. **Member mất token thì không vào lại được lượt cũ** (2026-11-15), giới hạn đã biết của MVP. F5 trong cùng trình duyệt thì giữ nguyên (token ở `localStorage`, lượt làm dở và thứ tự trộn lưu ở server). Nhưng đổi trình duyệt, tab ẩn danh hoặc xoá dữ liệu trang → mất token; nhập lại tên cũ bị 409 "Tên đã có người dùng". Mentor xử lý thủ công: kick participant cũ rồi cho member vào lại như người mới (mất lượt đang làm). Không có tài khoản nên không xác minh được người xin vào lại. Nếu gặp nhiều trên thực tế → thêm hành động "Cho vào lại" ở mentor (cấp token mới cho đúng participant cũ; cần API ở S08, UI ở S09).
 13. **Trang quản trị chỉ mở trên máy chạy app** (2026-11-15). Mọi `/api/admin/*` (kể cả `status`, `setup`, `login`) trả 403 với request từ máy khác trong LAN, nên member không thể thử mật khẩu hay chiếm bước đặt mật khẩu lần đầu. Mentor dùng `http://localhost:<cổng>/admin/login` hoặc chính IP LAN của máy mình. Muốn điều khiển từ thiết bị khác: chạy với `--allow-remote-admin` (hoặc `ALLOW_REMOTE_ADMIN=1`), server in cảnh báo khi khởi động. Còn tồn tại: LAN dùng HTTP nên không mã hoá; chưa giới hạn số lần đăng nhập sai (chỉ quan trọng khi bật remote admin).
 14. **Chấm tự luận: tên ẩn mặc định** (2026-11-15). Màn hình chấm hiện "Bài #1, #2…" thay cho tên; mentor bấm bỏ tick "Ẩn tên" mới thấy tên. Mục đích: chấm khách quan.
-15. **(Mở — chờ quyết định) Làm lại nhiều lần + thấy điểm ngay có thể dùng để dò đáp án.** Đề thuần trắc nghiệm cho làm lại không giới hạn và member thấy tổng điểm sau mỗi lượt, nên một người cố ý có thể đổi từng câu qua các lượt để suy ra đáp án đúng (không có lỗ hổng kỹ thuật: server không bao giờ gửi điểm từng câu hay đáp án trước khi đóng phiên). Phương án: (a) chấp nhận — đề là để luyện tập; (b) giới hạn số lượt; (c) chỉ hiện điểm sau khi đóng phiên (mất tính "realtime"). Hiện áp dụng (a).
+15. **Mỗi người chỉ làm 1 lượt trong mỗi phiên, mọi loại đề** (2026-11-15). Muốn làm lại thì mentor mở phiên mới cho cả nhóm. Thay cho luật cũ (đề trắc nghiệm làm lại không giới hạn, tính lượt cao nhất): luật cũ cho phép dò đáp án bằng cách đổi từng câu qua các lượt và xem tổng điểm. Hệ quả: member vào lại phiên mới bằng cách nhập tên lại; bảng xếp hạng mỗi phiên độc lập (không cộng dồn).

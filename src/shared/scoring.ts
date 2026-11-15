@@ -29,16 +29,12 @@ export interface CountableAttempt {
 }
 
 /**
- * The attempt that counts for ranking. Only submitted attempts qualify.
- * Exam with essays → its single attempt. Multiple-choice only → highest score; a tie goes to the earlier submission.
+ * The attempt that counts for ranking. A participant has exactly one attempt per session (PRODUCT.md §4.4),
+ * so this is their submitted attempt. If several ever exist, the earliest submission wins; unsubmitted ones never count.
  */
-export function pickCountedAttempt<T extends CountableAttempt>(attempts: readonly T[], hasEssay: boolean): T | null {
-  const submitted = attempts
-    .filter(a => a.submittedAt !== null)
-    .sort((a, b) => a.submittedAt! - b.submittedAt! || a.id - b.id);
-  if (submitted.length === 0) return null;
-  if (hasEssay) return submitted[0]!;
-  return submitted.reduce((best, a) => (a.score > best.score ? a : best));
+export function pickCountedAttempt<T extends CountableAttempt>(attempts: readonly T[]): T | null {
+  const submitted = attempts.filter(a => a.submittedAt !== null).sort((a, b) => a.submittedAt! - b.submittedAt! || a.id - b.id);
+  return submitted[0] ?? null;
 }
 
 export interface RankableEntry {

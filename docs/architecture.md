@@ -33,7 +33,7 @@ exams ──< questions ──< options
 | `options` | id, question_id, position, text, is_correct | |
 | `sessions` | id, exam_id, mode (`self_paced`\|`live`), status, shuffle (bool, mặc định true), created_at, opened_at?, started_at?, closed_at?, finalized_at? | MVP chỉ tạo `self_paced`. |
 | `participants` | id, session_id, display_name, token (unique), status (`active`\|`pending`\|`kicked`), joined_at | Unique (session_id, lower(display_name)) cho participant chưa bị kick. |
-| `attempts` | id, participant_id, attempt_no, question_order (JSON `number[]`), option_order (JSON `Record<questionId, optionId[]>`), started_at, submitted_at?, auto_score?, manual_score? | Thứ tự trộn sinh **lúc tạo attempt**, mỗi lần làm lại trộn lại. |
+| `attempts` | id, participant_id, attempt_no, question_order (JSON `number[]`), option_order (JSON `Record<questionId, optionId[]>`), started_at, submitted_at?, auto_score?, manual_score? | Thứ tự trộn sinh **lúc tạo attempt**. Mỗi participant có đúng 1 attempt mỗi phiên (`attempt_no` luôn là 1). |
 | `answers` | id, attempt_id, question_id, selected_option_ids (JSON `number[]`)?, text_answer?, auto_score?, manual_score?, feedback?, graded_at? | Unique (attempt_id, question_id). Upsert khi autosave. |
 | `app_meta` | key, value, updated_at | Đã có. Lưu `admin_password_hash`. |
 
@@ -91,8 +91,8 @@ Mọi body/response là JSON. Lỗi: `{ error: string }` (tiếng Việt, hiển
 | GET | `/api/sessions/:id/participants` | — | Chỉ `{ displayName }[]` của participant `active` (cho màn hình chiếu) |
 | GET | `/api/sessions/:id/leaderboard` | — | Xem §6 |
 | GET | `/api/sessions/:id/events` | — | SSE, xem §7 |
-| GET | `/api/me` | participant | participant + session (id, title, status, `participantCount` = số người `active`, `questionCount`, `totalPoints`, `hasEssay`) + `attempt: { current, submitted[], canStartNew }` (lượt đang làm, các lượt đã nộp với điểm tự động, có được bắt đầu lượt mới không) |
-| POST | `/api/me/attempts` | participant | Bắt đầu lượt. Cần session `running`, participant `active`, không có lượt đang dở, đúng luật làm lại |
+| GET | `/api/me` | participant | participant + session (id, title, status, `participantCount` = số người `active`, `questionCount`, `totalPoints`, `hasEssay`) + `attempt: { current, submitted[], canStartNew }` (lượt đang làm, lượt đã nộp với điểm tự động, `canStartNew` = chưa có lượt nào và phiên đang `running`) |
+| POST | `/api/me/attempts` | participant | Bắt đầu lượt. Cần session `running`, participant `active`; mỗi participant chỉ có 1 lượt/phiên (đã có lượt → 409) |
 | GET | `/api/me/attempts/:id` | participant | Câu hỏi theo thứ tự đã trộn + câu trả lời đã lưu |
 | PUT | `/api/me/attempts/:id/answers/:questionId` | participant | `{ selectedOptionIds }` hoặc `{ textAnswer }` — autosave |
 | POST | `/api/me/attempts/:id/submit` | participant | Nộp, chấm tự động, trả về điểm |
@@ -111,7 +111,7 @@ Phòng thủ nhiều lớp:
 
 Hàm thuần trong `src/shared/scoring.ts`:
 - `scoreAnswer(question, selectedOptionIds)`: single/multi — tập chọn **bằng đúng** tập đúng → `points`, ngược lại 0. Essay → `null` (chờ chấm tay).
-- **Attempt được tính** của một participant: đề có tự luận → attempt duy nhất; thuần trắc nghiệm → attempt đã nộp có điểm cao nhất (bằng điểm → nộp sớm hơn).
+- **Attempt được tính** của một participant: attempt duy nhất của họ trong phiên (đã nộp).
 - **Leaderboard**: participant `active` có ≥ 1 attempt đã nộp; điểm = auto + manual của attempt được tính; sắp giảm dần theo điểm, bằng điểm → `submitted_at` sớm hơn xếp trên. Response: `{ provisional: boolean, entries: { rank, displayName, score, maxScore, submittedAt }[] }`, `provisional = status !== 'finalized'`.
 
 ## 7. Realtime (SSE)

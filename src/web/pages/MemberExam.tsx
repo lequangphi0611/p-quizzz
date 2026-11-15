@@ -15,7 +15,7 @@ import { TextField } from '../components/ui/TextField.js';
 import { MemberLayout } from '../layouts/MemberLayout.js';
 import { AnswerSaver, type AnswerPayload, type SaveState } from '../lib/answer-saver.js';
 import { api, ApiError } from '../lib/api.js';
-import { formatPoints, headlineAttempt, isAnswered } from '../lib/exam-progress.js';
+import { formatPoints, isAnswered } from '../lib/exam-progress.js';
 
 const stack = { display: 'grid', gap: 16 } as const;
 const label = { font: 'var(--type-label)', textTransform: 'uppercase', letterSpacing: 'var(--tracking-label)', color: 'var(--text-faint)' } as const;
@@ -25,7 +25,7 @@ const errorText = (err: unknown, fallback: string) => (err instanceof ApiError ?
 type Session = MeResponse['session'];
 
 // ── Start ───────────────────────────────────────────────────────────────────────────────────────
-function StartCard({ session, retake, onStart }: { session: Session; retake: boolean; onStart: () => Promise<void> }) {
+function StartCard({ session, onStart }: { session: Session; onStart: () => Promise<void> }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   async function start() {
@@ -36,9 +36,8 @@ function StartCard({ session, retake, onStart }: { session: Session; retake: boo
   }
   const rows: [string, ReactNode][] = [
     ['list', <>{session.questionCount} câu hỏi · {formatPoints(session.totalPoints)} điểm</>],
-    session.hasEssay
-      ? ['lock', <>Có câu tự luận — chỉ được làm <b>1 lượt</b></>]
-      : ['rotate-ccw', <>Được làm lại nhiều lần — tính <b>lượt điểm cao nhất</b></>],
+    ['lock', <>Chỉ được làm <b>1 lượt</b> — nộp rồi không làm lại được</>],
+    ...(session.hasEssay ? [['pencil', <>Có câu tự luận — mentor chấm sau khi đóng phiên</>] as [string, ReactNode]] : []),
     ['save', <>Bài làm được lưu liên tục, F5 không mất bài</>],
   ];
   return (
@@ -49,58 +48,37 @@ function StartCard({ session, retake, onStart }: { session: Session; retake: boo
         </div>
       </Card>
       {error && <ErrorMessage message={error} />}
-      <Button size="lg" block icon="play" loading={busy} onClick={start}>{retake ? 'Làm lại' : 'Bắt đầu làm bài'}</Button>
+      <Button size="lg" block icon="play" loading={busy} onClick={start}>Bắt đầu làm bài</Button>
     </div>
   );
 }
 
 // ── Result ──────────────────────────────────────────────────────────────────────────────────────
-export function ResultView({ me, ended, onStart, children }: { me: MeResponse; ended: boolean; onStart: () => Promise<void>; children?: ReactNode }) {
+export function ResultView({ me, ended, children }: { me: MeResponse; ended: boolean; children?: ReactNode }) {
   const { session, attempt } = me;
   const nav = useNavigate();
-  const best = headlineAttempt(attempt.submitted);
-  // The answer key opens once the session is over; until then retakes are still possible.
+  const done = attempt.submitted[0] ?? null; // one attempt per session (PRODUCT.md §4.4)
+  const essayPoints = done ? Math.max(0, session.totalPoints - done.maxScore) : 0;
+  // The answer key opens once the session is over; until then others may still be working.
   const reviewable = session.status === 'closed' || session.status === 'finalized';
-  const essayPoints = best ? Math.max(0, session.totalPoints - best.maxScore) : 0;
   return (
     <div style={stack}>
       {ended && (
-        <ErrorMessage tone="warning" title="Phiên thi đã đóng" message={best ? 'Bài của bạn đã được nộp.' : 'Bạn chưa làm bài trong phiên này.'} />
+        <ErrorMessage tone="warning" title="Phiên thi đã đóng" message={done ? 'Bài của bạn đã được nộp.' : 'Bạn chưa làm bài trong phiên này.'} />
       )}
-      {best && (
+      {done && (
         <Card>
           <div style={{ display: 'grid', gap: 6, justifyItems: 'center', textAlign: 'center', padding: '8px 0' }}>
-            <span style={label}>{attempt.submitted.length > 1 ? 'Điểm cao nhất' : 'Điểm lượt vừa nộp'}</span>
+            <span style={label}>Điểm bài làm</span>
             <span className="pq-tabular" style={{ font: '700 48px/1 var(--font-mono)', color: 'var(--text-title)' }}>
-              {formatPoints(best.score)}<span style={{ fontSize: 24, color: 'var(--text-faint)' }}>/{formatPoints(best.maxScore)}</span>
+              {formatPoints(done.score)}<span style={{ fontSize: 24, color: 'var(--text-faint)' }}>/{formatPoints(done.maxScore)}</span>
             </span>
             {essayPoints > 0 && <p style={meta}>Chưa gồm câu tự luận ({formatPoints(essayPoints)} điểm) — mentor sẽ chấm sau khi đóng phiên.</p>}
           </div>
         </Card>
       )}
-      {attempt.submitted.length > 1 && (
-        <Card title="Các lượt đã làm">
-          <div style={{ display: 'grid', gap: 6 }}>
-            {attempt.submitted.map(a => (
-              <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', font: 'var(--type-ui)' }}>
-                <span>Lượt {a.attemptNo}</span>
-                <span className="pq-tabular" style={{ fontFamily: 'var(--font-mono)' }}>{formatPoints(a.score)}/{formatPoints(a.maxScore)}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-      {reviewable && attempt.submitted.length > 0 && (
-        <div style={{ display: 'grid', gap: 8 }}>
-          {attempt.submitted.map(a => (
-            <Button key={a.id} size="lg" block variant={attempt.submitted.length === 1 ? 'primary' : 'secondary'} icon="eye" onClick={() => nav(`/review/${a.id}`)}>
-              {attempt.submitted.length === 1 ? 'Xem lại bài' : `Xem lại lượt ${a.attemptNo}`}
-            </Button>
-          ))}
-        </div>
-      )}
-      {!ended && attempt.canStartNew && <StartCard session={session} retake onStart={onStart} />}
-      {!ended && !attempt.canStartNew && best && session.hasEssay && <p style={{ ...meta, textAlign: 'center' }}>Đề có tự luận chỉ làm được 1 lượt.</p>}
+      {done && reviewable && <Button size="lg" block icon="eye" onClick={() => nav(`/review/${done.id}`)}>Xem lại bài</Button>}
+      {done && !ended && <p style={{ ...meta, textAlign: 'center' }}>Mỗi người làm 1 lượt. Muốn làm lại, nhờ mentor mở phiên thi mới.</p>}
       {children}
     </div>
   );
@@ -233,11 +211,11 @@ export function MemberExam({ me, onChanged, leaderboard }: { me: MeResponse; onC
   const { attempt, session } = me;
   let body: ReactNode;
   if (attempt.current) body = <TakingView key={attempt.current.id} me={me} attemptId={attempt.current.id} onChanged={onChanged} />;
-  else if (attempt.submitted.length > 0) body = <ResultView me={me} ended={false} onStart={start}>{leaderboard}</ResultView>;
+  else if (attempt.submitted.length > 0) body = <ResultView me={me} ended={false}>{leaderboard}</ResultView>;
   else body = (
     <div style={{ ...stack, paddingTop: 8 }}>
       <div style={{ display: 'grid', gap: 6 }}><span style={label}>Phiên đã bắt đầu</span><h1 style={{ font: 'var(--type-h1)', color: 'var(--text-title)', margin: 0 }}>{session.title}</h1></div>
-      <StartCard session={session} retake={false} onStart={start} />
+      <StartCard session={session} onStart={start} />
     </div>
   );
   return <MemberLayout sessionTitle={session.title} displayName={me.participant.displayName}>{body}</MemberLayout>;

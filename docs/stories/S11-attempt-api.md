@@ -2,6 +2,8 @@
 
 **Phụ thuộc:** S08 · **Song song với:** S09, S10
 
+> **Đã đổi (2026-11-15):** mỗi participant chỉ làm **1 lượt mỗi phiên**, mọi loại đề; muốn làm lại thì mentor mở phiên mới ([PRODUCT.md §4.4, §7.15](../PRODUCT.md)). Các đoạn dưới đây nói về làm lại / lượt điểm cao nhất là bản cũ.
+
 ## Bối cảnh
 Lõi nghiệp vụ: bắt đầu lượt, trộn câu, autosave, nộp, chấm, luật làm lại. Contract: [architecture.md §2, §5 (me/attempts), §6](../architecture.md); business: [PRODUCT.md §4.3–4.5](../PRODUCT.md).
 

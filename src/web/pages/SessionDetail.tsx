@@ -151,7 +151,7 @@ function SessionDetailView({ initial }: { initial: SessionDetailData }) {
             </p>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead><tr><th style={th}>Tên</th>{showProgress && <><th style={th}>Tiến độ</th><th style={th}>Lượt</th><th style={th}>Điểm tạm tính</th></>}<th style={th} /></tr></thead>
+              <thead><tr><th style={th}>Tên</th>{showProgress && <><th style={th}>Tiến độ</th><th style={th}>Điểm tạm tính</th></>}<th style={th} /></tr></thead>
               <tbody>
                 {active.map(p => (
                   <tr key={p.id}>
@@ -160,7 +160,6 @@ function SessionDetailView({ initial }: { initial: SessionDetailData }) {
                     </td>
                     {showProgress && <>
                       <td style={{ ...td, color: PROGRESS_LABEL[p.progress.state].color }}>{PROGRESS_LABEL[p.progress.state].label}</td>
-                      <td className="pq-tabular" style={{ ...td, fontFamily: 'var(--font-mono)' }}>{p.progress.attempts}</td>
                       <td className="pq-tabular" style={{ ...td, fontFamily: 'var(--font-mono)' }}>{formatProgressScore(p.progress)}</td>
                     </>}
                     <td style={{ ...td, textAlign: 'right' }}>

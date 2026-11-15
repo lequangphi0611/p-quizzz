@@ -8,7 +8,7 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog.js';
 import { Icon } from '../components/ui/Icon.js';
 import { ErrorMessage } from '../components/ui/ErrorMessage.js';
 import { api, ApiError } from '../lib/api.js';
-import { countByType, retakeLabel, typeCountsLabel } from '../lib/exam-summary.js';
+import { countByType, attemptRuleLabel, typeCountsLabel } from '../lib/exam-summary.js';
 import { formatDate } from '../lib/format.js';
 
 export const examDetailLoader = ({ params }: LoaderFunctionArgs) => api.get<ExamDetailData>(`/api/admin/exams/${params.id}`);
@@ -52,7 +52,7 @@ export function ExamDetail() {
       >
         <div style={{ display: 'grid', gap: 4, font: 'var(--type-meta)', color: 'var(--text-meta)' }}>
           <div><b className="pq-tabular">{exam.questionCount}</b> câu ({typeCountsLabel(countByType(exam.questions))}) · tổng <b className="pq-tabular">{exam.totalPoints}</b> điểm</div>
-          <div>{retakeLabel(exam.hasEssay)}</div>
+          <div>{attemptRuleLabel(exam.hasEssay)}</div>
           <div>Tạo {formatDate(exam.createdAt)} · đã dùng cho {exam.sessionCount} phiên</div>
         </div>
       </Card>

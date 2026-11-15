@@ -40,7 +40,7 @@ for (const file of files) {
     .join(', ');
   console.log(
     `✓ ${file}: "${exam.title}" — ${exam.questions.length} câu (${breakdown}), tổng ${exam.totalPoints} điểm, ` +
-      `${exam.hasEssay ? 'có tự luận → mỗi member làm 1 lần' : 'thuần trắc nghiệm → cho làm lại'}` +
+      `${exam.hasEssay ? 'có tự luận → mentor chấm tay' : 'thuần trắc nghiệm → chấm tự động'}` +
       `${warnings.length ? `, ${warnings.length} cảnh báo` : ''}.\n`,
   );
 }
