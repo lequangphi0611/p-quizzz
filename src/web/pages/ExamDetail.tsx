@@ -9,7 +9,7 @@ import { Icon } from '../components/ui/Icon.js';
 import { ErrorMessage } from '../components/ui/ErrorMessage.js';
 import { api, ApiError } from '../lib/api.js';
 import { countByType, retakeLabel, typeCountsLabel } from '../lib/exam-summary.js';
-import { formatDate } from './ExamList.js';
+import { formatDate } from '../lib/format.js';
 
 export const examDetailLoader = ({ params }: LoaderFunctionArgs) => api.get<ExamDetailData>(`/api/admin/exams/${params.id}`);
 

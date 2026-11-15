@@ -5,14 +5,11 @@ import { Button } from '../components/ui/Button.js';
 import { Card } from '../components/ui/Card.js';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog.js';
 import { ErrorMessage } from '../components/ui/ErrorMessage.js';
+import { th, td } from '../components/ui/tableStyles.js';
 import { api, ApiError } from '../lib/api.js';
+import { formatDate } from '../lib/format.js';
 
 export const examListLoader = () => api.get<ExamSummary[]>('/api/admin/exams');
-
-const th = { font: 'var(--type-label)', textTransform: 'uppercase', letterSpacing: 'var(--tracking-label)', color: 'var(--text-faint)', textAlign: 'left', whiteSpace: 'nowrap', padding: '10px 16px', borderBottom: '1px solid var(--border-hairline)' } as const;
-const td = { whiteSpace: 'nowrap', font: 'var(--type-ui)', color: 'var(--text-body)', padding: '12px 16px', borderBottom: '1px solid var(--border-hairline)', verticalAlign: 'middle' } as const;
-
-export const formatDate = (ms: number) => new Date(ms).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' });
 
 export function ExamList() {
   const exams = useLoaderData() as ExamSummary[];

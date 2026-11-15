@@ -10,6 +10,8 @@ import { Placeholder } from './pages/Placeholder.js';
 import { ExamDetail, examDetailLoader } from './pages/ExamDetail.js';
 import { ExamImport } from './pages/ExamImport.js';
 import { ExamList, examListLoader } from './pages/ExamList.js';
+import { SessionDetail, sessionDetailLoader } from './pages/SessionDetail.js';
+import { SessionList, sessionListLoader } from './pages/SessionList.js';
 
 function MemberShell() {
   return <MemberLayout><Outlet /></MemberLayout>;
@@ -65,8 +67,8 @@ export const router = createBrowserRouter([
       { path: '/admin/exams', loader: examListLoader, element: <ExamList /> },
       { path: '/admin/exams/import', element: <ExamImport /> },
       { path: '/admin/exams/:id', loader: examDetailLoader, element: <ExamDetail /> },
-      { path: '/admin/sessions', element: <Placeholder title="Phiên thi" story="S09" /> },
-      { path: '/admin/sessions/:id', element: <Placeholder title="Điều khiển phiên" story="S09" /> },
+      { path: '/admin/sessions', loader: sessionListLoader, element: <SessionList /> },
+      { path: '/admin/sessions/:id', loader: sessionDetailLoader, element: <SessionDetail /> },
       { path: '/admin/sessions/:id/grading', element: <Placeholder title="Chấm tự luận" story="S15" /> },
     ],
   },

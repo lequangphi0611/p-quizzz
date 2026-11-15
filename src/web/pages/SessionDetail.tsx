@@ -1,0 +1,227 @@
+import { useCallback, useRef, useState } from 'react';
+import { useLoaderData, useNavigate, type LoaderFunctionArgs } from 'react-router';
+import type { SessionDetail as SessionDetailData, SessionParticipantInfo } from '../../shared/api/index.js';
+import { Button } from '../components/ui/Button.js';
+import { Card } from '../components/ui/Card.js';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog.js';
+import { ErrorMessage } from '../components/ui/ErrorMessage.js';
+import { Icon } from '../components/ui/Icon.js';
+import { StatusBadge } from '../components/ui/StatusBadge.js';
+import { th, td } from '../components/ui/tableStyles.js';
+import { api, ApiError } from '../lib/api.js';
+import { ACTION_FOR_STATUS, UNKNOWN_PROGRESS } from '../lib/session-ui.js';
+import { useSessionEvents } from '../lib/useSessionEvents.js';
+
+export const sessionDetailLoader = ({ params }: LoaderFunctionArgs) => api.get<SessionDetailData>(`/api/admin/sessions/${params.id}`);
+
+const caption = { font: 'var(--type-label)', textTransform: 'uppercase', letterSpacing: 'var(--tracking-label)', color: 'var(--brand-700)' } as const;
+const errorText = (err: unknown, fallback: string) => (err instanceof ApiError ? err.message : fallback);
+
+// Members need an address they can reach over the LAN; "localhost" only works on the mentor's own machine.
+function JoinUrlCard({ status }: { status: SessionDetailData['status'] }) {
+  const { host, hostname } = window.location;
+  const isLocal = /^(localhost|127\.|\[?::1\]?$)/.test(hostname);
+  const open = status === 'lobby' || status === 'running';
+  return (
+    <Card tone="brand">
+      <div style={{ display: 'grid', gap: 6 }}>
+        <span style={caption}>URL cho member</span>
+        <span style={{ font: '700 26px/1.1 var(--font-mono)', color: open ? 'var(--text-title)' : 'var(--text-faint)', wordBreak: 'break-all' }}>{host}</span>
+        <span style={{ font: 'var(--type-meta)', color: 'var(--text-meta)' }}>
+          {open ? 'Đọc hoặc chiếu địa chỉ này cho cả phòng.' : 'Mở phòng chờ để member có thể vào.'}
+        </span>
+        {isLocal && (
+          <ErrorMessage tone="warning" message={<>Bạn đang mở bằng <b>{hostname}</b> nên member không truy cập được. Mở lại bằng địa chỉ LAN (server in ra ở terminal, dạng <code>http://192.168.x.x:3000</code>).</>} />
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function NameCell({ p, disabled, readOnly, onSave }: { p: SessionParticipantInfo; disabled: boolean; readOnly: boolean; onSave: (name: string) => Promise<boolean> }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(p.displayName);
+  if (!editing) {
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 600, color: 'var(--text-title)' }}>
+        {p.displayName}
+        {!readOnly && <button type="button" aria-label={`Đổi tên ${p.displayName}`} disabled={disabled} onClick={() => { setValue(p.displayName); setEditing(true); }} style={{ background: 'none', border: 0, padding: 2, cursor: disabled ? 'not-allowed' : 'pointer', color: 'var(--text-faint)' }}>
+          <Icon name="pencil" size={14} />
+        </button>}
+      </span>
+    );
+  }
+  const save = async () => { if (await onSave(value)) setEditing(false); };
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <input
+        autoFocus value={value} maxLength={60} aria-label="Tên mới"
+        onChange={e => setValue(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter') void save(); if (e.key === 'Escape') setEditing(false); }}
+        style={{ height: 32, width: 180, padding: '0 10px', font: 'var(--type-ui)', border: '1.5px solid var(--border-focus)', borderRadius: 'var(--radius-sm)' }}
+      />
+      <Button size="sm" onClick={save} disabled={disabled || !value.trim()}>Lưu</Button>
+      <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Huỷ</Button>
+    </span>
+  );
+}
+
+type Dialog = { kind: 'action' } | { kind: 'kick'; p: SessionParticipantInfo } | null;
+
+function SessionDetailView({ initial }: { initial: SessionDetailData }) {
+  const nav = useNavigate();
+  const [detail, setDetail] = useState(initial);
+  const [error, setError] = useState('');
+  const [working, setWorking] = useState(false);
+  const [dialog, setDialog] = useState<Dialog>(null);
+  const seq = useRef(0); // drops a fetch that finished after a newer one (or after an action's own response)
+
+  const refetch = useCallback(async () => {
+    const n = ++seq.current;
+    try {
+      const d = await api.get<SessionDetailData>(`/api/admin/sessions/${initial.id}`);
+      if (n === seq.current) setDetail(d);
+    } catch { /* transient (e.g. server restarting); the next event or action refreshes */ }
+  }, [initial.id]);
+
+  useSessionEvents(initial.id, { session: refetch, participants: refetch });
+
+  const spec = ACTION_FOR_STATUS[detail.status];
+  const active = detail.participants.filter(p => p.status === 'active');
+  const pending = detail.participants.filter(p => p.status === 'pending');
+  const showProgress = detail.status !== 'draft' && detail.status !== 'lobby';
+  const finalized = detail.status === 'finalized'; // results are official: no more renaming or kicking
+
+  async function run(call: () => Promise<unknown>, fallback: string): Promise<boolean> {
+    setWorking(true);
+    setError('');
+    try {
+      await call();
+      return true;
+    } catch (err) {
+      setError(errorText(err, fallback));
+      return false;
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  async function doAction() {
+    if (!spec) return;
+    await run(async () => {
+      const d = await api.post<SessionDetailData>(`/api/admin/sessions/${detail.id}/${spec.action}`);
+      seq.current++;
+      setDetail(d);
+    }, `Không thể ${spec.label.toLowerCase()}`);
+    setDialog(null); // on failure the message shows on the page behind the dialog
+  }
+
+  const participantAction = (path: string, fallback: string) => run(async () => { await api.post(path); await refetch(); }, fallback);
+
+  return (
+    <div style={{ display: 'grid', gap: 20 }}>
+      <button onClick={() => nav('/admin/sessions')} style={{ justifySelf: 'start', display: 'inline-flex', gap: 6, alignItems: 'center', background: 'none', border: 0, padding: 0, color: 'var(--text-meta)', font: 'var(--type-meta)', cursor: 'pointer' }}>
+        <Icon name="arrow-left" size={14} />Phiên thi
+      </button>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+        <h1 style={{ font: 'var(--type-h1)', color: 'var(--text-title)', margin: 0 }}>{detail.exam.title}</h1>
+        <StatusBadge status={detail.status} />
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Button variant="secondary" icon="presentation" onClick={() => window.open('/screen', '_blank')}>Mở màn hình chiếu</Button>
+          {detail.status === 'closed' && detail.exam.hasEssay && (
+            <Button variant="secondary" icon="pencil" onClick={() => nav(`/admin/sessions/${detail.id}/grading`)}>Chấm tự luận</Button>
+          )}
+          {spec && (
+            <Button icon={spec.icon} variant={spec.variant} loading={working && !dialog} onClick={() => (spec.confirm ? setDialog({ kind: 'action' }) : void doAction())}>
+              {spec.label}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {error && <ErrorMessage message={error} />}
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' }}>
+        <Card padding={0} style={{ flex: '1 1 520px', minWidth: 0, overflowX: 'auto' }}>
+          <div style={{ padding: '16px 16px 6px', font: 'var(--type-h2)', fontSize: 16, color: 'var(--text-title)' }}>Người tham gia · {active.length}</div>
+          {active.length === 0 ? (
+            <p style={{ margin: 0, padding: '8px 16px 20px', font: 'var(--type-meta)', color: 'var(--text-meta)' }}>
+              {detail.status === 'draft' ? 'Mở phòng chờ để member bắt đầu vào.' : 'Chưa có ai vào phiên.'}
+            </p>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead><tr><th style={th}>Tên</th>{showProgress && <><th style={th}>Tiến độ</th><th style={th}>Lượt</th></>}<th style={th} /></tr></thead>
+              <tbody>
+                {active.map(p => (
+                  <tr key={p.id}>
+                    <td style={td}>
+                      <NameCell p={p} disabled={working} readOnly={finalized} onSave={name => run(async () => { await api.patch(`/api/admin/participants/${p.id}`, { displayName: name }); await refetch(); }, 'Không đổi được tên')} />
+                    </td>
+                    {showProgress && <>
+                      <td style={{ ...td, color: 'var(--text-faint)' }}>{UNKNOWN_PROGRESS.label}</td>
+                      <td style={{ ...td, fontFamily: 'var(--font-mono)', color: 'var(--text-faint)' }}>{UNKNOWN_PROGRESS.attempts ?? '—'}</td>
+                    </>}
+                    <td style={{ ...td, textAlign: 'right' }}>
+                      {!finalized && <Button size="sm" variant="ghost" icon="user-x" disabled={working} onClick={() => setDialog({ kind: 'kick', p })}>Kick</Button>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Card>
+
+        <div style={{ display: 'grid', gap: 20, flex: '1 1 300px', maxWidth: 420 }}>
+          <JoinUrlCard status={detail.status} />
+          {pending.length > 0 && (
+            <Card title={`Chờ duyệt · ${pending.length}`} subtitle="Vào trễ khi phiên đang chạy">
+              <div style={{ display: 'grid', gap: 8 }}>
+                {pending.map(p => (
+                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ font: 'var(--type-ui)', fontWeight: 600, flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>{p.displayName}</span>
+                    <Button size="sm" icon="user-check" disabled={working} onClick={() => void participantAction(`/api/admin/participants/${p.id}/approve`, 'Không duyệt được')}>Duyệt</Button>
+                    <Button size="sm" variant="ghost" icon="user-x" disabled={working} onClick={() => setDialog({ kind: 'kick', p })}>Từ chối</Button>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+        </div>
+      </div>
+
+      <ConfirmDialog
+        open={dialog?.kind === 'action' && !!spec?.confirm}
+        tone={spec?.variant ?? 'primary'}
+        title={spec?.confirm?.title ?? ''}
+        confirmLabel={spec?.confirm?.confirmLabel}
+        busy={working}
+        onCancel={() => setDialog(null)}
+        onConfirm={doAction}
+      >
+        {spec?.confirm?.body(active.length)}
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={dialog?.kind === 'kick'}
+        tone="danger"
+        title={dialog?.kind === 'kick' ? `Kick ${dialog.p.displayName}?` : ''}
+        confirmLabel="Kick"
+        busy={working}
+        onCancel={() => setDialog(null)}
+        onConfirm={async () => {
+          if (dialog?.kind !== 'kick') return;
+          await participantAction(`/api/admin/participants/${dialog.p.id}/kick`, 'Không kick được');
+          setDialog(null);
+        }}
+      >
+        Người này sẽ bị loại khỏi phiên và không xuất hiện trên bảng xếp hạng.
+      </ConfirmDialog>
+    </div>
+  );
+}
+
+export function SessionDetail() {
+  const initial = useLoaderData() as SessionDetailData;
+  return <SessionDetailView key={initial.id} initial={initial} />;
+}
