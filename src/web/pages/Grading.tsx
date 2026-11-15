@@ -110,7 +110,8 @@ export function Grading() {
   const nav = useNavigate();
   const [view, setView] = useState(initial);
   const [cur, setCur] = useState(0);
-  const [blind, setBlind] = useState(false);
+  // Names stay hidden until the mentor chooses to show them: grading should not depend on who wrote the answer.
+  const [blind, setBlind] = useState(true);
   const [error, setError] = useState('');
   const [zeroing, setZeroing] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -203,7 +204,7 @@ export function Grading() {
           <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, font: 'var(--type-ui)', cursor: 'pointer' }}>
               <input type="checkbox" checked={blind} onChange={e => setBlind(e.target.checked)} style={{ width: 18, height: 18, accentColor: 'var(--brand-600)' }} />
-              Ẩn tên (chấm khách quan)
+              Ẩn tên (chấm khách quan){blind ? '' : ' — đang hiện tên'}
             </label>
             {!locked && blankUngraded.length > 0 && (
               <Button size="sm" variant="secondary" icon="check" loading={zeroing} onClick={zeroBlanks}>Chấm 0 cho {blankUngraded.length} bài bỏ trống</Button>

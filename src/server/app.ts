@@ -3,6 +3,7 @@ import Fastify, { type FastifyPluginAsync } from 'fastify';
 import fastifyCookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
 import type { Db } from './db/client.js';
+import { registerLeakGuard } from './leak-guard.js';
 import { adminRoutes as adminRoutesPlugin } from './routes/admin.js';
 import { examsRoutes } from './routes/exams.js';
 import { gradingRoutes } from './routes/grading.js';
@@ -32,6 +33,7 @@ export async function buildApp({ db, serveWeb = false, logger = false, allowRemo
   // connecting straight to the server is not trusted, so it cannot forge its address.
   const app = Fastify({ logger, trustProxy: ['127.0.0.1', '::1'] });
   app.decorate('db', db);
+  registerLeakGuard(app);
 
   await app.register(fastifyCookie);
   await app.register(healthRoutes);
