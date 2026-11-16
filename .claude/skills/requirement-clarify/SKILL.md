@@ -40,6 +40,15 @@ Giá trị cho từng actor (Mentor, Member, Màn hình chiếu): giải quyết
 Business: cách khác đạt cùng mục tiêu rẻ hơn; ảnh hưởng quy trình của mentor; có làm member bớt vui không.
 Non-business (theo ràng buộc của app): offline/LAN không internet, nhiều member cùng lúc, laptop và điện thoại, bảo mật (đề chứa đáp án), mất mạng hoặc F5 giữa chừng, khả năng truy cập (a11y), khối lượng vận hành cho mentor.
 
+### Đánh giá nhu cầu designer (UI)
+
+Kết luận một trong ba, kèm lý do ngắn:
+- **Không cần UI**: thay đổi chỉ ở luật/dữ liệu, không có gì người dùng nhìn thấy.
+- **Dùng lại được UI hiện có**: chỉ thêm/đổi nhỏ bằng component sẵn có (`src/web/shared/ui`), không đổi bố cục hay luồng.
+- **Cần designer**: có một trong các dấu hiệu: màn hình hoặc luồng mới; đổi bố cục trang chính; chạm **màn hình chiếu** (cả phòng nhìn, cần đọc được từ xa); trạng thái mới mà member phải hiểu ngay (chờ, khóa, đã nộp...); phải dùng tốt trên cả laptop và điện thoại (§1); có nội dung hiển thị tên/điểm của người khác (nhạy cảm về cảm giác công bằng).
+
+Nếu cần designer, nêu: màn hình nào, actor nào dùng, trạng thái cần thiết kế (rỗng, đang tải, lỗi, mất mạng), và đề xuất soạn **prompt cho designer** theo mẫu có sẵn trong `docs/design/` (ví dụ `member-responsive-ui-prompt.md`). Chỉ đề xuất, không tự soạn khi chưa được duyệt.
+
 ## Bước 5. Giả lập actor (chỉ mức Đầy đủ)
 
 Mở **mỗi actor một subagent**, chạy **song song**, để cô lập context và tránh thiên kiến. Mỗi subagent chỉ nhận: yêu cầu gốc (nguyên văn), mô tả actor, đường dẫn `docs/PRODUCT.md`. **Không** đưa phân tích của bước 2–4 cho subagent.
@@ -78,12 +87,13 @@ Ngôn ngữ nghiệp vụ, ngắn gọn, không thuật ngữ kỹ thuật. Dùn
 4. **Kịch bản** (mỗi cái 1 dòng, dạng "Khi ... thì ... để ..."), gồm cả kịch bản xấu.
 5. **Xung đột và đánh đổi** giữa các actor.
 6. **Phương án + khuyến nghị** (kèm S/M/L, phần bị chạm).
-7. **Câu hỏi mở cần PO quyết** và, nếu PO chấp nhận hướng khuyến nghị, **đề xuất thay đổi `PRODUCT.md`** (chỉ liệt kê mục nào đổi thành gì, chưa ghi).
+7. **UI / designer**: không cần / dùng lại UI hiện có / cần designer (màn hình, trạng thái cần thiết kế, có nên soạn prompt designer không).
+8. **Câu hỏi mở cần PO quyết** và, nếu PO chấp nhận hướng khuyến nghị, **đề xuất thay đổi `PRODUCT.md`** (chỉ liệt kê mục nào đổi thành gì, chưa ghi).
 
 Kết thúc bằng: "Chờ PO duyệt hướng nào để chuyển bước tiếp theo." Dừng tại đây.
 
 ## Không làm
 
-- Không sửa `docs/`, không tạo story, không viết code, không chạy lệnh thay đổi repo.
+- Không sửa `docs/`, không tạo story, không soạn prompt designer, không viết code, không chạy lệnh thay đổi repo.
 - Không thay PO quyết định; chỉ khuyến nghị.
 - Không chạy subagent cho yêu cầu mức Nhẹ.
