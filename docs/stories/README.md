@@ -27,22 +27,24 @@ Mỗi story là một file tự đủ ngữ cảnh để một model/người im
 
 | Story | Tên | Phụ thuộc | Trạng thái |
 |---|---|---|---|
-| [S01](S01-db-schema.md) | DB schema + migrate | — | ⬜ |
-| [S02](S02-web-foundation.md) | Nền tảng web | — | ⬜ |
-| [S03](S03-mentor-auth.md) | Xác thực mentor | S01, S02 | ⬜ |
-| [S04](S04-exam-import-api.md) | API import đề | S01, S03 | ⬜ |
-| [S05](S05-exam-import-ui.md) | UI import & quản lý đề | S04 | ⬜ |
-| [S06](S06-session-lifecycle-api.md) | API vòng đời phiên | S01, S03 | ⬜ |
-| [S07](S07-realtime-sse.md) | Realtime SSE | S01, S02 | ⬜ |
-| [S08](S08-join-participants-api.md) | API vào phiên & quản lý người tham gia | S06, S07 | ⬜ |
-| [S09](S09-mentor-session-ui.md) | UI điều khiển phiên (mentor) | S05, S08 | ⬜ |
-| [S10](S10-member-join-ui.md) | UI vào phiên & phòng chờ (member) | S08 | ⬜ |
-| [S11](S11-attempt-api.md) | API làm bài & chấm tự động | S08 | ⬜ |
-| [S12](S12-exam-taking-ui.md) | UI làm bài | S10, S11 | ⬜ |
-| [S13](S13-leaderboard.md) | Bảng xếp hạng (API + UI member) | S11 | ⬜ |
-| [S14](S14-projector-screen.md) | Màn hình chiếu | S13 | ⬜ |
-| [S15](S15-essay-grading.md) | Chấm tự luận & chốt phiên | S11, S09 | ⬜ |
-| [S16](S16-review-after-close.md) | Xem lại bài sau khi đóng phiên | S12 | ⬜ |
+| [S01](S01-db-schema.md) | DB schema + migrate | — | ✅ |
+| [S02](S02-web-foundation.md) | Nền tảng web | — | ✅ |
+| [S03](S03-mentor-auth.md) | Xác thực mentor | S01, S02 | ✅ |
+| [S04](S04-exam-import-api.md) | API import đề | S01, S03 | ✅ |
+| [S05](S05-exam-import-ui.md) | UI import & quản lý đề | S04 | ✅ |
+| [S06](S06-session-lifecycle-api.md) | API vòng đời phiên | S01, S03 | ✅ |
+| [S07](S07-realtime-sse.md) | Realtime SSE | S01, S02 | ✅ |
+| [S08](S08-join-participants-api.md) | API vào phiên & quản lý người tham gia | S06, S07 | ✅ |
+| [S09](S09-mentor-session-ui.md) | UI điều khiển phiên (mentor) | S05, S08 | ✅ |
+| [S10](S10-member-join-ui.md) | UI vào phiên & phòng chờ (member) | S08 | ✅ |
+| [S11](S11-attempt-api.md) | API làm bài & chấm tự động | S08 | ✅ |
+| [S12](S12-exam-taking-ui.md) | UI làm bài | S10, S11 | ✅ |
+| [S13](S13-leaderboard.md) | Bảng xếp hạng (API + UI member) | S11 | ✅ |
+| [S14](S14-projector-screen.md) | Màn hình chiếu | S13 | ✅ |
+| [S15](S15-essay-grading.md) | Chấm tự luận & chốt phiên | S11, S09 | ✅ |
+| [S16](S16-review-after-close.md) | Xem lại bài sau khi đóng phiên | S12 | ✅ |
+| [S17](S17-discussion-mode.md) | Chế độ thảo luận sau phiên | S13, S15, S16 | ✅ |
+| [S18](S18-member-responsive-ui.md) | Giao diện học viên cho máy tính + điện thoại | S10, S12, S16 | ✅ |
 
 ## Thứ tự & song song
 

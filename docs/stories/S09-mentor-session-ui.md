@@ -15,9 +15,9 @@ Mentor tạo phiên từ đề, xem lobby realtime, xác nhận số lượng r�
   - Khi `closed` có tự luận: link "Chấm tự luận" tới `/admin/sessions/:id/grading`.
 
 ## Acceptance criteria
-- [ ] Mở 2 tab member join → danh sách mentor cập nhật trong ≤ 2 giây không cần F5.
-- [ ] Không hiển thị nút hành động không hợp lệ với trạng thái hiện tại.
-- [ ] Lỗi API (vd. đang có phiên khác hoạt động) hiển thị thông báo rõ ràng.
+- [x] Mở 2 tab member join → danh sách mentor cập nhật trong ≤ 2 giây không cần F5.
+- [x] Không hiển thị nút hành động không hợp lệ với trạng thái hiện tại.
+- [x] Lỗi API (vd. đang có phiên khác hoạt động) hiển thị thông báo rõ ràng.
 
 ## Test bắt buộc
 - Không bắt buộc test UI tự động; ghi luồng đã thao tác tay.

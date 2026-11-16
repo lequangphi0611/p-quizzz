@@ -2,6 +2,8 @@
 
 **Phụ thuộc:** S08 · **Song song với:** S09, S10
 
+> **Đã đổi (2026-11-15):** mỗi participant chỉ làm **1 lượt mỗi phiên**, mọi loại đề; muốn làm lại thì mentor mở phiên mới ([PRODUCT.md §4.4, §7.15](../PRODUCT.md)). Các đoạn dưới đây nói về làm lại / lượt điểm cao nhất là bản cũ.
+
 ## Bối cảnh
 Lõi nghiệp vụ: bắt đầu lượt, trộn câu, autosave, nộp, chấm, luật làm lại. Contract: [architecture.md §2, §5 (me/attempts), §6](../architecture.md); business: [PRODUCT.md §4.3–4.5](../PRODUCT.md).
 
@@ -22,9 +24,9 @@ Lõi nghiệp vụ: bắt đầu lượt, trộn câu, autosave, nộp, chấm, 
 - Chỉ chủ lượt mới truy cập được lượt đó (khác participant → 404).
 
 ## Acceptance criteria
-- [ ] Mọi quy tắc trên có test.
-- [ ] **Test không lộ đáp án**: response của mọi endpoint `/api/me/*` trước khi đóng phiên không chứa key `isCorrect`/`is_correct`/`explanation` (kiểm đệ quy trên JSON).
-- [ ] Đóng phiên khi có người đang làm → lượt đó được nộp và chấm.
+- [x] Mọi quy tắc trên có test.
+- [x] **Test không lộ đáp án**: response của mọi endpoint `/api/me/*` trước khi đóng phiên không chứa key `isCorrect`/`is_correct`/`explanation` (kiểm đệ quy trên JSON).
+- [x] Đóng phiên khi có người đang làm → lượt đó được nộp và chấm.
 
 ## Test bắt buộc
 - `scoreAnswer`: single đúng/sai/bỏ trống; multi đúng hết/thiếu/thừa; essay → null.

@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1794674199135,
+      "tag": "0000_gifted_odin",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1794707320305,
+      "tag": "0001_yummy_captain_midlands",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1794756938197,
+      "tag": "0002_aspiring_photon",
+      "breakpoints": true
+    }
+  ]
+}

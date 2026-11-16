@@ -14,9 +14,9 @@ Member mở URL trên điện thoại/laptop, nhập tên, chờ mentor bắt đ
 - Đăng ký `useSessionEvents` để chuyển màn hình ngay khi mentor bắt đầu/đóng phiên, hoặc khi được duyệt/bị kick.
 
 ## Acceptance criteria
-- [ ] F5 ở mọi bước giữ đúng trạng thái (không phải nhập lại tên).
-- [ ] Mentor bấm Bắt đầu → màn hình member đổi trong ≤ 2 giây.
-- [ ] Dùng tốt trên màn hình 360px, nút đủ lớn để chạm.
+- [x] F5 ở mọi bước giữ đúng trạng thái (không phải nhập lại tên).
+- [x] Mentor bấm Bắt đầu → màn hình member đổi trong ≤ 2 giây.
+- [x] Dùng tốt trên màn hình 360px, nút đủ lớn để chạm.
 
 ## Test bắt buộc
 - Không bắt buộc test UI tự động; ghi luồng đã thao tác tay (≥ 2 trình duyệt).

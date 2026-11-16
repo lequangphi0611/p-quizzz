@@ -31,9 +31,9 @@ exams ──< questions ──< options
 | `exams` | id, title, description?, source_markdown, total_points, has_essay, created_at | `source_markdown` lưu nguyên file đã import. **Đề bất biến** sau khi tạo (không có API sửa). |
 | `questions` | id, exam_id, position, type (`single`\|`multi`\|`essay`), prompt, body, points, explanation? | `position` theo thứ tự trong file. |
 | `options` | id, question_id, position, text, is_correct | |
-| `sessions` | id, exam_id, mode (`self_paced`\|`live`), status, shuffle (bool, mặc định true), created_at, opened_at?, started_at?, closed_at?, finalized_at? | MVP chỉ tạo `self_paced`. |
+| `sessions` | id, exam_id, mode (`self_paced`\|`live`), status, shuffle (bool, mặc định true), auto_approve (bool, mặc định false), room_code?, created_at, opened_at?, started_at?, closed_at?, finalized_at? | MVP chỉ tạo `self_paced`. `room_code`: 6 chữ số ngẫu nhiên, sinh khi `open`, unique; `null` khi còn `draft`. |
 | `participants` | id, session_id, display_name, token (unique), status (`active`\|`pending`\|`kicked`), joined_at | Unique (session_id, lower(display_name)) cho participant chưa bị kick. |
-| `attempts` | id, participant_id, attempt_no, question_order (JSON `number[]`), option_order (JSON `Record<questionId, optionId[]>`), started_at, submitted_at?, auto_score?, manual_score? | Thứ tự trộn sinh **lúc tạo attempt**, mỗi lần làm lại trộn lại. |
+| `attempts` | id, participant_id, attempt_no, question_order (JSON `number[]`), option_order (JSON `Record<questionId, optionId[]>`), started_at, submitted_at?, auto_score?, manual_score? | Thứ tự trộn sinh **lúc tạo attempt**. Mỗi participant có đúng 1 attempt mỗi phiên (`attempt_no` luôn là 1). |
 | `answers` | id, attempt_id, question_id, selected_option_ids (JSON `number[]`)?, text_answer?, auto_score?, manual_score?, feedback?, graded_at? | Unique (attempt_id, question_id). Upsert khi autosave. |
 | `app_meta` | key, value, updated_at | Đã có. Lưu `admin_password_hash`. |
 
@@ -56,8 +56,8 @@ function nextStatus(current: SessionStatus, action: SessionAction): SessionStatu
 
 ## 4. Xác thực
 
-- **Mentor**: lần đầu chạy chưa có `admin_password_hash` → `POST /api/admin/setup` đặt mật khẩu (≥ 6 ký tự). Login → cookie `pq_admin` (httpOnly, sameSite=lax) chứa token ngẫu nhiên; token lưu trong `Map` bộ nhớ (restart server = login lại — chấp nhận). Hook `requireMentor` cho mọi route `/api/admin/*` trừ `setup`, `login`, `status`.
-- **Member**: join trả về `token` (32 byte ngẫu nhiên, base64url). Web lưu ở `localStorage` key `pq:participant:<sessionId>`, gửi qua header `X-Participant-Token`. Hook `requireParticipant` cho `/api/me/*`; participant `kicked` → 403.
+- **Mentor**: lần đầu chạy chưa có `admin_password_hash` → `POST /api/admin/setup` đặt mật khẩu (≥ 6 ký tự). Login → cookie `pq_admin` (httpOnly, sameSite=lax) chứa token ngẫu nhiên; token lưu trong `Map` bộ nhớ (restart server = login lại — chấp nhận). Hook `requireMentor` cho mọi route `/api/admin/*` trừ `setup`, `login`, `status`. Trước cả hook đó, `requireLocal` chặn (403) mọi request `/api/admin/*` không đến từ máy chạy app (loopback hoặc IP của chính các interface của máy); `--allow-remote-admin` / `ALLOW_REMOTE_ADMIN=1` tắt chặn này. IP lấy từ socket; `X-Forwarded-For` chỉ được tin khi peer là loopback (proxy dev của Vite, cấu hình `xfwd`).
+- **Member**: join cần **mã phòng** của phiên (`room_code`, PRODUCT.md §7.16), kiểm trên server, so sánh hằng-thời-gian và giới hạn số lần sai theo IP. Join trả về `token` (32 byte ngẫu nhiên, base64url). Web lưu ở `localStorage` key `pq:participant:<sessionId>`, gửi qua header `X-Participant-Token`. Hook `requireParticipant` cho `/api/me/*`; participant `kicked` → 403.
 
 ## 5. API
 
@@ -73,37 +73,48 @@ Mọi body/response là JSON. Lỗi: `{ error: string }` (tiếng Việt, hiển
 | POST | `/exams` | `{ markdown }` → parse lại phía server; có lỗi → 400 kèm `errors`; ok → tạo exam |
 | GET | `/exams` · `/exams/:id` | list (không kèm câu hỏi) · chi tiết đầy đủ kèm đáp án |
 | DELETE | `/exams/:id` | Chỉ khi chưa có session nào dùng → ngược lại 409 |
-| POST | `/sessions` | `{ examId, shuffle? }` → session `draft` |
-| GET | `/sessions` · `/sessions/:id` | list (mới nhất trước) · chi tiết kèm participants + tiến độ |
+| POST | `/sessions` | `{ examId, shuffle?, autoApprove? }` → session `draft` |
+| GET | `/sessions` · `/sessions/:id` | list (mới nhất trước) · chi tiết kèm participants, mỗi người có `progress { state: none\|doing\|submitted, attempts, countedScore, maxScore }` |
 | POST | `/sessions/:id/{open,start,close,finalize}` | Chuyển trạng thái theo §3; sai → 409 |
 | PATCH | `/participants/:id` | `{ displayName }` đổi tên |
 | POST | `/participants/:id/{kick,approve}` | |
 | GET | `/sessions/:id/grading` | Câu tự luận + bài làm của các attempt được tính, nhóm theo câu |
+| GET | `/sessions/:id/discussion` | Chế độ thảo luận (S17). Chỉ khi `closed`/`finalized` (khác → 409). Trả `examTitle`, `submitted`, tiến độ chấm `graded/total`. Mỗi câu theo `position`: nội dung, lời giải, options kèm `isCorrect` và **số người chọn**; thống kê đúng/sai/bỏ trống; câu tự luận: các bài **ẩn danh** `{ answerId, label: "Bài #k", textAnswer, manualScore, feedback }` theo thứ tự trộn cố định. **Không** trả `displayName`/`participantId`. Chấm điểm dùng `PUT /answers/:id/grade` |
+| GET | `/participants/:id/review` | Bài làm của một người trong phiên (lượt duy nhất): từng câu theo thứ tự họ thấy, lựa chọn của họ, đáp án đúng, giải thích, điểm. Xem được ở mọi trạng thái phiên (chỉ mentor). `{ participant, state, attempt: ReviewView \| null }` |
 | PUT | `/answers/:id/grade` | `{ score, feedback? }`, 0 ≤ score ≤ points; chỉ khi session `closed` |
 
 ### Công khai / member
 | Method | Path | Auth | Mô tả |
 |---|---|---|---|
 | GET | `/api/sessions/active` | — | Phiên đang `lobby`/`running` (id, title, status) hoặc `null` |
-| POST | `/api/sessions/:id/join` | — | `{ displayName }` → `{ token, participant }`. Lobby → `active`; running → `pending`; trùng tên → 409 |
+| GET | `/api/sessions/latest` | — | Như `active`, nhưng khi không có phiên hoạt động thì trả phiên `closed`/`finalized` gần nhất (cho màn hình chiếu); `null` nếu chưa có |
+| GET | `/api/network` | — | `{ joinHosts: string[] }` — địa chỉ LAN `ip:cổng` để member gõ vào trình duyệt (cổng lấy từ Host của request) |
+| POST | `/api/sessions/:id/join` | — | `{ displayName, roomCode }` → `{ token, participant }`. Mã sai → 403, sai quá 5 lần/phút từ một IP → 429. Mặc định → `pending` (mentor duyệt, cả ở lobby); phiên có `autoApprove` → `active` ngay; trùng tên → 409 |
+| GET | `/api/screen/room` | chỉ máy mentor (không tính `--allow-remote-admin`) | `{ roomCode: string \| null }` của phiên `lobby`/`running` — cho màn hình chiếu. Không bao giờ trả mã qua endpoint công khai |
 | GET | `/api/sessions/:id/participants` | — | Chỉ `{ displayName }[]` của participant `active` (cho màn hình chiếu) |
 | GET | `/api/sessions/:id/leaderboard` | — | Xem §6 |
 | GET | `/api/sessions/:id/events` | — | SSE, xem §7 |
-| GET | `/api/me` | participant | participant + session (status) + attempt hiện tại / đã nộp |
-| POST | `/api/me/attempts` | participant | Bắt đầu lượt. Cần session `running`, participant `active`, không có lượt đang dở, đúng luật làm lại |
+| GET | `/api/me` | participant | participant + session (id, title, status, `participantCount` = số người `active`, `questionCount`, `totalPoints`, `hasEssay`) + `attempt: { current, submitted[], canStartNew }` (lượt đang làm, lượt đã nộp với điểm tự động `score/maxScore` và `essayScore` = tổng điểm tự luận đã chấm hoặc `null`, `canStartNew` = chưa có lượt nào và phiên đang `running`) |
+| POST | `/api/me/attempts` | participant | Bắt đầu lượt. Cần session `running`, participant `active`; mỗi participant chỉ có 1 lượt/phiên (đã có lượt → 409) |
 | GET | `/api/me/attempts/:id` | participant | Câu hỏi theo thứ tự đã trộn + câu trả lời đã lưu |
 | PUT | `/api/me/attempts/:id/answers/:questionId` | participant | `{ selectedOptionIds }` hoặc `{ textAnswer }` — autosave |
 | POST | `/api/me/attempts/:id/submit` | participant | Nộp, chấm tự động, trả về điểm |
 | GET | `/api/me/attempts/:id/review` | participant | Chỉ khi session `closed`/`finalized`: đáp án đúng, giải thích, điểm, nhận xét |
 
 ### ⚠️ Quy tắc không lộ đáp án (bắt buộc có test)
-Trước khi session `closed`, **không response nào gửi cho member** được chứa `is_correct`, `explanation`, hay điểm từng câu. Dùng type DTO riêng cho member (`MemberQuestion`, `MemberOption`) — không trả thẳng row DB.
+Trước khi session `closed`, **không response nào gửi cho member** được chứa `is_correct`, `explanation`, hay điểm từng câu. Dùng type DTO riêng cho member (`MemberQuestion`, `MemberOption`) — không trả thẳng row DB. Chỉ `GET /api/me/attempts/:id/review` được mang đáp án, và trả 403 cho tới khi session `closed`/`finalized`.
+
+Phòng thủ nhiều lớp:
+1. **DTO dựng từng trường** + test quét đệ quy key `isCorrect`/`is_correct`/`explanation` trên mọi response `/api/me/*`.
+2. **Chốt chặn `src/server/leak-guard.ts`** (hook `onSend` toàn cục): response JSON nào ngoài `/api/admin/*` và route review mà chứa các key đó sẽ bị thay bằng 500 và ghi log — bắt lỗi trả nhầm row DB trong tương lai.
+3. **`/api/admin/*` chỉ mở trên máy mentor** (§4), nên member không đọc được đề qua API mentor.
+4. **Vite dev server** (`npm run dev`) mở ra LAN và mặc định phục vụ mọi file trong repo qua `/@fs/` (gồm `exams/`, `data/`). `vite.config.ts` đặt `server.fs.allow` chỉ gồm `src/web`, `src/shared`, `node_modules` và `deny` cho `exams/`, `data/`, `docs/`, `*.db`. Không nới lỏng mục này.
 
 ## 6. Chấm điểm & xếp hạng
 
 Hàm thuần trong `src/shared/scoring.ts`:
 - `scoreAnswer(question, selectedOptionIds)`: single/multi — tập chọn **bằng đúng** tập đúng → `points`, ngược lại 0. Essay → `null` (chờ chấm tay).
-- **Attempt được tính** của một participant: đề có tự luận → attempt duy nhất; thuần trắc nghiệm → attempt đã nộp có điểm cao nhất (bằng điểm → nộp sớm hơn).
+- **Attempt được tính** của một participant: attempt duy nhất của họ trong phiên (đã nộp).
 - **Leaderboard**: participant `active` có ≥ 1 attempt đã nộp; điểm = auto + manual của attempt được tính; sắp giảm dần theo điểm, bằng điểm → `submitted_at` sớm hơn xếp trên. Response: `{ provisional: boolean, entries: { rank, displayName, score, maxScore, submittedAt }[] }`, `provisional = status !== 'finalized'`.
 
 ## 7. Realtime (SSE)
@@ -124,5 +135,7 @@ Hàm thuần trong `src/shared/scoring.ts`:
 | `/admin/exams` · `/admin/exams/import` · `/admin/exams/:id` | mentor | Danh sách đề · import + preview · chi tiết đề |
 | `/admin/sessions` · `/admin/sessions/:id` | mentor | Lịch sử phiên · điều khiển phiên (lobby, tiến độ, đóng) |
 | `/admin/sessions/:id/grading` | mentor | Chấm tự luận |
+| `/admin/sessions/:id/review` | mentor | Xem lại phiên: ai tham gia, bài từng người |
+| `/admin/sessions/:id/discuss` | mentor | Chế độ thảo luận: chiếu từng câu, chấm tự luận cùng lớp (S17) |
 
 Gọi API qua `src/web/lib/api.ts` (wrapper `fetch`, tự gắn token member, ném lỗi có `message` từ `{ error }`). UI text tiếng Việt.

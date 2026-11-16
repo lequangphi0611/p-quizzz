@@ -46,10 +46,10 @@ npm run exam:check -- exams/ten-de.md
 
 **Lỗi** (không import được): thiếu frontmatter/title · nội dung ngoài câu hỏi · câu trắc nghiệm < 2 đáp án hoặc không có `[x]` · câu không có đáp án mà không có `{essay}` · tự luận có đáp án · thuộc tính lạ / points sai · dòng lạ giữa/sau danh sách đáp án · nội dung sau phần giải thích · code block sau đáp án hoặc chưa đóng · sai cấp tiêu đề · đáp án trùng · câu hỏi trùng.
 
-**Cảnh báo** (vẫn import được, nên sửa): thiếu giải thích · tự luận thiếu rubric · tất cả đáp án đều đúng · đáp án kiểu "tất cả các đáp án trên" / "A và B" (sai nghĩa khi đáp án bị trộn) · key frontmatter không dùng.
+**Cảnh báo** (vẫn import được, nên sửa): thiếu giải thích · tự luận thiếu rubric · tất cả đáp án đều đúng · đáp án kiểu "tất cả các đáp án trên" / "A và B" (sai nghĩa khi đáp án bị trộn) · key frontmatter không dùng · ảnh trỏ tới địa chỉ bên ngoài (`![](https://...)`; app chạy offline trong LAN nên ảnh ngoài luôn bị chặn và hiện chữ "Ảnh ngoài bị chặn").
 
 ## Lưu ý
 
 - Đáp án luôn được **trộn thứ tự** khi thi → không viết đáp án phụ thuộc vị trí hay tham chiếu đáp án khác.
-- Đề có ít nhất 1 câu tự luận → mỗi member chỉ làm **1 lần**. Đề thuần trắc nghiệm → làm lại được.
+- Mỗi member chỉ làm **1 lần** trong mỗi phiên (muốn làm lại, mentor mở phiên mới). Đề có tự luận thì mentor phải chấm tay.
 - Đề thật lưu trong `exams/` (đã gitignore vì chứa đáp án). Chỉ `exams/examples/` được commit.

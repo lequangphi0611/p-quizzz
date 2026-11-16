@@ -7,7 +7,7 @@
 
 - Một mentor dẫn một nhóm member trong dự án. Cần công cụ **ôn luyện vui, đỡ chán**, mentor có thể mở thi nhiều lần.
 - **Không phải** công cụ thi có hệ quả → chống gian lận ở mức tối thiểu, ưu tiên trải nghiệm và tốc độ vận hành.
-- Chạy **local trên máy mentor**, member truy cập qua **mạng LAN** bằng trình duyệt.
+- Chạy **local trên máy mentor**, member truy cập qua **mạng LAN** bằng trình duyệt — **phần lớn từ laptop/desktop, một số từ điện thoại**; giao diện member phải dùng tốt trên cả hai (không thiết kế riêng cho điện thoại).
 
 ### Thước đo thành công (MVP)
 - Mentor đi từ "có file đề MD đã duyệt" → "member đang làm bài" trong **< 3 phút**.
@@ -50,7 +50,7 @@ DRAFT ──open──▶ LOBBY ──start──▶ RUNNING ──close──�
 | Trạng thái | Member | Mentor |
 |---|---|---|
 | **LOBBY** | Mở URL, nhập tên, chờ | Thấy danh sách người vào realtime, đếm số lượng, đổi tên/kick |
-| **RUNNING** | Làm bài, nộp, (làm lại nếu được phép), thấy điểm + xếp hạng | Thấy ai đã nộp; duyệt người vào trễ |
+| **RUNNING** | Làm bài, nộp (1 lượt), thấy điểm + xếp hạng | Thấy ai đã nộp; duyệt người vào trễ |
 | **CLOSED** | Không nộp được nữa; **xem đáp án + giải thích** | Chấm tự luận (nếu có) |
 | **FINALIZED** | Xem điểm chính thức | Xem lại lịch sử phiên |
 
@@ -62,12 +62,11 @@ DRAFT ──open──▶ LOBBY ──start──▶ RUNNING ──close──�
 - Tiến độ làm bài **lưu liên tục phía server**; F5 / mở lại tab → quay về đúng chỗ (token lưu ở trình duyệt).
 - Đổi máy/trình duyệt → mentor cho vào lại thủ công.
 
-### 4.4 Luật làm lại
+### 4.4 Luật làm bài: mỗi người 1 lượt
 
-| Loại đề | Số lượt | Lượt được tính |
-|---|---|---|
-| Có ≥ 1 câu tự luận | **1 lượt** | Lượt duy nhất |
-| Thuần trắc nghiệm | **Không giới hạn** (khi phiên RUNNING) | **Lượt điểm cao nhất** |
+- Mỗi participant làm **đúng 1 lượt** trong mỗi phiên, **mọi loại đề** (kể cả thuần trắc nghiệm). Nộp rồi không làm lại được.
+- Muốn làm lại: **mentor mở một phiên mới** từ cùng đề; cả nhóm vào lại phiên mới (nhập tên lại, bảng xếp hạng độc lập — mục 4.6).
+- Lượt được tính chính là lượt duy nhất đó.
 
 ### 4.5 Chấm điểm
 
@@ -82,8 +81,9 @@ DRAFT ──open──▶ LOBBY ──start──▶ RUNNING ──close──�
 
 ### 4.6 Kết quả & xếp hạng
 - **Member**: thấy điểm của mình + bảng xếp hạng phiên (cập nhật realtime). Đáp án + giải thích chỉ hiện khi phiên `CLOSED`.
-- **Màn hình chiếu**: trang lớn, realtime — lobby (ai đã vào), trong phiên (ai đã nộp, xếp hạng). Nhãn "Tạm tính" cho đến `FINALIZED`.
-- Mỗi phiên độc lập — **không** có xếp hạng tích luỹ qua các phiên. Mentor xem lại được các phiên cũ.
+- **Màn hình chiếu**: trang lớn, realtime — lobby (ai đã vào), trong phiên (ai đã nộp, xếp hạng). Nhãn "Tạm tính" cho đến `FINALIZED`. Công khai trong LAN: **chỉ tên và điểm**, không bao giờ có đáp án hay bài làm.
+- **Chế độ thảo luận** (sau khi đóng phiên): mentor chiếu **từng câu** lên cho cả lớp cùng mổ xẻ — đề, phân bố lựa chọn của cả lớp, đáp án đúng + lời giải (ẩn trước, bấm mới hiện), và các bài tự luận **ẩn danh**. Tự luận chưa chấm thì cả lớp đi từng bài, bàn rồi **mentor nhập điểm** ngay tại đó; xong thì chốt kết quả. Chỉ mở trong giao diện mentor (máy chiếu là máy mentor); member theo dõi trên màn chiếu và đối chiếu bài của mình ở trang "Xem lại bài" trên máy của mình.
+- Mỗi phiên độc lập — **không** có xếp hạng tích luỹ qua các phiên. Mentor xem lại được các phiên cũ qua **id phiên**: ai đã tham gia (kể cả người bị kick, chờ duyệt), điểm, bảng xếp hạng cuối, và bài làm chi tiết từng người (họ chọn gì, đáp án đúng, giải thích, điểm và nhận xét tự luận).
 
 ## 5. Phạm vi
 
@@ -91,7 +91,7 @@ DRAFT ──open──▶ LOBBY ──start──▶ RUNNING ──close──�
 - Import đề từ Markdown + validate + preview
 - Phiên chế độ tự do, lobby, mở/đóng thủ công
 - 3 loại câu: single, multi, essay
-- Trộn câu/đáp án, luật làm lại như 4.4
+- Trộn câu/đáp án; mỗi người 1 lượt như 4.4
 - Chấm tự động + màn hình chấm tay tự luận
 - Bảng xếp hạng member + màn hình chiếu (realtime mức SSE/polling)
 - Chạy offline hoàn toàn trên LAN (không phụ thuộc CDN/internet)
@@ -131,8 +131,18 @@ Các mục dưới đây đã lấy **mặc định** để chia story (2026-11-
 2. Màn hình chiếu: URL công khai trong LAN, không cần mã (chỉ hiện tên + điểm, không hiện đáp án).
 3. ~~Cú pháp metadata~~ — đã chốt: `{essay, points=N}` cuối tiêu đề.
 4. Đề **bất biến** sau khi import; muốn sửa → import đề mới. Chỉ xoá được đề chưa dùng cho phiên nào.
-5. Tối đa **1 phiên hoạt động** (lobby/running) cùng lúc — 1 mentor, 1 phòng; member mở URL gốc là vào đúng phiên.
+5. Tối đa **1 phiên hoạt động** (lobby/running) cùng lúc — 1 mentor, 1 phòng. Member vào bằng **link có mã phòng** hoặc mở URL gốc rồi nhập mã (xem mục 16).
 6. Đóng phiên khi member đang làm dở → **tự nộp** với câu trả lời đã lưu.
-7. Vào trễ (phiên đang chạy) → chờ mentor duyệt. Vào lúc lobby → vào thẳng (mentor vẫn kick được).
-8. Mỗi lần làm lại được trộn thứ tự mới.
+7. **Mentor duyệt người vào** (2026-11-15, đổi từ "lobby vào thẳng"). Mặc định mọi người vào phiên (lobby hay đang chạy) đều ở trạng thái chờ duyệt, mentor bấm Duyệt từng người hoặc "Duyệt tất cả". Lý do: một người có thể vào bằng nhiều tên để làm nhiều lượt hoặc dò đáp án qua điểm. Giới hạn đã biết: chỉ hiệu quả khi mentor biết mặt cả nhóm, tên nghe hợp lý thì không phân biệt được. Khi nhóm toàn người quen, mentor bật **"Tự động duyệt người vào"** lúc tạo phiên: ai nhập đúng mã phòng là vào thẳng (kể cả vào trễ); mentor vẫn kick được.
+8. ~~Mỗi lần làm lại được trộn thứ tự mới.~~ — bỏ (2026-11-15): không còn làm lại trong cùng một phiên (mục 15).
 9. Chấm tự luận cho phép điểm lẻ 0.5.
+10. Import **không chặn trùng file** (2026-11-15): vì đề bất biến và "sửa = import mới", import nhiều bản giống nhau là bình thường; bản trùng chưa dùng thì xoá được. Chống bấm Import hai lần bằng cách khoá nút khi đang gửi (UI). Cảnh báo "file này đã import ngày X" (so `source_markdown`) để backlog.
+11. **Chưa có archive đề** (2026-11-15), hoãn khỏi MVP. Khi làm: thêm cột `archived_at` vào `exams`; archive = ẩn khỏi danh sách chọn để tạo phiên mới, **không** xoá mềm — đề vẫn hiện trong lịch sử phiên và trang chấm điểm. Làm khi danh sách đề rối hoặc khi có lịch sử phiên (S09). Giả định đang dùng: mentor ít sửa đề sau khi đã chạy phiên; nếu ngược lại thì kéo lên ngay sau MVP.
+12. **Member mất token thì không vào lại được lượt cũ** (2026-11-15), giới hạn đã biết của MVP. F5 trong cùng trình duyệt thì giữ nguyên (token ở `localStorage`, lượt làm dở và thứ tự trộn lưu ở server). Nhưng đổi trình duyệt, tab ẩn danh hoặc xoá dữ liệu trang → mất token; nhập lại tên cũ bị 409 "Tên đã có người dùng". Mentor xử lý thủ công: kick participant cũ rồi cho member vào lại như người mới (mất lượt đang làm). Không có tài khoản nên không xác minh được người xin vào lại. Nếu gặp nhiều trên thực tế → thêm hành động "Cho vào lại" ở mentor (cấp token mới cho đúng participant cũ; cần API ở S08, UI ở S09).
+13. **Trang quản trị chỉ mở trên máy chạy app** (2026-11-15). Mọi `/api/admin/*` (kể cả `status`, `setup`, `login`) trả 403 với request từ máy khác trong LAN, nên member không thể thử mật khẩu hay chiếm bước đặt mật khẩu lần đầu. Mentor dùng `http://localhost:<cổng>/admin/login` hoặc chính IP LAN của máy mình. Muốn điều khiển từ thiết bị khác: chạy với `--allow-remote-admin` (hoặc `ALLOW_REMOTE_ADMIN=1`), server in cảnh báo khi khởi động. Còn tồn tại: LAN dùng HTTP nên không mã hoá; chưa giới hạn số lần đăng nhập sai (chỉ quan trọng khi bật remote admin).
+14. **Chấm tự luận: tên ẩn mặc định** (2026-11-15). Màn hình chấm hiện "Bài #1, #2…" thay cho tên; mentor bấm bỏ tick "Ẩn tên" mới thấy tên. Mục đích: chấm khách quan.
+15. **Mỗi người chỉ làm 1 lượt trong mỗi phiên, mọi loại đề** (2026-11-15). Muốn làm lại thì mentor mở phiên mới cho cả nhóm. Thay cho luật cũ (đề trắc nghiệm làm lại không giới hạn, tính lượt cao nhất): luật cũ cho phép dò đáp án bằng cách đổi từng câu qua các lượt và xem tổng điểm. Hệ quả: member vào lại phiên mới bằng cách nhập tên lại; bảng xếp hạng mỗi phiên độc lập (không cộng dồn).
+16. **Mã phòng** (2026-11-15). Khi mentor **mở phòng chờ**, phiên nhận một mã ngẫu nhiên 6 chữ số (duy nhất giữa các phiên). Member chỉ vào được khi có mã: mentor gửi **link có sẵn mã** (`http://địa-chỉ/?room=482913`) hoặc đọc/chiếu mã để member gõ vào ô "Mã phòng". Mã sai → 403; nhập sai quá 5 lần trong 1 phút từ một máy → bị khoá tạm 1 phút. Mã chỉ có tác dụng khi phiên `lobby`/`running`; sang phiên mới thì mã mới, link cũ vô hiệu. Màn hình chiếu hiện mã (lấy qua endpoint chỉ máy mentor gọi được, không để lộ qua API công khai). **Id phiên** (cố định, dùng để mentor tra lịch sử) và **mã phòng** (bí mật, ngắn hạn) là hai thứ khác nhau. Giới hạn đã biết: ai nhìn thấy màn hình chiếu hoặc được chuyển link thì vào được; bảng xếp hạng và danh sách tên vẫn đọc được nếu biết id phiên (chỉ tên và điểm, không đáp án).
+17. **Chế độ thảo luận** (2026-11-15). Mở khi phiên `closed`/`finalized`, chỉ từ giao diện mentor. (a) **Mentor là người duy nhất nhập điểm**; học viên cùng bàn, không bỏ phiếu (không có tài khoản → dễ bị chỉnh điểm). (b) **Không hiện tên ở bất kỳ đâu trong chế độ này, không có nút "hiện tên"** — muốn biết ai viết thì xem trang chấm hoặc trang xem lại riêng của mentor. Bài tự luận hiển thị theo **thứ tự đã trộn** (cố định trong phiên) để không đoán được người viết qua thứ tự vào phòng; giới hạn đã biết: văn phong vẫn có thể lộ người viết trong nhóm nhỏ. (c) **Máy chiếu phải là máy mentor** (trang quản trị chỉ mở trên máy mentor). (d) Đáp án đúng và lời giải **mặc định ẩn**, mentor bấm mới hiện, để lớp tranh luận trước (PO xác nhận 2026-11-15). (e) Điện thoại member **không** tự nhảy theo câu đang chiếu (để dành cho thiết kế chế độ live, phase 2).
+18. **Giao diện member cho cả máy tính và điện thoại** (2026-11-15). Học viên chủ yếu dùng laptop/desktop. Khi làm bài: **mỗi màn một câu** ở mọi khổ màn hình (máy tính có thêm danh sách câu bên cạnh). Máy tính có phím tắt (`←`/`→` chuyển câu, `1`–`9` chọn phương án), **tắt khi đang gõ trong ô nhập**. Thiết kế: [prompt](design/member-responsive-ui-prompt.md).
+19. **Điểm tạm tính chỉ gồm phần tự động** (2026-11-15, sửa code cho khớp mục 4.5). Cho đến khi `FINALIZED`, bảng xếp hạng và danh sách mentor chỉ cộng điểm trắc nghiệm; điểm tự luận mentor vừa chấm chưa hiện ra ngoài (kể cả màn chiếu), tránh lộ điểm chấm dở dang. Chốt xong mới cộng vào.

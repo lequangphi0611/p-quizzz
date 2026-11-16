@@ -1,0 +1,40 @@
+:root{
+/* Neutral ink & paper */
+--ink-900:#14171C;--ink-800:#23282F;--ink-700:#3A414A;--ink-600:#5C6470;--ink-500:#7C8492;--ink-400:#A6ADB8;--ink-300:#C9CED6;--ink-200:#E2E6EB;--ink-100:#EEF1F4;--ink-050:#F6F8FA;--paper:#FFFFFF;
+/* Brand — cobalt. Primary actions, current question, own-row outline, links */
+--brand-800:#132C8C;--brand-700:#1838B0;--brand-600:#1F48D6;--brand-500:#3461F0;--brand-200:#C3D1FC;--brand-100:#E7EDFE;--brand-050:#F3F6FF;
+/* Highlighter — sun yellow. "Bạn", rank 1, the projector's join URL. Never for text on white. */
+--sun-500:#FFC81F;--sun-400:#FFD23F;--sun-200:#FFE899;--sun-100:#FFF6D1;--sun-ink:#5E4500;
+/* Answer feedback — only visible from CLOSED onward */
+--correct-600:#0B7A43;--correct-500:#139A57;--correct-surface:#E5F6EC;--correct-border:#9ED8B6;
+--wrong-600:#C2281E;--wrong-500:#DB3B30;--wrong-surface:#FDECEA;--wrong-border:#F2B1AB;
+--warn-600:#8A5300;--warn-surface:#FCF2DA;--warn-border:#E9C97E;
+/* Medals */
+--medal-gold:#D99A00;--medal-silver:#8E99A8;--medal-bronze:#B26A3C;
+/* Session status (draft → lobby → running → closed → finalized) */
+--status-draft-ink:var(--ink-600);--status-draft-surface:var(--ink-100);
+--status-lobby-ink:var(--sun-ink);--status-lobby-surface:var(--sun-100);
+--status-running-ink:var(--correct-600);--status-running-surface:var(--correct-surface);
+--status-closed-ink:var(--ink-800);--status-closed-surface:var(--ink-200);
+--status-finalized-ink:var(--brand-700);--status-finalized-surface:var(--brand-100);
+/* Projector (ScreenLayout) — dark, high-contrast */
+--screen-bg:#0F1218;--screen-panel:#1A1F28;--screen-line:#2C3340;--screen-text:#FFFFFF;--screen-meta:#A6ADB8;
+--screen-panel-hover:#232A35;--screen-line-strong:#3E4757;--screen-hover-line:#6B7586;
+/* Projector feedback — brightened for dark; pair color with icon + text, never color alone */
+--screen-correct:#4ADE97;--screen-correct-surface:#0F2B1D;--screen-correct-border:#2FA86B;
+--screen-wrong:#FF8F85;--screen-wrong-surface:#331A1C;--screen-wrong-border:#C2413A;
+--screen-pending:var(--sun-400);--screen-pending-surface:#2E2610;
+/* Tally bars — neutral until the answer is revealed */
+--screen-bar:#7C8696;--screen-bar-track:#262D39;
+--screen-focus:#8FB0FF;--screen-focus-ring:0 0 0 3px var(--screen-bg),0 0 0 6px var(--screen-focus);/* @kind other */
+--screen-scrim:rgba(5,7,10,.72);
+/* Semantic aliases */
+--surface-page:var(--ink-050);--surface-card:var(--paper);--surface-sunken:var(--ink-100);--surface-inverse:var(--ink-900);--surface-brand:var(--brand-600);
+--text-title:var(--ink-900);--text-body:var(--ink-800);--text-meta:var(--ink-600);--text-faint:var(--ink-500);--text-inverse:var(--paper);--text-link:var(--brand-700);
+--border-hairline:var(--ink-200);--border-strong:var(--ink-300);--border-focus:var(--brand-500);
+--action-primary-bg:var(--brand-600);--action-primary-bg-hover:var(--brand-700);--action-primary-text:var(--paper);
+--action-secondary-bg:var(--paper);--action-secondary-bg-hover:var(--ink-100);--action-secondary-text:var(--ink-900);
+--action-danger-bg:var(--wrong-600);--action-danger-bg-hover:#A3211A;
+--selected-bg:var(--brand-050);--selected-border:var(--brand-500);
+--focus-ring:0 0 0 2px var(--paper),0 0 0 4px var(--brand-500);
+}

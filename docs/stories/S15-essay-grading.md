@@ -12,9 +12,9 @@
 - UI `/admin/sessions/:id/grading`: chọn câu → rubric ghim phía trên → danh sách bài (có thể ẩn tên để chấm khách quan), ô điểm + nhận xét, lưu khi rời ô; tiến độ "đã chấm x/y"; nút "Chốt kết quả" (bật khi đủ điều kiện) → `finalize`.
 
 ## Acceptance criteria
-- [ ] Finalize khi còn bài chưa chấm → 409 nêu số bài còn thiếu.
-- [ ] Chấm ngoài khoảng điểm → 400.
-- [ ] Sau finalize không chấm/sửa điểm được nữa (409).
+- [x] Finalize khi còn bài chưa chấm → 409 nêu số bài còn thiếu.
+- [x] Chấm ngoài khoảng điểm → 400.
+- [x] Sau finalize không chấm/sửa điểm được nữa (409).
 
 ## Test bắt buộc
 - API grading list chỉ gồm attempt được tính; grade cập nhật tổng; finalize bị chặn/cho phép đúng điều kiện.

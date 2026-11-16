@@ -1,0 +1,23 @@
+:root{
+--font-sans:'Be Vietnam Pro',system-ui,-apple-system,'Segoe UI',sans-serif;
+--font-mono:'JetBrains Mono',ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;
+--fs-11:11px;--fs-12:12px;--fs-13:13px;--fs-14:14px;--fs-15:15px;--fs-16:16px;--fs-18:18px;--fs-20:20px;--fs-24:24px;--fs-30:30px;--fs-40:40px;
+/* Projector sizes (1920×1080, readable from the back of the room; body never < 32px) */
+--fs-screen-body:32px;--fs-screen-title:56px;--fs-screen-hero:96px;
+/* Discussion screen (1920×1080 design px; scale proportionally on smaller displays) */
+--fs-screen-chrome:22px;--fs-screen-content:28px;--fs-screen-option:30px;--fs-screen-question:44px;--fs-screen-stat:56px;
+--fw-regular:400;/* @kind font */--fw-medium:500;/* @kind font */--fw-semibold:600;/* @kind font */--fw-bold:700;/* @kind font */--fw-black:800;/* @kind font */
+--lh-tight:1.15;/* @kind font */--lh-snug:1.3;/* @kind font */--lh-body:1.55;/* @kind font */--lh-code:1.6;/* @kind font */
+--tracking-display:-0.02em;/* @kind font */--tracking-label:0.06em;/* @kind font */
+/* Roles */
+--type-display:var(--fw-black) var(--fs-30)/var(--lh-tight) var(--font-sans);/* @kind font */
+--type-h1:var(--fw-bold) var(--fs-24)/var(--lh-snug) var(--font-sans);
+--type-h2:var(--fw-bold) var(--fs-20)/var(--lh-snug) var(--font-sans);
+--type-question:var(--fw-semibold) var(--fs-18)/var(--lh-snug) var(--font-sans);/* @kind font */
+--type-body:var(--fw-regular) var(--fs-16)/var(--lh-body) var(--font-sans);/* @kind font */
+--type-ui:var(--fw-medium) var(--fs-15)/1.4 var(--font-sans);/* @kind font */
+--type-meta:var(--fw-regular) var(--fs-13)/1.45 var(--font-sans);/* @kind font */
+--type-label:var(--fw-semibold) var(--fs-12)/1.3 var(--font-sans);/* @kind font */
+--type-code:var(--fw-regular) var(--fs-14)/var(--lh-code) var(--font-mono);/* @kind font */
+--type-score:var(--fw-bold) var(--fs-16)/1 var(--font-mono);/* @kind font */
+}

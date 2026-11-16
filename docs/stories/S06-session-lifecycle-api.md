@@ -15,10 +15,10 @@ Phiên thi tách khỏi đề; vòng đời `draft → lobby → running → clo
 - `GET /api/admin/sessions/:id` trả session + exam (title, hasEssay, totalPoints) + participants (mảng rỗng cho tới S08).
 
 ## Acceptance criteria
-- [ ] Chuyển trạng thái sai thứ tự → 409 với thông báo tiếng Việt nêu trạng thái hiện tại.
-- [ ] `open` khi đã có phiên hoạt động → 409 "Đang có phiên thi khác hoạt động".
-- [ ] Mở 2 phiên khác nhau từ cùng 1 đề được (tuần tự).
-- [ ] Mỗi mốc `opened_at/started_at/closed_at/finalized_at` được set đúng lúc.
+- [x] Chuyển trạng thái sai thứ tự → 409 với thông báo tiếng Việt nêu trạng thái hiện tại.
+- [x] `open` khi đã có phiên hoạt động → 409 "Đang có phiên thi khác hoạt động".
+- [x] Mở 2 phiên khác nhau từ cùng 1 đề được (tuần tự).
+- [x] Mỗi mốc `opened_at/started_at/closed_at/finalized_at` được set đúng lúc.
 
 ## Test bắt buộc
 - Bảng chuyển trạng thái đầy đủ cho `nextStatus` (mọi cặp hợp lệ + không hợp lệ).

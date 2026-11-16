@@ -13,7 +13,7 @@ p-quizzz is a practice-quiz app that runs **locally on one mentor's machine**; m
 The rules that most often affect code:
 - **Exam** (question content, imported from Markdown) is separate from **Session** (one run of an exam). Sessions have a `mode`; only `self_paced` is in scope now, while `live` is phase 2, so don't hard-code a single mode.
 - Session lifecycle: `DRAFT → LOBBY → RUNNING → CLOSED → FINALIZED`. Answers and explanations are revealed only from `CLOSED` onward.
-- Retakes are allowed only for exams with no essay questions (best attempt counts); exams with essays get one attempt.
+- Every participant gets exactly **one attempt per session**, for every exam type. To retake, the mentor opens a new session from the same exam.
 - The Markdown exam format (`docs/exam-format.md`) is both what the mentor reviews and what is imported. There is no intermediate conversion format. When writing or editing exams, use the `exam-authoring` skill.
 
 ## Commands
