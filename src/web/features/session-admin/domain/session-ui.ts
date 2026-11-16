@@ -35,6 +35,15 @@ export const PROGRESS_LABEL: Record<ParticipantProgress['state'], { label: strin
   submitted: { label: 'Đã nộp', color: 'var(--correct-600)' },
 };
 
+/** Progress column text. A submitted member's edit request (PRODUCT.md §7.21) refines "Đã nộp". */
+export function progressLabelOf(p: ParticipantProgress): { label: string; color: string; icon?: string } {
+  const edit = p.state === 'submitted' ? p.editRequest?.status : undefined;
+  if (edit === 'pending') return { label: 'Đã nộp · xin sửa', color: 'var(--sun-ink)', icon: 'hourglass' };
+  if (edit === 'approved') return { label: 'Đang sửa tự luận', color: 'var(--brand-700)' };
+  if (edit === 'done') return { label: 'Đã sửa tự luận', color: 'var(--correct-600)' };
+  return PROGRESS_LABEL[p.state];
+}
+
 /** "7,5/9" — comma decimals like the rest of the UI; "—" while nothing is submitted. */
 export function formatProgressScore(p: ParticipantProgress): string {
   if (p.countedScore === null) return '—';

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SessionParticipantDetail } from '../../../../shared/api/index.js';
-import { buildNotices, editPendingCount, DESKTOP_BATCH_MAX, desktopNotifications, markSeenAt, newPendingNotices, pendingCount, titleWithCount, unreadCount } from './mentor-notices.js';
+import { attentionFirst, buildNotices, editPendingCount, DESKTOP_BATCH_MAX, desktopNotifications, markSeenAt, newPendingNotices, pendingCount, titleWithCount, unreadCount } from './mentor-notices.js';
 
 const person = (id: number, status: SessionParticipantDetail['status'], joinedAt: number, submittedAt: number | null = null): SessionParticipantDetail => ({
   id, displayName: `P${id}`, status, joinedAt,
@@ -67,7 +67,7 @@ describe('desktop notifications', () => {
 describe('edit-request notices (PRODUCT.md §7.21)', () => {
   const withEdit = (id: number, status: 'pending' | 'approved' | 'rejected', requestedAt: number, joinedAt = 1) => {
     const p = person(id, 'active', joinedAt, 50);
-    p.progress.editRequest = { status, reason: 'quên ý', requestedAt };
+    p.progress.editRequest = { status, reason: 'quên ý', requestedAt, resolvedAt: null };
     return p;
   };
 
@@ -87,5 +87,11 @@ describe('edit-request notices (PRODUCT.md §7.21)', () => {
     const kicked = withEdit(3, 'pending', 1);
     kicked.status = 'kicked';
     expect(editPendingCount([withEdit(1, 'pending', 1), withEdit(2, 'approved', 1), kicked])).toBe(1);
+  });
+
+  it('puts what only the mentor can unblock first, keeping newest-first inside each group', () => {
+    const ordered = attentionFirst(buildNotices([person(1, 'active', 100, 500), person(2, 'pending', 200), withEdit(3, 'pending', 900, 50), withEdit(4, 'approved', 950, 60)]));
+    expect(ordered.slice(0, 2).map(n => n.key)).toEqual(['edit:3:900', 'join:2']);
+    expect(ordered.slice(2).every(n => n.kind !== 'pending' && !(n.kind === 'edit' && n.editStatus === 'pending'))).toBe(true);
   });
 });

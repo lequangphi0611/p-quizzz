@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { nextStatus, type SessionStatus } from '../../../../shared/session-state.js';
-import { ACTION_FOR_STATUS, formatProgressScore } from './session-ui.js';
+import { ACTION_FOR_STATUS, formatProgressScore, progressLabelOf } from './session-ui.js';
 
 describe('ACTION_FOR_STATUS', () => {
   it('every offered action is valid for its status, and finalized offers none', () => {
@@ -27,4 +27,18 @@ describe('formatProgressScore', () => {
     expect(formatProgressScore(p(0))).toBe('0/9');
   });
   it('shows a dash until something is submitted', () => expect(formatProgressScore(p(null))).toBe('—'));
+});
+
+describe('progressLabelOf', () => {
+  const sub = (editStatus?: 'pending' | 'approved' | 'done' | 'rejected') => ({ state: 'submitted' as const, attempts: 1, countedScore: 1, maxScore: 9, submittedAt: 1, editRequest: editStatus ? { status: editStatus, reason: 'r', requestedAt: 1, resolvedAt: null } : null });
+  it('refines "Đã nộp" by the state of the edit request', () => {
+    expect(progressLabelOf(sub()).label).toBe('Đã nộp');
+    expect(progressLabelOf(sub('pending')).label).toBe('Đã nộp · xin sửa');
+    expect(progressLabelOf(sub('approved')).label).toBe('Đang sửa tự luận');
+    expect(progressLabelOf(sub('done')).label).toBe('Đã sửa tự luận');
+    expect(progressLabelOf(sub('rejected')).label).toBe('Đã nộp');
+  });
+  it('ignores an edit request on someone who has not submitted', () => {
+    expect(progressLabelOf({ ...sub('pending'), state: 'doing' }).label).toBe('Đang làm');
+  });
 });

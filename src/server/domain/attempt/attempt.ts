@@ -119,10 +119,10 @@ export function assertCanFinishEdit(attempt: Pick<Attempt, 'editStatus'>): void 
 }
 
 /** The request as clients see it: one that was never settled before the session closed reads as `expired`. */
-export function toEditRequestInfo(attempt: Pick<Attempt, 'editStatus' | 'editReason' | 'editRequestedAt'>, sessionStatus: SessionStatus | undefined): EditRequestInfo | null {
+export function toEditRequestInfo(attempt: Pick<Attempt, 'editStatus' | 'editReason' | 'editRequestedAt' | 'editResolvedAt'>, sessionStatus: SessionStatus | undefined): EditRequestInfo | null {
   if (!attempt.editStatus || !attempt.editRequestedAt) return null;
   const open = attempt.editStatus === 'pending' || attempt.editStatus === 'approved';
-  return { status: open && sessionStatus !== 'running' ? 'expired' : attempt.editStatus, reason: attempt.editReason ?? '', requestedAt: attempt.editRequestedAt.getTime() };
+  return { status: open && sessionStatus !== 'running' ? 'expired' : attempt.editStatus, reason: attempt.editReason ?? '', requestedAt: attempt.editRequestedAt.getTime(), resolvedAt: attempt.editResolvedAt ? attempt.editResolvedAt.getTime() : null };
 }
 
 /** The member may send a (new) request: a rejected one can be retried. */
@@ -206,7 +206,7 @@ export function computeProgress(
       countedScore: counted ? counted.score : null,
       maxScore: facts.totalPoints,
       submittedAt: counted ? counted.submittedAt : null,
-      editRequest: toEditRequestInfo(list.find(a => a.id === counted?.id) ?? { editStatus: null, editReason: null, editRequestedAt: null }, facts.sessionStatus),
+      editRequest: toEditRequestInfo(list.find(a => a.id === counted?.id) ?? { editStatus: null, editReason: null, editRequestedAt: null, editResolvedAt: null }, facts.sessionStatus),
     });
   }
   return result;

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../../../shared/ui/Icon.js';
 import type { MentorNoticesState } from '../application/use-mentor-notices.js';
-import { EDIT_OUTCOME, NOTICE_TEXT } from '../domain/mentor-notices.js';
+import { Button } from '../../../shared/ui/Button.js';
+import { attentionFirst, EDIT_OUTCOME, needsAttention, NOTICE_TEXT } from '../domain/mentor-notices.js';
 import type { DesktopNotifyStatus } from './useDesktopNotify.js';
 
 const time = (ms: number) => new Date(ms).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
@@ -73,44 +74,38 @@ export function NotificationBell({ state, desktop, onOpenSession }: { state: Men
             <span style={{ font: 'var(--type-meta)', color: 'var(--text-meta)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{session ? `Phiên đang mở: ${session.title}` : 'Không có phiên nào đang mở'}</span>
           </div>
 
-          {session && pending > 0 && (
-            <button onClick={() => { setOpen(false); onOpenSession(session.id); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: 'var(--sun-100)', color: 'var(--sun-ink)', border: 0, borderBottom: '1px solid var(--border-hairline)', font: 'var(--type-meta)', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}>
-              <Icon name="hourglass" size={16} />{pending} người đang chờ duyệt<span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4 }}>Mở phiên<Icon name="chevron-right" size={14} /></span>
+          {session && attention > 0 && (
+            <button onClick={() => { setOpen(false); onOpenSession(session.id); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: 'var(--sun-100)', color: 'var(--sun-ink)', border: 0, borderBottom: '1px solid var(--border-hairline)', font: 'var(--type-meta)', cursor: 'pointer', textAlign: 'left' }}>
+              <Icon name="hourglass" size={16} />
+              <span style={{ flex: 1, minWidth: 0 }}><b>{attention} việc đang chờ bạn</b><br />{[pending > 0 && `${pending} vào phòng`, editPending > 0 && `${editPending} sửa bài`].filter(Boolean).join(' · ')}</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontWeight: 600, flex: 'none' }}>Mở phiên<Icon name="chevron-right" size={14} /></span>
             </button>
-          )}
-          {session && editPending > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: 'var(--sun-100)', color: 'var(--sun-ink)', borderBottom: '1px solid var(--border-hairline)', font: 'var(--type-meta)', fontWeight: 600 }}>
-              <Icon name="pencil" size={16} />{editPending} yêu cầu sửa bài đang chờ bạn
-            </div>
           )}
           {error && <div role="alert" style={{ padding: '8px 16px', font: 'var(--type-meta)', color: 'var(--wrong-600)', borderBottom: '1px solid var(--border-hairline)' }}>{error}</div>}
 
           {session && notices.length > 0 ? (
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, maxHeight: 360, overflowY: 'auto' }}>
-              {notices.map(n => {
+              {attentionFirst(notices).map(n => {
                 const meta = NOTICE_TEXT[n.kind];
                 const fresh = n.at > seenWhenOpened.current;
+                const out = n.kind === 'edit' && n.editStatus && n.editStatus !== 'pending' ? EDIT_OUTCOME[n.editStatus] : null;
+                const editing = n.kind === 'edit' && n.editStatus === 'pending';
                 return (
-                  <li key={n.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: '1px solid var(--border-hairline)', background: fresh ? 'var(--brand-050)' : undefined }}>
-                    <Icon name={meta.icon} size={16} color={meta.color} />
-                    <span style={{ flex: 1, minWidth: 0, font: 'var(--type-meta)' }}>
-                      <strong style={{ color: 'var(--text-title)', wordBreak: 'break-word' }}>{n.displayName}</strong> {meta.text}
-                      {n.kind === 'edit' && n.reason && <span style={{ display: 'block', color: 'var(--text-body)', overflowWrap: 'anywhere' }}>Lý do: “{n.reason}”</span>}
-                      {n.kind === 'edit' && n.editStatus && n.editStatus !== 'pending' && <span style={{ display: 'block', fontWeight: 600 }}>{EDIT_OUTCOME[n.editStatus]}</span>}
-                      <span style={{ display: 'block', color: 'var(--text-faint)', fontSize: 12 }}>{time(n.at)}{fresh ? ' · mới' : ''}</span>
-                    </span>
-                    {n.kind === 'edit' && n.editStatus === 'pending' && (
-                      <span style={{ flex: 'none', display: 'inline-flex', gap: 6 }}>
-                        <button onClick={() => resolve(n.participantId, 'approve')} disabled={approving !== null} style={{ padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: 0, background: 'var(--action-primary-bg)', color: 'var(--action-primary-text)', font: 'var(--type-meta)', fontWeight: 600, cursor: approving !== null ? 'default' : 'pointer' }}>Duyệt</button>
-                        <button onClick={() => resolve(n.participantId, 'reject')} disabled={approving !== null} style={{ padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', background: 'var(--paper)', color: 'var(--text-title)', font: 'var(--type-meta)', fontWeight: 600, cursor: approving !== null ? 'default' : 'pointer' }}>Từ chối</button>
-                      </span>
-                    )}
-                    {n.kind === 'pending' && (
-                      <button onClick={() => approve(n.participantId)} disabled={approving !== null}
-                        style={{ flex: 'none', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: 0, background: 'var(--action-primary-bg)', color: 'var(--action-primary-text)', font: 'var(--type-meta)', fontWeight: 600, cursor: approving !== null ? 'default' : 'pointer', opacity: approving !== null && approving !== n.participantId ? 0.6 : 1 }}>
-                        {approving === n.participantId ? 'Đang duyệt…' : 'Duyệt'}
-                      </button>
-                    )}
+                  <li key={n.key} style={{ display: 'grid', gridTemplateColumns: '16px minmax(0,1fr) auto', gap: 10, alignItems: 'start', padding: '12px 16px', borderBottom: '1px solid var(--border-hairline)', background: fresh ? 'var(--brand-050)' : undefined, boxShadow: needsAttention(n) ? 'inset 3px 0 0 var(--sun-500)' : undefined }}>
+                    <span style={{ paddingTop: 2 }}><Icon name={meta.icon} size={16} color={n.kind === 'edit' && !editing ? 'var(--ink-500)' : meta.color} /></span>
+                    <div style={{ display: 'grid', gap: 4, minWidth: 0, font: 'var(--type-meta)', gridColumn: editing ? '2 / 4' : undefined }}>
+                      <span><strong style={{ color: 'var(--text-title)', wordBreak: 'break-word' }}>{n.displayName}</strong> {n.kind === 'pending' ? 'đang chờ vào phòng' : meta.text}</span>
+                      {n.kind === 'edit' && n.reason && <span style={{ color: 'var(--text-body)', overflowWrap: 'anywhere', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>“{n.reason}”</span>}
+                      {out && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 600, color: out.color }}><Icon name={out.icon} size={13} />{out.label}{n.resolvedAt ? ` · ${time(n.resolvedAt)}` : ''}</span>}
+                      <span style={{ color: 'var(--text-faint)', fontSize: 12 }}>{time(n.at)}{fresh ? ' · mới' : ''}</span>
+                      {editing && (
+                        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                          <Button size="sm" icon="check" disabled={approving !== null} onClick={() => void resolve(n.participantId, 'approve')}>Duyệt</Button>
+                          <Button size="sm" variant="secondary" icon="x" disabled={approving !== null} onClick={() => void resolve(n.participantId, 'reject')}>Từ chối</Button>
+                        </div>
+                      )}
+                    </div>
+                    {n.kind === 'pending' && <Button size="sm" icon="check" loading={approving === n.participantId} disabled={approving !== null} onClick={() => void approve(n.participantId)}>Duyệt</Button>}
                   </li>
                 );
               })}

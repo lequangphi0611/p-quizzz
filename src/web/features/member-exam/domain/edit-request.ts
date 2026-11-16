@@ -23,3 +23,6 @@ export function checkReason(raw: string): { ok: true; reason: string } | { ok: f
   if (reason.length > MAX_EDIT_REASON_LENGTH) return { ok: false, error: `Lý do tối đa ${MAX_EDIT_REASON_LENGTH} ký tự` };
   return { ok: true, reason };
 }
+
+/** The rule line shown in every state of the edit-request card (PRODUCT.md §7.21). */
+export const EDIT_RULE = 'Chỉ mở lại các câu tự luận, một lần. Câu trắc nghiệm và điểm trắc nghiệm giữ nguyên.';

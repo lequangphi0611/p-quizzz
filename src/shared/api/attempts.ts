@@ -18,6 +18,7 @@ export interface EditRequestInfo {
   status: EditRequestStatus;
   reason: string;
   requestedAt: number; // epoch ms
+  resolvedAt: number | null; // epoch ms the mentor answered (or the member finished editing); null while pending
 }
 
 // POST /api/me/attempts/:id/edit-request

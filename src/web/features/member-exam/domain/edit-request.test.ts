@@ -4,7 +4,7 @@ import { checkReason, editPanelMode } from './edit-request.js';
 
 const me = (over: { status?: 'running' | 'closed'; hasEssay?: boolean; submitted?: boolean; edit?: EditRequestInfo['status'] | null; can?: boolean } = {}) => {
   const { status = 'running', hasEssay = true, submitted = true, edit = null, can = true } = over;
-  const done: AttemptSummary = { id: 1, attemptNo: 1, submittedAt: 1, score: 1, maxScore: 1, essayScore: null, canRequestEdit: can, editRequest: edit ? { status: edit, reason: 'r', requestedAt: 1 } : null };
+  const done: AttemptSummary = { id: 1, attemptNo: 1, submittedAt: 1, score: 1, maxScore: 1, essayScore: null, canRequestEdit: can, editRequest: edit ? { status: edit, reason: 'r', requestedAt: 1, resolvedAt: null } : null };
   return { session: { status, hasEssay }, attempt: { submitted: submitted ? [done] : [] } } as unknown as MeResponse;
 };
 

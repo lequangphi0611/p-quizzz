@@ -36,3 +36,6 @@ Member nộp bài (phiên `running`) → "Xin sửa bài tự luận" → bấm 
 - `expired` suy ra khi đọc (yêu cầu `pending`/`approved` mà phiên không còn `running`), không ghi DB và không cần việc nền khi đóng phiên.
 - Chuông: loại thông báo `edit` có khoá `edit:<participantId>:<requestedAt>`, nên yêu cầu gửi lại tính là thông báo mới (chưa xem). Dấu chấm vàng/badge tính cả người chờ duyệt lẫn yêu cầu sửa bài đang chờ.
 - Không có event SSE mới: dùng `participants`. Member cập nhật qua poll/SSE sẵn có của `/api/me`.
+- **Thiết kế (2026-11-16, bảng "S19 Xin sửa bài tự luận" của designer, đã áp dụng):** thẻ sửa bài **lên đầu trang** khi được duyệt (viền brand, thẻ điểm thu thành một dòng); nút **"Hoàn tất sửa bài"** dính đáy kèm hộp xác nhận (khoá nếu còn thay đổi chưa lưu); mỗi trạng thái của thẻ yêu cầu đều có dòng luật "chỉ mở lại các câu tự luận, một lần"; chuông gộp một dải "N việc đang chờ bạn" và đưa việc cần xử lý lên đầu (vạch vàng trái); hàng yêu cầu ở trang điều khiển dính vào dòng người xin; cột Tiến độ báo "Đã nộp · xin sửa / Đang sửa tự luận / Đã sửa tự luận". `EditRequestInfo` thêm `resolvedAt` để hiện giờ duyệt/từ chối/hoàn tất. Không làm: `autoGrow` cho ô nhập (designer ghi "nên", cần sửa `TextField` dùng chung).
+- Không hiện lại bản đã nộp để so sánh (designer chọn: ô nhập đã điền sẵn chính bản đó).
+
