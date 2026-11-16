@@ -6,7 +6,7 @@ import { ScreenLayout } from '../shared/ui/screen/ScreenLayout.js';
 import { api, ApiError } from '../lib/api.js';
 import { useJoinHost } from '../lib/join-url.js';
 import { formatRoomCode } from '../lib/room-code.js';
-import { useSessionEvents } from '../lib/useSessionEvents.js';
+import { useSessionEvents } from '../shared/events/use-session-events.js';
 
 const POLL_MS = 5000;
 

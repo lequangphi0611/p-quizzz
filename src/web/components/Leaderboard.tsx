@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LeaderboardEntry, LeaderboardResponse } from '../../shared/api/index.js';
 import { api } from '../lib/api.js';
-import { useSessionEvents } from '../lib/useSessionEvents.js';
+import { useSessionEvents } from '../shared/events/use-session-events.js';
 import { Icon } from './ui/Icon.js';
 
 const MEDAL = ['var(--medal-gold)', 'var(--medal-silver)', 'var(--medal-bronze)'];

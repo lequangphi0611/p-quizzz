@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { SessionParticipantDetail } from '../../shared/api/index.js';
+import type { SessionParticipantDetail } from '../../../../shared/api/index.js';
 import { defaultSelection, summarize } from './session-review.js';
 
 const p = (id: number, status: SessionParticipantDetail['status'], state: 'none' | 'doing' | 'submitted', score: number | null): SessionParticipantDetail => ({

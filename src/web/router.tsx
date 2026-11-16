@@ -11,16 +11,22 @@ import { Spinner } from './components/ui/Spinner.js';
 import { AdminLogin } from './pages/AdminLogin.js';
 import { AdminLayout } from './layouts/AdminLayout.js';
 import { DiscussionPage } from './features/discussion/ui/DiscussionPage.js';
-import { Grading, gradingLoader } from './pages/Grading.js';
+import { createGradingLoader } from './features/grading/application/grading-loader.js';
+import { GradingPage } from './features/grading/ui/GradingPage.js';
+import { createSessionAdminLoaders } from './features/session-admin/application/session-admin-loaders.js';
+import { SessionDetailPage } from './features/session-admin/ui/SessionDetailPage.js';
+import { SessionListPage } from './features/session-admin/ui/SessionListPage.js';
+import { SessionReviewPage } from './features/session-admin/ui/SessionReviewPage.js';
+import { gradingGateway, sessionAdminGateway } from './app/composition.js';
 import { MemberHome } from './pages/MemberHome.js';
 import { ReviewPage } from './pages/ReviewPage.js';
 import { ScreenPage } from './pages/ScreenPage.js';
-import { SessionReview, sessionReviewLoader } from './pages/SessionReview.js';
 import { ExamDetail, examDetailLoader } from './pages/ExamDetail.js';
 import { ExamImport } from './pages/ExamImport.js';
 import { ExamList, examListLoader } from './pages/ExamList.js';
-import { SessionDetail, sessionDetailLoader } from './pages/SessionDetail.js';
-import { SessionList, sessionListLoader } from './pages/SessionList.js';
+
+const sessionLoaders = createSessionAdminLoaders(sessionAdminGateway);
+const gradingLoader = createGradingLoader(gradingGateway);
 
 function AdminShell() {
   const nav = useNavigate();
@@ -98,10 +104,10 @@ export const router = createBrowserRouter([
       { path: '/admin/exams', loader: examListLoader, element: <ExamList /> },
       { path: '/admin/exams/import', element: <ExamImport /> },
       { path: '/admin/exams/:id', loader: examDetailLoader, element: <ExamDetail /> },
-      { path: '/admin/sessions', loader: sessionListLoader, element: <SessionList /> },
-      { path: '/admin/sessions/:id', loader: sessionDetailLoader, element: <SessionDetail /> },
-      { path: '/admin/sessions/:id/review', loader: sessionReviewLoader, element: <SessionReview /> },
-      { path: '/admin/sessions/:id/grading', loader: gradingLoader, element: <Grading /> },
+      { path: '/admin/sessions', loader: sessionLoaders.list, element: <SessionListPage /> },
+      { path: '/admin/sessions/:id', loader: sessionLoaders.detail, element: <SessionDetailPage /> },
+      { path: '/admin/sessions/:id/review', loader: sessionLoaders.review, element: <SessionReviewPage /> },
+      { path: '/admin/sessions/:id/grading', loader: gradingLoader, element: <GradingPage /> },
     ],
   },
   { path: '*', element: <NotFound /> },

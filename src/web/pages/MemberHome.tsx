@@ -10,7 +10,7 @@ import { NameChip } from '../shared/ui/member/MemberLayout.js';
 import { api, ApiError, clearParticipantToken, getCurrentSessionId, getParticipantToken, setCurrentSessionId, setParticipantToken } from '../lib/api.js';
 import { decideScreen, type MeState } from '../lib/member-screen.js';
 import { retrySecondsFrom } from '../lib/member-ui.js';
-import { useSessionEvents } from '../lib/useSessionEvents.js';
+import { useSessionEvents } from '../shared/events/use-session-events.js';
 import { Leaderboard } from '../components/Leaderboard.js';
 import { cleanRoomCode, formatRoomCode, recallRoomCode, rememberRoomCode, roomFromSearch } from '../lib/room-code.js';
 import { MemberExamPage } from '../features/member-exam/ui/MemberExamPage.js';

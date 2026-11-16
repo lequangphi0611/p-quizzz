@@ -1,5 +1,5 @@
-import type { ParticipantProgress } from '../../shared/api/index.js';
-import type { SessionAction, SessionStatus } from '../../shared/session-state.js';
+import type { ParticipantProgress } from '../../../../shared/api/index.js';
+import type { SessionAction, SessionStatus } from '../../../../shared/session-state.js';
 
 export interface ActionSpec {
   action: SessionAction;

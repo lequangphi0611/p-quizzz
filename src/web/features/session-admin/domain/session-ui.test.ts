@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nextStatus, type SessionStatus } from '../../shared/session-state.js';
+import { nextStatus, type SessionStatus } from '../../../../shared/session-state.js';
 import { ACTION_FOR_STATUS, formatProgressScore } from './session-ui.js';
 
 describe('ACTION_FOR_STATUS', () => {

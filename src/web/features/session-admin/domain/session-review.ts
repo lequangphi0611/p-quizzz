@@ -1,4 +1,4 @@
-import type { SessionParticipantDetail } from '../../shared/api/index.js';
+import type { SessionParticipantDetail } from '../../../../shared/api/index.js';
 
 export const MEMBERSHIP_LABEL: Record<SessionParticipantDetail['status'], { label: string; color: string }> = {
   active: { label: 'Đã tham gia', color: 'var(--correct-600)' },

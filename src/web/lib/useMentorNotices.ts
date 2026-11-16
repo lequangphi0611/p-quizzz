@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ActiveSession, SessionDetail } from '../../shared/api/index.js';
 import { api } from './api.js';
 import { buildNotices, loadSeenAt, markSeenAt, pendingCount, saveSeenAt, unreadCount, type MentorNotice } from './mentor-notices.js';
-import { useSessionEvents } from './useSessionEvents.js';
+import { useSessionEvents } from '../shared/events/use-session-events.js';
 
 export interface MentorNoticesState {
   session: { id: number; title: string } | null;

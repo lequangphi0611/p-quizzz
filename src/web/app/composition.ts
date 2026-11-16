@@ -1,3 +1,5 @@
+import { HttpGradingGateway } from '../features/grading/infrastructure/http-grading-gateway.js';
+import { HttpSessionAdminGateway } from '../features/session-admin/infrastructure/http-session-admin-gateway.js';
 import { HttpDiscussionGateway } from '../features/discussion/infrastructure/http-discussion-gateway.js';
 import { HttpExamGateway } from '../features/member-exam/infrastructure/http-exam-gateway.js';
 import { createHttpClient } from '../shared/api-client/http-client.js';
@@ -18,3 +20,5 @@ export const api = createHttpClient({ interceptors: [participantAuth(tokenStore)
 export const eventStream = createSessionEventHub();
 export const examGateway = new HttpExamGateway(api);
 export const discussionGateway = new HttpDiscussionGateway(api);
+export const sessionAdminGateway = new HttpSessionAdminGateway(api);
+export const gradingGateway = new HttpGradingGateway(api);

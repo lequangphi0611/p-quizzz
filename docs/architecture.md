@@ -377,3 +377,13 @@ Màn thảo luận trên máy chiếu (`features/discussion/`), theo mẫu §12.
 
 Quyết định về `components/screen/*` và các thành phần chung: `ScreenStage`, `ScreenLayout` (cả màn chiếu `ScreenPage` dùng) vào `shared/ui/screen/`; `QuestionNav`, `SaveIndicator` (hai feature dùng) vào `shared/ui/`; `EssayCard`, `OptionTally`, `ScoreField` chỉ thảo luận dùng nên ở trong feature. `parseScore` (luật điểm theo bước 0,5, cả chấm bài và thảo luận) ở `shared/grading/score.ts`; `useFullscreen` ở `shared/hooks/`.
 
+### 12.3 Features `session-admin` và `grading` (P5-2, issue #21)
+
+Phía mentor, theo mẫu §12.1.
+
+- **`features/session-admin/`** (danh sách + tạo phiên, trang điều khiển, xem lại phiên): `domain/{session-ui,session-review}` (hành động kế tiếp theo trạng thái, nhãn tiến độ, thống kê); `application/` gồm port `SessionAdminGateway`, `SessionDetailController` (hành động vòng đời, duyệt/kick/đổi tên, bỏ phản hồi refetch cũ hơn), loader cho router (`createSessionAdminLoaders(gateway)`), hook `useSessionDetail` (refetch theo SSE), `useCreateSession`, `useParticipantReview`; `infrastructure/http-session-admin-gateway.ts`; `ui/` các page và card.
+- **`features/grading/`** (chấm tự luận): `domain/{grading-ui,card-save}` (`planCardSave`: không làm gì / báo lỗi / khôi phục điểm đã chấm / gửi); `application/` gồm port `GradingGateway`, `GradingController` (chấm một bài, chấm 0 bài trống, chốt), `createGradingLoader`, `useGrading`; `infrastructure/http-grading-gateway.ts`; `ui/`.
+- **Loader của router** nằm ở `application` và được gắn gateway tại `router.tsx` (`createSessionAdminLoaders(sessionAdminGateway)`), nên `ui` vẫn không biết `infrastructure`.
+- **SSE qua context:** `useSessionEvents` chuyển sang `shared/events/use-session-events.tsx`, lấy `EventStream` từ `EventStreamProvider` (`app/AppProviders.tsx`); không còn import singleton trực tiếp.
+- Hai feature không import nhau: luật chấm điểm dùng chung (`parseScore`) ở `shared/grading/score.ts`; mỗi feature có gateway riêng dù một vài endpoint trùng (rẻ hơn một abstraction chung).
+
