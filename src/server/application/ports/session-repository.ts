@@ -53,6 +53,7 @@ export interface ActiveSessionView {
 }
 
 export interface SessionReader {
+  exists(id: number): Promise<boolean>;
   /** Newest first. */
   list(): Promise<SessionSummaryView[]>;
   findDetail(id: number): Promise<SessionDetailView | null>;

@@ -70,6 +70,10 @@ export class DrizzleSessionRepository implements SessionRepository {
 export class DrizzleSessionReader implements SessionReader {
   constructor(private readonly access: DbAccess) {}
 
+  async exists(id: number): Promise<boolean> {
+    return !!(await this.access(db => db.select({ id: sessions.id }).from(sessions).where(eq(sessions.id, id)).get()));
+  }
+
   list(): Promise<SessionSummaryView[]> {
     return this.access(db =>
       db.select(summaryColumns).from(sessions).innerJoin(exams, eq(sessions.examId, exams.id)).orderBy(desc(sessions.createdAt), desc(sessions.id)).all(),

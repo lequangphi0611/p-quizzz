@@ -40,6 +40,10 @@ export class InMemorySessionRepository implements SessionRepository, SessionRead
     return [...this.sessions.values()].some(s => s.roomCode === code);
   }
 
+  async exists(id: number) {
+    return this.sessions.has(id);
+  }
+
   async list() {
     const all = await Promise.all([...this.sessions.keys()].map(id => this.summary(id)));
     return all.filter((s): s is SessionSummaryView => !!s).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || b.id - a.id);

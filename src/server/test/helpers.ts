@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { buildApp } from '../app.js';
-import type { JoinLimiter } from '../auth/join-limiter.js';
+import type { JoinLimiter } from '../interface/http/join-limiter.js';
 import { createDb, type Db } from '../db/client.js';
 import { eq } from 'drizzle-orm';
 import { exams, options, participants, questions, sessions } from '../db/schema.js';

@@ -1,4 +1,4 @@
-export type DomainErrorKind = 'not_found' | 'conflict' | 'invalid' | 'forbidden';
+export type DomainErrorKind = 'not_found' | 'conflict' | 'invalid' | 'forbidden' | 'unauthenticated';
 
 /**
  * Base class for business-rule failures. `kind` says what went wrong in business terms;

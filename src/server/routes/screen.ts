@@ -2,7 +2,7 @@ import { desc, inArray } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { ScreenRoom } from '../../shared/api/index.js';
 import { ACTIVE_STATUSES } from '../../shared/session-state.js';
-import { requireLocal } from '../auth/local-only.js';
+import { requireLocal } from '../interface/http/auth/require-local.js';
 import { sessions } from '../db/schema.js';
 
 // GET /api/screen/room — the projector shows the room code. Anyone on the LAN can read /api/sessions/latest, so the

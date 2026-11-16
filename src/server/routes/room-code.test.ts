@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ActiveSession, LeaderboardResponse, MeResponse, NetworkInfo, PublicParticipant, SessionDetail, SessionSummary } from '../../shared/api/index.js';
-import { createJoinLimiter } from '../auth/join-limiter.js';
+import { createJoinLimiter } from '../interface/http/join-limiter.js';
 import { createTestApp, loginAsMentor, roomCodeOf, seedExam } from '../test/helpers.js';
 
 async function setup(opts: Parameters<typeof createTestApp>[0] = {}) {

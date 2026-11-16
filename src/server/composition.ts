@@ -1,9 +1,17 @@
 import type { Clock } from './application/ports/clock.js';
 import type { EventPublisher } from './application/ports/event-publisher.js';
 import type { ExamUnitContext } from './application/ports/exam-repository.js';
+import type { ParticipantUnitContext } from './application/ports/participant-repository.js';
 import type { SessionUnitContext } from './application/ports/session-repository.js';
 import type { Random } from './application/ports/random.js';
 import type { TokenGenerator } from './application/ports/token-generator.js';
+import { AuthenticateAdmin, GetAdminStatus, LoginAdmin, LogoutAdmin, SetupAdmin } from './application/use-cases/admin/admin-use-cases.js';
+import { ApproveParticipant } from './application/use-cases/participants/approve-participant.js';
+import { JoinSession } from './application/use-cases/participants/join-session.js';
+import { KickParticipant } from './application/use-cases/participants/kick-participant.js';
+import { ListPublicParticipants } from './application/use-cases/participants/list-public-participants.js';
+import { RenameParticipant } from './application/use-cases/participants/rename-participant.js';
+import { ResumeParticipant } from './application/use-cases/participants/resume-participant.js';
 import { DeleteExam } from './application/use-cases/exams/delete-exam.js';
 import { GetExam } from './application/use-cases/exams/get-exam.js';
 import { ImportExam } from './application/use-cases/exams/import-exam.js';
@@ -18,6 +26,10 @@ import { StartSession } from './application/use-cases/sessions/start-session.js'
 import { defaultSessionModes } from './domain/session/mode.js';
 import type { Db } from './db/client.js';
 import { bus } from './events.js';
+import { InMemoryAdminSessionStore } from './infrastructure/auth/in-memory-admin-session-store.js';
+import { ScryptPasswordHasher } from './infrastructure/auth/scrypt-password-hasher.js';
+import { DrizzleAdminCredentialStore } from './infrastructure/db/drizzle-admin-credential-store.js';
+import { DrizzleParticipantRepository } from './infrastructure/db/drizzle-participant-repository.js';
 import { DrizzleExamRepository } from './infrastructure/db/drizzle-exam-repository.js';
 import { SqliteDatabase, SqliteUnitOfWork } from './infrastructure/db/sqlite-database.js';
 import {
@@ -31,6 +43,8 @@ import { CryptoRandom } from './infrastructure/system/crypto-random.js';
 import { SecureTokenGenerator } from './infrastructure/system/secure-token-generator.js';
 import { SystemClock } from './infrastructure/system/system-clock.js';
 import type { ExamUseCases } from './interface/http/exams-routes.js';
+import type { AdminUseCases } from './interface/http/admin-routes.js';
+import type { ParticipantUseCases } from './interface/http/participants-routes.js';
 import type { SessionUseCases } from './interface/http/sessions-routes.js';
 
 /** Ports every module shares. Tests pass fakes for any of them (see `application/testing`). */
@@ -45,6 +59,10 @@ export interface SharedPorts {
 export interface Composition {
   exams: ExamUseCases;
   sessions: SessionUseCases;
+  participants: ParticipantUseCases;
+  /** Resolves a member from a token: backs the `/api/me` hook. */
+  resumeParticipant: ResumeParticipant;
+  admin: AdminUseCases;
 }
 
 // Composition root: the one place that knows which implementation backs each port. Wired by hand.
@@ -74,9 +92,36 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
       grading: new LegacyUngradedEssayCounter(access),
     };
   });
+  const participantReader = new DrizzleParticipantRepository(fn => database.read(fn));
+  const participantUnitOfWork = new SqliteUnitOfWork<ParticipantUnitContext>(database, tx => {
+    const access = async <T>(fn: (db: Db) => T) => fn(tx);
+    return { sessions: new DrizzleSessionRepository(access), participants: new DrizzleParticipantRepository(access) };
+  });
+  const adminDeps = {
+    credentials: new DrizzleAdminCredentialStore(fn => database.read(fn), () => ports.clock.now()),
+    sessions: new InMemoryAdminSessionStore(),
+    hasher: new ScryptPasswordHasher(),
+    tokens: ports.tokens,
+  };
+
   const lifecycle = { unitOfWork: sessionUnitOfWork, sessions: sessionReader, clock: ports.clock, random: ports.random, events: ports.events, modes: defaultSessionModes() };
 
   return {
+    participants: {
+      join: new JoinSession({ unitOfWork: participantUnitOfWork, clock: ports.clock, tokens: ports.tokens, events: ports.events }),
+      rename: new RenameParticipant({ unitOfWork: participantUnitOfWork, events: ports.events }),
+      kick: new KickParticipant({ unitOfWork: participantUnitOfWork, events: ports.events }),
+      approve: new ApproveParticipant({ unitOfWork: participantUnitOfWork, events: ports.events }),
+      listPublic: new ListPublicParticipants({ sessions: sessionReader, participants: participantReader }),
+    },
+    resumeParticipant: new ResumeParticipant(participantReader),
+    admin: {
+      status: new GetAdminStatus(adminDeps),
+      setup: new SetupAdmin(adminDeps),
+      login: new LoginAdmin(adminDeps),
+      logout: new LogoutAdmin(adminDeps.sessions),
+      authenticate: new AuthenticateAdmin(adminDeps.sessions),
+    },
     sessions: {
       create: new CreateSession({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, clock: ports.clock, modes: lifecycle.modes }),
       list: new ListSessions(sessionReader),
