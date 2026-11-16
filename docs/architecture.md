@@ -194,7 +194,7 @@ Frontend (trong một feature): `ui -> application -> domain`; `infrastructure -
 
 Mọi port trong `application/ports` trả `Promise`, kể cả khi hiện thực bằng `better-sqlite3` (đồng bộ). Lý do: use case không được phụ thuộc đặc thù của `better-sqlite3`; đổi DB hay thêm I/O (file, mạng) sau này không phải sửa use case.
 
-Hệ quả: `db.transaction()` của Drizzle chỉ nhận callback đồng bộ nên không dùng được cho use case async. Cần `UnitOfWork.run(async ctx => ...)` tự `BEGIN`/`COMMIT`/`ROLLBACK` và tuần tự hóa các unit of work trên SQLite. Thiết kế được chứng minh ở spike P0-3 (issue #10); ADR ghi ở mục §10 khi spike xong. Nếu spike kết luận không khả thi gọn, quay lại bàn port sync (do chủ dự án quyết).
+Hệ quả: `db.transaction()` của Drizzle chỉ nhận callback đồng bộ nên không dùng được cho use case async. Cần `UnitOfWork.run(async ctx => ...)` tự `BEGIN`/`COMMIT`/`ROLLBACK` và tuần tự hóa các unit of work trên SQLite. Thiết kế đã được chứng minh ở spike P0-3 (issue #10): xem ADR §10. Kết luận là khả thi gọn nên giữ port async.
 
 ### 9.4 Quy ước đặt tên
 
@@ -224,3 +224,34 @@ Hệ quả: `db.transaction()` của Drizzle chỉ nhận callback đồng bộ 
 - Mọi file dưới `src/` phải nằm trong một layer (đường dẫn theo §9.1) **hoặc** trong allowlist legacy. File mới ngoài layer mà không có trong allowlist sẽ fail: không viết thêm code kiểu cũ.
 - **Allowlist** nằm ở một file duy nhất `scripts/arch/allowlist.ts` (entry kết thúc bằng `/` là cả thư mục). Khi chuyển xong một module, xóa phần của nó khỏi allowlist trong cùng PR. Entry không còn khớp file nào cũng làm `arch:check` fail, nên danh sách chỉ co lại. Mục tiêu cuối: rỗng.
 - Thêm/sửa luật: sửa `scripts/arch/rules.ts` và thêm test fixture tương ứng.
+
+## 10. ADR: `UnitOfWork` async trên better-sqlite3
+
+**Trạng thái:** chấp nhận (spike P0-3, issue #10). Code: `application/ports/unit-of-work.ts`, `infrastructure/db/sqlite-database.ts`, test `sqlite-unit-of-work.test.ts`.
+
+**Vấn đề.** `better-sqlite3` đồng bộ và `db.transaction()` của Drizzle chỉ nhận callback đồng bộ, nên không dùng được cho use case async (§9.3). Nếu mở `BEGIN` thủ công rồi `await`, event loop quay: request khác trên **cùng kết nối** sẽ ghi vào transaction đang mở hoặc đọc dòng chưa commit (test `why a gate is needed` tái hiện dirty read).
+
+**Hai hướng đã so sánh**
+
+| | A: một kết nối + mutex cho mọi truy cập | B: hai kết nối WAL (ghi / đọc), ghi tuần tự bằng mutex |
+|---|---|---|
+| Đọc không thấy dữ liệu chưa commit | Có, vì đọc phải chờ mutex | Có, nhờ WAL (test chứng minh) |
+| Chạy với DB `:memory:` của test | **Có** | **Không**: `:memory:` không chia sẻ giữa hai kết nối và better-sqlite3 không hiểu URI `file:...?cache=shared`. Test phải dùng file tạm |
+| Code cũ (`app.db` đồng bộ) | Dùng nguyên | Phải quyết định code cũ dùng kết nối nào |
+| Độ phức tạp | Một mutex + `AsyncLocalStorage` | Hai kết nối, vòng đời, đọc có thể thấy snapshot cũ |
+| Đọc song song khi đang ghi | Không (chờ) | Có |
+
+**Quyết định: hướng A.** Lý do: giữ được integration test `:memory:` (§9.6), ít bộ phận hơn, và lợi ích duy nhất của B (đọc song song khi có transaction) không cần ở quy mô một mentor + vài chục member trên LAN.
+
+**Thiết kế**
+- `SqliteDatabase.read(fn)`: lấy mutex FIFO rồi chạy `fn(db)`. `SqliteDatabase.transaction(fn)`: giữ mutex suốt `BEGIN IMMEDIATE` … `COMMIT`, `ROLLBACK` khi lỗi (kể cả khi `COMMIT` thất bại).
+- Bên trong một unit, `read()` nhận ra unit đang mở bằng `AsyncLocalStorage` và chạy thẳng trên kết nối đó (thấy đúng ghi của chính unit, không tự deadlock). Cờ `active` tắt khi unit kết thúc, nên promise "bắn rồi quên" sống lâu hơn unit không lách được mutex.
+- `UnitOfWork<Ctx>.run(fn)` là port; `SqliteUnitOfWork` dựng `Ctx` (các repository giao dịch) trên kết nối của unit. Unit lồng nhau ném `NestedUnitOfWorkError` ngay (không deadlock).
+
+**Giới hạn và quy tắc cho P1-1 trở đi**
+1. Trong callback của unit **chỉ `await` thứ resolve bằng microtask** (repository, `Clock`, `TokenGenerator`). Không await timer, mạng, file: unit giữ cả DB trong lúc đó và mọi request khác phải chờ.
+2. Mọi truy cập đọc của code mới đi qua `SqliteDatabase.read()` (hoặc `ctx` trong unit).
+3. **Giai đoạn chuyển tiếp:** code cũ vẫn gọi `app.db` đồng bộ, không qua mutex. An toàn miễn là quy tắc 1 được giữ: handler cũ chỉ chạy được khi event loop quay, mà unit không để event loop quay. Nếu vi phạm, code cũ gọi `db.transaction()` sẽ bị SQLite báo lỗi rõ ràng (không lồng transaction) còn đọc cũ có thể thấy dữ liệu chưa commit. Hết giai đoạn chuyển tiếp (P3-5) thì mọi truy cập đi qua `SqliteDatabase`.
+4. Một process, một kết nối: không chạy hai instance server trên cùng file DB (đã là giả định của sản phẩm).
+
+**Đo sơ bộ** (`npx tsx scripts/bench-uow.ts`, 100k lần, Node 22, `:memory:`, một query `SELECT ... WHERE key = ?`; 3 lần chạy): đọc đồng bộ trực tiếp 37.7-38.6 µs/lần, qua `read()` 37.2-40.4 µs/lần, 50 đọc đồng thời qua mutex 38.6-41.0 µs/lần. Chênh lệch nằm trong nhiễu đo. Đây là micro-benchmark một query, **chưa phải** `GET /api/me` thật (nhiều query + HTTP); so sánh trước/sau trên endpoint thật chỉ làm được khi một route chuyển sang `SqliteDatabase` (P1-1 trở đi).
