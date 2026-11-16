@@ -13,9 +13,41 @@ function app() {
   a.get('/api/essay', async () => ({ textAnswer: '{"isCorrect": true, "explanation": "x"}' }));
   a.get('/api/admin/exams/1', async () => ({ options: [{ isCorrect: true }], explanation: 'mentor view' }));
   a.get('/api/me/attempts/:id/review', async () => ({ questions: [{ options: [{ isCorrect: true }], explanation: 'after close' }] }));
+  a.get('/api/me-email', async () => ({ participant: { displayName: 'An', email: 'an@x.com' } }));
+  a.get('/api/emails', async () => ({ emails: ['an@x.com'] }));
+  a.get('/api/admin/groups/1', async () => ({ emails: ['an@x.com'] }));
+  a.get('/api/me/attempts/:id/review-with-email', async () => ({}));
   a.get('/api/text', async (_req, reply) => reply.type('text/plain').send('"isCorrect": true'));
   return a;
 }
+
+describe('leak guard: emails are mentor-only (PRODUCT.md §7.24)', () => {
+  it.each(['/api/me-email', '/api/emails'])('blocks %s with a 500 and no address in the body', async url => {
+    const res = await app().inject({ url });
+    expect(res.statusCode).toBe(500);
+    expect(res.body).not.toMatch(/an@x\.com|email/);
+  });
+
+  it('leaves the mentor routes alone', async () => {
+    expect((await app().inject({ url: '/api/admin/groups/1' })).statusCode).toBe(200);
+  });
+
+  it('the review route may carry the answer key but never an email', async () => {
+    const a = Fastify();
+    registerLeakGuard(a);
+    a.get('/api/me/attempts/:id/review', async () => ({ questions: [{ options: [{ isCorrect: true }] }], participant: { email: 'an@x.com' } }));
+    const res = await a.inject({ url: '/api/me/attempts/7/review' });
+    expect(res.statusCode).toBe(500);
+    expect(res.body).not.toContain('an@x.com');
+  });
+
+  it('does not trip on the word "email" inside text a member typed (quotes are escaped)', async () => {
+    const a = Fastify();
+    registerLeakGuard(a);
+    a.get('/api/essay', async () => ({ textAnswer: 'send an "email": done' }));
+    expect((await a.inject({ url: '/api/essay' })).statusCode).toBe(200);
+  });
+});
 
 describe('leak guard', () => {
   it.each(['/api/leaky', '/api/snake', '/api/nested'])('blocks %s with a 500 and no key in the body', async url => {

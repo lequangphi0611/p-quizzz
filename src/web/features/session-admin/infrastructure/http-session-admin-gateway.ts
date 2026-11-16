@@ -1,4 +1,4 @@
-import type { ExamSummary, NetworkInfo, LeaderboardResponse, ParticipantReview, SessionDetail, SessionSummary } from '../../../../shared/api/index.js';
+import type { ExamSummary, GroupSummary, NetworkInfo, LeaderboardResponse, ParticipantReview, SessionDetail, SessionSummary } from '../../../../shared/api/index.js';
 import type { SessionAction } from '../../../../shared/session-state.js';
 import type { HttpClient } from '../../../shared/api-client/http-client.js';
 import type { NewSession, SessionAdminGateway } from '../application/session-admin-gateway.js';
@@ -9,6 +9,9 @@ export class HttpSessionAdminGateway implements SessionAdminGateway {
   listSessions(): Promise<SessionSummary[]> { return this.http.get<SessionSummary[]>('/api/admin/sessions'); }
   listExams(): Promise<ExamSummary[]> { return this.http.get<ExamSummary[]>('/api/admin/exams'); }
   createSession(input: NewSession): Promise<SessionDetail> { return this.http.post<SessionDetail>('/api/admin/sessions', input); }
+  listGroups(): Promise<GroupSummary[]> { return this.http.get<GroupSummary[]>('/api/admin/groups'); }
+  addRoster(sessionId: number, emails: string[]): Promise<SessionDetail> { return this.http.post<SessionDetail>(`/api/admin/sessions/${sessionId}/roster`, { emails }); }
+  saveGroup(sessionId: number, name: string): Promise<{ id: number; name: string; emailCount: number }> { return this.http.post(`/api/admin/sessions/${sessionId}/save-group`, { name }); }
   getSession(id: number): Promise<SessionDetail> { return this.http.get<SessionDetail>(`/api/admin/sessions/${id}`); }
   runAction(id: number, action: SessionAction): Promise<SessionDetail> { return this.http.post<SessionDetail>(`/api/admin/sessions/${id}/${action}`); }
   async approveParticipant(id: number): Promise<void> { await this.http.post(`/api/admin/participants/${id}/approve`); }

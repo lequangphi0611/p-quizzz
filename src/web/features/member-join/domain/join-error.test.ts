@@ -33,3 +33,18 @@ describe('classifyRoomLookupError', () => {
     expect(classifyRoomLookupError(500, 'Lỗi')).toEqual({ kind: 'other', message: 'Lỗi' });
   });
 });
+
+describe('classifyJoinError with emails (PRODUCT.md §7.22)', () => {
+  it('"not on the list" and a malformed email belong under the email field, with the server\'s own words', () => {
+    expect(classifyJoinError(403, 'Email này không có trong danh sách của phòng. Kiểm tra lại, hoặc nhắn mentor.')).toEqual({ kind: 'email', message: 'Email này không có trong danh sách của phòng. Kiểm tra lại, hoặc nhắn mentor.' });
+    expect(classifyJoinError(400, 'Email chưa đúng định dạng')).toEqual({ kind: 'email', message: 'Email chưa đúng định dạng' });
+    expect(classifyJoinError(400, 'Nhập email của bạn')).toMatchObject({ kind: 'email' });
+  });
+  it('a wrong room code is still a room error, not an email one', () => {
+    expect(classifyJoinError(403, 'Mã phòng không đúng')).toEqual({ kind: 'room' });
+  });
+  it('identity_in_use (email or name already inside) is its own kind, for the "ask the mentor" step', () => {
+    expect(classifyJoinError(409, 'Email này đã có người vào phòng', 'identity_in_use')).toEqual({ kind: 'taken', message: 'Email này đã có người vào phòng' });
+    expect(classifyJoinError(409, 'Tên đã có người dùng')).toMatchObject({ kind: 'name' }); // old behaviour without the code
+  });
+});

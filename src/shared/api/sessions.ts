@@ -6,12 +6,28 @@ export type SessionMode = 'self_paced' | 'live';
 
 export const MAX_SESSION_NAME_LENGTH = 80;
 
+/** Who may join (PRODUCT.md §7.22): anyone with the code (`free`), or only the emails on the session's list (`roster`). */
+export type SessionAccess = 'free' | 'roster';
+/** Someone not on the list: turned away, or waiting for the mentor (`pending`). */
+export type OutsiderPolicy = 'block' | 'pending';
+/** `group` = list copied from a saved group; `temp` = typed for this session (can be saved as a group later). */
+export type RosterSource = 'group' | 'temp';
+
 export const CreateSessionBody = z.object({
   examId: z.number().int().positive('Chọn một đề'),
   // Mentor-only label; defaults to "<exam title> – dd/MM" (PRODUCT.md §7.5).
   name: z.string().trim().max(MAX_SESSION_NAME_LENGTH, `Tên phiên tối đa ${MAX_SESSION_NAME_LENGTH} ký tự`).optional(),
   shuffle: z.boolean().optional(),
-  autoApprove: z.boolean().optional(), // let everyone in without the mentor's approval (default false)
+  autoApprove: z.boolean().optional(), // let everyone in without the mentor's approval (default false); only for free sessions
+  // Who may join. Omitted = free (as before).
+  access: z
+    .union([
+      z.object({ kind: z.literal('free') }),
+      z.object({ kind: z.literal('group'), groupId: z.number().int().positive('Chọn một nhóm') }),
+      z.object({ kind: z.literal('emails'), emails: z.array(z.string()).min(1, 'Nhập ít nhất một email').max(2000) }),
+    ])
+    .optional(),
+  outsiderPolicy: z.enum(['block', 'pending']).optional(), // roster sessions only (default block)
 });
 
 export interface SessionSummary {
@@ -24,6 +40,9 @@ export interface SessionSummary {
   status: SessionStatus;
   shuffle: boolean;
   autoApprove: boolean;
+  access: SessionAccess;
+  outsiderPolicy: OutsiderPolicy;
+  rosterSource: RosterSource | null; // null for free sessions
   roomCode: string | null; // mentor-only; null until the session is opened
   createdAt: number; // epoch ms
   openedAt: number | null;
@@ -54,11 +73,20 @@ export interface ParticipantProgress {
 
 export interface SessionParticipantDetail extends SessionParticipantInfo {
   progress: ParticipantProgress;
+  email: string | null; // mentor only (PRODUCT.md §7.24); null in free sessions
+}
+
+// How the session's list is doing: emails on it, how many have a participant, and those still missing. Mentor only.
+export interface SessionRoster {
+  size: number;
+  joined: number;
+  notJoined: string[];
 }
 
 export interface SessionDetail extends SessionSummary {
   exam: { id: number; title: string; hasEssay: boolean; totalPoints: number };
   participants: SessionParticipantDetail[];
+  roster: SessionRoster | null; // null for free sessions
 }
 
 // GET /api/screen/sessions/:id/room — only answers on the mentor's machine (the projector). Never exposed publicly.
@@ -72,6 +100,7 @@ export interface ActiveSession {
   id: number;
   title: string;
   status: SessionStatus;
+  access: SessionAccess; // tells the join form whether to ask for an email
 }
 
 // POST /api/rooms/resolve: member types the room code, the server finds the open session.

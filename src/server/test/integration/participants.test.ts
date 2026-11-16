@@ -113,7 +113,8 @@ describe('POST /api/sessions/:id/join', () => {
     for (const dup of ['nguyễn đạt', 'NGUYỄN ĐẠT', '  Nguyễn   Đạt ', 'Nguyễn Đạt']) {
       const res = await join(sid, { displayName: dup });
       expect(res.statusCode, dup).toBe(409);
-      expect(res.json()).toEqual({ error: 'Tên đã có người dùng' });
+      // At join the member may ask the mentor to let them back in (PRODUCT.md §7.23): the error carries a code for the web.
+      expect(res.json()).toEqual({ error: 'Tên đã có người dùng', code: 'identity_in_use' });
     }
   });
 

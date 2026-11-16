@@ -12,6 +12,12 @@ export class InvalidSessionTransitionError extends DomainError {
   }
 }
 
+export class SessionEndedError extends DomainError {
+  constructor() {
+    super('conflict', 'Phiên đã kết thúc, không thêm email được nữa');
+  }
+}
+
 export class UngradedEssaysError extends DomainError {
   constructor(readonly missing: number) {
     super('conflict', `Còn ${missing} bài tự luận chưa chấm điểm`);

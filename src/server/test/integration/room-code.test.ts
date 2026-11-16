@@ -221,7 +221,7 @@ describe('POST /api/rooms/resolve (members find their session by code)', () => {
     for (const typed of [code, `${code.slice(0, 3)} ${code.slice(3)}`, `${code.slice(0, 3)}-${code.slice(3)}`]) {
       const res = await resolve(s, typed);
       expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({ id: sess.id, title: s.exam.title, status: 'lobby' });
+      expect(res.json()).toEqual({ id: sess.id, title: s.exam.title, status: 'lobby', access: 'free' });
       expect(res.body).not.toMatch(/member-0908|roomCode|slot/);
     }
   });

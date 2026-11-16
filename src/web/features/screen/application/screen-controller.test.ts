@@ -12,6 +12,7 @@ function make(over: Partial<ScreenGateway> = {}, sessionId = 1) {
     listSessions: vi.fn(async () => ({ open: [], latestEnded: null })),
     getParticipants: vi.fn(async () => [{ displayName: 'An' }, { displayName: 'Bình' }] as never),
     getLeaderboard: vi.fn(async () => board),
+    getRosterCounts: vi.fn(async () => null),
     getRoom: vi.fn(async () => ({ roomCode: '123456' }) as never),
     getJoinHosts: vi.fn(async () => []),
     ...over,
@@ -31,6 +32,14 @@ describe('ScreenController (one session per address)', () => {
     expect(ctrl.getState().session?.id).toBe(7);
     expect(gateway.getParticipants).toHaveBeenCalledWith(7);
     expect(gateway.getRoom).toHaveBeenCalledWith(7); // each session asks for ITS room code
+  });
+
+  it('a session limited to a list also shows how many of it have joined (numbers only)', async () => {
+    const { ctrl, gateway } = make({ getRosterCounts: async () => ({ joinedCount: 5, rosterSize: 6 }) });
+    ctrl.start();
+    await settle();
+    expect(ctrl.getState().roster).toEqual({ joinedCount: 5, rosterSize: 6 });
+    expect(gateway.getParticipants).toHaveBeenCalledWith(1);
   });
 
   it('a session that does not exist is null', async () => {

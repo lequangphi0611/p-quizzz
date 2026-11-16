@@ -1,5 +1,7 @@
 import type { Participant } from '../../../domain/participant/participant.js';
-import { assertCanJoin, assertNameFree, statusOnJoin } from '../../../domain/participant/participant.js';
+import { isValidEmail } from '../../../../shared/email-list.js';
+import { InvalidEmailError } from '../../../domain/participant/errors.js';
+import { assertCanJoin, assertEmailFree, assertNameFree, rosterDecision, statusOnJoin } from '../../../domain/participant/participant.js';
 import { SessionNotFoundError } from '../../../domain/session/errors.js';
 import type { Clock } from '../../ports/clock.js';
 import type { EventPublisher } from '../../ports/event-publisher.js';
@@ -7,22 +9,37 @@ import type { ParticipantUnitContext } from '../../ports/participant-repository.
 import type { TokenGenerator } from '../../ports/token-generator.js';
 import type { UnitOfWork } from '../../ports/unit-of-work.js';
 
-/** A member joins the active session with its room code and a name. `displayName` is already normalized and `roomCode` digits-only (JoinBody does both). */
+/**
+ * A member joins an open session with its room code and a name (plus an email in a roster session, PRODUCT.md §7.22).
+ * `displayName`, `email` and `roomCode` are already normalized (JoinBody does it). In a free session the email is ignored.
+ */
 export class JoinSession {
   constructor(private readonly deps: { unitOfWork: UnitOfWork<ParticipantUnitContext>; clock: Clock; tokens: TokenGenerator; events: EventPublisher }) {}
 
-  async execute(input: { sessionId: number; displayName: string; roomCode: string }): Promise<{ token: string; participant: Participant }> {
+  async execute(input: { sessionId: number; displayName: string; roomCode: string; email?: string }): Promise<{ token: string; participant: Participant }> {
     const token = this.deps.tokens.generate();
     const participant = await this.deps.unitOfWork.run(async ({ sessions, participants }) => {
       const session = await sessions.findById(input.sessionId);
       if (!session) throw new SessionNotFoundError();
       assertCanJoin(session, input.roomCode);
-      assertNameFree(await participants.listNotKicked(input.sessionId), input.displayName);
+      const others = await participants.listNotKicked(input.sessionId);
+      let email: string | null = null;
+      let status = statusOnJoin(session.autoApprove);
+      if (session.access === 'roster') {
+        email = input.email ?? '';
+        if (!email) throw new InvalidEmailError('Nhập email của bạn');
+        if (!isValidEmail(email)) throw new InvalidEmailError();
+        // The list decides first: a stranger learns nothing about who has already joined (PRODUCT.md §7.22e).
+        status = rosterDecision(await sessions.hasRosterEmail(input.sessionId, email), session.outsiderPolicy);
+        assertEmailFree(others, email);
+      }
+      assertNameFree(others, input.displayName, undefined, true);
       return participants.add({
         sessionId: input.sessionId,
         displayName: input.displayName,
+        email,
         token,
-        status: statusOnJoin(session.autoApprove),
+        status,
         joinedAt: this.deps.clock.now(),
       });
     });

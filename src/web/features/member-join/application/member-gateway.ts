@@ -6,7 +6,8 @@ export interface MemberGateway {
   resolveRoom(roomCode: string): Promise<ActiveSession>;
   /** The member's own state for the session in TokenStore's "current session" (401 unknown token, 403 kicked). */
   getMe(): Promise<MeResponse>;
-  join(sessionId: number, input: { displayName: string; roomCode: string }): Promise<JoinResponse>;
+  /** `email` only for a roster session (the server ignores it otherwise). */
+  join(sessionId: number, input: { displayName: string; roomCode: string; email?: string }): Promise<JoinResponse>;
 }
 
 /** Port: the room code is remembered per session so "join again with another name" after a kick needs no retyping. */

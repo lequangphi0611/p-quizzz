@@ -16,8 +16,10 @@ export function JoinForm({ desk, state, linkRoom, ctrl }: { desk: boolean; state
   const [code, setCode] = useState(() => linkRoom || state.lookup?.code || '');
   const [prefilled, setPrefilled] = useState(() => !!linkRoom);
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [nameError, setNameError] = useState('');
+  const [emailError, setEmailError] = useState('');
   const [lockedFor, setLockedFor] = useState(0); // seconds left after too many wrong codes (server 429)
   const room = selectRoom(state);
   const lookupFailure = state.lookup?.status === 'error' && state.lookup.code === code ? classifyRoomLookupError(state.lookup.error!.status, state.lookup.error!.message) : null;
@@ -34,30 +36,33 @@ export function JoinForm({ desk, state, linkRoom, ctrl }: { desk: boolean; state
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (busy || locked || !room || !name.trim()) return;
+    if (busy || locked || !room || !name.trim() || (needsEmail && !email.trim())) return;
     setBusy(true);
     setNameError('');
+    setEmailError('');
     try {
-      await ctrl.join(room.id, name, code);
+      await ctrl.join(room.id, name, code, needsEmail ? email : undefined);
       window.history.replaceState(null, '', '/'); // the code in the address bar has done its job
       await ctrl.joined(room.id);
     } catch (err) {
-      const failure = classifyJoinError(err instanceof ApiError ? err.status : null, err instanceof ApiError ? err.message : '');
+      const failure = classifyJoinError(err instanceof ApiError ? err.status : null, err instanceof ApiError ? err.message : '', err instanceof ApiError ? err.code : undefined);
       if (failure.kind === 'locked') setLockedFor(failure.seconds);
       else if (failure.kind === 'room') { setNameError(''); ctrl.clearRoom(); setCode(''); } // the room closed or the code changed under us
+      else if (failure.kind === 'email' || (failure.kind === 'taken' && /email/i.test(failure.message))) setEmailError(failure.message);
       else setNameError(failure.message);
       setBusy(false);
     }
   }
 
   const running = room?.status === 'running';
+  const needsEmail = room?.access === 'roster';
   const roomError = lookupFailure && lookupFailure.kind !== 'locked' ? lookupFailure.message : '';
   return (
     <PageCard desk={desk}>
       <form onSubmit={submit} noValidate style={{ display: 'grid', gap: 20 }}>
         <div style={{ display: 'grid', gap: 6 }}>
           <h1 style={mText.h1}>Vào phòng thi</h1>
-          <p style={mText.meta}>Nhập mã phòng mentor đưa, rồi tên của bạn. Tên sẽ hiện trên bảng xếp hạng.{running && ' Phiên đã bắt đầu — sau khi vào, bạn cần chờ mentor duyệt.'}</p>
+          <p style={mText.meta}>Nhập mã phòng mentor đưa, rồi tên của bạn{needsEmail ? ' và email' : ''}. Tên sẽ hiện trên bảng xếp hạng.{running && ' Phiên đã bắt đầu — sau khi vào, bạn cần chờ mentor duyệt.'}</p>
         </div>
         {locked && <ErrorMessage message={`Bạn nhập sai quá nhiều lần, thử lại sau ${lockedFor} giây.`} />}
         <TextField label="Mã phòng" size="lg" mono inputMode="numeric" value={formatRoomCode(code)} disabled={locked}
@@ -67,10 +72,16 @@ export function JoinForm({ desk, state, linkRoom, ctrl }: { desk: boolean; state
         {room && (
           <>
             <InfoBox><InfoRow icon="file-text" k="Đề" v={room.title} /></InfoBox>
-            <TextField label="Tên của bạn" size="lg" value={name} disabled={locked} onChange={v => { setName(v); setNameError(''); }} placeholder="vd. Minh Anh" maxLength={30} autoFocus autoComplete="nickname" error={nameError} />
+            <TextField label="Tên của bạn" size="lg" value={name} disabled={locked} onChange={v => { setName(v); setNameError(''); }} placeholder="vd. Minh Anh" maxLength={30} autoFocus autoComplete="nickname" error={nameError}
+              hint={needsEmail ? 'Hiện trên màn chiếu và bảng xếp hạng.' : undefined} />
+            {needsEmail && (
+              <TextField label="Email" size="lg" type="email" inputMode="email" autoComplete="email" autoCapitalize="off" autoCorrect="off" spellCheck={false} maxLength={254}
+                value={email} disabled={locked} onChange={v => { setEmail(v); setEmailError(''); }} placeholder="ten@gmail.com" error={emailError}
+                hint="Email chỉ để xác nhận bạn thuộc lớp. Chỉ mentor thấy, không hiện cho ai khác." />
+            )}
           </>
         )}
-        <Button type="submit" size="lg" block icon={locked ? 'clock' : 'log-in'} loading={busy} disabled={locked || !room || !name.trim()}>
+        <Button type="submit" size="lg" block icon={locked ? 'clock' : 'log-in'} loading={busy} disabled={locked || !room || !name.trim() || (needsEmail && !email.trim())}>
           {locked ? `Thử lại sau ${lockedFor} giây` : running ? 'Xin vào phiên' : 'Vào phòng'}
         </Button>
       </form>

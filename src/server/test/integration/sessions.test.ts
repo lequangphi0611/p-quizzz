@@ -189,10 +189,10 @@ describe('GET /api/sessions/:id/public', () => {
     const { id } = (await create(exam.id, { name: '#member-0908' })).json<SessionDetail>();
     const pub = async () => app.inject({ url: `/api/sessions/${id}/public` });
 
-    expect((await pub()).json<ActiveSession>()).toEqual({ id, title: 'Đề Git', status: 'draft' });
+    expect((await pub()).json<ActiveSession>()).toEqual({ id, title: 'Đề Git', status: 'draft', access: 'free' });
     await act(id, 'open');
     const res = await pub();
-    expect(res.json<ActiveSession>()).toEqual({ id, title: 'Đề Git', status: 'lobby' });
+    expect(res.json<ActiveSession>()).toEqual({ id, title: 'Đề Git', status: 'lobby', access: 'free' });
     expect(res.body).not.toMatch(/member-0908|roomCode|slot|name/);
     for (const x of ['start', 'close']) await act(id, x);
     expect((await pub()).json<ActiveSession>().status).toBe('finalized');
@@ -233,7 +233,7 @@ describe('GET /sessions', () => {
       { sessionId: a.id, displayName: 'An', token: 'ta', status: 'active', joinedAt: new Date() },
       { sessionId: b.id, displayName: 'Bình', token: 'tb', status: 'pending', joinedAt: new Date() },
     ]).run();
-    expect((await get(a.id)).participants).toEqual([{ id: expect.any(Number), displayName: 'An', status: 'active', joinedAt: expect.any(Number), progress: { state: 'none', attempts: 0, countedScore: null, maxScore: 7, submittedAt: null, editRequest: null } }]);
+    expect((await get(a.id)).participants).toEqual([{ id: expect.any(Number), displayName: 'An', status: 'active', joinedAt: expect.any(Number), progress: { state: 'none', attempts: 0, countedScore: null, maxScore: 7, submittedAt: null, editRequest: null }, email: null }]);
   });
 });
 

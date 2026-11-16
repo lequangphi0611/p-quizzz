@@ -1,6 +1,6 @@
 # S21 — Nhóm học viên và phiên giới hạn theo email
 
-**Phụ thuộc:** S20, S08, S09, S10, S14 · **Trạng thái:** ⬜ chưa làm (UI chờ designer: [group-sessions-ui-prompt.md](../design/group-sessions-ui-prompt.md); phần API/domain làm được trước)
+**Phụ thuộc:** S20, S08, S09, S10, S14 · **Trạng thái:** ✅ xong (2026-11-16)
 
 ## Bối cảnh
 Mentor muốn chỉ người trong lớp mới vào được phiên, và dùng lại danh sách lớp cho nhiều phiên. Business: [PRODUCT.md §7.22, §7.24](../PRODUCT.md) (và §7.7, §7.16). Phiên tự do (chỉ nhập tên) giữ nguyên.
@@ -48,16 +48,27 @@ Mentor muốn chỉ người trong lớp mới vào được phiên, và dùng l
 Xin vào lại khi email trùng (S22). Tên vui ngẫu nhiên. Mở theo cả domain. Xác minh email. Sửa/xoá email trong danh sách của một phiên đang chạy (chỉ thêm).
 
 ## Acceptance criteria
-- [ ] `parseEmailList`: chuẩn hoá hoa/thường, bỏ trùng (`Phi78@Gmail.com` = `phi78@gmail.com`), báo dòng sai định dạng, thêm domain mặc định; có test thuần.
-- [ ] CRUD nhóm; xoá nhóm không đổi danh sách phiên đã tạo (test).
-- [ ] Tạo phiên bằng ba cách (`free`, `groupId`, `emails`); danh sách phiên là bản chụp (sửa nhóm sau không đổi phiên).
-- [ ] Join phiên `roster`: trong danh sách → `active`; ngoài → chặn (thông báo chung) hoặc chờ duyệt theo `outsiderPolicy`; thiếu/sai định dạng email → 400; email trùng → 409 `identity_in_use`.
-- [ ] Thông báo lỗi ngoài danh sách **giống hệt nhau** cho mọi email không có trong danh sách (không lộ gì thêm); sai quá 5 lần/phút từ một IP → 429.
-- [ ] Phiên `free` hoạt động như trước (không đòi email).
-- [ ] Test quét đệ quy: không response nào ngoài `/api/admin/*` chứa `email`; `leak-guard` bắt được khi cố tình trả (test cho guard).
-- [ ] Màn chiếu chỉ nhận được số đếm `joinedCount/rosterSize`, không tên nhóm, không tên người chưa vào.
-- [ ] Mentor thêm email vào phiên đang chạy; email đó vào được. "Lưu thành nhóm" từ nhóm tạm tạo đúng nhóm.
-- [ ] `architecture.md` cập nhật; `npm test`, `npm run typecheck`, `npm run arch:check` pass.
+- [x] `parseEmailList`: chuẩn hoá hoa/thường, bỏ trùng (`Phi78@Gmail.com` = `phi78@gmail.com`), báo dòng sai định dạng, thêm domain mặc định; có test thuần.
+- [x] CRUD nhóm; xoá nhóm không đổi danh sách phiên đã tạo (test).
+- [x] Tạo phiên bằng ba cách (`free`, `groupId`, `emails`); danh sách phiên là bản chụp (sửa nhóm sau không đổi phiên).
+- [x] Join phiên `roster`: trong danh sách → `active`; ngoài → chặn (thông báo chung) hoặc chờ duyệt theo `outsiderPolicy`; thiếu/sai định dạng email → 400; email trùng → 409 `identity_in_use`.
+- [x] Thông báo lỗi ngoài danh sách **giống hệt nhau** cho mọi email không có trong danh sách (không lộ gì thêm); sai quá 5 lần/phút từ một IP → 429.
+- [x] Phiên `free` hoạt động như trước (không đòi email).
+- [x] Test quét đệ quy: không response nào ngoài `/api/admin/*` chứa `email`; `leak-guard` bắt được khi cố tình trả (test cho guard).
+- [x] Màn chiếu chỉ nhận được số đếm `joinedCount/rosterSize`, không tên nhóm, không tên người chưa vào.
+- [x] Mentor thêm email vào phiên đang chạy; email đó vào được. "Lưu thành nhóm" từ nhóm tạm tạo đúng nhóm.
+- [x] `architecture.md` cập nhật; `npm test`, `npm run typecheck`, `npm run arch:check` pass.
 
 ## UI (chờ designer)
 Theo [group-sessions-ui-prompt.md](../design/group-sessions-ui-prompt.md): A2 (quản lý nhóm, xem trước), A3 (bước "Ai được vào?"), A4 (cột email, "Chưa vào", thêm email), A6 (lưu thành nhóm), A7 (số "đã vào X/N"), B1 (form theo loại phiên, lỗi tại chỗ), B5 (người ngoài danh sách). Gợi ý code: feature web mới `features/groups` (mentor), email trong `member-join`; email-list thuần ở `src/shared/`.
+
+## Đã thao tác tay (Playwright, `e2e/s21-groups-email.spec.ts`, ảnh ở `docs/design/S21-assets/`)
+Soạn nhóm: dán 6 dòng (có dòng trùng khác hoa thường, dòng thiếu `@` với domain mặc định, dòng `phi89@` sai) → xem trước báo "4 email hợp lệ · 1 trùng · 1 lỗi", lọc "Cần xem", câu "Khi lưu: bỏ 1 dòng lỗi, gộp 1 dòng trùng." (`1`) → lưu, ô nhập hiện đúng bản đã lưu (`2`). Tạo phiên "Chỉ nhóm" (`3`) → trang điều khiển có thẻ "Ai được vào", "Đã vào 0/4", danh sách "Chưa vào" (`4`). Member trong danh sách vào thẳng (không chờ duyệt), nhập email viết hoa có khoảng trắng vẫn khớp (`5`); người ngoài danh sách trên điện thoại thấy **một** câu duy nhất, tên và email đã gõ vẫn giữ nguyên, và đổi sang email sai domain vẫn thấy đúng câu đó (`6`); chế độ "Cho xin duyệt" đưa người ngoài vào hàng chờ; mentor thấy cột Email và "Chưa vào" (`7`), người ngoài chờ duyệt kèm email (`8`); màn chiếu chỉ có "Đã vào 1/3", không có ký tự `@` nào (`9`); quét các endpoint công khai và `/api/me` không có `@` hay khoá `email`. Danh sách tạm: tạo bằng form (`10`) → sau khi phiên đóng hiện banner nhắc (`11`) → hộp lưu thành nhóm (`12`) → thấy xác nhận và nhóm mới; "Để sau" ẩn nhắc nhưng không xoá danh sách.
+
+## Ghi chú khi làm
+- **Xem trước chạy ở trình duyệt** bằng cùng hàm `parseEmailList` (`src/shared/email-list.ts`) mà server dùng để kiểm lại khi lưu; endpoint `POST /groups/preview` vẫn có (và có test) nhưng web không cần gọi, nên xem trước tức thì và chạy được khi mất mạng.
+- Lưu nhóm chỉ gửi các email sạch; dòng lỗi bị bỏ và xem trước nói rõ ("Khi lưu: bỏ N dòng lỗi, gộp M dòng trùng"). Gọi API trực tiếp với email sai thì server từ chối (400, nêu email sai) thay vì âm thầm bỏ.
+- Tên nhóm duy nhất không phân biệt hoa thường (so ở domain, vì `lower()` của SQLite chỉ biết ASCII).
+- Email "ngoài danh sách" và "đã có người vào" không bao giờ lộ nhau: kiểm danh sách **trước**, nên người lạ không dò được ai đã vào.
+- Theo quyết định PO: nhãn "Chỉ nhóm"/"Danh sách tạm", ô chọn "Chặn / Cho xin duyệt", không có checkbox "thêm vào nhóm gốc"; banner nhắc lưu nhóm có "Để sau" (cờ ở trình duyệt mentor) và **không** tự xoá danh sách tạm.
+- Màn chọn nhóm/soạn nhóm, hộp "Thêm email cho phiên này" và hộp "Lưu thành nhóm" tự dựng bằng component sẵn có theo bản vẽ (chờ designer xem lại).

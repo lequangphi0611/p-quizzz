@@ -141,8 +141,8 @@ export class MemberHomeController {
   }
 
   /** Ask to join the session the code found. Stores the token; rejects with the server error for the form to explain. */
-  async join(sessionId: number, displayName: string, roomCode: string): Promise<void> {
-    const res = await this.gateway.join(sessionId, { displayName, roomCode });
+  async join(sessionId: number, displayName: string, roomCode: string, email?: string): Promise<void> {
+    const res = await this.gateway.join(sessionId, { displayName, roomCode, ...(email ? { email } : {}) });
     this.tokens.setToken(sessionId, res.token);
     this.tokens.setCurrentSessionId(sessionId);
     this.rooms.remember(sessionId, roomCode);

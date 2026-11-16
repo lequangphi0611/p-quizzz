@@ -11,7 +11,7 @@ import { CreateSessionForm } from './CreateSessionForm.js';
 import { SessionCard } from './SessionCard.js';
 
 export function SessionListPage() {
-  const { sessions, exams } = useLoaderData() as SessionListData;
+  const { sessions, exams, groups } = useLoaderData() as SessionListData;
   const nav = useNavigate();
   const [params] = useSearchParams();
   const preselected = Number(params.get('examId')) || null;
@@ -31,7 +31,7 @@ export function SessionListPage() {
         exams.length === 0 ? (
           <ErrorMessage tone="warning" message="Chưa có đề nào để tạo phiên. Hãy import một đề trước." onRetry={() => nav('/admin/exams/import')} retryLabel="Import đề" />
         ) : (
-          <CreateSessionForm exams={exams} initialExamId={preselected} onCancel={() => setCreating(false)} />
+          <CreateSessionForm exams={exams} groups={groups} initialExamId={preselected} onCancel={() => setCreating(false)} />
         )
       )}
 

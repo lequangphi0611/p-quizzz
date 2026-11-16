@@ -1,4 +1,4 @@
-import { NameTakenError } from '../../domain/participant/errors.js';
+import { EmailTakenError, NameTakenError } from '../../domain/participant/errors.js';
 import type { NewParticipant, Participant, ParticipantStatus } from '../../domain/participant/participant.js';
 import type { ParticipantReader, ParticipantRepository } from '../ports/participant-repository.js';
 import type { Snapshottable } from './in-memory-unit-of-work.js';
@@ -21,7 +21,7 @@ export class InMemoryParticipantRepository implements ParticipantRepository, Par
   }
 
   async listNotKicked(sessionId: number) {
-    return this.inSession(sessionId).filter(p => p.status !== 'kicked').map(p => ({ id: p.id, displayName: p.displayName }));
+    return this.inSession(sessionId).filter(p => p.status !== 'kicked').map(p => ({ id: p.id, displayName: p.displayName, email: p.email }));
   }
 
   async listActiveNames(sessionId: number) {
@@ -30,7 +30,8 @@ export class InMemoryParticipantRepository implements ParticipantRepository, Par
 
   async add(p: NewParticipant) {
     const clash = this.inSession(p.sessionId).some(o => o.status !== 'kicked' && o.displayName.toLowerCase() === p.displayName.toLowerCase());
-    if (p.status !== 'kicked' && clash) throw new NameTakenError();
+    if (p.status !== 'kicked' && p.email !== null && this.inSession(p.sessionId).some(o => o.status !== 'kicked' && o.email === p.email)) throw new EmailTakenError();
+    if (p.status !== 'kicked' && clash) throw new NameTakenError('identity_in_use');
     const row = { ...p, id: this.nextId++ };
     this.rows.set(row.id, row);
     return row;

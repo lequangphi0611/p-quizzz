@@ -163,6 +163,14 @@ describe('MemberHomeController: following a session', () => {
     expect(selectScreen(ctrl.getState())).toBe('lobby');
   });
 
+  it('a roster join sends the email with the name; a free join sends none', async () => {
+    const { ctrl, gateway } = make();
+    await ctrl.join(1, 'Phi', '123456', 'phi78@gmail.com');
+    expect(gateway.join).toHaveBeenLastCalledWith(1, { displayName: 'Phi', roomCode: '123456', email: 'phi78@gmail.com' });
+    await ctrl.join(1, 'An', '123456');
+    expect(gateway.join).toHaveBeenLastCalledWith(1, { displayName: 'An', roomCode: '123456' });
+  });
+
   it('a failed join leaves nothing stored and rejects for the form', async () => {
     const { ctrl, tokens } = make({ join: async () => { throw new ApiError(403, 'Mã phòng không đúng'); } });
     await expect(ctrl.join(1, 'An', '000000')).rejects.toThrow('Mã phòng không đúng');

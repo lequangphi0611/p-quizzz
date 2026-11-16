@@ -1,4 +1,5 @@
 import { HttpAdminAuthGateway } from '../features/admin-auth/infrastructure/http-admin-auth-gateway.js';
+import { HttpGroupsGateway } from '../features/groups/infrastructure/http-groups-gateway.js';
 import { HttpExamLibraryGateway } from '../features/exam-import/infrastructure/http-exam-library-gateway.js';
 import { HttpMemberGateway } from '../features/member-join/infrastructure/http-member-gateway.js';
 import { SessionStorageRoomCodeMemory } from '../features/member-join/infrastructure/session-storage-room-code-memory.js';
@@ -38,5 +39,6 @@ export const roomCodeMemory = new SessionStorageRoomCodeMemory();
 export const reviewGateway = new HttpReviewGateway(api);
 export const screenGateway = new HttpScreenGateway(api);
 export const leaderboardGateway = new HttpLeaderboardGateway(api);
+export const groupsGateway = new HttpGroupsGateway(api);
 export const mentorNoticesGateway = new HttpMentorNoticesGateway(api);
 export const seenStore = new LocalStorageSeenStore();

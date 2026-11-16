@@ -3,7 +3,7 @@ import type { ActiveSession, MeResponse } from '../../../../shared/api/index.js'
 import type { SessionStatus } from '../../../../shared/session-state.js';
 import { decideScreen, type MeState } from './member-screen.js';
 
-const room = (status: 'lobby' | 'running' = 'lobby'): ActiveSession => ({ id: 1, title: 'Đề', status });
+const room = (status: 'lobby' | 'running' = 'lobby'): ActiveSession => ({ id: 1, title: 'Đề', status, access: 'free' });
 const me = (p: 'active' | 'pending' | 'kicked', s: SessionStatus, sessionId = 1): MeResponse => ({
   participant: { id: 1, displayName: 'An', status: p, joinedAt: 0 },
   session: { id: sessionId, title: 'Đề', status: s, participantCount: 3, questionCount: 5, totalPoints: 10, hasEssay: true },

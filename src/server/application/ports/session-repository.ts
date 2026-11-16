@@ -1,7 +1,8 @@
-import type { ParticipantProgress } from '../../../shared/api/index.js';
+import type { OutsiderPolicy, ParticipantProgress, RosterSource, SessionAccess } from '../../../shared/api/index.js';
 import type { SessionStatus } from '../../../shared/session-state.js';
 import type { NewSession, Session, SessionPatch } from '../../domain/session/session.js';
 import type { ExamReader } from './exam-repository.js';
+import type { GroupRepository } from './group-repository.js';
 import type { SessionModeId } from '../../domain/session/mode.js';
 
 /** Write side: only reachable inside a unit of work (see `SessionUnitContext`). */
@@ -12,6 +13,14 @@ export interface SessionRepository {
   /** Lowest positive number not used by a session in lobby/running (the "slot" shown to the mentor). */
   lowestFreeSlot(): Promise<number>;
   roomCodeInUse(code: string): Promise<boolean>;
+  /** Copies emails into the session's list (the snapshot, or the mentor adding some later). Returns how many were new. */
+  addRoster(sessionId: number, emails: readonly string[]): Promise<number>;
+  /** The session's list in the order it was typed. */
+  rosterEmails(sessionId: number): Promise<string[]>;
+  /** Is this (normalized) email on the session's list? */
+  hasRosterEmail(sessionId: number, email: string): Promise<boolean>;
+  /** Remember which saved group the list is (or was saved as). */
+  setSourceGroup(sessionId: number, groupId: number): Promise<void>;
 }
 
 // ── Read models (what the mentor's screens show) ─────────────────────────────────────────────────
@@ -21,6 +30,9 @@ export interface SessionSummaryView {
   examTitle: string;
   name: string;
   slot: number | null;
+  access: SessionAccess;
+  outsiderPolicy: OutsiderPolicy;
+  rosterSource: RosterSource | null;
   mode: SessionModeId;
   status: SessionStatus;
   shuffle: boolean;
@@ -41,11 +53,13 @@ export interface SessionParticipantView {
   status: 'active' | 'pending' | 'kicked';
   joinedAt: Date;
   progress: ParticipantProgress;
+  email: string | null;
 }
 
 export interface SessionDetailView extends SessionSummaryView {
   exam: { id: number; title: string; hasEssay: boolean; totalPoints: number };
   participants: SessionParticipantView[];
+  roster: { size: number; joined: number; notJoined: string[] } | null;
 }
 
 /** What the public may see: the exam title, never the mentor's session name. */
@@ -53,6 +67,7 @@ export interface ActiveSessionView {
   id: number;
   title: string;
   status: SessionStatus;
+  access: SessionAccess;
 }
 
 /** The projector chooser (mentor machine only), so it may carry the session name. */
@@ -81,6 +96,8 @@ export interface SessionReader {
   listScreenSessions(): Promise<ScreenSessionView[]>;
   /** The most recent session that has ended (closed/finalized). */
   findLatestEnded(): Promise<ScreenSessionView | null>;
+  /** Numbers only (the projector's "đã vào X/N"): null for a free session or one that does not exist. */
+  rosterCounts(sessionId: number): Promise<{ joinedCount: number; rosterSize: number } | null>;
 }
 
 // ── Seams to modules that have not moved yet ─────────────────────────────────────────────────────
@@ -104,4 +121,5 @@ export interface SessionUnitContext {
   exams: ExamReader;
   attempts: AttemptAutoSubmitter;
   grading: UngradedEssayCounter;
+  groups: GroupRepository;
 }

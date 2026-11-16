@@ -1,7 +1,9 @@
 /** How a failed join attempt is explained to the member (and which field it belongs to). */
 export type JoinFailure =
-  | { kind: 'locked'; seconds: number } // too many wrong room codes (server 429)
+  | { kind: 'locked'; seconds: number } // too many wrong room codes / emails (server 429)
   | { kind: 'room' }
+  | { kind: 'email'; message: string } // not on the list, or not an email: belongs under the email field
+  | { kind: 'taken'; message: string } // the email or name already has someone in the room (`identity_in_use`)
   | { kind: 'name'; message: string };
 
 /** Seconds to wait from the join limiter's 429 message ("… Thử lại sau 42 giây"); 0 when not found. */
@@ -11,10 +13,14 @@ export function retrySecondsFrom(message: string): number {
 }
 
 /** `status` is the HTTP status (0 = no connection), or null when the error did not come from the API at all. */
-export function classifyJoinError(status: number | null, message: string): JoinFailure {
+export function classifyJoinError(status: number | null, message: string, code?: string): JoinFailure {
   if (status === null) return { kind: 'name', message: 'Không vào được phiên' };
   if (status === 429) return { kind: 'locked', seconds: retrySecondsFrom(message) || 30 };
+  // One message for every email that is not on the list (the server never says why): show it as it is.
+  if (status === 403 && /danh sách/i.test(message)) return { kind: 'email', message };
   if (status === 403 || /mã phòng/i.test(message)) return { kind: 'room' };
+  if (status === 400 && /email/i.test(message)) return { kind: 'email', message };
+  if (status === 409 && code === 'identity_in_use') return { kind: 'taken', message };
   if (status === 409) return { kind: 'name', message: `${message}. Thêm họ hoặc một chữ để phân biệt.` };
   return { kind: 'name', message };
 }

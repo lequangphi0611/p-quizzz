@@ -30,6 +30,8 @@ export const normalizeRoomCode = (raw: string): string => raw.replace(/\D/g, '')
 
 // POST /api/sessions/:id/join. The code is validated for format here and for correctness on the server.
 export const JoinBody = DisplayNameBody.extend({
+  // Only roster sessions use it (the server checks); free sessions ignore it. Normalized: trimmed, lower-case.
+  email: z.string().transform(s => s.trim().toLowerCase()).optional(),
   roomCode: z
     .string({ error: 'Nhập mã phòng' })
     .transform(normalizeRoomCode)
@@ -54,4 +56,10 @@ export interface MeResponse {
 // GET /api/sessions/:id/participants — public (projector lobby). Names only: no id, token or status.
 export interface PublicParticipant {
   displayName: string;
+}
+
+// GET /api/sessions/:id/roster-counts (public): only numbers, never who. `null` for free sessions.
+export interface RosterCounts {
+  joinedCount: number;
+  rosterSize: number;
 }

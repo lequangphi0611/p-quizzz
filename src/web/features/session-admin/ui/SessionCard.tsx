@@ -4,6 +4,7 @@ import { Icon } from '../../../shared/ui/Icon.js';
 import { SessionSlot } from '../../../shared/ui/SessionSlot.js';
 import { StatusBadge } from '../../../shared/ui/StatusBadge.js';
 import { formatRoomCode } from '../../../shared/room/room-code.js';
+import { accessLabel } from '../domain/access-ui.js';
 
 /** One open session on the overview: slot, the mentor's name for it, the exam, room code, how many are in, and its two shortcuts. */
 export function SessionCard({ session: s, onControl, onScreen }: { session: SessionSummary; onControl: () => void; onScreen: () => void }) {
@@ -18,6 +19,7 @@ export function SessionCard({ session: s, onControl, onScreen }: { session: Sess
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="file-text" size={14} />{s.examTitle}</span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="hash" size={14} /><span className="pq-tabular" style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-title)', fontWeight: 700 }}>{s.roomCode ? formatRoomCode(s.roomCode) : '—'}</span></span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="users" size={14} /><span className="pq-tabular" style={{ fontFamily: 'var(--font-mono)' }}>{s.participantCount}</span> người</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name={s.access === 'free' ? 'door-open' : 'mail'} size={14} />{accessLabel(s)}</span>
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <Button size="sm" icon="chevron-right" onClick={onControl}>Điều khiển</Button>

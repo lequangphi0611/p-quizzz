@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { CreateSessionBody } from '../../../shared/api/index.js';
+import { AddRosterBody, CreateSessionBody, SaveGroupBody } from '../../../shared/api/index.js';
 import { SESSION_ACTIONS, type SessionAction } from '../../../shared/session-state.js';
 import { SessionNotFoundError } from '../../domain/session/errors.js';
 import type { CreateSession } from '../../application/use-cases/sessions/create-session.js';
@@ -7,6 +7,7 @@ import type { FinalizeSession } from '../../application/use-cases/sessions/final
 import type { CloseSession } from '../../application/use-cases/sessions/close-session.js';
 import type { OpenSession } from '../../application/use-cases/sessions/open-session.js';
 import type { StartSession } from '../../application/use-cases/sessions/start-session.js';
+import type { AddRosterEmails, SaveSessionGroup } from '../../application/use-cases/sessions/roster.js';
 import type { GetPublicSession, GetSessionDetail, ListSessions } from '../../application/use-cases/sessions/queries.js';
 import { sendDomainError } from './domain-errors.js';
 import { parseId } from './params.js';
@@ -21,6 +22,8 @@ export interface SessionUseCases {
   close: CloseSession;
   finalize: FinalizeSession;
   publicSession: GetPublicSession;
+  addRoster: AddRosterEmails;
+  saveGroup: SaveSessionGroup;
 }
 
 // Mentor session routes. Registered inside the requireMentor scope of /api/admin (see buildApp).
@@ -51,6 +54,33 @@ export const sessionsRoutes = (uc: SessionUseCases): FastifyPluginAsync =>
         const id = parseId(req.params.id);
         if (!id) throw new SessionNotFoundError();
         return toSessionDetailDto(await uc.get.execute(id));
+      } catch (err) {
+        return sendDomainError(reply, err);
+      }
+    });
+
+    // Mentor lets more emails into this session's list (an exception); the saved group it came from is untouched.
+    app.post<{ Params: { id: string } }>('/sessions/:id/roster', async (req, reply) => {
+      const id = parseId(req.params.id);
+      if (!id) return reply.code(404).send({ error: new SessionNotFoundError().message });
+      const body = AddRosterBody.safeParse(req.body);
+      if (!body.success) return reply.code(400).send({ error: body.error.issues[0]?.message ?? 'Dữ liệu không hợp lệ' });
+      try {
+        return toSessionDetailDto(await uc.addRoster.execute(id, body.data.emails));
+      } catch (err) {
+        return sendDomainError(reply, err);
+      }
+    });
+
+    // Saves the typed list of this session as a group for later sessions.
+    app.post<{ Params: { id: string } }>('/sessions/:id/save-group', async (req, reply) => {
+      const id = parseId(req.params.id);
+      if (!id) return reply.code(404).send({ error: new SessionNotFoundError().message });
+      const body = SaveGroupBody.safeParse(req.body);
+      if (!body.success) return reply.code(400).send({ error: body.error.issues[0]?.message ?? 'Dữ liệu không hợp lệ' });
+      try {
+        const g = await uc.saveGroup.execute(id, body.data.name);
+        return reply.code(201).send({ id: g.id, name: g.name, emailCount: g.emailCount });
       } catch (err) {
         return sendDomainError(reply, err);
       }

@@ -1,13 +1,30 @@
-import type { ExamSummary, LeaderboardResponse, ParticipantReview, SessionDetail, SessionSummary } from '../../../../shared/api/index.js';
+import type { ExamSummary, GroupSummary, LeaderboardResponse, OutsiderPolicy, ParticipantReview, SessionDetail, SessionSummary } from '../../../../shared/api/index.js';
 import type { SessionAction } from '../../../../shared/session-state.js';
 
-export interface NewSession { examId: number; /** Mentor-only label; blank = the server's default. */ name?: string; shuffle: boolean; autoApprove: boolean }
+import type { NewSessionAccess } from '../domain/access-ui.js';
+
+export interface NewSession {
+  examId: number;
+  /** Mentor-only label; blank = the server's default. */
+  name?: string;
+  shuffle: boolean;
+  autoApprove: boolean;
+  access?: NewSessionAccess;
+  /** Roster sessions: turn outsiders away (default) or let them wait for the mentor. */
+  outsiderPolicy?: OutsiderPolicy;
+}
 
 /** Port: everything the mentor's session pages need from the server. Failures reject with `ApiError`. */
 export interface SessionAdminGateway {
   listSessions(): Promise<SessionSummary[]>;
   listExams(): Promise<ExamSummary[]>;
   createSession(input: NewSession): Promise<SessionDetail>;
+  /** Saved groups, for the "Chỉ nhóm" choice when creating a session. */
+  listGroups(): Promise<GroupSummary[]>;
+  /** Lets more emails into ONE session's list (the saved group it came from is untouched). */
+  addRoster(sessionId: number, emails: string[]): Promise<SessionDetail>;
+  /** Saves the session's typed list as a group; resolves with the new group's name and size. */
+  saveGroup(sessionId: number, name: string): Promise<{ id: number; name: string; emailCount: number }>;
   getSession(id: number): Promise<SessionDetail>;
   /** open / start / close / finalize; returns the updated session. */
   runAction(id: number, action: SessionAction): Promise<SessionDetail>;

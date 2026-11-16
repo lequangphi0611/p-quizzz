@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  KickedOutError, NameTakenError, NotJoinedError, NotPendingError, ParticipantKickedError, ParticipantNotFoundError,
+  EmailTakenError, InvalidEmailError, KickedOutError, NameTakenError, NotInRosterError, NotJoinedError, NotPendingError, ParticipantKickedError, ParticipantNotFoundError,
   SessionClosedForApprovalError, SessionFinalizedError, SessionNotOpenError, WrongRoomCodeError,
 } from '../../../domain/participant/errors.js';
 import { SessionNotFoundError } from '../../../domain/session/errors.js';
@@ -20,13 +20,14 @@ let sessions: InMemorySessionRepository;
 let people: InMemoryParticipantRepository;
 let events: RecordingEventPublisher;
 
-async function build(opts: { autoApprove?: boolean; status?: 'lobby' | 'running' | 'closed' | 'finalized' | 'draft' } = {}) {
+async function build(opts: { autoApprove?: boolean; status?: 'lobby' | 'running' | 'closed' | 'finalized' | 'draft'; roster?: string[]; outsiders?: 'block' | 'pending' } = {}) {
   const exams = new InMemoryExamRepository();
   sessions = new InMemorySessionRepository(exams);
   people = new InMemoryParticipantRepository();
   events = new RecordingEventPublisher();
   const examId = await exams.add({ title: 'T', description: null, sourceMarkdown: '#', totalPoints: 1, hasEssay: false, createdAt: new Date(), questions: [] });
-  const sessionId = await sessions.create({ examId, name: 'Phiên', mode: 'self_paced', shuffle: true, autoApprove: opts.autoApprove ?? false, createdAt: new Date() });
+  const sessionId = await sessions.create({ examId, name: 'Phiên', access: opts.roster ? 'roster' : 'free', outsiderPolicy: opts.outsiders ?? 'block', sourceGroupId: null, mode: 'self_paced', shuffle: true, autoApprove: opts.autoApprove ?? false, createdAt: new Date() });
+  if (opts.roster) await sessions.addRoster(sessionId, opts.roster);
   await sessions.update(sessionId, { status: opts.status ?? 'lobby', roomCode: '123456' });
   const unitOfWork = new InMemoryUnitOfWork({ sessions, participants: people }, [people]);
   const deps = { unitOfWork, clock: new FakeClock(500), tokens: new FakeTokenGenerator(), events };
@@ -144,5 +145,86 @@ describe('ResumeParticipant / ListPublicParticipants', () => {
     await c.approve.execute(a.participant.id);
     expect(await c.listPublic.execute(c.sessionId)).toEqual([{ displayName: 'An' }]);
     await expect(c.listPublic.execute(99)).rejects.toBeInstanceOf(SessionNotFoundError);
+  });
+});
+
+describe('JoinSession in a roster session (PRODUCT.md §7.22)', () => {
+  const roster = ['phi78@gmail.com', 'phi89@gmail.com'];
+  const join = (a: Awaited<ReturnType<typeof build>>, over: { displayName?: string; email?: string } = {}) =>
+    a.join.execute({ sessionId: a.sessionId, displayName: 'Phi', roomCode: '123456', email: 'phi78@gmail.com', ...over });
+
+  it('an email on the list joins straight away (the list is the mentor\'s permission), and the email is stored', async () => {
+    const a = await build({ roster, autoApprove: false });
+    const { participant } = await join(a);
+    expect(participant).toMatchObject({ status: 'active', email: 'phi78@gmail.com' });
+  });
+
+  it('an email that is not on the list is turned away with ONE message, whatever the reason', async () => {
+    const a = await build({ roster });
+    const messages = new Set<string>();
+    for (const email of ['stranger@gmail.com', 'phi78@gmail.vn', 'phi789@gmail.com']) {
+      const err = await join(a, { email }).catch(e => e as Error);
+      expect(err).toBeInstanceOf(NotInRosterError);
+      messages.add((err as Error).message);
+    }
+    expect(messages.size).toBe(1);
+    expect([...messages][0]).toBe('Email này không có trong danh sách của phòng. Kiểm tra lại, hoặc nhắn mentor.');
+    expect(await people.listNotKicked(a.sessionId)).toEqual([]); // nobody was created
+  });
+
+  it('"Cho xin duyệt": an outsider waits for the mentor instead of being turned away', async () => {
+    const a = await build({ roster, outsiders: 'pending' });
+    expect((await join(a, { email: 'stranger@gmail.com' })).participant).toMatchObject({ status: 'pending', email: 'stranger@gmail.com' });
+    expect((await join(a, { displayName: 'An' })).participant.status).toBe('active'); // someone on the list still goes straight in
+  });
+
+  it('the email is required and must look like one', async () => {
+    const a = await build({ roster });
+    await expect(join(a, { email: '' })).rejects.toBeInstanceOf(InvalidEmailError);
+    await expect(join(a, { email: 'phi78@' })).rejects.toBeInstanceOf(InvalidEmailError);
+    await expect(a.join.execute({ sessionId: a.sessionId, displayName: 'Phi', roomCode: '123456' })).rejects.toThrow('Nhập email của bạn');
+  });
+
+  it('one person per email: a second join with it is identity_in_use, even under another name', async () => {
+    const a = await build({ roster });
+    await join(a);
+    const err = await join(a, { displayName: 'Phi 2' }).catch(e => e as EmailTakenError);
+    expect(err).toBeInstanceOf(EmailTakenError);
+    expect(err).toMatchObject({ kind: 'conflict', code: 'identity_in_use' });
+  });
+
+  it('a stranger learns nothing about who has joined: not-on-list wins over email-in-use', async () => {
+    const a = await build({ roster });
+    await join(a);
+    await expect(join(a, { displayName: 'X', email: 'stranger@gmail.com' })).rejects.toBeInstanceOf(NotInRosterError);
+  });
+
+  it('a kicked person frees their email', async () => {
+    const a = await build({ roster });
+    const { participant } = await join(a);
+    await a.kick.execute(participant.id);
+    expect((await join(a, { displayName: 'Phi again' })).participant.status).toBe('active');
+  });
+
+  it('the name is still free text but must be unique; on a clash the join error carries identity_in_use', async () => {
+    const a = await build({ roster });
+    await join(a, { displayName: 'Phi' });
+    const err = await join(a, { displayName: 'phi', email: 'phi89@gmail.com' }).catch(e => e as NameTakenError);
+    expect(err).toBeInstanceOf(NameTakenError);
+    expect(err).toMatchObject({ code: 'identity_in_use' });
+  });
+
+  it('a free session ignores any email that is sent (nothing stored)', async () => {
+    const a = await build({ autoApprove: true });
+    expect((await join(a, { email: 'phi78@gmail.com' })).participant).toMatchObject({ status: 'active', email: null });
+  });
+
+  it('renaming does not offer the "ask to come back" code (that is only for joining)', async () => {
+    const a = await build({ autoApprove: true });
+    const x = (await join(a, { displayName: 'X' })).participant;
+    await join(a, { displayName: 'Y' });
+    const err = await a.rename.execute(x.id, 'Y').catch(e => e as NameTakenError);
+    expect(err).toBeInstanceOf(NameTakenError);
+    expect((err as NameTakenError).code).toBeUndefined();
   });
 });

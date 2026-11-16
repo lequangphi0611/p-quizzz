@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useLoaderData, useNavigate } from 'react-router';
 import type { SessionDetail } from '../../../../shared/api/index.js';
 import { Button } from '../../../shared/ui/Button.js';
@@ -8,15 +9,21 @@ import { SessionSlot } from '../../../shared/ui/SessionSlot.js';
 import { StatusBadge } from '../../../shared/ui/StatusBadge.js';
 import { useSessionDetail } from '../application/session-admin-context.js';
 import { ACTION_FOR_STATUS } from '../domain/session-ui.js';
+import { readPref, writePref, PREF_KEYS } from '../../../shared/storage/prefs.js';
+import { shouldRemindToSave } from '../domain/access-ui.js';
+import { AccessCard } from './AccessCard.js';
 import { JoinCard } from './JoinCard.js';
 import { ParticipantsCard } from './ParticipantsCard.js';
 import { PendingCard } from './PendingCard.js';
+import { AddEmailsDialog, SaveGroupDialog } from './RosterDialogs.js';
+import { SaveGroupBanner } from './SaveGroupBanner.js';
 
 // "/admin/sessions/:id" — the mentor's control page: lifecycle step, who is in, who waits, how to join.
 function SessionDetailView({ initial }: { initial: SessionDetail }) {
   const nav = useNavigate();
   const { state, ctrl } = useSessionDetail(initial);
-  const { detail, error, working, dialog } = state;
+  const { detail, error, working, dialog, notice } = state;
+  const [reminderOff, setReminderOff] = useState(() => readPref(PREF_KEYS.saveReminderOff(initial.id)) === '1');
   const spec = ACTION_FOR_STATUS[detail.status];
   const active = detail.participants.filter(p => p.status === 'active');
   const pending = detail.participants.filter(p => p.status === 'pending');
@@ -53,14 +60,26 @@ function SessionDetailView({ initial }: { initial: SessionDetail }) {
       </div>
 
       {error && <ErrorMessage message={error} />}
+      {notice && (
+        <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 'var(--radius-md)', background: 'var(--correct-surface, var(--brand-050))', color: 'var(--correct-600)', font: 'var(--type-ui)' }}>
+          <Icon name="circle-check" size={16} /><span style={{ flex: 1 }}>{notice}</span><Button size="sm" variant="ghost" onClick={() => ctrl.dismissNotice()}>Đóng</Button>
+        </div>
+      )}
+      {detail.roster && shouldRemindToSave(detail, reminderOff) && (
+        <SaveGroupBanner count={detail.roster.size} onSave={() => ctrl.openDialog({ kind: 'saveGroup' })} onLater={() => { writePref(PREF_KEYS.saveReminderOff(detail.id), '1'); setReminderOff(true); }} />
+      )}
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' }}>
-        <ParticipantsCard status={detail.status} active={active} working={working} finalized={finalized} onRename={(id, name) => ctrl.rename(id, name)} onResolveEdit={(id, decision) => void ctrl.resolveEdit(id, decision)} onKick={p => ctrl.openDialog({ kind: 'kick', p })} />
+        <ParticipantsCard status={detail.status} active={active} working={working} finalized={finalized} showEmail={detail.access === 'roster'} onRename={(id, name) => ctrl.rename(id, name)} onResolveEdit={(id, decision) => void ctrl.resolveEdit(id, decision)} onKick={p => ctrl.openDialog({ kind: 'kick', p })} />
         <div style={{ display: 'grid', gap: 20, flex: '1 1 300px', maxWidth: 420 }}>
           <JoinCard status={detail.status} roomCode={detail.roomCode} />
+          <AccessCard detail={detail} working={working} onAdd={() => ctrl.openDialog({ kind: 'addRoster' })} onSave={() => ctrl.openDialog({ kind: 'saveGroup' })} />
           {pending.length > 0 && <PendingCard status={detail.status} pending={pending} working={working} onApprove={id => void ctrl.approve(id)} onApproveAll={() => void ctrl.approveAll(pending)} onReject={p => ctrl.openDialog({ kind: 'kick', p })} />}
         </div>
       </div>
+
+      <AddEmailsDialog key={dialog?.kind === 'addRoster' ? 'open' : 'closed'} open={dialog?.kind === 'addRoster'} busy={working} onCancel={() => ctrl.closeDialog()} onSubmit={emails => void ctrl.addRoster(emails)} />
+      <SaveGroupDialog key={dialog?.kind === 'saveGroup' ? 'open' : 'closed'} open={dialog?.kind === 'saveGroup'} busy={working} count={detail.roster?.size ?? 0} onCancel={() => ctrl.closeDialog()} onSubmit={name => void ctrl.saveGroup(name)} />
 
       <ConfirmDialog open={dialog?.kind === 'action' && !!spec?.confirm} tone={spec?.variant ?? 'primary'} title={spec?.confirm?.title ?? ''} confirmLabel={spec?.confirm?.confirmLabel} busy={working} onCancel={() => ctrl.closeDialog()} onConfirm={() => ctrl.doAction()}>
         {spec?.confirm?.body(active.length)}

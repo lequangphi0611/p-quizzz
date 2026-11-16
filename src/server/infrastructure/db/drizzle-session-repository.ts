@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import { ACTIVE_STATUSES } from '../../../shared/session-state.js';
 import type {
   ActiveSessionView,
@@ -9,7 +9,8 @@ import type {
   SessionSummaryView,
 } from '../../application/ports/session-repository.js';
 import type { NewSession, Session, SessionPatch } from '../../domain/session/session.js';
-import { exams, participants, sessions } from './schema.js';
+import { exams, participants, sessionRoster, sessions } from './schema.js';
+import type { RosterSource } from '../../../shared/api/index.js';
 import { NO_PROGRESS } from '../../domain/attempt/attempt.js';
 import { loadSessionProgress } from './session-progress.js';
 import type { DbAccess } from './drizzle-exam-repository.js';
@@ -21,6 +22,10 @@ const summaryColumns = {
   examTitle: exams.title,
   name: sessions.name,
   slot: sessions.slot,
+  access: sessions.access,
+  outsiderPolicy: sessions.outsiderPolicy,
+  // "group" once the list is (or was saved as) a saved group; "temp" while it only lives in this session.
+  rosterSource: sql<RosterSource | null>`case when sessions.source_group_id is not null then 'group' when sessions.access = 'roster' then 'temp' else null end`,
   mode: sessions.mode,
   status: sessions.status,
   shuffle: sessions.shuffle,
@@ -46,7 +51,7 @@ export class DrizzleSessionRepository implements SessionRepository {
       db =>
         db
           .insert(sessions)
-          .values({ examId: s.examId, name: s.name, mode: s.mode, shuffle: s.shuffle, autoApprove: s.autoApprove, createdAt: s.createdAt })
+          .values({ examId: s.examId, name: s.name, mode: s.mode, shuffle: s.shuffle, autoApprove: s.autoApprove, access: s.access, outsiderPolicy: s.outsiderPolicy, sourceGroupId: s.sourceGroupId, createdAt: s.createdAt })
           .returning({ id: sessions.id })
           .get().id,
     );
@@ -63,6 +68,33 @@ export class DrizzleSessionRepository implements SessionRepository {
     let slot = 1;
     while (used.has(slot)) slot++;
     return slot;
+  }
+
+  async addRoster(sessionId: number, emails: readonly string[]): Promise<number> {
+    return this.access(db => {
+      const have = new Set(db.select({ email: sessionRoster.email }).from(sessionRoster).where(eq(sessionRoster.sessionId, sessionId)).all().map(r => r.email));
+      let position = have.size;
+      let added = 0;
+      for (const email of emails) {
+        if (have.has(email)) continue;
+        db.insert(sessionRoster).values({ sessionId, email, position: position++ }).run();
+        have.add(email);
+        added++;
+      }
+      return added;
+    });
+  }
+
+  async rosterEmails(sessionId: number): Promise<string[]> {
+    return (await this.access(db => db.select({ email: sessionRoster.email }).from(sessionRoster).where(eq(sessionRoster.sessionId, sessionId)).orderBy(asc(sessionRoster.position)).all())).map(r => r.email);
+  }
+
+  async hasRosterEmail(sessionId: number, email: string): Promise<boolean> {
+    return !!(await this.access(db => db.select({ id: sessionRoster.id }).from(sessionRoster).where(and(eq(sessionRoster.sessionId, sessionId), eq(sessionRoster.email, email))).get()));
+  }
+
+  async setSourceGroup(sessionId: number, groupId: number): Promise<void> {
+    await this.access(db => db.update(sessions).set({ sourceGroupId: groupId }).where(eq(sessions.id, sessionId)).run());
   }
 
   async roomCodeInUse(code: string): Promise<boolean> {
@@ -89,13 +121,13 @@ export class DrizzleSessionReader implements SessionReader {
       if (!row) return null;
       const exam = db.select({ id: exams.id, title: exams.title, hasEssay: exams.hasEssay, totalPoints: exams.totalPoints }).from(exams).where(eq(exams.id, row.examId)).get()!;
       const people = db
-        .select({ id: participants.id, displayName: participants.displayName, status: participants.status, joinedAt: participants.joinedAt })
+        .select({ id: participants.id, displayName: participants.displayName, status: participants.status, joinedAt: participants.joinedAt, email: participants.email })
         .from(participants)
         .where(eq(participants.sessionId, id))
         .orderBy(participants.id)
         .all();
       const progress = loadSessionProgress(db, id, exam.totalPoints);
-      return { ...row, exam, participants: people.map(p => ({ ...p, progress: progress.get(p.id) ?? NO_PROGRESS(exam.totalPoints) })) };
+      return { ...row, exam, participants: people.map(p => ({ ...p, progress: progress.get(p.id) ?? NO_PROGRESS(exam.totalPoints) })), roster: row.access === 'roster' ? rosterOf(db, id) : null };
     });
   }
 
@@ -136,8 +168,17 @@ export class DrizzleSessionReader implements SessionReader {
     return (await this.access(db => this.screenRows(db).where(inArray(sessions.status, ['closed', 'finalized'])).orderBy(desc(sessions.id)).get())) ?? null;
   }
 
+  async rosterCounts(sessionId: number): Promise<{ joinedCount: number; rosterSize: number } | null> {
+    return this.access(db => {
+      const s = db.select({ access: sessions.access }).from(sessions).where(eq(sessions.id, sessionId)).get();
+      if (!s || s.access !== 'roster') return null;
+      const r = rosterOf(db, sessionId);
+      return { joinedCount: r.joined, rosterSize: r.size };
+    });
+  }
+
   private publicRows(db: Parameters<Parameters<DbAccess>[0]>[0]) {
-    return db.select({ id: sessions.id, title: exams.title, status: sessions.status }).from(sessions).innerJoin(exams, eq(sessions.examId, exams.id));
+    return db.select({ id: sessions.id, title: exams.title, status: sessions.status, access: sessions.access }).from(sessions).innerJoin(exams, eq(sessions.examId, exams.id));
   }
 
   private screenRows(db: Parameters<Parameters<DbAccess>[0]>[0]) {
@@ -146,4 +187,16 @@ export class DrizzleSessionReader implements SessionReader {
       .from(sessions)
       .innerJoin(exams, eq(sessions.examId, exams.id));
   }
+}
+
+type Db = Parameters<Parameters<DbAccess>[0]>[0];
+
+/** The list of a roster session: how many emails, how many have someone in (not kicked), and the ones still missing. */
+function rosterOf(db: Db, sessionId: number): { size: number; joined: number; notJoined: string[] } {
+  const emails = db.select({ email: sessionRoster.email }).from(sessionRoster).where(eq(sessionRoster.sessionId, sessionId)).orderBy(asc(sessionRoster.position)).all().map(r => r.email);
+  const present = new Set(
+    db.select({ email: participants.email }).from(participants).where(and(eq(participants.sessionId, sessionId), ne(participants.status, 'kicked'))).all().map(r => r.email),
+  );
+  const notJoined = emails.filter(e => !present.has(e));
+  return { size: emails.length, joined: emails.length - notJoined.length, notJoined };
 }

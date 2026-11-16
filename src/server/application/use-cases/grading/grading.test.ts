@@ -47,7 +47,7 @@ async function setup() {
   );
   const exam = (await exams.findById(examId))!;
   ids = { single: exam.questions[0]!.id, correct: exam.questions[0]!.options[0]!.id, wrong: exam.questions[0]!.options[1]!.id, essay: exam.questions[1]!.id };
-  sessionId = await sessions.create({ examId, name: 'Phiên', mode: 'self_paced', shuffle: false, autoApprove: true, createdAt: new Date() });
+  sessionId = await sessions.create({ examId, name: 'Phiên', access: 'free', outsiderPolicy: 'block', sourceGroupId: null, mode: 'self_paced', shuffle: false, autoApprove: true, createdAt: new Date() });
   await sessions.update(sessionId, { status: 'running', roomCode: '123456' });
 
   const clock = new FakeClock(1000);
@@ -58,7 +58,7 @@ async function setup() {
 
   members = [];
   for (const [name, pick, text] of [['An', 'correct', 'nội dung bài một'], ['Bình', 'wrong', ''], ['Cường', 'correct', 'nội dung bài ba']] as const) {
-    const p = await people.add({ sessionId, displayName: name, token: `t-${name}`, status: 'active', joinedAt: new Date() });
+    const p = await people.add({ sessionId, displayName: name, email: null, token: `t-${name}`, status: 'active', joinedAt: new Date() });
     const { attempt } = await start.execute(p.id);
     await save.execute({ participantId: p.id, attemptId: attempt.id, questionId: ids.single, answer: { selectedOptionIds: [ids[pick]] } });
     if (text) await save.execute({ participantId: p.id, attemptId: attempt.id, questionId: ids.essay, answer: { textAnswer: text } });

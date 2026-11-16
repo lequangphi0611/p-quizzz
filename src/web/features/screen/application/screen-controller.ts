@@ -1,4 +1,4 @@
-import type { ActiveSession, LeaderboardResponse } from '../../../../shared/api/index.js';
+import type { ActiveSession, LeaderboardResponse, RosterCounts } from '../../../../shared/api/index.js';
 import { ApiError } from '../../../shared/api-client/http-client.js';
 import type { ScreenGateway } from './screen-gateway.js';
 
@@ -7,6 +7,8 @@ export interface ScreenState {
   session: ActiveSession | null | undefined;
   names: string[];
   board: LeaderboardResponse | null;
+  /** "Đã vào X/N" for a session limited to a list of emails; null for a free one. Numbers only. */
+  roster: RosterCounts | null;
   roomCode: string | null;
   /** This machine is not the mentor's: the server will not hand out the code. */
   roomHidden: boolean;
@@ -19,7 +21,7 @@ export const SCREEN_POLL_MS = 5000;
  * tested with a fake gateway.
  */
 export class ScreenController {
-  private state: ScreenState = { session: undefined, names: [], board: null, roomCode: null, roomHidden: false };
+  private state: ScreenState = { session: undefined, names: [], board: null, roster: null, roomCode: null, roomHidden: false };
   private listeners = new Set<() => void>();
   private seq = 0;
 
@@ -49,9 +51,9 @@ export class ScreenController {
     const id = this.sessionId;
     const n = ++this.seq;
     try {
-      const [p, b] = await Promise.all([this.gateway.getParticipants(id), this.gateway.getLeaderboard(id)]);
+      const [p, b, r] = await Promise.all([this.gateway.getParticipants(id), this.gateway.getLeaderboard(id), this.gateway.getRosterCounts(id)]);
       if (n !== this.seq) return;
-      this.set({ names: p.map(x => x.displayName), board: b });
+      this.set({ names: p.map(x => x.displayName), board: b, roster: r });
     } catch { /* the next event or poll refreshes */ }
     try {
       const r = await this.gateway.getRoom(id);

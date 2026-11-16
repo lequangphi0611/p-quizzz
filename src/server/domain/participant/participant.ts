@@ -2,7 +2,9 @@ import { displayNameKey } from '../../../shared/api/participants.js';
 import { ACTIVE_STATUSES, type SessionStatus } from '../../../shared/session-state.js';
 import { roomCodeMatches } from '../session/room-code.js';
 import {
+  EmailTakenError,
   NameTakenError,
+  NotInRosterError,
   NotPendingError,
   ParticipantKickedError,
   SessionClosedForApprovalError,
@@ -17,6 +19,8 @@ export interface Participant {
   id: number;
   sessionId: number;
   displayName: string;
+  /** Normalized (lower-case) email in a roster session; null in a free one. Mentor-only data (PRODUCT.md §7.24). */
+  email: string | null;
   /** Secret: identifies the member's browser. Never leaves the server in a response. */
   token: string;
   status: ParticipantStatus;
@@ -28,9 +32,24 @@ export type NewParticipant = Omit<Participant, 'id'>;
 // Rules for who may be in a session. Pure: use cases load the facts and call these.
 
 /** One name per real person, compared case-insensitively over all of Unicode (SQLite's lower() is ASCII-only). Kicked members free their name. */
-export function assertNameFree(others: { id: number; displayName: string }[], name: string, exceptId?: number): void {
+export function assertNameFree(others: { id: number; displayName: string }[], name: string, exceptId?: number, onJoin = false): void {
   const key = displayNameKey(name);
-  if (others.some(o => o.id !== exceptId && displayNameKey(o.displayName) === key)) throw new NameTakenError();
+  if (others.some(o => o.id !== exceptId && displayNameKey(o.displayName) === key)) throw new NameTakenError(onJoin ? 'identity_in_use' : undefined);
+}
+
+/** One person per email in a session (a kicked person frees theirs). Emails are already normalized. */
+export function assertEmailFree(others: { email: string | null }[], email: string): void {
+  if (others.some(o => o.email === email)) throw new EmailTakenError();
+}
+
+/**
+ * A roster session only lets in the emails on its list (PRODUCT.md §7.22): they join straight away (the list is the
+ * mentor's permission). Anyone else is turned away, or waits for the mentor when the session says `pending`.
+ */
+export function rosterDecision(onList: boolean, policy: 'block' | 'pending'): ParticipantStatus {
+  if (onList) return 'active';
+  if (policy === 'pending') return 'pending';
+  throw new NotInRosterError();
 }
 
 /** Joining needs an active (lobby/running) session and its current room code. */

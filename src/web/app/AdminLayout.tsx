@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { Icon } from '../shared/ui/Icon.js';
-type NavKey = 'exams' | 'sessions';
-const NAV: [NavKey, string, string][] = [['exams', 'Đề thi', 'library'], ['sessions', 'Phiên thi', 'list-checks']];
+type NavKey = 'exams' | 'sessions' | 'groups';
+const NAV: [NavKey, string, string][] = [['exams', 'Đề thi', 'library'], ['sessions', 'Phiên thi', 'list-checks'], ['groups', 'Nhóm', 'users']];
 export function AdminLayout({ children, active = 'exams', onNavigate, onLogout, onOpenScreen, notifications, strip }: { children?: ReactNode; active?: NavKey; onNavigate?: (key: NavKey) => void; onLogout?: () => void; onOpenScreen?: () => void; notifications?: ReactNode; strip?: ReactNode }) {
   return (
     <div style={{ minHeight: '100%', background: 'var(--surface-page)' }}>

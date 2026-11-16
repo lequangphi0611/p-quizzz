@@ -1,4 +1,4 @@
-import type { LeaderboardResponse } from '../../../../shared/api/index.js';
+import type { LeaderboardResponse, RosterCounts } from '../../../../shared/api/index.js';
 import { LeaderboardView } from '../../../shared/leaderboard/LeaderboardView.js';
 import { formatRoomCode } from '../../../shared/room/room-code.js';
 
@@ -9,7 +9,7 @@ function JoinAddress({ host }: { host: string }) {
   return <span style={{ font: '700 var(--fs-screen-hero)/1 var(--font-mono)', color: 'var(--sun-400)', wordBreak: 'break-all' }}>{host}</span>;
 }
 
-export function Lobby({ names, host, roomCode, roomHidden }: { names: string[]; host: string; roomCode: string | null; roomHidden: boolean }) {
+export function Lobby({ names, host, roomCode, roomHidden, roster }: { names: string[]; host: string; roomCode: string | null; roomHidden: boolean; roster: RosterCounts | null }) {
   return (
     <div style={{ display: 'grid', gridTemplateRows: 'auto 1fr', gap: 48, height: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 96, flexWrap: 'wrap' }}>
@@ -25,7 +25,7 @@ export function Lobby({ names, host, roomCode, roomHidden }: { names: string[]; 
         </div>
       </div>
       <div style={{ display: 'grid', gap: 24, alignContent: 'start', minHeight: 0 }}>
-        <span style={label}>Đã vào · <span style={{ color: '#fff', fontFamily: 'var(--font-mono)' }}>{names.length}</span></span>
+        <span style={label}>Đã vào · <span style={{ color: '#fff', fontFamily: 'var(--font-mono)' }}>{roster ? `${roster.joinedCount}/${roster.rosterSize}` : names.length}</span></span>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, overflow: 'hidden' }}>{names.map(n => <span key={n} style={chip}>{n}</span>)}</div>
       </div>
     </div>

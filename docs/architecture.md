@@ -32,8 +32,11 @@ exams ──< questions ──< options
 | `exams` | id, title, description?, source_markdown, total_points, has_essay, created_at | `source_markdown` lưu nguyên file đã import. **Đề bất biến** sau khi tạo (không có API sửa). |
 | `questions` | id, exam_id, position, type (`single`\|`multi`\|`essay`), prompt, body, points, explanation? | `position` theo thứ tự trong file. |
 | `options` | id, question_id, position, text, is_correct | |
-| `sessions` | id, exam_id, name, mode (`self_paced`\|`live`), status, shuffle (bool, mặc định true), auto_approve (bool, mặc định false), room_code?, slot?, created_at, opened_at?, started_at?, closed_at?, finalized_at? | MVP chỉ tạo `self_paced`. `room_code`: 6 chữ số ngẫu nhiên, sinh khi `open`, unique; `null` khi còn `draft`. `name`: nhãn **chỉ mentor thấy** để phân biệt các phiên chạy song song (mặc định "tên đề – dd/MM"; member và màn chiếu chỉ thấy tên đề, PRODUCT.md §7.5/§7.24). `slot`: số nhỏ nhất chưa dùng trong các phiên đang mở, gán khi `open`, xoá khi `close`. |
-| `participants` | id, session_id, display_name, token (unique), status (`active`\|`pending`\|`kicked`), joined_at | Unique (session_id, lower(display_name)) cho participant chưa bị kick. |
+| `sessions` | id, exam_id, name, mode (`self_paced`\|`live`), status, shuffle (bool, mặc định true), auto_approve (bool, mặc định false), access (`free`\|`roster`, mặc định `free`), outsider_policy (`block`\|`pending`, mặc định `block`), source_group_id? (→ `groups`, `ON DELETE SET NULL`), room_code?, slot?, created_at, opened_at?, started_at?, closed_at?, finalized_at? | MVP chỉ tạo `self_paced`. `room_code`: 6 chữ số ngẫu nhiên, sinh khi `open`, unique; `null` khi còn `draft`. `name`: nhãn **chỉ mentor thấy** để phân biệt các phiên chạy song song (mặc định "tên đề – dd/MM"; member và màn chiếu chỉ thấy tên đề, PRODUCT.md §7.5/§7.24). `slot`: số nhỏ nhất chưa dùng trong các phiên đang mở, gán khi `open`, xoá khi `close`. |
+| `participants` | id, session_id, display_name, email?, token (unique), status (`active`\|`pending`\|`kicked`), joined_at | Unique (session_id, lower(display_name)) và unique (session_id, email) (email không null) cho participant chưa bị kick. `email`: đã chuẩn hoá (chữ thường), chỉ có ở phiên `roster`, **chỉ mentor thấy** (PRODUCT.md §7.24). |
+| `groups` | id, name, created_at, updated_at | Nhóm học viên của mentor (PRODUCT.md §7.22). Tên duy nhất không phân biệt hoa thường (so ở domain). |
+| `group_emails` | id, group_id (cascade), email, position | Email đã chuẩn hoá, unique (group_id, email), `position` = thứ tự đã gõ. |
+| `session_roster` | id, session_id (cascade), email, position | **Bản chụp** danh sách của một phiên lúc tạo (sửa/xoá nhóm sau không đổi nó); mentor có thể thêm email cho một phiên. Unique (session_id, email). |
 | `attempts` | id, participant_id, attempt_no, question_order (JSON `number[]`), option_order (JSON `Record<questionId, optionId[]>`), started_at, submitted_at?, auto_score?, manual_score?, edit_status? (`pending`\|`approved`\|`rejected`\|`done`), edit_reason?, edit_requested_at?, edit_resolved_at? | Thứ tự trộn sinh **lúc tạo attempt**. Mỗi participant có đúng 1 attempt mỗi phiên (`attempt_no` luôn là 1). `edit_*` = yêu cầu sửa bài tự luận (PRODUCT.md §7.21): tối đa một yêu cầu sống, `rejected` được gửi lại (ghi đè), `approved`/`done` thì không xin thêm. `NULL` = chưa từng xin. |
 | `answers` | id, attempt_id, question_id, selected_option_ids (JSON `number[]`)?, text_answer?, auto_score?, manual_score?, feedback?, graded_at? | Unique (attempt_id, question_id). Upsert khi autosave. |
 | `app_meta` | key, value, updated_at | Đã có. Lưu `admin_password_hash`. |
@@ -62,7 +65,7 @@ function nextStatus(current: SessionStatus, action: SessionAction): SessionStatu
 
 ## 5. API
 
-Mọi body/response là JSON. Lỗi: `{ error: string }` (tiếng Việt, hiển thị được cho người dùng) với status 400/401/403/404/409. Schema zod và type response đặt ở `src/shared/api/<nhóm>.ts`.
+Mọi body/response là JSON. Lỗi: `{ error: string, code?: string }` (tiếng Việt, hiển thị được cho người dùng) với status 400/401/403/404/409; `code` (tuỳ chọn, ví dụ `identity_in_use`) là lý do máy đọc được để web quyết định bước tiếp theo. Schema zod và type response đặt ở `src/shared/api/<nhóm>.ts`.
 
 ### Mentor — `/api/admin`
 | Method | Path | Mô tả |
@@ -74,7 +77,12 @@ Mọi body/response là JSON. Lỗi: `{ error: string }` (tiếng Việt, hiển
 | POST | `/exams` | `{ markdown }` → parse lại phía server; có lỗi → 400 kèm `errors`; ok → tạo exam |
 | GET | `/exams` · `/exams/:id` | list (không kèm câu hỏi) · chi tiết đầy đủ kèm đáp án |
 | DELETE | `/exams/:id` | Chỉ khi chưa có session nào dùng → ngược lại 409 |
-| POST | `/sessions` | `{ examId, name?, shuffle?, autoApprove? }` → session `draft` |
+| POST | `/sessions` | `{ examId, name?, shuffle?, autoApprove?, access?, outsiderPolicy? }` → session `draft`. `access`: `{kind:'free'}` (mặc định) \| `{kind:'group', groupId}` \| `{kind:'emails', emails[]}` (danh sách tạm); phiên `roster` bỏ qua `autoApprove`. |
+| POST | `/sessions/:id/roster` | `{ emails[] }` thêm email cho **một phiên** (ngoại lệ, không sửa nhóm gốc). 409 nếu phiên tự do hoặc đã kết thúc |
+| POST | `/sessions/:id/save-group` | `{ name }` lưu danh sách của phiên thành nhóm → `{ id, name, emailCount }`. 409 nếu đã lưu / tên trùng |
+| POST | `/groups/preview` | `{ text, defaultDomain? }` → `{ valid, duplicates, invalid }` có số dòng (không lưu gì) |
+| GET · POST | `/groups` | danh sách (`emailCount`, `lastUsedAt`) · tạo `{ name, emails[] }` |
+| GET · PUT · DELETE | `/groups/:id` | chi tiết kèm email · thay tên và danh sách · xoá (phiên đã tạo từ nhóm không bị ảnh hưởng) |
 | GET | `/sessions` · `/sessions/:id` | list (mới nhất trước; `?active=true` = chỉ `lobby`/`running`, slot thấp trước) · chi tiết kèm participants, mỗi người có `progress { state: none\|doing\|submitted, attempts, countedScore, maxScore, submittedAt, editRequest }` (`editRequest: { status, reason, requestedAt } \| null`, cho chuông và trang điều khiển) (`submittedAt` = epoch ms lúc nộp lượt được tính, `null` khi chưa nộp; dùng cho chuông thông báo) |
 | POST | `/sessions/:id/{open,start,close,finalize}` | Chuyển trạng thái theo §3; sai → 409 |
 | PATCH | `/participants/:id` | `{ displayName }` đổi tên |
@@ -88,10 +96,11 @@ Mọi body/response là JSON. Lỗi: `{ error: string }` (tiếng Việt, hiển
 ### Công khai / member
 | Method | Path | Auth | Mô tả |
 |---|---|---|---|
-| POST | `/api/rooms/resolve` | — | `{ roomCode }` → `{ id, title, status }` của phiên `lobby`/`running` có mã đó (title = tên đề, không bao giờ trả tên phiên hay mã). Mã sai **hoặc** phiên không còn mở → cùng một lỗi 403 "Mã phòng không đúng"; dùng **chung bộ giới hạn** (5 lần sai/phút/IP → 429) với `join` |
+| POST | `/api/rooms/resolve` | — | `{ roomCode }` → `{ id, title, status, access }` của phiên `lobby`/`running` có mã đó (title = tên đề, không bao giờ trả tên phiên hay mã). Mã sai **hoặc** phiên không còn mở → cùng một lỗi 403 "Mã phòng không đúng"; dùng **chung bộ giới hạn** (5 lần sai/phút/IP → 429) với `join` |
 | GET | `/api/sessions/:id/public` | — | `{ id, title, status }` của một phiên (trang chiếu theo dõi); 404 nếu không có |
 | GET | `/api/network` | — | `{ joinHosts: string[] }` — địa chỉ LAN `ip:cổng` để member gõ vào trình duyệt (cổng lấy từ Host của request) |
-| POST | `/api/sessions/:id/join` | — | `{ displayName, roomCode }` → `{ token, participant }`. Mã sai → 403, sai quá 5 lần/phút từ một IP → 429. Mặc định → `pending` (mentor duyệt, cả ở lobby); phiên có `autoApprove` → `active` ngay; trùng tên → 409 |
+| POST | `/api/sessions/:id/join` | — | `{ displayName, roomCode, email? }` → `{ token, participant }`. Mã sai → 403, sai quá 5 lần/phút từ một IP → 429 (tính chung với `resolve` và với email không có trong danh sách). Phiên tự do: mặc định → `pending`, `autoApprove` → `active` ngay, trùng tên → 409 `{ error, code: 'identity_in_use' }`, `email` bị bỏ qua. Phiên `roster`: `email` bắt buộc (thiếu/sai định dạng → 400); email **trong** danh sách → `active` ngay; **ngoài** danh sách → 403 với **một** thông báo chung (hoặc `pending` nếu `outsider_policy = pending`); email đã có người → 409 `code: 'identity_in_use'` |
+| GET | `/api/sessions/:id/roster-counts` | — | `{ joinedCount, rosterSize }` của phiên `roster` (chỉ số đếm, không tên); `null` cho phiên tự do; 404 nếu không có |
 | GET | `/api/screen/sessions` | chỉ máy mentor (không tính `--allow-remote-admin`) | `{ open: { id, name, slot, title, status }[], latestEnded }` — các phiên `/screen` theo dõi được (có tên phiên nên không ra LAN); `latestEnded` chỉ khi không có phiên nào mở |
 | GET | `/api/screen/sessions/:id/room` | chỉ máy mentor (không tính `--allow-remote-admin`) | `{ roomCode: string \| null }` của phiên `lobby`/`running` đó — cho màn hình chiếu. Không bao giờ trả mã qua endpoint công khai |
 | GET | `/api/sessions/:id/participants` | — | Chỉ `{ displayName }[]` của participant `active` (cho màn hình chiếu) |
@@ -111,7 +120,7 @@ Trước khi session `closed`, **không response nào gửi cho member** đượ
 
 Phòng thủ nhiều lớp:
 1. **DTO dựng từng trường** + test quét đệ quy key `isCorrect`/`is_correct`/`explanation` trên mọi response `/api/me/*`.
-2. **Chốt chặn `src/server/interface/http/leak-guard.ts`** (hook `onSend` toàn cục): response JSON nào ngoài `/api/admin/*` và route review mà chứa các key đó sẽ bị thay bằng 500 và ghi log — bắt lỗi trả nhầm row DB trong tương lai.
+2. **Chốt chặn `src/server/interface/http/leak-guard.ts`** (hook `onSend` toàn cục): response JSON nào ngoài `/api/admin/*` và route review mà chứa các key đó sẽ bị thay bằng 500 và ghi log — bắt lỗi trả nhầm row DB trong tương lai. Key `email`/`emails` bị chặn **cả ở route review** (email chỉ mentor thấy, PRODUCT.md §7.24).
 3. **`/api/admin/*` chỉ mở trên máy mentor** (§4), nên member không đọc được đề qua API mentor.
 4. **Vite dev server** (`npm run dev`) mở ra LAN và mặc định phục vụ mọi file trong repo qua `/@fs/` (gồm `exams/`, `data/`). `vite.config.ts` đặt `server.fs.allow` chỉ gồm `src/web`, `src/shared`, `node_modules` và `deny` cho `exams/`, `data/`, `docs/`, `*.db`. Không nới lỏng mục này.
 

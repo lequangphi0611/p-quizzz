@@ -20,13 +20,13 @@ export function ScreenPage() {
 
 function SessionScreen({ sessionId }: { sessionId: number }) {
   const { state, gateway } = useScreen(sessionId);
-  const { session, names, board, roomCode, roomHidden } = state;
+  const { session, names, board, roster, roomCode, roomHidden } = state;
   const join = useJoinHost(() => gateway.getJoinHosts());
 
   const status = session?.status;
   let body: ReactNode = null;
   if (session === null) body = <Waiting host={join.host} />;
-  else if (status === 'lobby') body = <Lobby names={names} host={join.host} roomCode={roomCode} roomHidden={roomHidden} />;
+  else if (status === 'lobby') body = <Lobby names={names} host={join.host} roomCode={roomCode} roomHidden={roomHidden} roster={roster} />;
   else if (status === 'running') body = <Running board={board} total={names.length} />;
   else if (status === 'closed' || status === 'finalized') body = <Ended board={board} />;
 

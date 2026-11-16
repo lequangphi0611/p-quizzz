@@ -6,5 +6,5 @@ export class HttpMemberGateway implements MemberGateway {
   constructor(private http: HttpClient) {}
   resolveRoom(roomCode: string): Promise<ActiveSession> { return this.http.post<ActiveSession>('/api/rooms/resolve', { roomCode }); }
   getMe(): Promise<MeResponse> { return this.http.get<MeResponse>('/api/me'); }
-  join(sessionId: number, input: { displayName: string; roomCode: string }): Promise<JoinResponse> { return this.http.post<JoinResponse>(`/api/sessions/${sessionId}/join`, input); }
+  join(sessionId: number, input: { displayName: string; roomCode: string; email?: string }): Promise<JoinResponse> { return this.http.post<JoinResponse>(`/api/sessions/${sessionId}/join`, input); }
 }

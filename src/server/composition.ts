@@ -38,6 +38,11 @@ import { CreateSession } from './application/use-cases/sessions/create-session.j
 import { FinalizeSession } from './application/use-cases/sessions/finalize-session.js';
 import { OpenSession } from './application/use-cases/sessions/open-session.js';
 import { GetPublicSession, GetSessionDetail, ListSessions } from './application/use-cases/sessions/queries.js';
+import { CreateGroup, DeleteGroup, GetGroup, ListGroups, UpdateGroup } from './application/use-cases/groups/groups.js';
+import { AddRosterEmails, SaveSessionGroup } from './application/use-cases/sessions/roster.js';
+import { GetRosterCounts } from './application/use-cases/participants/get-roster-counts.js';
+import { DrizzleGroupRepository } from './infrastructure/db/drizzle-group-repository.js';
+import type { GroupUnitContext } from './application/ports/group-repository.js';
 import { StartSession } from './application/use-cases/sessions/start-session.js';
 import { defaultSessionModes } from './domain/session/mode.js';
 import type { Db } from './infrastructure/db/client.js';
@@ -60,6 +65,7 @@ import type { ExamUseCases } from './interface/http/exams-routes.js';
 import type { AdminUseCases } from './interface/http/admin-routes.js';
 import type { ParticipantUseCases } from './interface/http/participants-routes.js';
 import type { SessionUseCases } from './interface/http/sessions-routes.js';
+import type { GroupUseCases } from './interface/http/groups-routes.js';
 
 /** Ports every module shares. Tests pass fakes for any of them (see `application/testing`). */
 export interface SharedPorts {
@@ -75,6 +81,7 @@ export interface Composition {
   eventSource: EventSubscriber;
   exams: ExamUseCases;
   sessions: SessionUseCases;
+  groups: GroupUseCases;
   participants: ParticipantUseCases;
   attempts: AttemptUseCases;
   grading: GradingUseCases;
@@ -105,11 +112,14 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
   }));
 
   const sessionReader = new DrizzleSessionReader(fn => database.read(fn));
+  const groupReader = new DrizzleGroupRepository(fn => database.read(fn));
+  const groupUnitOfWork = new SqliteUnitOfWork<GroupUnitContext>(database, tx => ({ groups: new DrizzleGroupRepository(async fn => fn(tx)) }));
   const sessionUnitOfWork = new SqliteUnitOfWork<SessionUnitContext>(database, tx => {
     const access = async <T>(fn: (db: Db) => T) => fn(tx);
     return {
       sessions: new DrizzleSessionRepository(access),
       exams: new DrizzleExamRepository(access),
+      groups: new DrizzleGroupRepository(access),
       attempts: new AutoSubmitOpenAttempts({
         attempts: new DrizzleAttemptRepository(access),
         sessions: new DrizzleSessionRepository(access),
@@ -181,6 +191,7 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
       kick: new KickParticipant({ unitOfWork: participantUnitOfWork, events: ports.events }),
       approve: new ApproveParticipant({ unitOfWork: participantUnitOfWork, events: ports.events }),
       listPublic: new ListPublicParticipants({ sessions: sessionReader, participants: participantReader }),
+      rosterCounts: new GetRosterCounts(sessionReader),
     },
     resumeParticipant: new ResumeParticipant(participantReader),
     admin: {
@@ -189,6 +200,13 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
       login: new LoginAdmin(adminDeps),
       logout: new LogoutAdmin(adminDeps.sessions),
       authenticate: new AuthenticateAdmin(adminDeps.sessions),
+    },
+    groups: {
+      list: new ListGroups(groupReader),
+      get: new GetGroup(groupReader),
+      create: new CreateGroup({ unitOfWork: groupUnitOfWork, groups: groupReader, clock: ports.clock }),
+      update: new UpdateGroup({ unitOfWork: groupUnitOfWork, groups: groupReader, clock: ports.clock }),
+      remove: new DeleteGroup(groupUnitOfWork),
     },
     sessions: {
       create: new CreateSession({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, clock: ports.clock, modes: lifecycle.modes }),
@@ -199,6 +217,8 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
       close: new CloseSession(lifecycle),
       finalize: new FinalizeSession(lifecycle),
       publicSession: new GetPublicSession(sessionReader),
+      addRoster: new AddRosterEmails({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, events: ports.events }),
+      saveGroup: new SaveSessionGroup({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, events: ports.events, groups: groupReader, clock: ports.clock }),
     },
     exams: {
       preview: new PreviewExam(),

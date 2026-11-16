@@ -15,6 +15,7 @@ import type { Snapshottable } from './in-memory-unit-of-work.js';
 /** Test double for the sessions ports. Reads need the exam repository for titles. Participants are not modelled. */
 export class InMemorySessionRepository implements SessionRepository, SessionReader, Snapshottable {
   private sessions = new Map<number, Session>();
+  private rosters = new Map<number, string[]>();
   private nextId = 1;
 
   constructor(private readonly exams: InMemoryExamRepository) {}
@@ -40,6 +41,26 @@ export class InMemorySessionRepository implements SessionRepository, SessionRead
     return slot;
   }
 
+  async addRoster(sessionId: number, emails: readonly string[]) {
+    const list = [...(this.rosters.get(sessionId) ?? [])];
+    let added = 0;
+    for (const e of emails) if (!list.includes(e)) { list.push(e); added++; }
+    this.rosters.set(sessionId, list);
+    return added;
+  }
+
+  async rosterEmails(sessionId: number) {
+    return [...(this.rosters.get(sessionId) ?? [])];
+  }
+
+  async hasRosterEmail(sessionId: number, email: string) {
+    return (this.rosters.get(sessionId) ?? []).includes(email);
+  }
+
+  async setSourceGroup(sessionId: number, groupId: number) {
+    this.sessions.set(sessionId, { ...this.sessions.get(sessionId)!, sourceGroupId: groupId });
+  }
+
   async roomCodeInUse(code: string) {
     return [...this.sessions.values()].some(s => s.roomCode === code);
   }
@@ -57,7 +78,9 @@ export class InMemorySessionRepository implements SessionRepository, SessionRead
     const summary = await this.summary(id);
     const exam = summary && (await this.exams.findSummary(summary.examId));
     if (!summary || !exam) return null;
-    return { ...summary, exam: { id: exam.id, title: exam.title, hasEssay: exam.hasEssay, totalPoints: exam.totalPoints }, participants: [] };
+    const emails = this.rosters.get(id) ?? [];
+    const roster = summary.access === 'roster' ? { size: emails.length, joined: 0, notJoined: [...emails] } : null; // participants are not modelled here
+    return { ...summary, exam: { id: exam.id, title: exam.title, hasEssay: exam.hasEssay, totalPoints: exam.totalPoints }, participants: [], roster };
   }
 
   async listActive() {
@@ -90,13 +113,19 @@ export class InMemorySessionRepository implements SessionRepository, SessionRead
     return ended ? this.screen(ended) : null;
   }
 
+  async rosterCounts(sessionId: number) {
+    const s = this.sessions.get(sessionId);
+    return s && s.access === 'roster' ? { joinedCount: 0, rosterSize: (this.rosters.get(sessionId) ?? []).length } : null;
+  }
+
   snapshot() {
-    return { sessions: new Map(this.sessions), nextId: this.nextId };
+    return { sessions: new Map(this.sessions), rosters: new Map([...this.rosters].map(([k, v]): [number, string[]] => [k, [...v]])), nextId: this.nextId };
   }
 
   restore(snapshot: unknown) {
     const s = snapshot as ReturnType<InMemorySessionRepository['snapshot']>;
     this.sessions = s.sessions;
+    this.rosters = s.rosters;
     this.nextId = s.nextId;
   }
 
@@ -112,13 +141,13 @@ export class InMemorySessionRepository implements SessionRepository, SessionRead
   private async view(match: (s: Session) => boolean): Promise<ActiveSessionView | null> {
     const found = [...this.sessions.values()].filter(match).sort((a, b) => b.id - a.id)[0];
     const exam = found && (await this.exams.findSummary(found.examId));
-    return found && exam ? { id: found.id, title: exam.title, status: found.status } : null;
+    return found && exam ? { id: found.id, title: exam.title, status: found.status, access: found.access } : null;
   }
 
   private async summary(id: number): Promise<SessionSummaryView | null> {
     const s = this.sessions.get(id);
     const exam = s && (await this.exams.findSummary(s.examId));
-    return s && exam ? { ...s, examTitle: exam.title, participantCount: 0 } : null;
+    return s && exam ? { ...s, examTitle: exam.title, participantCount: 0, rosterSource: s.sourceGroupId !== null ? 'group' : s.access === 'roster' ? 'temp' : null } : null;
   }
 }
 

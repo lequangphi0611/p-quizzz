@@ -45,9 +45,9 @@ async function setup(opts: { shuffle?: boolean; random?: number[] } = {}) {
       ],
     }),
   );
-  sessionId = await sessions.create({ examId, name: 'Phiên', mode: 'self_paced', shuffle: opts.shuffle ?? false, autoApprove: true, createdAt: new Date() });
+  sessionId = await sessions.create({ examId, name: 'Phiên', access: 'free', outsiderPolicy: 'block', sourceGroupId: null, mode: 'self_paced', shuffle: opts.shuffle ?? false, autoApprove: true, createdAt: new Date() });
   await sessions.update(sessionId, { status: 'running', roomCode: '123456' });
-  lan = await people.add({ sessionId, displayName: 'Lan', token: 't1', status: 'active', joinedAt: new Date() });
+  lan = await people.add({ sessionId, displayName: 'Lan', email: null, token: 't1', status: 'active', joinedAt: new Date() });
 
   const unitOfWork = new InMemoryUnitOfWork({ attempts, sessions, participants: people, exams }, [attempts]);
   const reads = { attempts, sessions, exams };
@@ -126,7 +126,7 @@ describe('SaveAnswer / SubmitAttempt', () => {
     await expect(save({ textAnswer: 'x' })).rejects.toBeInstanceOf(InvalidAnswerError);
     await expect(save({ selectedOptionIds: [o[1]![0]!] })).rejects.toThrow('Đáp án không thuộc câu hỏi này');
     await expect(save({ selectedOptionIds: [1] }, 999)).rejects.toThrow('Câu hỏi không thuộc lượt làm bài này');
-    const other = await people.add({ sessionId, displayName: 'Mai', token: 't2', status: 'active', joinedAt: new Date() });
+    const other = await people.add({ sessionId, displayName: 'Mai', email: null, token: 't2', status: 'active', joinedAt: new Date() });
     await expect(uc.save.execute({ participantId: other.id, attemptId: attempt.id, questionId: q[0]!, answer: { selectedOptionIds: [] } })).rejects.toBeInstanceOf(AttemptNotFoundError);
 
     await sessions.update(sessionId, { status: 'closed' });
@@ -173,7 +173,7 @@ describe('answer key visibility', () => {
     const uc = await setup();
     const { attempt } = await uc.start.execute(lan.id);
     expect((await uc.view.execute(lan, attempt.id)).attempt.id).toBe(attempt.id);
-    const other = await people.add({ sessionId, displayName: 'Mai', token: 't2', status: 'active', joinedAt: new Date() });
+    const other = await people.add({ sessionId, displayName: 'Mai', email: null, token: 't2', status: 'active', joinedAt: new Date() });
     await expect(uc.view.execute(other, attempt.id)).rejects.toBeInstanceOf(AttemptNotFoundError);
   });
 });
@@ -191,7 +191,7 @@ describe('GetMemberState / AutoSubmitOpenAttempts', () => {
   it('closing submits open attempts of active members and skips kicked ones', async () => {
     const uc = await setup();
     const a = (await uc.start.execute(lan.id)).attempt;
-    const mai = await people.add({ sessionId, displayName: 'Mai', token: 't2', status: 'active', joinedAt: new Date() });
+    const mai = await people.add({ sessionId, displayName: 'Mai', email: null, token: 't2', status: 'active', joinedAt: new Date() });
     const b = (await uc.start.execute(mai.id)).attempt;
     await people.update(mai.id, { status: 'kicked' });
     expect(await uc.autoSubmit.submitOpenAttempts(sessionId)).toBe(1);
