@@ -1,4 +1,4 @@
-import type { ParticipantProgress } from '../../../shared/api/index.js';
+import type { EditRequestInfo, ParticipantProgress } from '../../../shared/api/index.js';
 import { pickCountedAttempt, scoreAnswer, totalScore } from '../../../shared/scoring.js';
 import type { SessionStatus } from '../../../shared/session-state.js';
 import type { Exam, Question } from '../exam/exam.js';
@@ -11,7 +11,10 @@ import {
   AttemptInProgressError,
   AttemptNotSubmittedError,
   AwaitingApprovalError,
+  EditLockedError,
+  EditRequestNotAllowedError,
   InvalidAnswerError,
+  NoPendingEditRequestError,
   SessionNotRunningError,
 } from './errors.js';
 
@@ -27,7 +30,14 @@ export interface Attempt {
   submittedAt: Date | null;
   autoScore: number | null;
   manualScore: number | null;
+  /** Request to reopen the essay part after submitting (PRODUCT.md §7.21). Null = never asked. */
+  editStatus: EditStatus | null;
+  editReason: string | null;
+  editRequestedAt: Date | null;
+  editResolvedAt: Date | null;
 }
+
+export type EditStatus = 'pending' | 'approved' | 'rejected' | 'done';
 
 export interface Answer {
   id: number;
@@ -42,6 +52,8 @@ export interface Answer {
 }
 
 export type NewAttempt = Pick<Attempt, 'participantId' | 'attemptNo' | 'questionOrder' | 'optionOrder' | 'startedAt'>;
+
+export const NO_EDIT_REQUEST = { editStatus: null, editReason: null, editRequestedAt: null, editResolvedAt: null } as const;
 
 export type AnswerInput = { selectedOptionIds?: number[]; textAnswer?: string };
 
@@ -72,6 +84,50 @@ export function assertCanWork(attempt: Pick<Attempt, 'submittedAt'>, sessionStat
   if (attempt.submittedAt) throw new AttemptAlreadySubmittedError();
   if (sessionStatus !== 'running') throw new SessionNotRunningError();
 }
+
+/**
+ * Saving an answer: normally only on an unsubmitted attempt while the session runs. The one exception is a submitted
+ * attempt whose edit request the mentor approved: then only essay answers can change (PRODUCT.md §7.21).
+ */
+export function assertCanSaveAnswer(attempt: Pick<Attempt, 'submittedAt' | 'editStatus'>, sessionStatus: SessionStatus, questionType: Question['type'] | undefined): void {
+  if (attempt.submittedAt && attempt.editStatus === 'approved') {
+    if (sessionStatus !== 'running') throw new SessionNotRunningError();
+    if (questionType !== undefined && questionType !== 'essay') throw new EditLockedError();
+    return;
+  }
+  assertCanWork(attempt, sessionStatus);
+}
+
+/** Asking to edit the essays: member is active, attempt submitted, session running, and no request is open or already granted. */
+export function assertCanRequestEdit(facts: { attempt: Pick<Attempt, 'submittedAt' | 'editStatus'>; sessionStatus: SessionStatus; participantStatus: ParticipantStatus }): void {
+  if (facts.sessionStatus !== 'running') throw new SessionNotRunningError('Chỉ xin sửa bài khi phiên đang chạy');
+  if (facts.participantStatus !== 'active') throw new AwaitingApprovalError();
+  if (!facts.attempt.submittedAt) throw new AttemptNotSubmittedError();
+  if (facts.attempt.editStatus === 'pending') throw new EditRequestNotAllowedError('Bạn đã gửi yêu cầu, hãy chờ mentor trả lời');
+  if (facts.attempt.editStatus === 'approved' || facts.attempt.editStatus === 'done') throw new EditRequestNotAllowedError('Mỗi bài chỉ được mở lại để sửa một lần');
+}
+
+/** The mentor settles a pending request while the session is still running. */
+export function assertCanResolveEdit(attempt: Pick<Attempt, 'editStatus'>, sessionStatus: SessionStatus | undefined): void {
+  if (sessionStatus !== 'running') throw new SessionNotRunningError('Phiên đã đóng, yêu cầu sửa bài hết hiệu lực');
+  if (attempt.editStatus !== 'pending') throw new NoPendingEditRequestError();
+}
+
+/** The member ends an approved editing window. */
+export function assertCanFinishEdit(attempt: Pick<Attempt, 'editStatus'>): void {
+  if (attempt.editStatus !== 'approved') throw new EditRequestNotAllowedError('Bài này chưa được mở lại để sửa');
+}
+
+/** The request as clients see it: one that was never settled before the session closed reads as `expired`. */
+export function toEditRequestInfo(attempt: Pick<Attempt, 'editStatus' | 'editReason' | 'editRequestedAt' | 'editResolvedAt'>, sessionStatus: SessionStatus | undefined): EditRequestInfo | null {
+  if (!attempt.editStatus || !attempt.editRequestedAt) return null;
+  const open = attempt.editStatus === 'pending' || attempt.editStatus === 'approved';
+  return { status: open && sessionStatus !== 'running' ? 'expired' : attempt.editStatus, reason: attempt.editReason ?? '', requestedAt: attempt.editRequestedAt.getTime(), resolvedAt: attempt.editResolvedAt ? attempt.editResolvedAt.getTime() : null };
+}
+
+/** The member may send a (new) request: a rejected one can be retried. */
+export const canRequestEdit = (attempt: Pick<Attempt, 'submittedAt' | 'editStatus'>, sessionStatus: SessionStatus, participantStatus: ParticipantStatus): boolean =>
+  sessionStatus === 'running' && participantStatus === 'active' && !!attempt.submittedAt && (attempt.editStatus === null || attempt.editStatus === 'rejected');
 
 /** The answer to store for `question`, or `InvalidAnswerError` (400). Duplicate option ids are dropped. */
 export function validateAnswer(attempt: Pick<Attempt, 'questionOrder'>, question: { id: number; type: Question['type']; optionIds: number[] } | null, questionId: number, input: AnswerInput) {
@@ -127,7 +183,7 @@ export function memberAttemptState(facts: { attempts: Attempt[]; sessionStatus: 
   return { current, submitted, canStartNew };
 }
 
-export const NO_PROGRESS = (totalPoints: number): ParticipantProgress => ({ state: 'none', attempts: 0, countedScore: null, maxScore: totalPoints, submittedAt: null });
+export const NO_PROGRESS = (totalPoints: number): ParticipantProgress => ({ state: 'none', attempts: 0, countedScore: null, maxScore: totalPoints, submittedAt: null, editRequest: null });
 
 /** Progress of every participant who has an attempt, keyed by participant id. Official (manual) points count only once finalized. */
 export function computeProgress(
@@ -150,6 +206,7 @@ export function computeProgress(
       countedScore: counted ? counted.score : null,
       maxScore: facts.totalPoints,
       submittedAt: counted ? counted.submittedAt : null,
+      editRequest: toEditRequestInfo(list.find(a => a.id === counted?.id) ?? { editStatus: null, editReason: null, editRequestedAt: null, editResolvedAt: null }, facts.sessionStatus),
     });
   }
   return result;

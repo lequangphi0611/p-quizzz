@@ -14,6 +14,7 @@ import { GradeAnswer } from './application/use-cases/grading/grade-answer.js';
 import { GetLeaderboard } from './application/use-cases/leaderboard/get-leaderboard.js';
 import { GetProjectorRoom } from './application/use-cases/sessions/get-projector-room.js';
 import { AutoSubmitOpenAttempts } from './application/use-cases/attempts/auto-submit-open-attempts.js';
+import { FinishEdit, RequestEdit, ResolveEditRequest } from './application/use-cases/attempts/edit-request.js';
 import { GetAttemptReview, GetAttemptView, GetMemberState, GetParticipantReview } from './application/use-cases/attempts/queries.js';
 import { SaveAnswer } from './application/use-cases/attempts/save-answer.js';
 import { StartAttempt } from './application/use-cases/attempts/start-attempt.js';
@@ -146,6 +147,7 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
   const attemptReads = { attempts: attemptReader, sessions: sessionLookup, exams: examReader };
 
   const gradingReads = { ...attemptReads, participants: participantReader };
+  const editDeps = { unitOfWork: attemptUnitOfWork, clock: ports.clock, events: ports.events };
 
   return {
     eventSource: bus,
@@ -164,6 +166,9 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
       submit: new SubmitAttempt({ unitOfWork: attemptUnitOfWork, clock: ports.clock, events: ports.events }),
       memberState: new GetMemberState({ ...attemptReads, rooms: new DrizzleMemberRoomReader(fn => database.read(fn)) }),
       participantReview: new GetParticipantReview({ ...attemptReads, participants: participantReader }),
+      requestEdit: new RequestEdit(editDeps),
+      finishEdit: new FinishEdit(editDeps),
+      resolveEdit: new ResolveEditRequest(editDeps),
     },
     participants: {
       join: new JoinSession({ unitOfWork: participantUnitOfWork, clock: ports.clock, tokens: ports.tokens, events: ports.events }),

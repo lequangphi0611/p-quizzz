@@ -13,6 +13,7 @@ export class HttpSessionAdminGateway implements SessionAdminGateway {
   runAction(id: number, action: SessionAction): Promise<SessionDetail> { return this.http.post<SessionDetail>(`/api/admin/sessions/${id}/${action}`); }
   async approveParticipant(id: number): Promise<void> { await this.http.post(`/api/admin/participants/${id}/approve`); }
   async kickParticipant(id: number): Promise<void> { await this.http.post(`/api/admin/participants/${id}/kick`); }
+  async resolveEditRequest(id: number, decision: 'approve' | 'reject'): Promise<void> { await this.http.post(`/api/admin/participants/${id}/edit-request/${decision}`); }
   async renameParticipant(id: number, displayName: string): Promise<void> { await this.http.patch(`/api/admin/participants/${id}`, { displayName }); }
   getParticipantReview(id: number): Promise<ParticipantReview> { return this.http.get<ParticipantReview>(`/api/admin/participants/${id}/review`); }
   getLeaderboard(sessionId: number): Promise<LeaderboardResponse> { return this.http.get<LeaderboardResponse>(`/api/sessions/${sessionId}/leaderboard`); }

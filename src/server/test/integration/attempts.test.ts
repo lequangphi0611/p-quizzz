@@ -282,7 +282,7 @@ describe('GET /api/me — attempt state', () => {
       await w.an.submit(v.id);
       const a = (await w.an.me()).json<MeResponse>().attempt;
       expect(a.current).toBeNull();
-      expect(a.submitted).toEqual([{ id: v.id, attemptNo: 1, submittedAt: expect.any(Number), score: 1, maxScore: 3, essayScore: null }]);
+      expect(a.submitted).toEqual([{ id: v.id, attemptNo: 1, submittedAt: expect.any(Number), score: 1, maxScore: 3, essayScore: null, editRequest: null, canRequestEdit: true }]);
       expect(a.canStartNew).toBe(false);
     }
   });
@@ -326,7 +326,7 @@ describe('mentor progress (GET /api/admin/sessions/:id)', () => {
   it('none → doing → submitted, with the counted score', async () => {
     const { an, single, multi, detail } = await world({ essay: false });
     const progress = async () => (await detail()).participants[0]!.progress;
-    expect(await progress()).toEqual({ state: 'none', attempts: 0, countedScore: null, maxScore: 3, submittedAt: null });
+    expect(await progress()).toEqual({ state: 'none', attempts: 0, countedScore: null, maxScore: 3, submittedAt: null, editRequest: null });
 
     const v = (await an.start()).json<AttemptView>();
     expect(await progress()).toMatchObject({ state: 'doing', attempts: 1, countedScore: null, submittedAt: null });

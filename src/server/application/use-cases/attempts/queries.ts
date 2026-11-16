@@ -35,8 +35,9 @@ export class GetAttemptView {
   async execute(participant: Participant, attemptId: number): Promise<AttemptViewData> {
     const attempt = await this.deps.attempts.findOwned(participant.id, attemptId);
     if (!attempt) throw new AttemptNotFoundError();
-    const exam = await loadExam(this.deps, (await loadSession(this.deps, participant.sessionId)).examId);
-    return { attempt, answers: await this.deps.attempts.answersOf(attempt.id), exam };
+    const session = await loadSession(this.deps, participant.sessionId);
+    const exam = await loadExam(this.deps, session.examId);
+    return { attempt, answers: await this.deps.attempts.answersOf(attempt.id), exam, sessionStatus: session.status };
   }
 }
 

@@ -1,8 +1,8 @@
-import type { SessionParticipantDetail } from '../../../../shared/api/index.js';
+import type { EditRequestStatus, SessionParticipantDetail } from '../../../../shared/api/index.js';
 
 // Mentor notifications are derived from the session detail (no extra storage on the server):
 // every non-kicked participant yields a "joined" notice, plus a "submitted" notice once they hand in.
-export type NoticeKind = 'pending' | 'joined' | 'submitted';
+export type NoticeKind = 'pending' | 'joined' | 'submitted' | 'edit';
 
 export interface MentorNotice {
   key: string; // stable across refetches, e.g. "join:12"
@@ -10,6 +10,10 @@ export interface MentorNotice {
   participantId: number;
   displayName: string;
   at: number; // server epoch ms
+  /** `edit` notices (PRODUCT.md §7.21): where the member's request stands, and why they asked. */
+  editStatus?: EditRequestStatus;
+  reason?: string;
+  resolvedAt?: number | null; // when the mentor answered; shown next to the outcome
 }
 
 /** Newest first; at the same instant a submission sorts above a join. */
@@ -21,6 +25,8 @@ export function buildNotices(participants: readonly SessionParticipantDetail[]):
     if (p.progress.submittedAt !== null) {
       out.push({ key: `submit:${p.id}`, kind: 'submitted', participantId: p.id, displayName: p.displayName, at: p.progress.submittedAt });
     }
+    const edit = p.progress.editRequest;
+    if (edit) out.push({ key: `edit:${p.id}:${edit.requestedAt}`, kind: 'edit', participantId: p.id, displayName: p.displayName, at: edit.requestedAt, editStatus: edit.status, reason: edit.reason, resolvedAt: edit.resolvedAt });
   }
   return out.sort((a, b) => b.at - a.at || rank(a) - rank(b) || b.participantId - a.participantId);
 }
@@ -30,6 +36,9 @@ const rank = (n: MentorNotice) => (n.kind === 'submitted' ? 0 : 1);
 export const unreadCount = (notices: readonly MentorNotice[], seenAt: number) => notices.filter(n => n.at > seenAt).length;
 
 export const pendingCount = (participants: readonly SessionParticipantDetail[]) => participants.filter(p => p.status === 'pending').length;
+
+/** Members waiting for an answer to "xin sửa bài". */
+export const editPendingCount = (participants: readonly SessionParticipantDetail[]) => participants.filter(p => p.status !== 'kicked' && p.progress.editRequest?.status === 'pending').length;
 
 /**
  * The "seen" mark is the newest notice time, not Date.now(): both sides of the comparison then come
@@ -41,6 +50,21 @@ export const NOTICE_TEXT: Record<NoticeKind, { text: string; icon: string; color
   pending: { text: 'xin vào phiên, đang chờ duyệt', icon: 'user-plus', color: 'var(--sun-ink)' },
   joined: { text: 'đã vào phiên', icon: 'user-check', color: 'var(--brand-700)' },
   submitted: { text: 'đã nộp bài', icon: 'send', color: 'var(--correct-600)' },
+  edit: { text: 'xin sửa bài tự luận', icon: 'pencil', color: 'var(--sun-ink)' },
+};
+
+/** Something only the mentor can unblock: a person waiting at the door, or a request to edit essays. */
+export const needsAttention = (n: MentorNotice) => n.kind === 'pending' || (n.kind === 'edit' && n.editStatus === 'pending');
+
+/** Items that need the mentor first (still newest first inside each group). */
+export const attentionFirst = (notices: readonly MentorNotice[]): MentorNotice[] => [...notices.filter(needsAttention), ...notices.filter(n => !needsAttention(n))];
+
+/** The outcome shown on an `edit` notice once it is no longer waiting for the mentor. */
+export const EDIT_OUTCOME: Record<Exclude<EditRequestStatus, 'pending'>, { label: string; color: string; icon: string }> = {
+  approved: { label: 'Đã duyệt', color: 'var(--correct-600)', icon: 'circle-check' },
+  done: { label: 'Đã duyệt · đã sửa xong', color: 'var(--correct-600)', icon: 'circle-check' },
+  rejected: { label: 'Đã từ chối', color: 'var(--ink-700)', icon: 'x' },
+  expired: { label: 'Hết hiệu lực — phiên đã đóng', color: 'var(--ink-600)', icon: 'lock' },
 };
 
 /** "(3) p-quizzz" so the mentor sees new activity from another tab. */

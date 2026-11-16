@@ -7,9 +7,8 @@ export interface AttemptViewData {
   attempt: Attempt;
   answers: Answer[];
   exam: Exam;
+  sessionStatus: SessionStatus;
 }
 
 /** Everything a review is built from. Only produced after the access rules were checked (member: from CLOSED; mentor: any time). */
-export interface ReviewData extends AttemptViewData {
-  sessionStatus: SessionStatus;
-}
+export type ReviewData = AttemptViewData;

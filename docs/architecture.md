@@ -33,7 +33,7 @@ exams ──< questions ──< options
 | `options` | id, question_id, position, text, is_correct | |
 | `sessions` | id, exam_id, mode (`self_paced`\|`live`), status, shuffle (bool, mặc định true), auto_approve (bool, mặc định false), room_code?, created_at, opened_at?, started_at?, closed_at?, finalized_at? | MVP chỉ tạo `self_paced`. `room_code`: 6 chữ số ngẫu nhiên, sinh khi `open`, unique; `null` khi còn `draft`. |
 | `participants` | id, session_id, display_name, token (unique), status (`active`\|`pending`\|`kicked`), joined_at | Unique (session_id, lower(display_name)) cho participant chưa bị kick. |
-| `attempts` | id, participant_id, attempt_no, question_order (JSON `number[]`), option_order (JSON `Record<questionId, optionId[]>`), started_at, submitted_at?, auto_score?, manual_score? | Thứ tự trộn sinh **lúc tạo attempt**. Mỗi participant có đúng 1 attempt mỗi phiên (`attempt_no` luôn là 1). |
+| `attempts` | id, participant_id, attempt_no, question_order (JSON `number[]`), option_order (JSON `Record<questionId, optionId[]>`), started_at, submitted_at?, auto_score?, manual_score?, edit_status? (`pending`\|`approved`\|`rejected`\|`done`), edit_reason?, edit_requested_at?, edit_resolved_at? | Thứ tự trộn sinh **lúc tạo attempt**. Mỗi participant có đúng 1 attempt mỗi phiên (`attempt_no` luôn là 1). `edit_*` = yêu cầu sửa bài tự luận (PRODUCT.md §7.21): tối đa một yêu cầu sống, `rejected` được gửi lại (ghi đè), `approved`/`done` thì không xin thêm. `NULL` = chưa từng xin. |
 | `answers` | id, attempt_id, question_id, selected_option_ids (JSON `number[]`)?, text_answer?, auto_score?, manual_score?, feedback?, graded_at? | Unique (attempt_id, question_id). Upsert khi autosave. |
 | `app_meta` | key, value, updated_at | Đã có. Lưu `admin_password_hash`. |
 
@@ -74,10 +74,11 @@ Mọi body/response là JSON. Lỗi: `{ error: string }` (tiếng Việt, hiển
 | GET | `/exams` · `/exams/:id` | list (không kèm câu hỏi) · chi tiết đầy đủ kèm đáp án |
 | DELETE | `/exams/:id` | Chỉ khi chưa có session nào dùng → ngược lại 409 |
 | POST | `/sessions` | `{ examId, shuffle?, autoApprove? }` → session `draft` |
-| GET | `/sessions` · `/sessions/:id` | list (mới nhất trước) · chi tiết kèm participants, mỗi người có `progress { state: none\|doing\|submitted, attempts, countedScore, maxScore, submittedAt }` (`submittedAt` = epoch ms lúc nộp lượt được tính, `null` khi chưa nộp; dùng cho chuông thông báo) |
+| GET | `/sessions` · `/sessions/:id` | list (mới nhất trước) · chi tiết kèm participants, mỗi người có `progress { state: none\|doing\|submitted, attempts, countedScore, maxScore, submittedAt, editRequest }` (`editRequest: { status, reason, requestedAt } \| null`, cho chuông và trang điều khiển) (`submittedAt` = epoch ms lúc nộp lượt được tính, `null` khi chưa nộp; dùng cho chuông thông báo) |
 | POST | `/sessions/:id/{open,start,close,finalize}` | Chuyển trạng thái theo §3; sai → 409 |
 | PATCH | `/participants/:id` | `{ displayName }` đổi tên |
 | POST | `/participants/:id/{kick,approve}` | |
+| POST | `/participants/:id/edit-request/{approve,reject}` | Duyệt/từ chối yêu cầu sửa bài tự luận (§7.21). Chỉ khi phiên `running` và yêu cầu đang `pending`, ngược lại 409. Phát event `participants` |
 | GET | `/sessions/:id/grading` | Câu tự luận + bài làm của các attempt được tính, nhóm theo câu |
 | GET | `/sessions/:id/discussion` | Chế độ thảo luận (S17). Chỉ khi `closed`/`finalized` (khác → 409). Trả `examTitle`, `submitted`, tiến độ chấm `graded/total`. Mỗi câu theo `position`: nội dung, lời giải, options kèm `isCorrect` và **số người chọn**; thống kê đúng/sai/bỏ trống; câu tự luận: các bài **ẩn danh** `{ answerId, label: "Bài #k", textAnswer, manualScore, feedback }` theo thứ tự trộn cố định. **Không** trả `displayName`/`participantId`. Chấm điểm dùng `PUT /answers/:id/grade` |
 | GET | `/participants/:id/review` | Bài làm của một người trong phiên (lượt duy nhất): từng câu theo thứ tự họ thấy, lựa chọn của họ, đáp án đúng, giải thích, điểm. Xem được ở mọi trạng thái phiên (chỉ mentor). `{ participant, state, attempt: ReviewView \| null }` |
@@ -97,8 +98,10 @@ Mọi body/response là JSON. Lỗi: `{ error: string }` (tiếng Việt, hiển
 | GET | `/api/me` | participant | participant + session (id, title, status, `participantCount` = số người `active`, `questionCount`, `totalPoints`, `hasEssay`) + `attempt: { current, submitted[], canStartNew }` (lượt đang làm, lượt đã nộp với điểm tự động `score/maxScore` và `essayScore` = tổng điểm tự luận đã chấm hoặc `null`, `canStartNew` = chưa có lượt nào và phiên đang `running`) |
 | POST | `/api/me/attempts` | participant | Bắt đầu lượt. Cần session `running`, participant `active`; mỗi participant chỉ có 1 lượt/phiên (đã có lượt → 409) |
 | GET | `/api/me/attempts/:id` | participant | Câu hỏi theo thứ tự đã trộn + câu trả lời đã lưu |
-| PUT | `/api/me/attempts/:id/answers/:questionId` | participant | `{ selectedOptionIds }` hoặc `{ textAnswer }` — autosave |
+| PUT | `/api/me/attempts/:id/answers/:questionId` | participant | `{ selectedOptionIds }` hoặc `{ textAnswer }` — autosave. Lượt đã nộp chỉ lưu được **câu tự luận** khi yêu cầu sửa đang `approved` và phiên `running` (§7.21) |
 | POST | `/api/me/attempts/:id/submit` | participant | Nộp, chấm tự động, trả về điểm |
+| POST | `/api/me/attempts/:id/edit-request` | participant | `{ reason }` (1–500 ký tự). Xin sửa bài tự luận sau khi nộp. Cần phiên `running`, lượt đã nộp, chưa có yêu cầu `pending`/`approved`/`done` → ngược lại 409 |
+| POST | `/api/me/attempts/:id/edit-request/finish` | participant | Kết thúc việc sửa (yêu cầu `approved` → `done`) |
 | GET | `/api/me/attempts/:id/review` | participant | Chỉ khi session `closed`/`finalized`: đáp án đúng, giải thích, điểm, nhận xét |
 
 ### ⚠️ Quy tắc không lộ đáp án (bắt buộc có test)
@@ -138,7 +141,7 @@ Hàm thuần trong `src/shared/scoring.ts`:
 | `/admin/sessions/:id/review` | mentor | Xem lại phiên: ai tham gia, bài từng người |
 | `/admin/sessions/:id/discuss` | mentor | Chế độ thảo luận: chiếu từng câu, chấm tự luận cùng lớp (S17) |
 
-Chuông thông báo mentor (PRODUCT.md §7.20) nằm trong khung `/admin/*`: `useMentorNotices` (`features/mentor-notices/application`) lấy `/api/sessions/active`, rồi `/api/admin/sessions/:id` + SSE của phiên đó; danh sách dựng bằng hàm thuần `features/mentor-notices/domain/mentor-notices.ts` từ `joinedAt`/`progress.submittedAt`; mốc đã xem ở `localStorage` key `pq:mentor:notices-seen:<sessionId>`. Thông báo desktop: `useDesktopNotify` (Notification API, cần secure context nên chỉ chạy trên `localhost`), lựa chọn bật/tắt ở `localStorage` key `pq:mentor:desktop-notify`, `tag` theo participant để nhiều tab không hiện trùng. Không có API hay event mới.
+Chuông thông báo mentor (PRODUCT.md §7.20) nằm trong khung `/admin/*`: `useMentorNotices` (`features/mentor-notices/application`) lấy `/api/sessions/active`, rồi `/api/admin/sessions/:id` + SSE của phiên đó; danh sách dựng bằng hàm thuần `features/mentor-notices/domain/mentor-notices.ts` từ `joinedAt`/`progress.submittedAt`; mốc đã xem ở `localStorage` key `pq:mentor:notices-seen:<sessionId>`. Thông báo desktop: `useDesktopNotify` (Notification API, cần secure context nên chỉ chạy trên `localhost`), lựa chọn bật/tắt ở `localStorage` key `pq:mentor:desktop-notify`, `tag` theo participant để nhiều tab không hiện trùng. Loại thông báo "xin sửa bài" (§7.21) dựng từ `progress.editRequest` của chính response đó; event `participants` có sẵn đủ để làm mới, không thêm event mới.
 
 Gọi API qua client lõi `src/web/shared/api-client/` (wrapper `fetch`, interceptor gắn token member, ném `ApiError` có `message` từ `{ error }`); mỗi feature dùng nó qua `Http*Gateway` của mình (§12). UI text tiếng Việt. Hướng dẫn thêm feature: [how-to-add-a-feature.md](how-to-add-a-feature.md).
 

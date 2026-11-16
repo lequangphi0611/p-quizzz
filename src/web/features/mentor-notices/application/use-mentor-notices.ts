@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ActiveSession, SessionDetail } from '../../../../shared/api/index.js';
 import { useSessionEvents } from '../../../shared/events/use-session-events.js';
-import { buildNotices, markSeenAt, pendingCount, unreadCount, type MentorNotice } from '../domain/mentor-notices.js';
+import { buildNotices, editPendingCount, markSeenAt, pendingCount, unreadCount, type MentorNotice } from '../domain/mentor-notices.js';
 import type { MentorNoticesGateway, SeenStore } from './mentor-notices-gateway.js';
 
 export const MentorNoticesServicesContext = createContext<{ gateway: MentorNoticesGateway; seen: SeenStore } | null>(null);
@@ -12,11 +12,15 @@ export interface MentorNoticesState {
   notices: MentorNotice[];
   unread: number;
   pending: number;
+  /** Members waiting for an answer to "xin sửa bài". */
+  editPending: number;
   seenAt: number;
   markAllSeen: () => void;
   refresh: () => void;
   /** Let a waiting member in, then refresh. Rejects with the server error. */
   approve: (participantId: number) => Promise<void>;
+  /** Approve or reject a request to edit essays, then refresh. Rejects with the server error. */
+  resolveEdit: (participantId: number, decision: 'approve' | 'reject') => Promise<void>;
 }
 
 /**
@@ -80,9 +84,11 @@ export function useMentorNotices(recheckKey: string): MentorNoticesState {
     notices,
     unread: unreadCount(notices, seenAt),
     pending: loaded ? pendingCount(detail.participants) : 0,
+    editPending: loaded ? editPendingCount(detail.participants) : 0,
     seenAt,
     markAllSeen,
     refresh: () => void loadDetail(),
     approve: async (participantId: number) => { await gateway.approveParticipant(participantId); void loadDetail(); },
+    resolveEdit: async (participantId: number, decision: 'approve' | 'reject') => { await gateway.resolveEditRequest(participantId, decision); void loadDetail(); },
   };
 }

@@ -1,4 +1,4 @@
-import { assertCanWork, validateAnswer, type AnswerInput } from '../../../domain/attempt/attempt.js';
+import { assertCanSaveAnswer, validateAnswer, type AnswerInput } from '../../../domain/attempt/attempt.js';
 import { AttemptNotFoundError } from '../../../domain/attempt/errors.js';
 import { ParticipantNotFoundError } from '../../../domain/participant/errors.js';
 import { SessionNotFoundError } from '../../../domain/session/errors.js';
@@ -16,9 +16,9 @@ export class SaveAnswer {
       if (!participant) throw new ParticipantNotFoundError();
       const session = await ctx.sessions.findById(participant.sessionId);
       if (!session) throw new SessionNotFoundError();
-      assertCanWork(attempt, session.status);
 
       const question = attempt.questionOrder.includes(input.questionId) ? await ctx.exams.findQuestion(input.questionId) : null;
+      assertCanSaveAnswer(attempt, session.status, question?.type);
       await ctx.attempts.saveAnswer(input.attemptId, input.questionId, validateAnswer(attempt, question, input.questionId, input.answer));
     });
   }

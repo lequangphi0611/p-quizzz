@@ -9,7 +9,7 @@ import {
   assertDiscussionOpen, assertGradable, assertGradingOpen, canFinalize, essayProgress, manualTotal, normalizeFeedback, pickCountedAttempts, shuffleKey,
 } from './grading.js';
 
-const att = (o: Partial<Attempt>): Attempt => ({ id: 1, participantId: 1, attemptNo: 1, questionOrder: [], optionOrder: {}, startedAt: new Date(0), submittedAt: null, autoScore: null, manualScore: null, ...o });
+const att = (o: Partial<Attempt>): Attempt => ({ id: 1, participantId: 1, attemptNo: 1, questionOrder: [], optionOrder: {}, startedAt: new Date(0), submittedAt: null, autoScore: null, manualScore: null, editStatus: null, editReason: null, editRequestedAt: null, editResolvedAt: null, ...o });
 
 describe('shuffle key', () => {
   it('is stable, per question, and unrelated to the answer order', () => {

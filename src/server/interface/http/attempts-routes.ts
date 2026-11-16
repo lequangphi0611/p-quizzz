@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { SaveAnswerBody, type AttemptView, type MeResponse, type ReviewView, type SubmitResponse } from '../../../shared/api/index.js';
+import { EditRequestBody, SaveAnswerBody, type AttemptView, type MeResponse, type ReviewView, type SubmitResponse } from '../../../shared/api/index.js';
 import type { GetAttemptReview, GetAttemptView, GetMemberState, GetParticipantReview } from '../../application/use-cases/attempts/queries.js';
+import type { FinishEdit, RequestEdit, ResolveEditRequest } from '../../application/use-cases/attempts/edit-request.js';
 import type { SaveAnswer } from '../../application/use-cases/attempts/save-answer.js';
 import type { StartAttempt } from '../../application/use-cases/attempts/start-attempt.js';
 import type { SubmitAttempt } from '../../application/use-cases/attempts/submit-attempt.js';
@@ -20,6 +21,9 @@ export interface AttemptUseCases {
   submit: SubmitAttempt;
   memberState: GetMemberState;
   participantReview: GetParticipantReview;
+  requestEdit: RequestEdit;
+  finishEdit: FinishEdit;
+  resolveEdit: ResolveEditRequest;
 }
 
 // Member routes under /api/me, behind requireParticipant (so `req.participant` is set).
@@ -81,6 +85,31 @@ export const meRoutes = (uc: AttemptUseCases, resume: ResumeParticipant): Fastif
           }
         });
 
+        // Ask the mentor to reopen the essays of a submitted attempt (PRODUCT.md §7.21).
+        me.post<{ Params: { id: string } }>('/attempts/:id/edit-request', async (req, reply) => {
+          const id = parseId(req.params.id);
+          if (!id) return sendDomainError(reply, new AttemptNotFoundError());
+          const body = EditRequestBody.safeParse(req.body);
+          if (!body.success) return reply.code(400).send({ error: body.error.issues[0]?.message ?? 'Dữ liệu không hợp lệ' });
+          try {
+            await uc.requestEdit.execute({ participantId: req.participant!.id, attemptId: id, reason: body.data.reason });
+            return reply.code(201).send({ ok: true });
+          } catch (err) {
+            return sendDomainError(reply, err);
+          }
+        });
+
+        me.post<{ Params: { id: string } }>('/attempts/:id/edit-request/finish', async (req, reply) => {
+          const id = parseId(req.params.id);
+          if (!id) return sendDomainError(reply, new AttemptNotFoundError());
+          try {
+            await uc.finishEdit.execute({ participantId: req.participant!.id, attemptId: id });
+            return { ok: true };
+          } catch (err) {
+            return sendDomainError(reply, err);
+          }
+        });
+
         me.post<{ Params: { id: string } }>('/attempts/:id/submit', async (req, reply): Promise<SubmitResponse | undefined> => {
           try {
             const id = parseId(req.params.id);
@@ -97,7 +126,7 @@ export const meRoutes = (uc: AttemptUseCases, resume: ResumeParticipant): Fastif
 
 // Mentor route, registered inside the requireMentor scope of /api/admin: who took part and how they answered
 // (the "view the session again" screen). Any session status.
-export const participantReviewRoutes = (uc: Pick<AttemptUseCases, 'participantReview'>): FastifyPluginAsync =>
+export const participantReviewRoutes = (uc: Pick<AttemptUseCases, 'participantReview' | 'resolveEdit'>): FastifyPluginAsync =>
   async app => {
     app.get<{ Params: { id: string } }>('/participants/:id/review', async (req, reply) => {
       try {
@@ -108,4 +137,18 @@ export const participantReviewRoutes = (uc: Pick<AttemptUseCases, 'participantRe
         return sendDomainError(reply, err);
       }
     });
+
+    // Mentor settles a member's request to edit their essays (PRODUCT.md §7.21).
+    for (const decision of ['approve', 'reject'] as const) {
+      app.post<{ Params: { id: string } }>(`/participants/:id/edit-request/${decision}`, async (req, reply) => {
+        try {
+          const id = parseId(req.params.id);
+          if (!id) throw new ParticipantNotFoundError();
+          await uc.resolveEdit.execute({ participantId: id, decision });
+          return { ok: true };
+        } catch (err) {
+          return sendDomainError(reply, err);
+        }
+      });
+    }
   };

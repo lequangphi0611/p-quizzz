@@ -8,6 +8,24 @@ import type { QuestionType } from '../exam-format/index.js';
 export const MAX_ESSAY_LENGTH = 10_000;
 export const MAX_SELECTED_OPTIONS = 50;
 
+export const MAX_EDIT_REASON_LENGTH = 500;
+
+// Request to reopen the essay part of a submitted attempt (PRODUCT.md §7.21). `expired` = the session closed before the
+// request was settled (derived when read, never stored).
+export type EditRequestStatus = 'pending' | 'approved' | 'rejected' | 'done' | 'expired';
+
+export interface EditRequestInfo {
+  status: EditRequestStatus;
+  reason: string;
+  requestedAt: number; // epoch ms
+  resolvedAt: number | null; // epoch ms the mentor answered (or the member finished editing); null while pending
+}
+
+// POST /api/me/attempts/:id/edit-request
+export const EditRequestBody = z.object({
+  reason: z.string({ error: 'Hãy ghi lý do xin sửa bài' }).trim().min(1, 'Hãy ghi lý do xin sửa bài').max(MAX_EDIT_REASON_LENGTH, 'Lý do tối đa 500 ký tự'),
+});
+
 export interface MemberOption {
   id: number;
   text: string;
@@ -34,6 +52,7 @@ export interface AttemptView {
   attemptNo: number;
   startedAt: number; // epoch ms
   submittedAt: number | null;
+  editRequest: EditRequestInfo | null; // `approved` on a submitted attempt = the essay questions can be edited again
   questions: MemberQuestion[];
   answers: MemberAnswer[];
 }
@@ -47,6 +66,8 @@ export interface AttemptSummary {
   score: number;
   maxScore: number;
   essayScore: number | null; // essay points graded so far (attempt total, not per question) (null = none graded yet); official once the session is finalized
+  editRequest: EditRequestInfo | null;
+  canRequestEdit: boolean; // session running, no pending/approved/finished request yet
 }
 
 export interface CurrentAttempt {

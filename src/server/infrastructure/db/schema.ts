@@ -103,6 +103,11 @@ export const attempts = sqliteTable(
     submittedAt: ts('submitted_at'),
     autoScore: real('auto_score'),
     manualScore: real('manual_score'),
+    // Request to reopen the essay part after submitting (PRODUCT.md §7.21). Null = never asked.
+    editStatus: text('edit_status', { enum: ['pending', 'approved', 'rejected', 'done'] }),
+    editReason: text('edit_reason'),
+    editRequestedAt: ts('edit_requested_at'),
+    editResolvedAt: ts('edit_resolved_at'),
   },
   t => [uniqueIndex('attempts_participant_no_uq').on(t.participantId, t.attemptNo)],
 );

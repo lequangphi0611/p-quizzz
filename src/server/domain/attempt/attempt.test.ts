@@ -12,7 +12,7 @@ import {
 const opt = (id: number, isCorrect: boolean) => ({ id, position: id, text: `o${id}`, isCorrect });
 const q = (id: number, type: 'single' | 'multi' | 'essay', points: number, options = [] as ReturnType<typeof opt>[]) => ({ id, position: id, type, prompt: 'p', body: '', points, explanation: null, options });
 const exam: Pick<Exam, 'questions'> = { questions: [q(1, 'single', 1, [opt(11, true), opt(12, false)]), q(2, 'multi', 2, [opt(21, true), opt(22, true), opt(23, false)]), q(3, 'essay', 4)] };
-const att = (o: Partial<Attempt> = {}): Attempt => ({ id: 1, participantId: 1, attemptNo: 1, questionOrder: [1, 2, 3], optionOrder: {}, startedAt: new Date(0), submittedAt: null, autoScore: null, manualScore: null, ...o });
+const att = (o: Partial<Attempt> = {}): Attempt => ({ id: 1, participantId: 1, attemptNo: 1, questionOrder: [1, 2, 3], optionOrder: {}, startedAt: new Date(0), submittedAt: null, autoScore: null, manualScore: null, editStatus: null, editReason: null, editRequestedAt: null, editResolvedAt: null, ...o });
 
 describe('starting', () => {
   const ok = { sessionStatus: 'running' as const, participantStatus: 'active' as const, existing: [] };

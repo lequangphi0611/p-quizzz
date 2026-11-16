@@ -1,4 +1,4 @@
-import type { Answer, Attempt, NewAttempt } from '../../domain/attempt/attempt.js';
+import { NO_EDIT_REQUEST, type Answer, type Attempt, type EditStatus, type NewAttempt } from '../../domain/attempt/attempt.js';
 import type { AttemptRepository, MemberRoom, MemberRoomReader } from '../ports/attempt-repository.js';
 import type { InMemoryParticipantRepository } from './in-memory-participant-repository.js';
 import type { Snapshottable } from './in-memory-unit-of-work.js';
@@ -58,7 +58,7 @@ export class InMemoryAttemptRepository implements AttemptRepository, Snapshottab
   }
 
   async create(n: NewAttempt) {
-    const attempt: Attempt = { ...n, id: this.nextId++, submittedAt: null, autoScore: null, manualScore: null };
+    const attempt: Attempt = { ...n, id: this.nextId++, submittedAt: null, autoScore: null, manualScore: null, ...NO_EDIT_REQUEST };
     this.attempts.set(attempt.id, attempt);
     return attempt;
   }
@@ -74,6 +74,10 @@ export class InMemoryAttemptRepository implements AttemptRepository, Snapshottab
 
   async markSubmitted(id: number, submittedAt: Date, autoScore: number) {
     this.attempts.set(id, { ...this.attempts.get(id)!, submittedAt, autoScore });
+  }
+
+  async setEditRequest(id: number, edit: { editStatus: EditStatus; editReason: string | null; editRequestedAt: Date | null; editResolvedAt: Date | null }) {
+    this.attempts.set(id, { ...this.attempts.get(id)!, ...edit });
   }
 
   async saveAnswer(attemptId: number, questionId: number, value: { selectedOptionIds?: number[]; textAnswer?: string }) {

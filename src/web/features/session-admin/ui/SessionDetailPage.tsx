@@ -50,7 +50,7 @@ function SessionDetailView({ initial }: { initial: SessionDetail }) {
       {error && <ErrorMessage message={error} />}
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' }}>
-        <ParticipantsCard status={detail.status} active={active} working={working} finalized={finalized} onRename={(id, name) => ctrl.rename(id, name)} onKick={p => ctrl.openDialog({ kind: 'kick', p })} />
+        <ParticipantsCard status={detail.status} active={active} working={working} finalized={finalized} onRename={(id, name) => ctrl.rename(id, name)} onResolveEdit={(id, decision) => void ctrl.resolveEdit(id, decision)} onKick={p => ctrl.openDialog({ kind: 'kick', p })} />
         <div style={{ display: 'grid', gap: 20, flex: '1 1 300px', maxWidth: 420 }}>
           <JoinCard status={detail.status} roomCode={detail.roomCode} />
           {pending.length > 0 && <PendingCard status={detail.status} pending={pending} working={working} onApprove={id => void ctrl.approve(id)} onApproveAll={() => void ctrl.approveAll(pending)} onReject={p => ctrl.openDialog({ kind: 'kick', p })} />}

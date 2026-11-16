@@ -18,12 +18,16 @@ describe('HttpExamGateway', () => {
     await g.saveAnswer(7, 3, { selectedOptionIds: [1] });
     await g.saveAnswer(7, 4, { textAnswer: 'x' });
     await g.submitAttempt(7);
+    await g.requestEdit(7, 'quên ý');
+    await g.finishEdit(7);
     expect(calls).toEqual([
       ['POST', '/api/me/attempts', undefined],
       ['GET', '/api/me/attempts/7', undefined],
       ['PUT', '/api/me/attempts/7/answers/3', { selectedOptionIds: [1] }],
       ['PUT', '/api/me/attempts/7/answers/4', { textAnswer: 'x' }],
       ['POST', '/api/me/attempts/7/submit', undefined],
+      ['POST', '/api/me/attempts/7/edit-request', { reason: 'quên ý' }],
+      ['POST', '/api/me/attempts/7/edit-request/finish', undefined],
     ]);
   });
 

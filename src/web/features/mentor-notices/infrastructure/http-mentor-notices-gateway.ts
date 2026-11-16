@@ -7,4 +7,5 @@ export class HttpMentorNoticesGateway implements MentorNoticesGateway {
   getActive(): Promise<ActiveSession | null> { return this.http.get<ActiveSession | null>('/api/sessions/active'); }
   getSession(id: number): Promise<SessionDetail> { return this.http.get<SessionDetail>(`/api/admin/sessions/${id}`); }
   async approveParticipant(id: number): Promise<void> { await this.http.post(`/api/admin/participants/${id}/approve`); }
+  async resolveEditRequest(id: number, decision: 'approve' | 'reject'): Promise<void> { await this.http.post(`/api/admin/participants/${id}/edit-request/${decision}`); }
 }
