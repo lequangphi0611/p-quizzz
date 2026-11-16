@@ -144,7 +144,7 @@ Gọi API qua `src/web/lib/api.ts` (wrapper `fetch`, tự gắn token member, n�
 
 ## 9. Layering (Clean Architecture)
 
-> Đích của epic #7. Backend đã chuyển xong (P3-5); code cũ phía web (`src/web/pages`, `src/web/lib`, ...) đang được chuyển dần từng feature; phần chưa chuyển được miễn tạm trong allowlist của `arch:check` (xem §9.7). Refactor **không đổi hành vi nghiệp vụ và không đổi §1-§8**.
+> Đích của epic #7. Backend (P3-5) và frontend (P5-3) đã chuyển xong; allowlist của `arch:check` rỗng (§9.7). Refactor **không đổi hành vi nghiệp vụ và không đổi §1-§8**.
 
 ### 9.1 Sơ đồ thư mục đích
 
@@ -226,7 +226,7 @@ Hệ quả: `db.transaction()` của Drizzle chỉ nhận callback đồng bộ 
 - Mọi file dưới `src/` phải nằm trong một layer (đường dẫn theo §9.1) **hoặc** trong allowlist legacy. File mới ngoài layer mà không có trong allowlist sẽ fail: không viết thêm code kiểu cũ.
 - **Allowlist** nằm ở một file duy nhất `scripts/arch/allowlist.ts` (entry kết thúc bằng `/` là cả thư mục). Khi chuyển xong một module, xóa phần của nó khỏi allowlist trong cùng PR. Entry không còn khớp file nào cũng làm `arch:check` fail, nên danh sách chỉ co lại. Mục tiêu cuối: rỗng.
 - Thêm/sửa luật: sửa `scripts/arch/rules.ts` và thêm test fixture tương ứng.
-- **Vỏ lắp ráp (P3-5):** `composition.ts`, `app.ts`, `index.ts`, `config.ts`, `app.test.ts` và `src/server/test/` (helper dựng cả app, test tích hợp HTTP ở `test/integration/`) thuộc layer `server/composition`: chỉ những file này được thấy mọi layer. Backend không còn entry nào trong allowlist; allowlist chỉ còn code web.
+- **Vỏ lắp ráp (P3-5):** `composition.ts`, `app.ts`, `index.ts`, `config.ts`, `app.test.ts` và `src/server/test/` (helper dựng cả app, test tích hợp HTTP ở `test/integration/`) thuộc layer `server/composition`: chỉ những file này được thấy mọi layer. Backend không còn entry nào trong allowlist; từ P5-3 allowlist rỗng hoàn toàn (`LEGACY_ALLOWLIST = []`), mọi file dưới `src/` phải nằm trong một layer.
 
 ## 10. ADR: `UnitOfWork` async trên better-sqlite3
 
@@ -386,4 +386,22 @@ Phía mentor, theo mẫu §12.1.
 - **Loader của router** nằm ở `application` và được gắn gateway tại `router.tsx` (`createSessionAdminLoaders(sessionAdminGateway)`), nên `ui` vẫn không biết `infrastructure`.
 - **SSE qua context:** `useSessionEvents` chuyển sang `shared/events/use-session-events.tsx`, lấy `EventStream` từ `EventStreamProvider` (`app/AppProviders.tsx`); không còn import singleton trực tiếp.
 - Hai feature không import nhau: luật chấm điểm dùng chung (`parseScore`) ở `shared/grading/score.ts`; mỗi feature có gateway riêng dù một vài endpoint trùng (rẻ hơn một abstraction chung).
+
+### 12.4 Phần web còn lại và dọn dẹp (P5-3, issue #22)
+
+Thêm các feature, mỗi feature đủ 4 lớp, gateway riêng, test controller/domain bằng fake:
+
+| Feature | Thay cho | Điểm đáng chú ý |
+|---|---|---|
+| `exam-import` | `ExamImport`, `ExamList`, `ExamDetail` | `ImportController` (preview debounce, bỏ phản hồi cũ, chặn nộp đúp), loader gắn gateway ở `router.tsx`, `useDeleteExam`. |
+| `member-join` | `MemberHome` | `MemberHomeController` (poll + SSE, theo dõi phiên đang mở hoặc phiên vừa tham gia, 401 xoá token, 403 bị kick, phát hiện nộp tự động), `decideScreen`, `classifyJoinError`; cổng `MemberGateway` + `RoomCodeMemory`; token qua `TokenStore`. |
+| `member-review` | `ReviewPage` | `reviewMark`, `notCorrectIndexes`, `useReview`. |
+| `screen` | `ScreenPage` | `ScreenController` (theo phiên mới nhất, tự chuyển phiên, poll + SSE). |
+| `admin-auth` | `AdminLogin` + guard trong router | `createAdminAuthLoaders` (`requireLogin`, `login`), `setupPasswordProblem`. |
+| `mentor-notices` | chuông thông báo | `domain/mentor-notices`, `useMentorNotices` (cổng gateway + `SeenStore`), `useDesktopNotify` ở `ui` (API trình duyệt). |
+
+- **Ghép feature ở `app/`, không import chéo:** `MemberHomePage` nhận `examScreen` (render prop); `app/router.tsx` truyền `MemberExamPage`. Mọi gateway được cấp qua context ở `app/AppProviders.tsx`; `app/composition.ts` là nơi duy nhất `new` implementation.
+- **`shared/` nhận cái dùng chung thật sự:** UI kit (`shared/ui/*`, từ `components/ui`), `Markdown`, `AnswerOption`, `QuestionPreview`, `ReviewQuestions`, `ResultView`; `leaderboard/` (`LeaderboardView` thuần + `Leaderboard` có gateway/SSE); `room/` (`room-code`, `useJoinHost(fetchHosts)`); `format/` (`points`, `date`).
+- **`app/`:** `main.tsx` (điểm vào Vite, `index.html` trỏ tới đây), `router.tsx`, `AdminLayout.tsx`, `composition.ts`, `AppProviders.tsx`.
+- Đã xoá hẳn `src/web/pages`, `lib`, `components`, `layouts`, facade `lib/api.ts` (test hành vi của nó nằm ở `http-client`, `participant-auth`, `token-store`).
 

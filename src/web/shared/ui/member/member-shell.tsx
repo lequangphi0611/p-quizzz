@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { Card } from '../../../components/ui/Card.js';
-import { Icon } from '../../../components/ui/Icon.js';
+import { Card } from '../../../shared/ui/Card.js';
+import { Icon } from '../../../shared/ui/Icon.js';
 import { useMediaQuery } from '../../hooks/useMediaQuery.js';
 import { DESK_MIN } from './breakpoints.js';
 import { MemberLayout } from './MemberLayout.js';

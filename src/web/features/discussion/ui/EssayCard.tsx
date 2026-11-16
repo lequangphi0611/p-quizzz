@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { formatPoints as formatScore } from '../../../shared/format/points.js';
-import { Icon } from '../../../components/ui/Icon.js';
+import { Icon } from '../../../shared/ui/Icon.js';
 
 /** Anonymous essay tile for the projector grid. Deliberately has no name prop — only the shuffled "Bài #n". */
 export function EssayCard({ number, excerpt, status, score, maxScore, current = false, lines = 3, onClick }: {

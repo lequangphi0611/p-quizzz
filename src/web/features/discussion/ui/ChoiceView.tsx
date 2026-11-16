@@ -1,6 +1,6 @@
 import type { DiscussionQuestion } from '../../../../shared/api/index.js';
-import { Markdown } from '../../../components/Markdown.js';
-import { Icon } from '../../../components/ui/Icon.js';
+import { Markdown } from '../../../shared/ui/Markdown.js';
+import { Icon } from '../../../shared/ui/Icon.js';
 import { commonMistakeId, optionLetter, percent } from '../domain/discussion-ui.js';
 import { OptionTally } from './OptionTally.js';
 import { QHeader, RevealButton } from './parts.js';

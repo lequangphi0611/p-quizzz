@@ -1,6 +1,6 @@
 import type { SessionDetail, SessionParticipantInfo } from '../../../../shared/api/index.js';
-import { Button } from '../../../components/ui/Button.js';
-import { Card } from '../../../components/ui/Card.js';
+import { Button } from '../../../shared/ui/Button.js';
+import { Card } from '../../../shared/ui/Card.js';
 
 /** Members waiting for the mentor to let them in (always in the lobby; latecomers while running). */
 export function PendingCard({ status, pending, working, onApprove, onApproveAll, onReject }: {

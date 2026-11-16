@@ -1,6 +1,6 @@
-import { Button } from '../../../components/ui/Button.js';
-import { Icon } from '../../../components/ui/Icon.js';
-import { Kbd } from '../../../components/ui/Kbd.js';
+import { Button } from '../../../shared/ui/Button.js';
+import { Icon } from '../../../shared/ui/Icon.js';
+import { Kbd } from '../../../shared/ui/Kbd.js';
 import { mText } from '../../../shared/ui/member/member-shell.js';
 import { NavCell } from '../../../shared/ui/member/question-nav.js';
 

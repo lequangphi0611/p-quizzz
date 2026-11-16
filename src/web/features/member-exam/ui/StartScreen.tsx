@@ -1,9 +1,9 @@
 import { useState, type ReactNode } from 'react';
 import type { MeResponse } from '../../../../shared/api/index.js';
-import { Button } from '../../../components/ui/Button.js';
-import { ErrorMessage } from '../../../components/ui/ErrorMessage.js';
-import { Icon } from '../../../components/ui/Icon.js';
-import { Kbd } from '../../../components/ui/Kbd.js';
+import { Button } from '../../../shared/ui/Button.js';
+import { ErrorMessage } from '../../../shared/ui/ErrorMessage.js';
+import { Icon } from '../../../shared/ui/Icon.js';
+import { Kbd } from '../../../shared/ui/Kbd.js';
 import { formatPoints } from '../../../shared/format/points.js';
 import { MemberPage, PageCard, mText, useIsDesk, useShowKeys } from '../../../shared/ui/member/member-shell.js';
 import { errorText } from '../application/taking-controller.js';

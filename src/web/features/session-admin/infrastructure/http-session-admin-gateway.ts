@@ -1,4 +1,4 @@
-import type { ExamSummary, LeaderboardResponse, ParticipantReview, SessionDetail, SessionSummary } from '../../../../shared/api/index.js';
+import type { ExamSummary, NetworkInfo, LeaderboardResponse, ParticipantReview, SessionDetail, SessionSummary } from '../../../../shared/api/index.js';
 import type { SessionAction } from '../../../../shared/session-state.js';
 import type { HttpClient } from '../../../shared/api-client/http-client.js';
 import type { NewSession, SessionAdminGateway } from '../application/session-admin-gateway.js';
@@ -16,4 +16,5 @@ export class HttpSessionAdminGateway implements SessionAdminGateway {
   async renameParticipant(id: number, displayName: string): Promise<void> { await this.http.patch(`/api/admin/participants/${id}`, { displayName }); }
   getParticipantReview(id: number): Promise<ParticipantReview> { return this.http.get<ParticipantReview>(`/api/admin/participants/${id}/review`); }
   getLeaderboard(sessionId: number): Promise<LeaderboardResponse> { return this.http.get<LeaderboardResponse>(`/api/sessions/${sessionId}/leaderboard`); }
+  async getJoinHosts(): Promise<string[]> { return (await this.http.get<NetworkInfo>('/api/network')).joinHosts; }
 }

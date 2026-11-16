@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import type { MeResponse } from '../../../../shared/api/index.js';
 import { useExamGateway } from '../application/exam-gateway-context.js';
-import { ResultView } from './ResultView.js';
+import { ResultView } from '../../../shared/ui/member/ResultView.js';
 import { StartScreen } from './StartScreen.js';
 import { TakingView } from './TakingView.js';
 

@@ -2,10 +2,10 @@ import type { ReactNode } from 'react';
 import { QuestionNav } from '../../../shared/ui/QuestionNav.js';
 import { ScreenLayout } from '../../../shared/ui/screen/ScreenLayout.js';
 import { ScreenStage } from '../../../shared/ui/screen/ScreenStage.js';
-import { Button } from '../../../components/ui/Button.js';
-import { ConfirmDialog } from '../../../components/ui/ConfirmDialog.js';
-import { ErrorMessage } from '../../../components/ui/ErrorMessage.js';
-import { Icon } from '../../../components/ui/Icon.js';
+import { Button } from '../../../shared/ui/Button.js';
+import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog.js';
+import { ErrorMessage } from '../../../shared/ui/ErrorMessage.js';
+import { Icon } from '../../../shared/ui/Icon.js';
 import { st } from './styles.js';
 
 /** Projector frame of the discussion: top bar, question strip, content area, key hints and the finalize dialog. */

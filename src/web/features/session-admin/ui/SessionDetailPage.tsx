@@ -1,10 +1,10 @@
 import { useLoaderData, useNavigate } from 'react-router';
 import type { SessionDetail } from '../../../../shared/api/index.js';
-import { Button } from '../../../components/ui/Button.js';
-import { ConfirmDialog } from '../../../components/ui/ConfirmDialog.js';
-import { ErrorMessage } from '../../../components/ui/ErrorMessage.js';
-import { Icon } from '../../../components/ui/Icon.js';
-import { StatusBadge } from '../../../components/ui/StatusBadge.js';
+import { Button } from '../../../shared/ui/Button.js';
+import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog.js';
+import { ErrorMessage } from '../../../shared/ui/ErrorMessage.js';
+import { Icon } from '../../../shared/ui/Icon.js';
+import { StatusBadge } from '../../../shared/ui/StatusBadge.js';
 import { useSessionDetail } from '../application/session-admin-context.js';
 import { ACTION_FOR_STATUS } from '../domain/session-ui.js';
 import { JoinCard } from './JoinCard.js';

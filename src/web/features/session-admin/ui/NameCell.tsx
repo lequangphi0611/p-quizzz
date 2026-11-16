@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { SessionParticipantInfo } from '../../../../shared/api/index.js';
-import { Button } from '../../../components/ui/Button.js';
-import { Icon } from '../../../components/ui/Icon.js';
+import { Button } from '../../../shared/ui/Button.js';
+import { Icon } from '../../../shared/ui/Icon.js';
 
 export function NameCell({ p, disabled, readOnly, onSave }: { p: SessionParticipantInfo; disabled: boolean; readOnly: boolean; onSave: (name: string) => Promise<boolean> }) {
   const [editing, setEditing] = useState(false);

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Button } from '../../../components/ui/Button.js';
+import { Button } from '../../../shared/ui/Button.js';
 import { useKeyboardOpen } from '../../../shared/hooks/useKeyboardOpen.js';
 import { MemberLayout } from '../../../shared/ui/member/MemberLayout.js';
 import { StripNav } from '../../../shared/ui/member/question-nav.js';

@@ -1,6 +1,6 @@
 import { useCallback, useMemo, type ReactNode } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
-import { Icon } from '../../../components/ui/Icon.js';
+import { Icon } from '../../../shared/ui/Icon.js';
 import { useFullscreen } from '../../../shared/hooks/useFullscreen.js';
 import { useDiscussion } from '../application/use-discussion.js';
 import { questionIndexFromSearch, questionProgress, splitPapers } from '../domain/discussion-ui.js';

@@ -1,7 +1,7 @@
 import type { SessionDetail, SessionParticipantDetail } from '../../../../shared/api/index.js';
-import { Button } from '../../../components/ui/Button.js';
-import { Card } from '../../../components/ui/Card.js';
-import { th, td } from '../../../components/ui/tableStyles.js';
+import { Button } from '../../../shared/ui/Button.js';
+import { Card } from '../../../shared/ui/Card.js';
+import { th, td } from '../../../shared/ui/tableStyles.js';
 import { PROGRESS_LABEL, formatProgressScore } from '../domain/session-ui.js';
 import { NameCell } from './NameCell.js';
 

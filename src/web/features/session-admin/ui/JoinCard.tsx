@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import type { SessionDetail } from '../../../../shared/api/index.js';
-import { Button } from '../../../components/ui/Button.js';
-import { Card } from '../../../components/ui/Card.js';
-import { ErrorMessage } from '../../../components/ui/ErrorMessage.js';
-import { useJoinHost } from '../../../lib/join-url.js';
-import { formatRoomCode, joinLink } from '../../../lib/room-code.js';
+import { Button } from '../../../shared/ui/Button.js';
+import { Card } from '../../../shared/ui/Card.js';
+import { ErrorMessage } from '../../../shared/ui/ErrorMessage.js';
+import { useSessionAdminGateway } from '../application/session-admin-context.js';
+import { useJoinHost } from '../../../shared/room/join-url.js';
+import { formatRoomCode, joinLink } from '../../../shared/room/room-code.js';
 
 const caption = { font: 'var(--type-label)', textTransform: 'uppercase', letterSpacing: 'var(--tracking-label)', color: 'var(--brand-700)' } as const;
 
 // What the mentor hands out: the address, the room code, and a link that has the code built in.
 export function JoinCard({ status, roomCode }: { status: SessionDetail['status']; roomCode: string | null }) {
-  const { host, unreachable } = useJoinHost();
+  const gateway = useSessionAdminGateway();
+  const { host, unreachable } = useJoinHost(() => gateway.getJoinHosts());
   const [copied, setCopied] = useState(false);
   const open = status === 'lobby' || status === 'running';
   const link = roomCode ? joinLink(host, roomCode) : '';

@@ -5,12 +5,4 @@
  * Every refactor issue removes the entries for the module it moves; the goal is an empty list.
  * An entry that matches no file fails `npm run arch:check`, so the list can only shrink.
  */
-export const LEGACY_ALLOWLIST: string[] = [
-  // Web
-  'src/web/main.tsx',
-  'src/web/router.tsx',
-  'src/web/components/',
-  'src/web/layouts/',
-  'src/web/lib/',
-  'src/web/pages/',
-];
+export const LEGACY_ALLOWLIST: string[] = [];

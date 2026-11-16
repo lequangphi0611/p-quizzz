@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MeResponse } from '../../../../shared/api/index.js';
-import { ConfirmDialog } from '../../../components/ui/ConfirmDialog.js';
-import { ErrorMessage } from '../../../components/ui/ErrorMessage.js';
+import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog.js';
+import { ErrorMessage } from '../../../shared/ui/ErrorMessage.js';
 import { SaveIndicator } from '../../../shared/ui/SaveIndicator.js';
-import { Spinner } from '../../../components/ui/Spinner.js';
+import { Spinner } from '../../../shared/ui/Spinner.js';
 import { useOnline } from '../../../shared/hooks/useOnline.js';
 import { MemberPage, useIsDesk, useShowKeys } from '../../../shared/ui/member/member-shell.js';
 import { useTakingExam } from '../application/use-taking-exam.js';

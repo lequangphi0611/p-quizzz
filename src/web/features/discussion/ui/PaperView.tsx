@@ -1,8 +1,8 @@
 import type { DiscussionAnswer, DiscussionQuestion } from '../../../../shared/api/index.js';
-import { Markdown } from '../../../components/Markdown.js';
-import { Button } from '../../../components/ui/Button.js';
-import { Icon } from '../../../components/ui/Icon.js';
-import { TextField } from '../../../components/ui/TextField.js';
+import { Markdown } from '../../../shared/ui/Markdown.js';
+import { Button } from '../../../shared/ui/Button.js';
+import { Icon } from '../../../shared/ui/Icon.js';
+import { TextField } from '../../../shared/ui/TextField.js';
 import { formatPoints } from '../../../shared/format/points.js';
 import { SaveIndicator } from '../../../shared/ui/SaveIndicator.js';
 import type { Draft } from '../domain/grade-draft.js';

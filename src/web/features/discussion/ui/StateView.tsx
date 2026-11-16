@@ -1,7 +1,7 @@
-import { Button } from '../../../components/ui/Button.js';
-import { ErrorMessage } from '../../../components/ui/ErrorMessage.js';
-import { Icon } from '../../../components/ui/Icon.js';
-import { Spinner } from '../../../components/ui/Spinner.js';
+import { Button } from '../../../shared/ui/Button.js';
+import { ErrorMessage } from '../../../shared/ui/ErrorMessage.js';
+import { Icon } from '../../../shared/ui/Icon.js';
+import { Spinner } from '../../../shared/ui/Spinner.js';
 import { st } from './styles.js';
 
 export function StateView({ kind, onRetry, onExit, message }: { kind: 'loading' | 'empty' | 'error'; onRetry: () => void; onExit: () => void; message?: string }) {

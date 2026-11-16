@@ -1,10 +1,10 @@
 import type { Ref, ReactNode } from 'react';
 import type { MemberQuestion } from '../../../../shared/api/index.js';
-import { Markdown } from '../../../components/Markdown.js';
-import { ErrorMessage } from '../../../components/ui/ErrorMessage.js';
-import { Icon } from '../../../components/ui/Icon.js';
-import { Kbd } from '../../../components/ui/Kbd.js';
-import { TextField } from '../../../components/ui/TextField.js';
+import { Markdown } from '../../../shared/ui/Markdown.js';
+import { ErrorMessage } from '../../../shared/ui/ErrorMessage.js';
+import { Icon } from '../../../shared/ui/Icon.js';
+import { Kbd } from '../../../shared/ui/Kbd.js';
+import { TextField } from '../../../shared/ui/TextField.js';
 import { formatPoints } from '../../../shared/format/points.js';
 import { mText } from '../../../shared/ui/member/member-shell.js';
 import type { Draft } from '../domain/answer-progress.js';

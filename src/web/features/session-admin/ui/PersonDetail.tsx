@@ -1,8 +1,8 @@
 import type { ParticipantReview } from '../../../../shared/api/index.js';
-import { ReviewQuestions } from '../../../components/ReviewQuestions.js';
-import { Card } from '../../../components/ui/Card.js';
-import { ErrorMessage } from '../../../components/ui/ErrorMessage.js';
-import { Spinner } from '../../../components/ui/Spinner.js';
+import { ReviewQuestions } from '../../../shared/ui/ReviewQuestions.js';
+import { Card } from '../../../shared/ui/Card.js';
+import { ErrorMessage } from '../../../shared/ui/ErrorMessage.js';
+import { Spinner } from '../../../shared/ui/Spinner.js';
 import { formatPoints } from '../../../shared/format/points.js';
 import { useParticipantReview } from '../application/session-admin-context.js';
 import { MEMBERSHIP_LABEL } from '../domain/session-review.js';

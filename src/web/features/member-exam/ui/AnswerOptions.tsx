@@ -1,7 +1,7 @@
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import type { MemberQuestion } from '../../../../shared/api/index.js';
-import { AnswerOption } from '../../../components/AnswerOption.js';
-import { Kbd } from '../../../components/ui/Kbd.js';
+import { AnswerOption } from '../../../shared/ui/AnswerOption.js';
+import { Kbd } from '../../../shared/ui/Kbd.js';
 
 export function AnswerOptions({ q, selected, onPick, keys, dimKeys }: { q: MemberQuestion; selected: number[]; onPick: (id: number) => void; keys: boolean; dimKeys: boolean }) {
   // ↑ / ↓ move focus between options (← → stay reserved for changing question).

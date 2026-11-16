@@ -1,5 +1,5 @@
 import { useState, type ReactNode, type Ref, type UIEventHandler } from 'react';
-import { Icon } from '../../../components/ui/Icon.js';
+import { Icon } from '../../../shared/ui/Icon.js';
 
 export function NameChip({ name }: { name: string }) {
   return (

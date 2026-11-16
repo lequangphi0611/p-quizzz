@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import type { GradingAnswer } from '../../../../shared/api/index.js';
-import { ErrorMessage } from '../../../components/ui/ErrorMessage.js';
-import { Icon } from '../../../components/ui/Icon.js';
-import { TextField } from '../../../components/ui/TextField.js';
+import { ErrorMessage } from '../../../shared/ui/ErrorMessage.js';
+import { Icon } from '../../../shared/ui/Icon.js';
+import { TextField } from '../../../shared/ui/TextField.js';
 import { formatPoints } from '../../../shared/format/points.js';
 import { gradingErrorText } from '../application/grading-controller.js';
 import { planCardSave } from '../domain/card-save.js';

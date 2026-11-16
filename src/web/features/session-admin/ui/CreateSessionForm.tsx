@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import type { ExamSummary } from '../../../../shared/api/index.js';
-import { Button } from '../../../components/ui/Button.js';
-import { Card } from '../../../components/ui/Card.js';
-import { ErrorMessage } from '../../../components/ui/ErrorMessage.js';
+import { Button } from '../../../shared/ui/Button.js';
+import { Card } from '../../../shared/ui/Card.js';
+import { ErrorMessage } from '../../../shared/ui/ErrorMessage.js';
 import { useCreateSession } from '../application/session-admin-context.js';
 
 const selectStyle = { width: '100%', height: 44, padding: '0 12px', font: 'var(--type-body)', fontSize: 16, color: 'var(--text-title)', background: 'var(--paper)', border: '1.5px solid var(--border-strong)', borderRadius: 'var(--radius-md)' } as const;

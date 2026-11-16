@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { StatusBadge } from '../../../components/ui/StatusBadge.js';
+import { StatusBadge } from '../../../shared/ui/StatusBadge.js';
 
 type Status = 'lobby' | 'running' | 'closed' | 'finalized';
 // Projector frame, designed at 1920×1080 (callers scale the stage). density="compact" = 88px top bar for

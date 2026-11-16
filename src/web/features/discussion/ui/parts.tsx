@@ -1,7 +1,7 @@
 import type { DiscussionQuestion } from '../../../../shared/api/index.js';
-import { Markdown } from '../../../components/Markdown.js';
-import { Button } from '../../../components/ui/Button.js';
-import { Icon } from '../../../components/ui/Icon.js';
+import { Markdown } from '../../../shared/ui/Markdown.js';
+import { Button } from '../../../shared/ui/Button.js';
+import { Icon } from '../../../shared/ui/Icon.js';
 import { formatPoints } from '../../../shared/format/points.js';
 import { TYPE_LABEL, st } from './styles.js';
 

@@ -16,4 +16,6 @@ export interface SessionAdminGateway {
   renameParticipant(participantId: number, displayName: string): Promise<void>;
   getParticipantReview(participantId: number): Promise<ParticipantReview>;
   getLeaderboard(sessionId: number): Promise<LeaderboardResponse>;
+  /** LAN addresses members can type (`/api/network`). */
+  getJoinHosts(): Promise<string[]>;
 }

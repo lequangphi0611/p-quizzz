@@ -1,5 +1,5 @@
 type SaveState = 'saved' | 'saving' | 'error';
-import { Icon } from '../../components/ui/Icon.js';
+import { Icon } from './Icon.js';
 
 // 'offline': the member's device has no network — answers wait in memory and are sent when it is back.
 export function SaveIndicator({ state, onRetry, size = 'md' }: { state: SaveState | 'unsaved' | 'offline'; onRetry?: () => void; size?: 'md' | 'screen' }) {

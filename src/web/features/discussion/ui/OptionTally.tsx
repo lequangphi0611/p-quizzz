@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Markdown } from '../../../components/Markdown.js';
-import { Icon } from '../../../components/ui/Icon.js';
+import { Markdown } from '../../../shared/ui/Markdown.js';
+import { Icon } from '../../../shared/ui/Icon.js';
 
 const pill = { display: 'inline-flex', alignItems: 'center', gap: 8, borderRadius: 'var(--radius-pill)', font: '700 22px/1 var(--font-sans)', whiteSpace: 'nowrap', animation: 'pq-reveal var(--dur-slow) var(--ease-standard)' } as const;
 

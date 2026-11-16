@@ -1,9 +1,9 @@
 import type { ReactNode, Ref } from 'react';
 import type { MemberQuestion } from '../../../../shared/api/index.js';
-import { Button } from '../../../components/ui/Button.js';
-import { Icon } from '../../../components/ui/Icon.js';
-import { Kbd } from '../../../components/ui/Kbd.js';
-import { StatusBadge } from '../../../components/ui/StatusBadge.js';
+import { Button } from '../../../shared/ui/Button.js';
+import { Icon } from '../../../shared/ui/Icon.js';
+import { Kbd } from '../../../shared/ui/Kbd.js';
+import { StatusBadge } from '../../../shared/ui/StatusBadge.js';
 import { useMediaQuery } from '../../../shared/hooks/useMediaQuery.js';
 import { WIDE_MIN } from '../../../shared/ui/member/breakpoints.js';
 import { MemberLayout } from '../../../shared/ui/member/MemberLayout.js';

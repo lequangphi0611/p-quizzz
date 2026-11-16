@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button } from '../../../components/ui/Button.js';
-import { Icon } from '../../../components/ui/Icon.js';
+import { Button } from '../../../shared/ui/Button.js';
+import { Icon } from '../../../shared/ui/Icon.js';
 import { formatPoints } from '../../format/points.js';
 import { plainPrompt, type ReviewMark, type ReviewMarkKind } from './review-mark.js';
 

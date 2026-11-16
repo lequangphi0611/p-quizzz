@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useLoaderData, useNavigate, useSearchParams } from 'react-router';
-import { Button } from '../../../components/ui/Button.js';
-import { Card } from '../../../components/ui/Card.js';
-import { ErrorMessage } from '../../../components/ui/ErrorMessage.js';
-import { StatusBadge } from '../../../components/ui/StatusBadge.js';
-import { th, td } from '../../../components/ui/tableStyles.js';
-import { formatDate } from '../../../lib/format.js';
+import { Button } from '../../../shared/ui/Button.js';
+import { Card } from '../../../shared/ui/Card.js';
+import { ErrorMessage } from '../../../shared/ui/ErrorMessage.js';
+import { StatusBadge } from '../../../shared/ui/StatusBadge.js';
+import { th, td } from '../../../shared/ui/tableStyles.js';
+import { formatDate } from '../../../shared/format/date.js';
 import type { SessionListData } from '../application/session-admin-loaders.js';
 import { CreateSessionForm } from './CreateSessionForm.js';
 
