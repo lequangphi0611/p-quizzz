@@ -1,8 +1,8 @@
 import { and, desc, eq, ne, sql } from 'drizzle-orm';
 import type { Exam, NewExam } from '../../domain/exam/exam.js';
 import type { ExamRepository, ExamSummary } from '../../application/ports/exam-repository.js';
-import type { Db } from '../../db/client.js';
-import { exams, options, questions } from '../../db/schema.js';
+import type { Db } from './client.js';
+import { exams, options, questions } from './schema.js';
 
 /**
  * Runs `fn` against the database. Outside a unit of work this goes through `SqliteDatabase.read`

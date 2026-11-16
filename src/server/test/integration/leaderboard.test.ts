@@ -1,8 +1,8 @@
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
-import type { AttemptView, LeaderboardResponse } from '../../shared/api/index.js';
-import { attempts } from '../db/schema.js';
-import { world } from '../test/world.js';
+import type { AttemptView, LeaderboardResponse } from '../../../shared/api/index.js';
+import { attempts } from '../../infrastructure/db/schema.js';
+import { world } from '../world.js';
 
 // Lobby → several members join → start. Returns helpers to make each member score a given amount.
 async function room(opts: { essay?: boolean; names: string[] }) {

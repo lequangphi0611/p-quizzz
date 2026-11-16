@@ -1,7 +1,7 @@
 import { networkInterfaces } from 'node:os';
 import { describe, expect, it } from 'vitest';
-import { createTestApp, loginAsMentor } from '../../../test/helpers.js';
-import { isLocalAddress, LOCAL_ONLY_MESSAGE } from './require-local.js';
+import { createTestApp, loginAsMentor } from '../helpers.js';
+import { isLocalAddress, LOCAL_ONLY_MESSAGE } from '../../interface/http/auth/require-local.js';
 
 const LAN = '192.168.1.50';
 const ownLanIp = Object.values(networkInterfaces()).flat().find(n => n && n.family === 'IPv4' && !n.internal)?.address;

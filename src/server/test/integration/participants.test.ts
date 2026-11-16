@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { JoinResponse, MeResponse, SessionDetail } from '../../shared/api/index.js';
-import { bus } from '../events.js';
-import { createTestApp, joinAs, loginAsMentor, roomCodeOf, seedExam } from '../test/helpers.js';
+import type { JoinResponse, MeResponse, SessionDetail } from '../../../shared/api/index.js';
+import { bus } from '../../infrastructure/events/event-bus.js';
+import { createTestApp, joinAs, loginAsMentor, roomCodeOf, seedExam } from '../helpers.js';
 
 async function setup(opts: { hasEssay?: boolean } = {}) {
   const { app, db } = await createTestApp();

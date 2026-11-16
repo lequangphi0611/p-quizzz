@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import type { AdminCredentialStore } from '../../application/ports/admin-auth.js';
-import { appMeta } from '../../db/schema.js';
+import { appMeta } from './schema.js';
 import type { DbAccess } from './drizzle-exam-repository.js';
 
 const META_KEY = 'admin_password_hash';

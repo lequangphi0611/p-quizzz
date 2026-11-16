@@ -29,7 +29,9 @@ export interface Classified {
 export function classify(path: string): Classified {
   const server = /^src\/server\/(domain|application|infrastructure|interface)\//.exec(path);
   if (server) return { layer: `server/${server[1]}` as LayerId };
-  if (path === 'src/server/composition.ts') return { layer: 'server/composition' };
+  // The wiring shell: composition root, Fastify assembly (app.ts), the listening entry (index.ts), config, and the
+  // test harness that builds the whole app. These are the only server files that may see every layer.
+  if (/^src\/server\/(composition|app|app\.test|index|config)\.(ts|js)$/.test(path) || path.startsWith('src/server/test/')) return { layer: 'server/composition' };
 
   const feature = /^src\/web\/features\/([^/]+)\/(domain|application|infrastructure|ui)\//.exec(path);
   if (feature) return { layer: `web/${feature[2]}` as LayerId, feature: feature[1] };

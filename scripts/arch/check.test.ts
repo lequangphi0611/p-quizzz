@@ -63,6 +63,26 @@ describe('server layer rules catch violations', () => {
   });
 });
 
+describe('composition is matched through the .js import specifier', () => {
+  it('interface importing ./composition.js is a violation', () => {
+    expect(msgs([f('src/server/interface/http/a.ts', "import { compose } from '../../composition.js';")])).toHaveLength(1);
+  });
+});
+
+describe('wiring shell', () => {
+  it('app.ts, index.ts, config.ts and the test harness may see every layer; interface may not import them', () => {
+    expect(
+      msgs([
+        f('src/server/app.ts', "import { R } from './infrastructure/db/r.js'; import { c } from './composition.js';"),
+        f('src/server/index.ts', "import { R } from './infrastructure/db/r.js';"),
+        f('src/server/test/helpers.ts', "import { R } from '../infrastructure/db/r.js'; import { a } from '../app.js';"),
+      ]),
+    ).toEqual([]);
+    expect(msgs([f('src/server/interface/http/a.ts', "import { config } from '../../config.js';")])).toHaveLength(1);
+    expect(msgs([f('src/server/application/a.ts', "import { buildApp } from '../app.js';")])).toHaveLength(1);
+  });
+});
+
 describe('web layer rules catch violations', () => {
   const p = (feat: string, layer: string, name = 'a.ts') => `src/web/features/${feat}/${layer}/${name}`;
   it.each([

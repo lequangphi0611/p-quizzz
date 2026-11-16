@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { AttemptView, GradeResponse, GradingView, LeaderboardResponse, MeResponse, SessionDetail } from '../../shared/api/index.js';
-import { answers } from '../db/schema.js';
-import { bus } from '../events.js';
-import { world } from '../test/world.js';
+import type { AttemptView, GradeResponse, GradingView, LeaderboardResponse, MeResponse, SessionDetail } from '../../../shared/api/index.js';
+import { answers } from '../../infrastructure/db/schema.js';
+import { bus } from '../../infrastructure/events/event-bus.js';
+import { world } from '../world.js';
 
 // An essay exam (essay = 4 points; single 1 + multi 2 are auto-graded). Members join in the lobby, the session
 // starts, everyone with a text submits; a null text means the member submits without writing the essay.

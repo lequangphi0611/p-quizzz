@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import type { CreateExamResponse, ExamDetail, ExamSummary } from '../../shared/api/index.js';
-import { parseExam, type ParseResult } from '../../shared/exam-format/index.js';
-import { exams, options, questions, sessions } from '../db/schema.js';
-import { createTestApp, loginAsMentor, seedExam } from '../test/helpers.js';
+import type { CreateExamResponse, ExamDetail, ExamSummary } from '../../../shared/api/index.js';
+import { parseExam, type ParseResult } from '../../../shared/exam-format/index.js';
+import { exams, options, questions, sessions } from '../../infrastructure/db/schema.js';
+import { createTestApp, loginAsMentor, seedExam } from '../helpers.js';
 
 const sample = readFileSync('exams/examples/git-co-ban.md', 'utf8');
 const broken = '---\ntitle: Hỏng\n---\n\n## Câu không có đáp án đúng\n- [ ] A\n- [ ] B\n';

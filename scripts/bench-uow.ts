@@ -1,8 +1,8 @@
 // Micro-benchmark for the UnitOfWork spike (docs/architecture.md §10): cost of routing a read through the mutex.
 // Run: npx tsx scripts/bench-uow.ts
 import { eq } from 'drizzle-orm';
-import { createDb } from '../src/server/db/client.js';
-import { appMeta } from '../src/server/db/schema.js';
+import { createDb } from '../src/server/infrastructure/db/client.js';
+import { appMeta } from '../src/server/infrastructure/db/schema.js';
 import { SqliteDatabase } from '../src/server/infrastructure/db/sqlite-database.js';
 
 const db = createDb(':memory:');

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { AttemptView, ParticipantReview, SessionDetail } from '../../shared/api/index.js';
-import { world } from '../test/world.js';
+import type { AttemptView, ParticipantReview, SessionDetail } from '../../../shared/api/index.js';
+import { world } from '../world.js';
 
 // Three members: An and Bảo (submit), Chi (never starts). Essay exam so manual grading matters.
 async function setup(opts: { essay?: boolean } = {}) {

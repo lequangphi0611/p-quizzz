@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { eq, sql } from 'drizzle-orm';
 import { createDb } from './client.js';
 import { answers, attempts, exams, options, participants, questions, sessions } from './schema.js';
-import { seedExam } from '../test/helpers.js';
+import { seedExam } from './testing/seed-exam.js';
 
 const TABLES = ['answers', 'app_meta', 'attempts', 'exams', 'options', 'participants', 'questions', 'sessions'];
 

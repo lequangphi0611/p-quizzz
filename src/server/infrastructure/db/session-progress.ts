@@ -1,8 +1,8 @@
 import { and, eq } from 'drizzle-orm';
 import type { ParticipantProgress } from '../../../shared/api/index.js';
 import { computeProgress } from '../../domain/attempt/attempt.js';
-import type { Db } from '../../db/client.js';
-import { attempts, participants, sessions } from '../../db/schema.js';
+import type { Db } from './client.js';
+import { attempts, participants, sessions } from './schema.js';
 
 /** Progress of every participant in a session, keyed by participant id: three queries, then the domain rule. */
 export function loadSessionProgress(db: Db, sessionId: number, totalPoints: number): Map<number, ParticipantProgress> {

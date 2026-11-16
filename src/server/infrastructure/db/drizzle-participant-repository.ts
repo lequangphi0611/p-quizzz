@@ -2,7 +2,7 @@ import { and, eq, ne } from 'drizzle-orm';
 import type { ParticipantReader, ParticipantRepository } from '../../application/ports/participant-repository.js';
 import { NameTakenError } from '../../domain/participant/errors.js';
 import type { NewParticipant, Participant, ParticipantStatus } from '../../domain/participant/participant.js';
-import { participants } from '../../db/schema.js';
+import { participants } from './schema.js';
 import type { DbAccess } from './drizzle-exam-repository.js';
 
 // Only the display-name index counts as a name clash; any other constraint failure (token, foreign key...) is a real bug.

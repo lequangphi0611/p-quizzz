@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { ActiveSession, NetworkInfo, PublicParticipant } from '../../shared/api/index.js';
-import { joinHosts } from '../network.js';
-import { createTestApp } from '../test/helpers.js';
-import { world } from '../test/world.js';
+import type { ActiveSession, NetworkInfo, PublicParticipant } from '../../../shared/api/index.js';
+import { joinHosts } from '../../interface/http/network-routes.js';
+import { createTestApp } from '../helpers.js';
+import { world } from '../world.js';
 
 describe('GET /api/sessions/:id/participants (public)', () => {
   it('returns only the names of active members, in join order — no id, token or status', async () => {

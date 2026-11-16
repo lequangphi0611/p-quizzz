@@ -8,7 +8,7 @@ import type {
   SessionSummaryView,
 } from '../../application/ports/session-repository.js';
 import type { NewSession, Session, SessionPatch } from '../../domain/session/session.js';
-import { exams, participants, sessions } from '../../db/schema.js';
+import { exams, participants, sessions } from './schema.js';
 import { NO_PROGRESS } from '../../domain/attempt/attempt.js';
 import { loadSessionProgress } from './session-progress.js';
 import type { DbAccess } from './drizzle-exam-repository.js';

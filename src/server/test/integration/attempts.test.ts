@@ -1,10 +1,10 @@
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
-import type { AttemptView, MeResponse, SubmitResponse } from '../../shared/api/index.js';
-import { answers, attempts, questions } from '../db/schema.js';
-import { bus } from '../events.js';
-import { joinAs, roomCodeOf, seedExam } from '../test/helpers.js';
-import { allKeys, KEY_LEAKS, world } from '../test/world.js';
+import type { AttemptView, MeResponse, SubmitResponse } from '../../../shared/api/index.js';
+import { answers, attempts, questions } from '../../infrastructure/db/schema.js';
+import { bus } from '../../infrastructure/events/event-bus.js';
+import { joinAs, roomCodeOf, seedExam } from '../helpers.js';
+import { allKeys, KEY_LEAKS, world } from '../world.js';
 
 describe('POST /api/me/attempts — starting', () => {
   it('needs a participant token', async () => {

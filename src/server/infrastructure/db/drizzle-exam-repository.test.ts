@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { newExam } from '../../domain/exam/exam.js';
 import { parseExam } from '../../../shared/exam-format/index.js';
 import type { ExamUnitContext } from '../../application/ports/exam-repository.js';
-import { createDb } from '../../db/client.js';
-import { exams, options, questions } from '../../db/schema.js';
+import { createDb } from './client.js';
+import { exams, options, questions } from './schema.js';
 import { DrizzleExamRepository } from './drizzle-exam-repository.js';
 import { SqliteDatabase, SqliteUnitOfWork } from './sqlite-database.js';
 

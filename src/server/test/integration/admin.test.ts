@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
-import { appMeta } from '../db/schema.js';
-import { createTestApp, loginAsMentor, TEST_PASSWORD } from '../test/helpers.js';
+import { appMeta } from '../../infrastructure/db/schema.js';
+import { createTestApp, loginAsMentor, TEST_PASSWORD } from '../helpers.js';
 
 const probe = async (s: import('fastify').FastifyInstance) => { s.get('/probe', async () => ({ secret: 1 })); };
 const post = (app: Awaited<ReturnType<typeof createTestApp>>['app'], url: string, payload?: unknown, headers?: Record<string, string>) =>

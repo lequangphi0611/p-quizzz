@@ -106,7 +106,7 @@ Trước khi session `closed`, **không response nào gửi cho member** đượ
 
 Phòng thủ nhiều lớp:
 1. **DTO dựng từng trường** + test quét đệ quy key `isCorrect`/`is_correct`/`explanation` trên mọi response `/api/me/*`.
-2. **Chốt chặn `src/server/leak-guard.ts`** (hook `onSend` toàn cục): response JSON nào ngoài `/api/admin/*` và route review mà chứa các key đó sẽ bị thay bằng 500 và ghi log — bắt lỗi trả nhầm row DB trong tương lai.
+2. **Chốt chặn `src/server/interface/http/leak-guard.ts`** (hook `onSend` toàn cục): response JSON nào ngoài `/api/admin/*` và route review mà chứa các key đó sẽ bị thay bằng 500 và ghi log — bắt lỗi trả nhầm row DB trong tương lai.
 3. **`/api/admin/*` chỉ mở trên máy mentor** (§4), nên member không đọc được đề qua API mentor.
 4. **Vite dev server** (`npm run dev`) mở ra LAN và mặc định phục vụ mọi file trong repo qua `/@fs/` (gồm `exams/`, `data/`). `vite.config.ts` đặt `server.fs.allow` chỉ gồm `src/web`, `src/shared`, `node_modules` và `deny` cho `exams/`, `data/`, `docs/`, `*.db`. Không nới lỏng mục này.
 
@@ -119,7 +119,7 @@ Hàm thuần trong `src/shared/scoring.ts`:
 
 ## 7. Realtime (SSE)
 
-- Event bus trong process: `src/server/events.ts` — `publish(sessionId, type)`, `subscribe(sessionId, listener)`.
+- Event bus trong process: `src/server/infrastructure/events/event-bus.ts` — `publish(sessionId, type)`, `subscribe(sessionId, listener)` (use case phát qua port `EventPublisher`, SSE nghe qua `EventSubscriber`).
 - `GET /api/sessions/:id/events` → `text/event-stream`, gửi `event: <type>\ndata: {}\n\n`; heartbeat comment mỗi 20s.
 - Event types: `session` (đổi status), `participants` (join/kick/rename/approve), `leaderboard` (có bài nộp/chấm điểm).
 - **Event chỉ là tín hiệu "có thay đổi"** — client nhận event thì gọi lại API REST tương ứng. Không đẩy dữ liệu qua SSE (tránh lộ đáp án, đơn giản hoá).
@@ -144,7 +144,7 @@ Gọi API qua `src/web/lib/api.ts` (wrapper `fetch`, tự gắn token member, n�
 
 ## 9. Layering (Clean Architecture)
 
-> Đích của epic #7. Code cũ (`routes/`, `services/`, `src/web/pages`, `src/web/lib`) đang được chuyển dần từng module; phần chưa chuyển được miễn tạm trong allowlist của `arch:check` (xem §9.7). Refactor **không đổi hành vi nghiệp vụ và không đổi §1-§8**.
+> Đích của epic #7. Backend đã chuyển xong (P3-5); code cũ phía web (`src/web/pages`, `src/web/lib`, ...) đang được chuyển dần từng feature; phần chưa chuyển được miễn tạm trong allowlist của `arch:check` (xem §9.7). Refactor **không đổi hành vi nghiệp vụ và không đổi §1-§8**.
 
 ### 9.1 Sơ đồ thư mục đích
 
@@ -226,6 +226,7 @@ Hệ quả: `db.transaction()` của Drizzle chỉ nhận callback đồng bộ 
 - Mọi file dưới `src/` phải nằm trong một layer (đường dẫn theo §9.1) **hoặc** trong allowlist legacy. File mới ngoài layer mà không có trong allowlist sẽ fail: không viết thêm code kiểu cũ.
 - **Allowlist** nằm ở một file duy nhất `scripts/arch/allowlist.ts` (entry kết thúc bằng `/` là cả thư mục). Khi chuyển xong một module, xóa phần của nó khỏi allowlist trong cùng PR. Entry không còn khớp file nào cũng làm `arch:check` fail, nên danh sách chỉ co lại. Mục tiêu cuối: rỗng.
 - Thêm/sửa luật: sửa `scripts/arch/rules.ts` và thêm test fixture tương ứng.
+- **Vỏ lắp ráp (P3-5):** `composition.ts`, `app.ts`, `index.ts`, `config.ts`, `app.test.ts` và `src/server/test/` (helper dựng cả app, test tích hợp HTTP ở `test/integration/`) thuộc layer `server/composition`: chỉ những file này được thấy mọi layer. Backend không còn entry nào trong allowlist; allowlist chỉ còn code web.
 
 ## 10. ADR: `UnitOfWork` async trên better-sqlite3
 
@@ -253,7 +254,7 @@ Hệ quả: `db.transaction()` của Drizzle chỉ nhận callback đồng bộ 
 **Giới hạn và quy tắc cho P1-1 trở đi**
 1. Trong callback của unit **chỉ `await` thứ resolve bằng microtask** (repository, `Clock`, `TokenGenerator`). Không await timer, mạng, file: unit giữ cả DB trong lúc đó và mọi request khác phải chờ.
 2. Mọi truy cập đọc của code mới đi qua `SqliteDatabase.read()` (hoặc `ctx` trong unit).
-3. **Giai đoạn chuyển tiếp:** code cũ vẫn gọi `app.db` đồng bộ, không qua mutex. An toàn miễn là quy tắc 1 được giữ: handler cũ chỉ chạy được khi event loop quay, mà unit không để event loop quay. Nếu vi phạm, code cũ gọi `db.transaction()` sẽ bị SQLite báo lỗi rõ ràng (không lồng transaction) còn đọc cũ có thể thấy dữ liệu chưa commit. Hết giai đoạn chuyển tiếp (P3-5) thì mọi truy cập đi qua `SqliteDatabase`.
+3. **Giai đoạn chuyển tiếp (đã kết thúc ở P3-5, mọi truy cập DB của code chạy thật đi qua `SqliteDatabase`; `app.db` chỉ còn để harness test đọc dữ liệu dựng kịch bản):** code cũ gọi `app.db` đồng bộ, không qua mutex. An toàn miễn là quy tắc 1 được giữ: handler cũ chỉ chạy được khi event loop quay, mà unit không để event loop quay. Nếu vi phạm, code cũ gọi `db.transaction()` sẽ bị SQLite báo lỗi rõ ràng (không lồng transaction) còn đọc cũ có thể thấy dữ liệu chưa commit. Hết giai đoạn chuyển tiếp (P3-5) thì mọi truy cập đi qua `SqliteDatabase`.
 4. Một process, một kết nối: không chạy hai instance server trên cùng file DB (đã là giả định của sản phẩm).
 
 **Đo sơ bộ** (`npx tsx scripts/bench-uow.ts`, 100k lần, Node 22, `:memory:`, một query `SELECT ... WHERE key = ?`; 3 lần chạy): đọc đồng bộ trực tiếp 37.7-38.6 µs/lần, qua `read()` 37.2-40.4 µs/lần, 50 đọc đồng thời qua mutex 38.6-41.0 µs/lần. Chênh lệch nằm trong nhiễu đo. Đây là micro-benchmark một query, **chưa phải** `GET /api/me` thật (nhiều query + HTTP); so sánh trước/sau trên endpoint thật chỉ làm được khi một route chuyển sang `SqliteDatabase` (P1-1 trở đi).

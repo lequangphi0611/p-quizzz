@@ -5,8 +5,8 @@ import Database from 'better-sqlite3';
 import { sql } from 'drizzle-orm';
 import { afterEach, describe, expect, it } from 'vitest';
 import { NestedUnitOfWorkError } from '../../application/ports/unit-of-work.js';
-import { createDb } from '../../db/client.js';
-import { appMeta } from '../../db/schema.js';
+import { createDb } from './client.js';
+import { appMeta } from './schema.js';
 import { SqliteDatabase, SqliteUnitOfWork } from './sqlite-database.js';
 
 // `app_meta` is a convenient two-column table (key, value) for probing transactions.

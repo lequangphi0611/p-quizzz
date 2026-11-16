@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { sql } from 'drizzle-orm';
 import { NestedUnitOfWorkError, type UnitOfWork } from '../../application/ports/unit-of-work.js';
-import type { Db } from '../../db/client.js';
+import type { Db } from './client.js';
 
 /** FIFO async mutex. */
 class Mutex {

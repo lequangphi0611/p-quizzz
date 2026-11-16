@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { AttemptView, ReviewView } from '../../shared/api/index.js';
-import { allKeys, KEY_LEAKS, world } from '../test/world.js';
+import type { AttemptView, ReviewView } from '../../../shared/api/index.js';
+import { allKeys, KEY_LEAKS, world } from '../world.js';
 
 // Members join in the lobby (so they are `active`), then the session starts. `tokenOf` holds each token for direct calls.
 async function lobbyWorld(opts: { essay?: boolean } = {}) {
@@ -61,7 +61,7 @@ describe('GET /api/me/attempts/:id/review', () => {
   it('a correct choice shows its points; explanations are included', async () => {
     const w = await lobbyWorld();
     const { db } = w;
-    const { questions } = await import('../db/schema.js');
+    const { questions } = await import('../../infrastructure/db/schema.js');
     db.update(questions).set({ explanation: 'Vì A đúng' }).run();
     const v = (await w.bao.start()).json<AttemptView>();
     await w.bao.put(v.id, w.single.q.id, { selectedOptionIds: [w.single.opts[0]!.id] });

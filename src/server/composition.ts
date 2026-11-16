@@ -4,6 +4,7 @@ import type { ExamUnitContext } from './application/ports/exam-repository.js';
 import type { AttemptUnitContext } from './application/ports/attempt-repository.js';
 import type { ParticipantUnitContext } from './application/ports/participant-repository.js';
 import type { SessionUnitContext } from './application/ports/session-repository.js';
+import type { EventSubscriber } from './application/ports/event-subscriber.js';
 import type { Random } from './application/ports/random.js';
 import type { TokenGenerator } from './application/ports/token-generator.js';
 import { CountUngradedEssays } from './application/use-cases/grading/essay-progress.js';
@@ -36,8 +37,7 @@ import { OpenSession } from './application/use-cases/sessions/open-session.js';
 import { GetActiveSession, GetLatestSession, GetSessionDetail, ListSessions } from './application/use-cases/sessions/queries.js';
 import { StartSession } from './application/use-cases/sessions/start-session.js';
 import { defaultSessionModes } from './domain/session/mode.js';
-import type { Db } from './db/client.js';
-import { bus } from './events.js';
+import type { Db } from './infrastructure/db/client.js';
 import { InMemoryAdminSessionStore } from './infrastructure/auth/in-memory-admin-session-store.js';
 import { ScryptPasswordHasher } from './infrastructure/auth/scrypt-password-hasher.js';
 import { DrizzleAdminCredentialStore } from './infrastructure/db/drizzle-admin-credential-store.js';
@@ -46,6 +46,7 @@ import { DrizzleExamRepository } from './infrastructure/db/drizzle-exam-reposito
 import { SqliteDatabase, SqliteUnitOfWork } from './infrastructure/db/sqlite-database.js';
 import { DrizzleAttemptRepository, DrizzleMemberRoomReader } from './infrastructure/db/drizzle-attempt-repository.js';
 import { DrizzleSessionReader, DrizzleSessionRepository } from './infrastructure/db/drizzle-session-repository.js';
+import { bus } from './infrastructure/events/event-bus.js';
 import { BusEventPublisher } from './infrastructure/events/bus-event-publisher.js';
 import { CryptoRandom } from './infrastructure/system/crypto-random.js';
 import { SecureTokenGenerator } from './infrastructure/system/secure-token-generator.js';
@@ -67,6 +68,8 @@ export interface SharedPorts {
 
 /** Everything the HTTP layer needs from the application. Grows as modules move to Clean Architecture. */
 export interface Composition {
+  /** Where the SSE route listens for the events use cases publish. */
+  eventSource: EventSubscriber;
   exams: ExamUseCases;
   sessions: SessionUseCases;
   participants: ParticipantUseCases;
@@ -145,6 +148,7 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
   const gradingReads = { ...attemptReads, participants: participantReader };
 
   return {
+    eventSource: bus,
     grading: {
       gradingView: new GetGradingView(gradingReads),
       discussionView: new GetDiscussionView(attemptReads),

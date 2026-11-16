@@ -24,3 +24,6 @@ export function createEventBus() {
 }
 
 export type EventBus = ReturnType<typeof createEventBus>;
+
+// The process-wide bus: composition wires it behind `EventPublisher` and `EventSubscriber`.
+export const bus = createEventBus();

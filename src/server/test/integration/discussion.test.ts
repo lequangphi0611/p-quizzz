@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { AttemptView, DiscussionView, SessionDetail } from '../../shared/api/index.js';
-import { allKeys, world } from '../test/world.js';
+import type { AttemptView, DiscussionView, SessionDetail } from '../../../shared/api/index.js';
+import { allKeys, world } from '../world.js';
 
 type Pick = { single?: number[]; multi?: number[]; essay?: string | null };
 

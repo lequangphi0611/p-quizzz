@@ -1,7 +1,7 @@
 import { and, asc, count, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 import type { Answer, Attempt, NewAttempt } from '../../domain/attempt/attempt.js';
 import type { AttemptRepository, MemberRoom, MemberRoomReader } from '../../application/ports/attempt-repository.js';
-import { answers, attempts, exams, participants, questions, sessions } from '../../db/schema.js';
+import { answers, attempts, exams, participants, questions, sessions } from './schema.js';
 import type { DbAccess } from './drizzle-exam-repository.js';
 
 export class DrizzleAttemptRepository implements AttemptRepository {

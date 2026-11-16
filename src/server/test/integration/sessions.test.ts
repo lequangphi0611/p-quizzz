@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { ActiveSession, SessionDetail, SessionSummary } from '../../shared/api/index.js';
-import type { SessionAction } from '../../shared/session-state.js';
-import { participants } from '../db/schema.js';
-import { bus } from '../events.js';
-import { createTestApp, loginAsMentor, seedExam } from '../test/helpers.js';
+import type { ActiveSession, SessionDetail, SessionSummary } from '../../../shared/api/index.js';
+import type { SessionAction } from '../../../shared/session-state.js';
+import { participants } from '../../infrastructure/db/schema.js';
+import { bus } from '../../infrastructure/events/event-bus.js';
+import { createTestApp, loginAsMentor, seedExam } from '../helpers.js';
 
 async function setup() {
   const { app, db } = await createTestApp();

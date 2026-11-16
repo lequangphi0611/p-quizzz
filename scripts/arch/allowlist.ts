@@ -6,19 +6,6 @@
  * An entry that matches no file fails `npm run arch:check`, so the list can only shrink.
  */
 export const LEGACY_ALLOWLIST: string[] = [
-  // Server
-  'src/server/app.ts',
-  'src/server/app.test.ts',
-  'src/server/config.ts',
-  'src/server/events.ts',
-  'src/server/index.ts',
-  'src/server/leak-guard.ts',
-  'src/server/leak-guard.test.ts',
-  'src/server/network.ts',
-  'src/server/db/',
-  'src/server/routes/',
-  'src/server/services/',
-  'src/server/test/',
   // Web
   'src/web/main.tsx',
   'src/web/router.tsx',

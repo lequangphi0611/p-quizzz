@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { bus, publish } from '../events.js';
-import { createTestApp } from '../test/helpers.js';
+import { bus } from '../../infrastructure/events/event-bus.js';
+import { createTestApp } from '../helpers.js';
 
 let app: FastifyInstance;
 afterEach(async () => { await app?.close(); });
@@ -42,7 +42,7 @@ describe('GET /api/sessions/:id/events', () => {
     const base = await start();
     const [a, b, other] = await Promise.all([connect(base, 7), connect(base, 7), connect(base, 8)]);
     await a.waitFor(': connected'); await b.waitFor(': connected'); await other.waitFor(': connected');
-    publish(7, 'participants');
+    bus.publish(7, 'participants');
     expect(await a.waitFor('event: participants\ndata: {}\n\n')).toBe(true);
     expect(await b.waitFor('event: participants\ndata: {}\n\n')).toBe(true);
     await new Promise(r => setTimeout(r, 100));

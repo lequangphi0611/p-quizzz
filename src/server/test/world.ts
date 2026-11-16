@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import type { AttemptView, SessionDetail } from '../../shared/api/index.js';
-import { exams, options, questions } from '../db/schema.js';
+import { exams, options, questions } from '../infrastructure/db/schema.js';
 import { createTestApp, joinAs, loginAsMentor, seedExam } from './helpers.js';
 
 export const KEY_LEAKS = ['isCorrect', 'is_correct', 'explanation'];
