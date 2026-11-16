@@ -1,3 +1,4 @@
+import { HttpDiscussionGateway } from '../features/discussion/infrastructure/http-discussion-gateway.js';
 import { HttpExamGateway } from '../features/member-exam/infrastructure/http-exam-gateway.js';
 import { createHttpClient } from '../shared/api-client/http-client.js';
 import { participantAuth } from '../shared/api-client/participant-auth.js';
@@ -16,3 +17,4 @@ export const tokenStore = new LocalStorageTokenStore();
 export const api = createHttpClient({ interceptors: [participantAuth(tokenStore)] });
 export const eventStream = createSessionEventHub();
 export const examGateway = new HttpExamGateway(api);
+export const discussionGateway = new HttpDiscussionGateway(api);

@@ -10,7 +10,7 @@ import { useMentorNotices } from './lib/useMentorNotices.js';
 import { Spinner } from './components/ui/Spinner.js';
 import { AdminLogin } from './pages/AdminLogin.js';
 import { AdminLayout } from './layouts/AdminLayout.js';
-import { DiscussionPage } from './pages/DiscussionPage.js';
+import { DiscussionPage } from './features/discussion/ui/DiscussionPage.js';
 import { Grading, gradingLoader } from './pages/Grading.js';
 import { MemberHome } from './pages/MemberHome.js';
 import { ReviewPage } from './pages/ReviewPage.js';

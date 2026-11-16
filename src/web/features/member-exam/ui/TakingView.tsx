@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MeResponse } from '../../../../shared/api/index.js';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog.js';
 import { ErrorMessage } from '../../../components/ui/ErrorMessage.js';
-import { SaveIndicator } from '../../../components/SaveIndicator.js';
+import { SaveIndicator } from '../../../shared/ui/SaveIndicator.js';
 import { Spinner } from '../../../components/ui/Spinner.js';
 import { useOnline } from '../../../shared/hooks/useOnline.js';
 import { MemberPage, useIsDesk, useShowKeys } from '../../../shared/ui/member/member-shell.js';

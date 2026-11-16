@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { ActiveSession, LeaderboardResponse, PublicParticipant, ScreenRoom } from '../../shared/api/index.js';
 import { LeaderboardView } from '../components/Leaderboard.js';
-import { ScreenStage } from '../components/screen/ScreenStage.js';
-import { ScreenLayout } from '../layouts/ScreenLayout.js';
+import { ScreenStage } from '../shared/ui/screen/ScreenStage.js';
+import { ScreenLayout } from '../shared/ui/screen/ScreenLayout.js';
 import { api, ApiError } from '../lib/api.js';
 import { useJoinHost } from '../lib/join-url.js';
 import { formatRoomCode } from '../lib/room-code.js';

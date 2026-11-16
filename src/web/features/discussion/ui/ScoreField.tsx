@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { formatScore } from '../../lib/grading-ui.js';
-import { Button } from '../ui/Button.js';
-import { ErrorMessage } from '../ui/ErrorMessage.js';
-import { Icon } from '../ui/Icon.js';
+import { formatPoints as formatScore } from '../../../shared/format/points.js';
+import { Button } from '../../../components/ui/Button.js';
+import { ErrorMessage } from '../../../components/ui/ErrorMessage.js';
+import { Icon } from '../../../components/ui/Icon.js';
 
 const parse = (s: string): number | null => { const n = parseFloat(s.replace(',', '.')); return Number.isNaN(n) ? null : n; };
 

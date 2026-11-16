@@ -1,5 +1,5 @@
 // Pure helpers for the projector discussion screen (S17). No DOM.
-import type { DiscussionAnswer, DiscussionQuestion } from '../../shared/api/index.js';
+import type { DiscussionAnswer, DiscussionQuestion } from '../../../../shared/api/index.js';
 
 export const isBlankAnswer = (a: Pick<DiscussionAnswer, 'textAnswer'>): boolean => !a.textAnswer || a.textAnswer.trim() === '';
 
