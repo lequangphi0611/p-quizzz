@@ -31,7 +31,7 @@ export function MemberPage({ desk, title, name, status, maxW = 480, footer, chil
 }
 
 export function PageCard({ desk, children, center = false }: { desk: boolean; children: ReactNode; center?: boolean }) {
-  return <Card padding={desk ? 32 : 20}><div style={{ display: 'grid', gap: center ? 14 : 20, ...(center ? { justifyItems: 'center', textAlign: 'center' } : null) }}>{children}</div></Card>;
+  return <Card padding={desk ? 32 : 20}><div style={{ display: 'grid', gap: center ? 14 : 20, ...(center ? { justifyItems: 'center', textAlign: 'center', gridTemplateColumns: 'minmax(0, 1fr)' } : null) }}>{children}</div></Card>;
 }
 
 export function HeroIcon({ name, tone = 'brand' }: { name: string; tone?: 'brand' | 'ink' | 'warn' | 'wrong' }) {

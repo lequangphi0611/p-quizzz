@@ -18,6 +18,10 @@ export class HttpSessionAdminGateway implements SessionAdminGateway {
   async kickParticipant(id: number): Promise<void> { await this.http.post(`/api/admin/participants/${id}/kick`); }
   async resolveEditRequest(id: number, decision: 'approve' | 'reject'): Promise<void> { await this.http.post(`/api/admin/participants/${id}/edit-request/${decision}`); }
   async renameParticipant(id: number, displayName: string): Promise<void> { await this.http.patch(`/api/admin/participants/${id}`, { displayName }); }
+  async answerRejoin(requestId: number, answer: 'keep' | 'takeover' | 'reject'): Promise<void> {
+    await this.http.post(`/api/admin/rejoin-requests/${requestId}/${answer === 'keep' ? 'approve-keep' : answer === 'takeover' ? 'approve-takeover' : 'reject'}`);
+  }
+  async allowRejoin(participantId: number): Promise<number> { return (await this.http.post<{ until: number }>(`/api/admin/participants/${participantId}/allow-rejoin`)).until; }
   getParticipantReview(id: number): Promise<ParticipantReview> { return this.http.get<ParticipantReview>(`/api/admin/participants/${id}/review`); }
   getLeaderboard(sessionId: number): Promise<LeaderboardResponse> { return this.http.get<LeaderboardResponse>(`/api/sessions/${sessionId}/leaderboard`); }
   async getJoinHosts(): Promise<string[]> { return (await this.http.get<NetworkInfo>('/api/network')).joinHosts; }

@@ -1,4 +1,4 @@
-import type { ActiveSession, JoinResponse, MeResponse } from '../../../../shared/api/index.js';
+import type { ActiveSession, JoinResponse, MeResponse, RejoinRequestResponse, RejoinStatusResponse } from '../../../../shared/api/index.js';
 import type { HttpClient } from '../../../shared/api-client/http-client.js';
 import type { MemberGateway } from '../application/member-gateway.js';
 
@@ -7,4 +7,7 @@ export class HttpMemberGateway implements MemberGateway {
   resolveRoom(roomCode: string): Promise<ActiveSession> { return this.http.post<ActiveSession>('/api/rooms/resolve', { roomCode }); }
   getMe(): Promise<MeResponse> { return this.http.get<MeResponse>('/api/me'); }
   join(sessionId: number, input: { displayName: string; roomCode: string; email?: string }): Promise<JoinResponse> { return this.http.post<JoinResponse>(`/api/sessions/${sessionId}/join`, input); }
+  requestRejoin(sessionId: number, input: { displayName: string; roomCode: string; email?: string }): Promise<RejoinRequestResponse> { return this.http.post<RejoinRequestResponse>(`/api/sessions/${sessionId}/rejoin-requests`, input); }
+  getRejoinStatus(): Promise<RejoinStatusResponse> { return this.http.get<RejoinStatusResponse>('/api/rejoin/status'); }
+  async cancelRejoin(): Promise<void> { await this.http.post('/api/rejoin/cancel'); }
 }

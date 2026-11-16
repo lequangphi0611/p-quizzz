@@ -19,6 +19,8 @@ export function useSessionDetail(initial: SessionDetail): { state: SessionDetail
   const [ctrl] = useState(() => new SessionDetailController(gateway, initial));
   const state = useSyncExternalStore(ctrl.subscribe, ctrl.getState);
   useSessionEvents(initial.id, { session: ctrl.refetch, participants: ctrl.refetch });
+  // Who is still connected changes without any event (silence is not a signal), so look again every few seconds.
+  useEffect(() => { const t = setInterval(() => void ctrl.refetch(), 10_000); return () => clearInterval(t); }, [ctrl]);
   return { state, ctrl };
 }
 

@@ -54,7 +54,7 @@ function AdminShell() {
     <AdminLayout
       active={active}
       notifications={<NotificationBell state={notices} desktop={desktop} onOpenSession={openSession} />}
-      strip={<SessionStrip sessions={notices.sessions.map(s => ({ id: s.id, name: s.name, slot: s.slot, status: s.status, attention: s.pending + s.editPending }))} activeId={viewing} onOpen={openSession} onNew={() => nav('/admin/sessions')} />}
+      strip={<SessionStrip sessions={notices.sessions.map(s => ({ id: s.id, name: s.name, slot: s.slot, status: s.status, attention: s.pending + s.editPending + s.rejoinPending }))} activeId={viewing} onOpen={openSession} onNew={() => nav('/admin/sessions')} />}
       onNavigate={k => nav(`/admin/${k}`)}
       onOpenScreen={() => window.open('/screen', '_blank')}
       onLogout={async () => { await auth.logout().catch(() => {}); nav('/admin/login', { replace: true }); }}

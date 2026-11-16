@@ -33,6 +33,10 @@ export interface SessionAdminGateway {
   /** Approve or reject a member's request to edit their essays (PRODUCT.md §7.21). */
   resolveEditRequest(participantId: number, decision: 'approve' | 'reject'): Promise<void>;
   renameParticipant(participantId: number, displayName: string): Promise<void>;
+  /** Answers a request to take over a seat (PRODUCT.md §7.23c): keep the work / "this is an impostor" / reject. */
+  answerRejoin(requestId: number, answer: 'keep' | 'takeover' | 'reject'): Promise<void>;
+  /** Lets a member who dropped off back in without waiting: the next time they enter their email/name (one time, 10 minutes). Resolves with the deadline (epoch ms). */
+  allowRejoin(participantId: number): Promise<number>;
   getParticipantReview(participantId: number): Promise<ParticipantReview>;
   getLeaderboard(sessionId: number): Promise<LeaderboardResponse>;
   /** LAN addresses members can type (`/api/network`). */

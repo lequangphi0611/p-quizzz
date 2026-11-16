@@ -49,7 +49,7 @@ Mỗi story là một file tự đủ ngữ cảnh để một model/người im
 | [S19](S19-edit-request.md) | Xin sửa bài tự luận sau khi nộp | S11, S12, S09 | ✅ |
 | [S20](S20-parallel-sessions.md) | Nhiều phiên chạy song song | S06, S08, S09, S10, S14 | ✅ |
 | [S21](S21-groups-email.md) | Nhóm học viên và phiên giới hạn theo email | S20 | ✅ |
-| [S22](S22-rejoin-request.md) | Xin vào lại khi email/tên đã có người vào | S21 | ⬜ (UI chờ designer) |
+| [S22](S22-rejoin-request.md) | Xin vào lại khi email/tên đã có người vào | S21 | ✅ |
 
 ## Thứ tự & song song
 

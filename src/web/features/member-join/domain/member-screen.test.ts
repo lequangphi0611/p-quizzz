@@ -41,4 +41,10 @@ describe('decideScreen', () => {
   it('following a session wins over a room that was just looked up', () => {
     expect(screen(1, room(), me('active', 'lobby'))).toBe('lobby');
   });
+  it('asking to be let back in shows the request, not the session; replaced says so', () => {
+    expect(decideScreen({ followId: 1, room: null, me: null, meState: 'idle', rejoin: 'pending' })).toBe('rejoin');
+    expect(decideScreen({ followId: 1, room: null, me: null, meState: 'idle', rejoin: 'rejected' })).toBe('rejoin');
+    expect(decideScreen({ followId: 1, room: null, me: me('active', 'running'), meState: 'ok', rejoin: null })).toBe('running');
+    expect(screen(1, null, null, 'replaced')).toBe('replaced');
+  });
 });

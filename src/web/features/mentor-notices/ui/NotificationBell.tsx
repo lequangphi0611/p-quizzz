@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../../../shared/ui/Icon.js';
 import type { MentorNoticesState } from '../application/use-mentor-notices.js';
 import { Button } from '../../../shared/ui/Button.js';
+import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog.js';
+import { RejoinRequestCard } from '../../../shared/ui/RejoinRequestCard.js';
 import { SegmentedControl } from '../../../shared/ui/SegmentedControl.js';
 import { SessionSlot } from '../../../shared/ui/SessionSlot.js';
 import { isBellShortcut } from '../../../shared/ui/session-shortcuts.js';
-import { attentionFirst, EDIT_OUTCOME, needsAttention, NOTICE_TEXT } from '../domain/mentor-notices.js';
+import { attentionFirst, EDIT_OUTCOME, needsAttention, NOTICE_TEXT, type MentorNotice } from '../domain/mentor-notices.js';
 import type { DesktopNotifyStatus } from './useDesktopNotify.js';
 
 const time = (ms: number) => new Date(ms).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
@@ -16,13 +18,14 @@ const time = (ms: number) => new Date(ms).toLocaleTimeString('vi-VN', { hour: '2
 export interface DesktopNotifyControl { status: DesktopNotifyStatus; enable: () => void; disable: () => void }
 
 export function NotificationBell({ state, desktop, onOpenSession }: { state: MentorNoticesState; desktop?: DesktopNotifyControl; onOpenSession: (id: number) => void }) {
-  const { sessions, notices: allNotices, unread, pending, editPending, seen, markAllSeen, approve: approveRemote, resolveEdit } = state;
+  const { sessions, notices: allNotices, unread, pending, editPending, rejoinPending, handledRejoin, seen, markAllSeen, approve: approveRemote, resolveEdit, answerRejoin } = state;
+  const [impostor, setImpostor] = useState<MentorNotice | null>(null);
   const [filter, setFilter] = useState<'all' | number>('all');
   const activeFilter = filter !== 'all' && sessions.some(x => x.id === filter) ? filter : 'all'; // a closed session drops out of the filter
   const notices = activeFilter === 'all' ? allNotices : allNotices.filter(n => n.sessionId === activeFilter);
   const ordered = attentionFirst(notices);
   const [cursor, setCursor] = useState(-1);
-  const attention = pending + editPending; // things only the mentor can unblock
+  const attention = pending + editPending + rejoinPending; // things only the mentor can unblock
   const [open, setOpen] = useState(false);
   const [approving, setApproving] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +64,14 @@ export function NotificationBell({ state, desktop, onOpenSession }: { state: Men
     finally { setApproving(null); }
   }
 
+  async function rejoin(n: MentorNotice, answer: 'keep' | 'takeover' | 'reject') {
+    setApproving(n.participantId);
+    setError(null);
+    try { await answerRejoin(n, answer); setImpostor(null); }
+    catch (e) { setError(e instanceof Error ? e.message : 'Không xử lý được yêu cầu vào lại'); setImpostor(null); }
+    finally { setApproving(null); }
+  }
+
   async function resolve(participantId: number, decision: 'approve' | 'reject') {
     setApproving(participantId);
     setError(null);
@@ -96,12 +107,12 @@ export function NotificationBell({ state, desktop, onOpenSession }: { state: Men
             )}
           </div>
 
-          {sessions.filter(x => x.pending + x.editPending > 0 && (activeFilter === 'all' || x.id === activeFilter)).map(x => (
+          {sessions.filter(x => x.pending + x.editPending + x.rejoinPending > 0 && (activeFilter === 'all' || x.id === activeFilter)).map(x => (
             <button key={x.id} onClick={() => openSession(x.id)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: 'var(--sun-100)', color: 'var(--sun-ink)', border: 0, borderBottom: '1px solid var(--border-hairline)', font: 'var(--type-meta)', cursor: 'pointer', textAlign: 'left' }}>
               <Icon name="hourglass" size={16} />
               <span style={{ flex: 1, minWidth: 0 }}>
-                <b>{x.pending + x.editPending} việc đang chờ bạn</b>{sessions.length > 1 && <> · <SessionSlot n={x.slot} size={16} /> {x.name}</>}<br />
-                {[x.pending > 0 && `${x.pending} vào phòng`, x.editPending > 0 && `${x.editPending} sửa bài`].filter(Boolean).join(' · ')}
+                <b>{x.pending + x.editPending + x.rejoinPending} việc đang chờ bạn</b>{sessions.length > 1 && <> · <SessionSlot n={x.slot} size={16} /> {x.name}</>}<br />
+                {[x.pending > 0 && `${x.pending} vào phòng`, x.rejoinPending > 0 && `${x.rejoinPending} xin vào lại`, x.editPending > 0 && `${x.editPending} sửa bài`].filter(Boolean).join(' · ')}
               </span>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontWeight: 600, flex: 'none' }}>Mở phiên<Icon name="chevron-right" size={14} /></span>
             </button>
@@ -111,6 +122,17 @@ export function NotificationBell({ state, desktop, onOpenSession }: { state: Men
           {sessions.length > 0 && notices.length > 0 ? (
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, maxHeight: 360, overflowY: 'auto' }}>
               {ordered.map((n, i) => {
+                if (n.kind === 'rejoin' && n.rejoin) {
+                  return (
+                    <li key={n.key} aria-current={i === cursor ? 'true' : undefined} style={{ display: 'grid', gap: 6, padding: '12px 16px', borderBottom: '1px solid var(--border-hairline)', background: i === cursor ? 'var(--ink-100)' : undefined, boxShadow: 'inset 3px 0 0 var(--sun-500)' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, font: 'var(--type-meta)', fontWeight: 700, color: 'var(--sun-ink)' }}><Icon name="door-open" size={14} />Xin vào lại</span>
+                      {sessions.length > 1 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, font: 'var(--type-meta)', color: 'var(--text-faint)' }}><SessionSlot n={n.slot} size={16} />{n.sessionName}</span>}
+                      <RejoinRequestCard layout="bell" busy={approving !== null}
+                        request={{ id: n.rejoin.requestId, requestedAt: n.at, claimantName: n.rejoin.claimantName, holderName: n.rejoin.holderName, holderEmail: n.rejoin.holderEmail, holderOnline: n.rejoin.holderOnline, holderLastSeenAt: n.rejoin.holderLastSeenAt }}
+                        onKeep={() => void rejoin(n, 'keep')} onReject={() => void rejoin(n, 'reject')} onImpostor={() => setImpostor(n)} />
+                    </li>
+                  );
+                }
                 const meta = NOTICE_TEXT[n.kind];
                 const fresh = n.at > (seenWhenOpened.current[n.sessionId] ?? 0);
                 const out = n.kind === 'edit' && n.editStatus && n.editStatus !== 'pending' ? EDIT_OUTCOME[n.editStatus] : null;
@@ -145,9 +167,24 @@ export function NotificationBell({ state, desktop, onOpenSession }: { state: Men
           {sessions.length === 1 && (
             <button onClick={() => openSession(sessions[0]!.id)} style={{ width: '100%', padding: '10px 16px', background: 'none', border: 0, color: 'var(--text-link)', font: 'var(--type-meta)', fontWeight: 600, cursor: 'pointer' }}>Xem điều khiển phiên</button>
           )}
+          {handledRejoin.length > 0 && (
+            <ul aria-label="Đã xử lý" style={{ listStyle: 'none', margin: 0, padding: '8px 16px', borderTop: '1px solid var(--border-hairline)', display: 'grid', gap: 4, font: 'var(--type-meta)', color: 'var(--text-meta)' }}>
+              {handledRejoin.slice(0, 3).map(h => <li key={`${h.key}:${h.at}`}>{h.text} · {time(h.at)}</li>)}
+            </ul>
+          )}
           {desktop && <DesktopRow desktop={desktop} />}
         </div>
       )}
+
+      <ConfirmDialog open={impostor !== null} tone="danger" title="Mời người đang giữ chỗ ra?" confirmLabel={impostor?.rejoin ? `Mời ra, cho “${impostor.rejoin.claimantName}” vào` : 'Xác nhận'} cancelLabel="Quay lại" busy={approving !== null}
+        onCancel={() => setImpostor(null)} onConfirm={() => impostor && void rejoin(impostor, 'takeover')}>
+        {impostor?.rejoin && (
+          <div style={{ display: 'grid', gap: 8 }}>
+            <span>“{impostor.rejoin.holderName}” sẽ bị mời ra và <b>mất lượt làm bài</b>. Không hoàn tác được.</span>
+            <span>“{impostor.rejoin.claimantName}” vào như người mới, với email của chỗ này.</span>
+          </div>
+        )}
+      </ConfirmDialog>
     </div>
   );
 }

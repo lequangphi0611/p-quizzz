@@ -11,6 +11,9 @@ import { useSessionDetail } from '../application/session-admin-context.js';
 import { ACTION_FOR_STATUS } from '../domain/session-ui.js';
 import { readPref, writePref, PREF_KEYS } from '../../../shared/storage/prefs.js';
 import { shouldRemindToSave } from '../domain/access-ui.js';
+import { massDisconnect } from '../domain/disconnect-summary.js';
+import { formatClock } from '../../../shared/format/date.js';
+import { RejoinRequestsBlock } from './RejoinRequestsBlock.js';
 import { AccessCard } from './AccessCard.js';
 import { JoinCard } from './JoinCard.js';
 import { ParticipantsCard } from './ParticipantsCard.js';
@@ -30,6 +33,10 @@ function SessionDetailView({ initial }: { initial: SessionDetail }) {
   const finalized = detail.status === 'finalized'; // results are official: no more renaming or kicking
   const finished = detail.status === 'closed' || finalized;
   const kicking = dialog?.kind === 'kick' ? dialog.p : null;
+  const open = detail.status === 'lobby' || detail.status === 'running';
+  const mass = open ? massDisconnect(detail.participants, Date.now()) : null;
+  const impostor = dialog?.kind === 'impostor' ? dialog.request : null;
+  const holderOf = (participantId: number) => detail.participants.find(p => p.id === participantId);
 
   return (
     <div style={{ display: 'grid', gap: 20 }}>
@@ -65,12 +72,20 @@ function SessionDetailView({ initial }: { initial: SessionDetail }) {
           <Icon name="circle-check" size={16} /><span style={{ flex: 1 }}>{notice}</span><Button size="sm" variant="ghost" onClick={() => ctrl.dismissNotice()}>Đóng</Button>
         </div>
       )}
+      {mass && (
+        <div role="status" style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'var(--warn-surface, var(--sun-100))', color: 'var(--sun-ink)', border: '1px solid var(--sun-300)', font: 'var(--type-ui)' }}>
+          <Icon name="wifi-off" size={18} style={{ marginTop: 2 }} />
+          <span><b>{mass.count} người ngắt kết nối cùng lúc ({formatClock(mass.since)})</b> — thường do Wi-Fi của lớp. Bài của họ vẫn được giữ. Ai chỉ mất mạng rồi có lại thì trình duyệt tự nối lại; ai phải mở bằng máy khác sẽ gửi yêu cầu xin vào lại cho bạn.</span>
+        </div>
+      )}
+      <RejoinRequestsBlock detail={detail} working={working} onKeep={id => void ctrl.answerRejoin(id, 'keep')} onReject={id => void ctrl.answerRejoin(id, 'reject')}
+        onImpostor={id => { const r = detail.rejoinRequests.find(x => x.id === id); if (r) ctrl.openDialog({ kind: 'impostor', request: r }); }} />
       {detail.roster && shouldRemindToSave(detail, reminderOff) && (
         <SaveGroupBanner count={detail.roster.size} onSave={() => ctrl.openDialog({ kind: 'saveGroup' })} onLater={() => { writePref(PREF_KEYS.saveReminderOff(detail.id), '1'); setReminderOff(true); }} />
       )}
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' }}>
-        <ParticipantsCard status={detail.status} active={active} working={working} finalized={finalized} showEmail={detail.access === 'roster'} onRename={(id, name) => ctrl.rename(id, name)} onResolveEdit={(id, decision) => void ctrl.resolveEdit(id, decision)} onKick={p => ctrl.openDialog({ kind: 'kick', p })} />
+        <ParticipantsCard status={detail.status} active={active} working={working} finalized={finalized} showEmail={detail.access === 'roster'} onAllow={p => void ctrl.allowRejoin(p.id, p.displayName)} onRename={(id, name) => ctrl.rename(id, name)} onResolveEdit={(id, decision) => void ctrl.resolveEdit(id, decision)} onKick={p => ctrl.openDialog({ kind: 'kick', p })} />
         <div style={{ display: 'grid', gap: 20, flex: '1 1 300px', maxWidth: 420 }}>
           <JoinCard status={detail.status} roomCode={detail.roomCode} />
           <AccessCard detail={detail} working={working} onAdd={() => ctrl.openDialog({ kind: 'addRoster' })} onSave={() => ctrl.openDialog({ kind: 'saveGroup' })} />
@@ -83,6 +98,16 @@ function SessionDetailView({ initial }: { initial: SessionDetail }) {
 
       <ConfirmDialog open={dialog?.kind === 'action' && !!spec?.confirm} tone={spec?.variant ?? 'primary'} title={spec?.confirm?.title ?? ''} confirmLabel={spec?.confirm?.confirmLabel} busy={working} onCancel={() => ctrl.closeDialog()} onConfirm={() => ctrl.doAction()}>
         {spec?.confirm?.body(active.length)}
+      </ConfirmDialog>
+
+      <ConfirmDialog open={impostor !== null} tone="danger" title="Mời người đang giữ chỗ ra?" confirmLabel={impostor ? `Mời ra, cho “${impostor.claimantName}” vào` : 'Xác nhận'} cancelLabel="Quay lại" busy={working}
+        onCancel={() => ctrl.closeDialog()} onConfirm={() => impostor && void ctrl.answerRejoin(impostor.id, 'takeover')}>
+        {impostor && (
+          <div style={{ display: 'grid', gap: 8 }}>
+            <span>“{holderOf(impostor.participantId)?.displayName ?? 'Người đang giữ chỗ'}” sẽ bị mời ra và <b>mất lượt làm bài</b>. Không hoàn tác được.</span>
+            <span>“{impostor.claimantName}” vào như người mới, với email của chỗ này.</span>
+          </div>
+        )}
       </ConfirmDialog>
 
       <ConfirmDialog open={kicking !== null} tone="danger" title={kicking ? `${kicking.status === 'pending' ? 'Từ chối' : 'Kick'} ${kicking.displayName}?` : ''} confirmLabel={kicking?.status === 'pending' ? 'Từ chối' : 'Kick'} busy={working} onCancel={() => ctrl.closeDialog()} onConfirm={() => ctrl.kickConfirmed()}>

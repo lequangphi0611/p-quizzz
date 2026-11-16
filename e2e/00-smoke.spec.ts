@@ -13,4 +13,7 @@ test('mentor opens a room and a member joins with the room code', async ({ brows
   await member.page.getByLabel(/tên/i).first().fill('An');
   await member.page.getByRole('button', { name: /vào/i }).first().click();
   await expect(member.page.getByText('An').first()).toBeVisible();
+
+  // The server is shared by every spec of a run: leave no session open behind (later specs count the open ones).
+  for (const step of ['start', 'close']) await mentor.context.request.post(`/api/admin/sessions/${session.id}/${step}`);
 });

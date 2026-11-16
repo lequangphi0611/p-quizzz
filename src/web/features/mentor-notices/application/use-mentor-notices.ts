@@ -15,6 +15,8 @@ export interface OpenSessionNotices {
   status: SessionSummary['status'];
   pending: number;
   editPending: number;
+  /** Requests to take over a seat, waiting for the mentor. */
+  rejoinPending: number;
   unread: number;
 }
 
@@ -29,6 +31,10 @@ export interface MentorNoticesState {
   pending: number;
   /** Members waiting for an answer to "xin sửa bài". */
   editPending: number;
+  /** Requests to take over a seat, across all open sessions. */
+  rejoinPending: number;
+  /** Rejoin requests this browser answered, newest first: a short "trước đó" trail that lives as long as the page (nothing is stored). */
+  handledRejoin: HandledRejoin[];
   /** Per-session "seen" marks (the newest notice time the mentor has looked at). */
   seen: Readonly<Record<number, number>>;
   markAllSeen: () => void;
@@ -37,7 +43,11 @@ export interface MentorNoticesState {
   approve: (participantId: number) => Promise<void>;
   /** Approve or reject a request to edit essays, then refresh. Rejects with the server error. */
   resolveEdit: (participantId: number, decision: 'approve' | 'reject') => Promise<void>;
+  /** Answer a request to take over a seat, then refresh. Rejects with the server error. */
+  answerRejoin: (notice: MentorNotice, answer: 'keep' | 'takeover' | 'reject') => Promise<void>;
 }
+
+export interface HandledRejoin { key: string; sessionId: number; sessionName: string; text: string; at: number }
 
 /**
  * Follows EVERY open (lobby/running) session from anywhere in the admin area, so the mentor learns about joins and
@@ -51,6 +61,7 @@ export function useMentorNotices(recheckKey: string): MentorNoticesState {
   const [open, setOpen] = useState<SessionSummary[]>([]);
   const [details, setDetails] = useState<Record<number, SessionDetail>>({});
   const [seen, setSeen] = useState<Record<number, number>>({});
+  const [handledRejoin, setHandledRejoin] = useState<HandledRejoin[]>([]);
   const openRef = useRef<SessionSummary[]>([]);
   const seq = useRef<Record<number, number>>({});
 
@@ -91,10 +102,15 @@ export function useMentorNotices(recheckKey: string): MentorNoticesState {
     },
     onResync: () => { void loadOpen(); for (const s of openRef.current) void loadDetail(s.id); },
   });
+  // Who is connected changes without any signal (silence is not an event), so the holder's status in a request is refreshed on a timer.
+  useEffect(() => {
+    const t = setInterval(() => { for (const s of openRef.current) void loadDetail(s.id); }, 15_000);
+    return () => clearInterval(t);
+  }, [loadDetail]);
 
   const loaded = open.every(s => details[s.id]?.id === s.id);
   const notices = useMemo(
-    () => buildAllNotices(open.flatMap(s => (details[s.id] ? [{ session: { id: s.id, name: s.name, slot: s.slot }, participants: details[s.id]!.participants }] : []))),
+    () => buildAllNotices(open.flatMap(s => (details[s.id] ? [{ session: { id: s.id, name: s.name, slot: s.slot }, participants: details[s.id]!.participants, rejoinRequests: details[s.id]!.rejoinRequests }] : []))),
     [open, details],
   );
   const markAllSeen = useCallback(() => {
@@ -110,6 +126,7 @@ export function useMentorNotices(recheckKey: string): MentorNoticesState {
       id: s.id, name: s.name, slot: s.slot, title: s.examTitle, status: s.status,
       pending: d ? pendingCount(d.participants) : 0,
       editPending: d ? editPendingCount(d.participants) : 0,
+      rejoinPending: d ? d.rejoinRequests.length : 0,
       unread: unreadCount(notices.filter(n => n.sessionId === s.id), seen),
     };
   });
@@ -122,10 +139,19 @@ export function useMentorNotices(recheckKey: string): MentorNoticesState {
     unread: unreadCount(notices, seen),
     pending: sessions.reduce((sum, s) => sum + s.pending, 0),
     editPending: sessions.reduce((sum, s) => sum + s.editPending, 0),
+    rejoinPending: sessions.reduce((sum, s) => sum + s.rejoinPending, 0),
+    handledRejoin,
     seen,
     markAllSeen,
     refresh: refreshAll,
     approve: async (participantId: number) => { await gateway.approveParticipant(participantId); refreshAll(); },
     resolveEdit: async (participantId: number, decision: 'approve' | 'reject') => { await gateway.resolveEditRequest(participantId, decision); refreshAll(); },
+    answerRejoin: async (notice: MentorNotice, answer: 'keep' | 'takeover' | 'reject') => {
+      if (!notice.rejoin) return;
+      await gateway.answerRejoin(notice.rejoin.requestId, answer);
+      const verb = answer === 'keep' ? `đã cho “${notice.rejoin.claimantName}” vào lại` : answer === 'takeover' ? `đã mời “${notice.rejoin.holderName}” ra, cho “${notice.rejoin.claimantName}” vào` : `đã từ chối “${notice.rejoin.claimantName}”`;
+      setHandledRejoin(prev => [{ key: notice.key, sessionId: notice.sessionId, sessionName: notice.sessionName, text: `Bạn ${verb}`, at: Date.now() }, ...prev].slice(0, 20));
+      refreshAll();
+    },
   };
 }

@@ -12,6 +12,7 @@ import { selectRoom, selectScreen } from '../application/member-home-controller.
 import { useMemberHome } from '../application/member-home-context.js';
 import { ConnLost } from './ConnLost.js';
 import { JoinForm } from './JoinForm.js';
+import { RejoinWait, Replaced } from './RejoinPanels.js';
 
 // "/" — decides what a member sees from three facts: which room code was found, do I hold a token, what does /api/me say.
 /** The exam screen is another feature's: the app composes it in (features never import each other). */
@@ -41,6 +42,11 @@ export function MemberHomePage({ examScreen }: { examScreen: ExamScreen }) {
       return page(<PageCard desk={desk} center><Spinner block label="Đang kết nối tới máy mentor…" /><span style={{ ...mText.meta, ...mText.mono }}>{window.location.host}</span></PageCard>);
     case 'error':
       return page(<ConnLost onRetry={() => followedId !== null && void ctrl.fetchMe(followedId)} desk={desk} />);
+    case 'rejoin':
+      return page(<RejoinWait desk={desk} state={state.rejoin ?? 'pending'} offline={state.rejoinOffline} title={title}
+        onCancel={() => void ctrl.cancelRejoin()} onBack={() => ctrl.backFromRejoin()} />);
+    case 'replaced':
+      return page(<Replaced desk={desk} onLeave={() => ctrl.leave()} />);
     case 'code':
     case 'join':
       return page(<JoinForm desk={desk} state={state} linkRoom={linkRoom} ctrl={ctrl} />);

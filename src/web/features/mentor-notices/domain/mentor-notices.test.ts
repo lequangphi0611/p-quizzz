@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SessionParticipantDetail } from '../../../../shared/api/index.js';
-import { attentionFirst, buildAllNotices, buildNotices, editPendingCount, DESKTOP_BATCH_MAX, desktopNotifications, markSeenAt, newPendingNotices, pendingCount, titleWithCount, unreadCount } from './mentor-notices.js';
+import { attentionFirst, buildAllNotices, buildNotices, needsAttention, editPendingCount, DESKTOP_BATCH_MAX, desktopNotifications, markSeenAt, newPendingNotices, pendingCount, titleWithCount, unreadCount } from './mentor-notices.js';
 
 const person = (id: number, status: SessionParticipantDetail['status'], joinedAt: number, submittedAt: number | null = null): SessionParticipantDetail => ({
   id, displayName: `P${id}`, status, joinedAt, email: null, connection: { online: true, lastSeenAt: null }, rejoinAllowedUntil: null,
@@ -124,5 +124,28 @@ describe('several open sessions', () => {
     expect(seen).toEqual({ 1: 100, 2: 300 });
     expect(unreadCount(all, seen)).toBe(0);
     expect(markSeenAt(all, seen)).toBe(seen); // nothing moved: same reference, nothing to save
+  });
+});
+
+describe('requests to take over a seat (PRODUCT.md §7.23)', () => {
+  const holder = { ...person(3, 'active', 100), email: 'phi78@gmail.com', connection: { online: false, lastSeenAt: 90 } };
+  const req = { id: 7, participantId: 3, claimantName: 'Phi 2', requestedAt: 500 };
+
+  it('one notice per waiting request, carrying who holds the seat now and whether they are connected', () => {
+    const n = buildNotices([holder], { id: 1, name: 'Git – lớp A', slot: 1 }, [req]).find(x => x.kind === 'rejoin')!;
+    expect(n).toMatchObject({ key: 'rejoin:7', sessionName: 'Git – lớp A', displayName: 'Phi 2', at: 500 });
+    expect(n.rejoin).toEqual({ requestId: 7, holderName: 'P3', holderEmail: 'phi78@gmail.com', holderOnline: false, holderLastSeenAt: 90, claimantName: 'Phi 2' });
+  });
+
+  it('needs the mentor, so it sorts to the top with the others that wait for an answer', () => {
+    const notices = buildNotices([person(1, 'active', 100, 900), holder], undefined, [req]);
+    expect(needsAttention(notices.find(n => n.kind === 'rejoin')!)).toBe(true);
+    expect(attentionFirst(notices)[0]!.kind).toBe('rejoin');
+  });
+
+  it('a request is a new notice (unread) and survives merging sessions', () => {
+    const all = buildAllNotices([{ session: { id: 1, name: 'A', slot: 1 }, participants: [holder], rejoinRequests: [req] }]);
+    expect(all.some(n => n.key === 'rejoin:7')).toBe(true);
+    expect(unreadCount(all, {})).toBeGreaterThan(0);
   });
 });

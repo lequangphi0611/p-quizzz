@@ -8,6 +8,7 @@ import { TextField } from '../../../shared/ui/TextField.js';
 import { InfoBox, InfoRow, PageCard, mText } from '../../../shared/ui/member/member-shell.js';
 import { selectRoom, type MemberHomeController, type MemberHomeState } from '../application/member-home-controller.js';
 import { classifyJoinError, classifyRoomLookupError } from '../domain/join-error.js';
+import { TakenConfirm } from './RejoinPanels.js';
 
 // ── 1 · Join ────────────────────────────────────────────────────────────────────────────────────
 // Step 1: the room code (several sessions may be open, so the code is how the server knows which one).
@@ -20,8 +21,13 @@ export function JoinForm({ desk, state, linkRoom, ctrl }: { desk: boolean; state
   const [busy, setBusy] = useState(false);
   const [nameError, setNameError] = useState('');
   const [emailError, setEmailError] = useState('');
+  // The email/name already has someone behind it: offer to ask the mentor instead of a dead end (PRODUCT.md §7.23).
+  const [taken, setTaken] = useState<{ kind: 'email' | 'name' } | null>(null);
+  const [asking, setAsking] = useState(false);
+  const [askError, setAskError] = useState('');
   const [lockedFor, setLockedFor] = useState(0); // seconds left after too many wrong codes (server 429)
   const room = selectRoom(state);
+  const needsEmail = room?.access === 'roster';
   const lookupFailure = state.lookup?.status === 'error' && state.lookup.code === code ? classifyRoomLookupError(state.lookup.error!.status, state.lookup.error!.message) : null;
 
   // Look the room up as soon as the code is complete (a join link arrives complete).
@@ -48,15 +54,35 @@ export function JoinForm({ desk, state, linkRoom, ctrl }: { desk: boolean; state
       const failure = classifyJoinError(err instanceof ApiError ? err.status : null, err instanceof ApiError ? err.message : '', err instanceof ApiError ? err.code : undefined);
       if (failure.kind === 'locked') setLockedFor(failure.seconds);
       else if (failure.kind === 'room') { setNameError(''); ctrl.clearRoom(); setCode(''); } // the room closed or the code changed under us
-      else if (failure.kind === 'email' || (failure.kind === 'taken' && /email/i.test(failure.message))) setEmailError(failure.message);
+      else if (failure.kind === 'taken' && (!needsEmail || /email/i.test(failure.message))) setTaken({ kind: needsEmail ? 'email' : 'name' });
+      else if (failure.kind === 'taken') setNameError(`${failure.message}. Thêm họ hoặc một chữ để phân biệt.`); // same name, other email: choose another name
+      else if (failure.kind === 'email') setEmailError(failure.message);
       else setNameError(failure.message);
       setBusy(false);
     }
   }
 
   const running = room?.status === 'running';
-  const needsEmail = room?.access === 'roster';
   const roomError = lookupFailure && lookupFailure.kind !== 'locked' ? lookupFailure.message : '';
+
+  async function ask() {
+    if (!room || asking) return;
+    setAsking(true);
+    setAskError('');
+    try {
+      await ctrl.requestRejoin(room.id, name, code, needsEmail ? email : undefined);
+      window.history.replaceState(null, '', '/');
+    } catch (err) {
+      const e = err instanceof ApiError ? err : null;
+      if (e?.status === 429) { setLockedFor(30); setTaken(null); }
+      else setAskError(e?.message ?? 'Không gửi được yêu cầu');
+      setAsking(false);
+    }
+  }
+
+  if (taken) {
+    return <TakenConfirm desk={desk} kind={taken.kind} typed={taken.kind === 'email' ? email.trim() : name.trim()} busy={asking} error={askError} onAsk={() => void ask()} onBack={() => { setTaken(null); setAskError(''); setBusy(false); }} />;
+  }
   return (
     <PageCard desk={desk}>
       <form onSubmit={submit} noValidate style={{ display: 'grid', gap: 20 }}>

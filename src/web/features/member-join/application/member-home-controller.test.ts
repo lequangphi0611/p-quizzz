@@ -11,7 +11,13 @@ const me = (id = 1, status = 'lobby', participant = 'active', attemptCurrent: un
 function make(over: Partial<MemberGateway> = {}, tokens = new InMemoryTokenStore()) {
   const memory = new Map<number, string>();
   const rooms: RoomCodeMemory = { remember: (id, c) => void memory.set(id, c), recall: id => memory.get(id) ?? '' };
-  const gateway: MemberGateway = { resolveRoom: vi.fn(async () => found()), getMe: vi.fn(async () => me()), join: vi.fn(async () => ({ token: 'tok' }) as never), ...over };
+  const gateway: MemberGateway = {
+    resolveRoom: vi.fn(async () => found()), getMe: vi.fn(async () => me()), join: vi.fn(async () => ({ token: 'tok' }) as never),
+    requestRejoin: vi.fn(async () => ({ requestId: 7, token: 'req-tok', status: 'pending' as const })),
+    getRejoinStatus: vi.fn(async () => ({ status: 'pending' as const, sessionId: 1 })),
+    cancelRejoin: vi.fn(async () => {}),
+    ...over,
+  };
   return { gateway, tokens, rooms, ctrl: new MemberHomeController(gateway, tokens, rooms, 1000) };
 }
 const settle = () => vi.advanceTimersByTimeAsync(0);
@@ -205,5 +211,89 @@ describe('MemberHomeController: following a session', () => {
     await ctrl.refreshMe();
     expect(selectScreen(ctrl.getState())).toBe('ended');
     expect(ctrl.getState().autoSubmitted).toBe(true);
+  });
+});
+
+describe('MemberHomeController: asking the mentor to let this person back in (PRODUCT.md §7.23)', () => {
+  it('sends the request, keeps the request token as this session\'s token, and waits (polling the request, not /api/me)', async () => {
+    const { ctrl, gateway, tokens } = make();
+    await ctrl.requestRejoin(1, 'Phi 2', '123456', 'phi78@gmail.com');
+    expect(gateway.requestRejoin).toHaveBeenCalledWith(1, { displayName: 'Phi 2', roomCode: '123456', email: 'phi78@gmail.com' });
+    expect(tokens.getToken(1)).toBe('req-tok');
+    expect(tokens.getCurrentSessionId()).toBe('1');
+    expect(selectScreen(ctrl.getState())).toBe('rejoin');
+    expect(ctrl.getState().rejoin).toBe('pending');
+    const meCalls = (gateway.getMe as ReturnType<typeof vi.fn>).mock.calls.length;
+    const stop = ctrl.start();
+    await vi.advanceTimersByTimeAsync(2000);
+    stop();
+    expect(gateway.getRejoinStatus).toHaveBeenCalled();
+    expect((gateway.getMe as ReturnType<typeof vi.fn>).mock.calls.length).toBe(meCalls); // /api/me with a request token would be a 401
+  });
+
+  it('approved by the mentor: the same token now is the member\'s, and the member state loads', async () => {
+    let status: 'pending' | 'approved' = 'pending';
+    const { ctrl, gateway } = make({ getRejoinStatus: async () => ({ status, sessionId: 1 }) });
+    await ctrl.requestRejoin(1, 'Phi', '123456', 'phi78@gmail.com');
+    expect(selectScreen(ctrl.getState())).toBe('rejoin');
+    status = 'approved';
+    await ctrl.fetchRejoin();
+    await settle();
+    expect(ctrl.getState().rejoin).toBeNull();
+    expect(gateway.getMe).toHaveBeenCalled();
+    expect(selectScreen(ctrl.getState())).toBe('lobby');
+  });
+
+  it('the mentor had allowed it beforehand: approved at once, straight into the session', async () => {
+    const { ctrl, tokens } = make({ requestRejoin: async () => ({ requestId: null, token: 'back-tok', status: 'approved' as const }) });
+    await ctrl.requestRejoin(1, 'Phi', '123456', 'phi78@gmail.com');
+    await settle();
+    expect(tokens.getToken(1)).toBe('back-tok');
+    expect(ctrl.getState().rejoin).toBeNull();
+    expect(selectScreen(ctrl.getState())).toBe('lobby');
+  });
+
+  it('rejected and expired are shown as such; going back to the form drops the request token but keeps the looked-up room', async () => {
+    for (const answer of ['rejected', 'expired'] as const) {
+      const { ctrl, tokens } = make({ getRejoinStatus: async () => ({ status: answer, sessionId: 1 }) });
+      await ctrl.lookUpRoom('123456');
+      await ctrl.requestRejoin(1, 'Phi', '123456', 'phi78@gmail.com');
+      expect(ctrl.getState().rejoin).toBe(answer);
+      expect(selectScreen(ctrl.getState())).toBe('rejoin');
+      ctrl.backFromRejoin();
+      expect(tokens.getToken(1)).toBeNull();
+      expect(selectScreen(ctrl.getState())).toBe('join'); // the form again, room still known
+    }
+  });
+
+  it('withdrawing tells the server, then returns to the form even if the server cannot be reached', async () => {
+    const { ctrl, gateway } = make({ cancelRejoin: vi.fn(async () => { throw new ApiError(0, 'down'); }) });
+    await ctrl.requestRejoin(1, 'Phi', '123456', 'a@x.com');
+    await ctrl.cancelRejoin();
+    expect(gateway.cancelRejoin).toHaveBeenCalled();
+    expect(ctrl.getState().rejoin).toBeNull();
+    expect(selectScreen(ctrl.getState())).toBe('code');
+  });
+
+  it('losing the connection keeps the request and says so; a forgotten request (404) returns to the form', async () => {
+    let mode: 'down' | 'gone' | 'ok' = 'down';
+    const { ctrl } = make({ getRejoinStatus: async () => { if (mode === 'down') throw new ApiError(0, 'down'); if (mode === 'gone') throw new ApiError(404, 'x'); return { status: 'pending' as const, sessionId: 1 }; } });
+    await ctrl.requestRejoin(1, 'Phi', '123456', 'a@x.com');
+    expect(ctrl.getState()).toMatchObject({ rejoin: 'pending', rejoinOffline: true });
+    mode = 'ok';
+    await ctrl.fetchRejoin();
+    expect(ctrl.getState().rejoinOffline).toBe(false);
+    mode = 'gone';
+    await ctrl.fetchRejoin();
+    expect(ctrl.getState().rejoin).toBeNull();
+    expect(selectScreen(ctrl.getState())).toBe('code');
+  });
+
+  it('403 "replaced" (the mentor let this person in on another device) is its own screen, not "kicked"', async () => {
+    const { ctrl } = make({ getMe: async () => { throw new ApiError(403, 'Bài của bạn đang được mở ở thiết bị khác', 'replaced'); } }, inSession());
+    await settle();
+    expect(selectScreen(ctrl.getState())).toBe('replaced');
+    ctrl.leave();
+    expect(selectScreen(ctrl.getState())).toBe('code');
   });
 });

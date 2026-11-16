@@ -50,8 +50,15 @@ export async function makeSession(api: APIRequestContext, examId: number, opts: 
   return { id, roomCode: detail.roomCode ?? '' };
 }
 
-/** A fresh, isolated member browser (own localStorage, like another person's device). */
+let nextDevice = 1;
+
+/**
+ * A fresh, isolated member browser (own localStorage, like another person's device). Every device also gets its own
+ * address (the server trusts X-Forwarded-For from this machine), because wrong room codes are limited per address:
+ * without it the tests that guess codes on purpose would lock out every later test of the run.
+ */
 export async function memberContext(browser: Browser, baseURL: string, viewport = DESKTOP): Promise<{ context: BrowserContext; page: Page }> {
-  const context = await browser.newContext({ baseURL, viewport, deviceScaleFactor: 2, locale: 'vi-VN' });
+  const n = nextDevice++;
+  const context = await browser.newContext({ baseURL, viewport, deviceScaleFactor: 2, locale: 'vi-VN', extraHTTPHeaders: { 'x-forwarded-for': `10.20.${n >> 8}.${n & 255}` } });
   return { context, page: await context.newPage() };
 }

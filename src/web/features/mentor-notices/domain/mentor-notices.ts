@@ -1,8 +1,18 @@
-import type { EditRequestStatus, SessionParticipantDetail } from '../../../../shared/api/index.js';
+import type { EditRequestStatus, RejoinRequestInfo, SessionParticipantDetail } from '../../../../shared/api/index.js';
 
 // Mentor notifications are derived from the session detail (no extra storage on the server):
 // every non-kicked participant yields a "joined" notice, plus a "submitted" notice once they hand in.
-export type NoticeKind = 'pending' | 'joined' | 'submitted' | 'edit';
+export type NoticeKind = 'pending' | 'joined' | 'submitted' | 'edit' | 'rejoin';
+
+/** A request to take over a seat (PRODUCT.md §7.23): who holds it now and whether they are still connected. Mentor only. */
+export interface RejoinNoticeInfo {
+  requestId: number;
+  holderName: string;
+  holderEmail: string | null;
+  holderOnline: boolean;
+  holderLastSeenAt: number | null;
+  claimantName: string;
+}
 
 /** Which session a notice belongs to: several may be open at once (PRODUCT.md §7.5), so every notice says. */
 export interface SessionLabel {
@@ -24,12 +34,14 @@ export interface MentorNotice {
   editStatus?: EditRequestStatus;
   reason?: string;
   resolvedAt?: number | null; // when the mentor answered; shown next to the outcome
+  /** `rejoin` notices: the request and who holds the seat. */
+  rejoin?: RejoinNoticeInfo;
 }
 
 const NO_SESSION: SessionLabel = { id: 0, name: '', slot: null };
 
 /** Newest first; at the same instant a submission sorts above a join. */
-export function buildNotices(participants: readonly SessionParticipantDetail[], session: SessionLabel = NO_SESSION): MentorNotice[] {
+export function buildNotices(participants: readonly SessionParticipantDetail[], session: SessionLabel = NO_SESSION, rejoinRequests: readonly RejoinRequestInfo[] = []): MentorNotice[] {
   const out: MentorNotice[] = [];
   const base = { sessionId: session.id, sessionName: session.name, slot: session.slot };
   for (const p of participants) {
@@ -40,6 +52,12 @@ export function buildNotices(participants: readonly SessionParticipantDetail[], 
     }
     const edit = p.progress.editRequest;
     if (edit) out.push({ ...base, key: `edit:${p.id}:${edit.requestedAt}`, kind: 'edit', participantId: p.id, displayName: p.displayName, at: edit.requestedAt, editStatus: edit.status, reason: edit.reason, resolvedAt: edit.resolvedAt });
+  }
+  const holders = new Map(participants.map(p => [p.id, p]));
+  for (const r of rejoinRequests) {
+    const holder = holders.get(r.participantId);
+    out.push({ ...base, key: `rejoin:${r.id}`, kind: 'rejoin', participantId: r.participantId, displayName: r.claimantName, at: r.requestedAt,
+      rejoin: { requestId: r.id, holderName: holder?.displayName ?? '—', holderEmail: holder?.email ?? null, holderOnline: holder?.connection.online ?? false, holderLastSeenAt: holder?.connection.lastSeenAt ?? null, claimantName: r.claimantName } });
   }
   return out.sort((a, b) => b.at - a.at || rank(a) - rank(b) || b.participantId - a.participantId);
 }
@@ -53,9 +71,9 @@ const seenFor = (seen: Seen, sessionId: number) => (typeof seen === 'number' ? s
 export const unreadCount = (notices: readonly MentorNotice[], seen: Seen) => notices.filter(n => n.at > seenFor(seen, n.sessionId)).length;
 
 /** All sessions' notices as one list, newest first. Each session is built with its own label. */
-export function buildAllNotices(entries: readonly { session: SessionLabel; participants: readonly SessionParticipantDetail[] }[]): MentorNotice[] {
+export function buildAllNotices(entries: readonly { session: SessionLabel; participants: readonly SessionParticipantDetail[]; rejoinRequests?: readonly RejoinRequestInfo[] }[]): MentorNotice[] {
   return entries
-    .flatMap(e => buildNotices(e.participants, e.session))
+    .flatMap(e => buildNotices(e.participants, e.session, e.rejoinRequests))
     .sort((a, b) => b.at - a.at || rank(a) - rank(b) || b.participantId - a.participantId);
 }
 
@@ -83,10 +101,11 @@ export const NOTICE_TEXT: Record<NoticeKind, { text: string; icon: string; color
   joined: { text: 'đã vào phiên', icon: 'user-check', color: 'var(--brand-700)' },
   submitted: { text: 'đã nộp bài', icon: 'send', color: 'var(--correct-600)' },
   edit: { text: 'xin sửa bài tự luận', icon: 'pencil', color: 'var(--sun-ink)' },
+  rejoin: { text: 'xin vào lại', icon: 'door-open', color: 'var(--sun-ink)' },
 };
 
 /** Something only the mentor can unblock: a person waiting at the door, or a request to edit essays. */
-export const needsAttention = (n: MentorNotice) => n.kind === 'pending' || (n.kind === 'edit' && n.editStatus === 'pending');
+export const needsAttention = (n: MentorNotice) => n.kind === 'pending' || n.kind === 'rejoin' || (n.kind === 'edit' && n.editStatus === 'pending');
 
 /** Items that need the mentor first (still newest first inside each group). */
 export const attentionFirst = (notices: readonly MentorNotice[]): MentorNotice[] => [...notices.filter(needsAttention), ...notices.filter(n => !needsAttention(n))];
