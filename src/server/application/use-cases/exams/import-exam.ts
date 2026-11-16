@@ -1,5 +1,6 @@
 import { parseExam, type ExamIssue } from '../../../../shared/exam-format/index.js';
 import { newExam } from '../../../domain/exam/exam.js';
+import type { Clock } from '../../ports/clock.js';
 import type { ExamReader, ExamSummary, ExamUnitContext } from '../../ports/exam-repository.js';
 import type { UnitOfWork } from '../../ports/unit-of-work.js';
 import { InvalidExamError } from './errors.js';
@@ -15,8 +16,7 @@ export class ImportExam {
     private readonly deps: {
       unitOfWork: UnitOfWork<ExamUnitContext>;
       exams: ExamReader;
-      /** Replaced by the shared `Clock` port in P2-1. */
-      now: () => Date;
+      clock: Clock;
     },
   ) {}
 
@@ -24,7 +24,7 @@ export class ImportExam {
     const result = parseExam(markdown);
     if (!result.exam || result.errors.length > 0) throw new InvalidExamError(result.errors);
 
-    const exam = newExam({ ...result.exam, sourceMarkdown: markdown, createdAt: this.deps.now() });
+    const exam = newExam({ ...result.exam, sourceMarkdown: markdown, createdAt: this.deps.clock.now() });
     const id = await this.deps.unitOfWork.run(ctx => ctx.exams.add(exam));
     return { exam: (await this.deps.exams.findSummary(id))!, warnings: result.warnings };
   }

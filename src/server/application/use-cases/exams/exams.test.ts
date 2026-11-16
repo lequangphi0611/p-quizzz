@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ExamInUseError, ExamNotFoundError } from '../../../domain/exam/errors.js';
+import { FakeClock } from '../../testing/fakes.js';
 import { InMemoryExamRepository, InMemoryExamUnitOfWork } from '../../testing/in-memory-exam-repository.js';
 import { DeleteExam } from './delete-exam.js';
 import { InvalidExamError } from './errors.js';
@@ -13,12 +14,12 @@ const sample = readFileSync('exams/examples/git-co-ban.md', 'utf8');
 const broken = '---\ntitle: Hỏng\n---\n\n## Câu không có đáp án đúng\n- [ ] A\n- [ ] B\n';
 
 let repo: InMemoryExamRepository;
-let clock: number;
+let clock: FakeClock;
 const build = () => {
   const unitOfWork = new InMemoryExamUnitOfWork(repo);
   return {
     preview: new PreviewExam(),
-    importExam: new ImportExam({ unitOfWork, exams: repo, now: () => new Date(clock++) }),
+    importExam: new ImportExam({ unitOfWork, exams: repo, clock }),
     list: new ListExams(repo),
     get: new GetExam(repo),
     remove: new DeleteExam(unitOfWork),
@@ -27,7 +28,7 @@ const build = () => {
 
 beforeEach(() => {
   repo = new InMemoryExamRepository();
-  clock = 1000;
+  clock = new FakeClock(1000);
 });
 
 describe('PreviewExam', () => {

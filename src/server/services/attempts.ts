@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto';
 import { and, asc, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 import type {
   AttemptSummary,
@@ -16,7 +17,7 @@ import type { Db } from '../db/client.js';
 import { answers, attempts, exams, options, participants, questions, sessions } from '../db/schema.js';
 import { publish } from '../events.js';
 import { ServiceError } from './errors.js';
-import { shuffled } from './shuffle.js';
+import { shuffled } from '../domain/shuffle.js';
 import type { DbOrTx } from './sessions.js';
 
 type QuestionRow = typeof questions.$inferSelect;
@@ -227,11 +228,11 @@ export function startAttempt(db: Db, participantId: number): AttemptView {
 
     // The order is fixed here, when the attempt is created, so F5 never reshuffles it.
     const content = loadExamContent(tx, session.examId);
-    const ordered = session.shuffle ? shuffled(content.questions) : content.questions;
+    const ordered = session.shuffle ? shuffled(content.questions, randomInt) : content.questions;
     const optionOrder: Record<string, number[]> = {};
     for (const q of content.questions) {
       const ids = (content.optionsByQuestion.get(q.id) ?? []).map(o => o.id);
-      optionOrder[String(q.id)] = session.shuffle ? shuffled(ids) : ids;
+      optionOrder[String(q.id)] = session.shuffle ? shuffled(ids, randomInt) : ids;
     }
     const attempt = tx
       .insert(attempts)

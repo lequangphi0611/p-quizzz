@@ -157,6 +157,7 @@ src/server/
   infrastructure/
     db/                   # schema Drizzle, DrizzleXxxRepository, UnitOfWork
     events/               # SSE bus (implement EventPublisher)
+    system/               # SystemClock, SecureTokenGenerator, CryptoRandom
   interface/http/         # route Fastify, parse zod, presenter entity -> DTO, plugin auth
   composition.ts          # composition root: nối tay, không DI container
 
@@ -192,7 +193,7 @@ Frontend (trong một feature): `ui -> application -> domain`; `infrastructure -
 
 ### 9.3 Quyết định: port async
 
-Mọi port trong `application/ports` trả `Promise`, kể cả khi hiện thực bằng `better-sqlite3` (đồng bộ). Lý do: use case không được phụ thuộc đặc thù của `better-sqlite3`; đổi DB hay thêm I/O (file, mạng) sau này không phải sửa use case.
+Mọi port **có I/O** trong `application/ports` (`XxxRepository`, `UnitOfWork`, `EventPublisher`) trả `Promise`, kể cả khi hiện thực bằng `better-sqlite3` (đồng bộ). Ngoại lệ: `Clock`, `TokenGenerator`, `Random` là tính toán cục bộ, không I/O, nên đồng bộ (và `shuffled` cần callback đồng bộ). Lý do: use case không được phụ thuộc đặc thù của `better-sqlite3`; đổi DB hay thêm I/O (file, mạng) sau này không phải sửa use case.
 
 Hệ quả: `db.transaction()` của Drizzle chỉ nhận callback đồng bộ nên không dùng được cho use case async. Cần `UnitOfWork.run(async ctx => ...)` tự `BEGIN`/`COMMIT`/`ROLLBACK` và tuần tự hóa các unit of work trên SQLite. Thiết kế đã được chứng minh ở spike P0-3 (issue #10): xem ADR §10. Kết luận là khả thi gọn nên giữ port async.
 
@@ -211,6 +212,7 @@ Hệ quả: `db.transaction()` của Drizzle chỉ nhận callback đồng bộ 
 - `src/shared/`: thứ **cả web và server** cùng cần: DTO và schema zod (`api/`), hàm thuần dùng chung (`scoring.ts`, `session-state.ts`, `exam-format/`).
 - `domain/` (server): entity, policy **chỉ server** cần (ví dụ quy tắc sinh mã phòng, trộn thứ tự). Có thể import `src/shared`, không ngược lại.
 - Không chắc: bắt đầu ở `domain/`; chỉ chuyển sang `src/shared/` khi web thực sự cần.
+- Đã áp dụng (P2-1): `session-state.ts` và `scoring.ts` **ở lại `shared/`** vì web import (nhãn trạng thái, `session-ui.ts`). `shuffled` (Fisher–Yates) và `randomRoomCode` chỉ server cần nên chuyển vào `domain/` (`domain/shuffle.ts`, `domain/session/room-code.ts`); chúng nhận hàm ngẫu nhiên từ ngoài, không tự gọi `crypto`.
 
 ### 9.6 Quy tắc test
 
@@ -279,3 +281,16 @@ Quy ước rút ra:
 - Test: use case bằng fake in-memory (`exams.test.ts`), repository bằng `createDb(':memory:')` (`drizzle-exam-repository.test.ts`), HTTP bằng `routes/exams.test.ts` (không đổi, trừ test transaction đã chuyển sang test repository).
 - Tạm thời `ImportExam` nhận `now: () => Date`; P2-1 thay bằng port `Clock`.
 - `infrastructure` còn import `db/schema.ts` và `db/client.ts` cũ (legacy); chuyển vào `infrastructure/db/` ở P3-5.
+
+### 11.1 Port dùng chung (P2-1, issue #12)
+
+| Port | Impl (`infrastructure/`) | Fake (`application/testing/fakes.ts`) | Ghi chú |
+|---|---|---|---|
+| `Clock.now()` | `system/SystemClock` | `FakeClock` (`advance`, `set`) | `ImportExam` đã dùng |
+| `TokenGenerator.generate()` | `system/SecureTokenGenerator` (32 byte base64url, như token member hiện tại) | `FakeTokenGenerator` (`token-1`, ...) | cho `participants` (P3-2) |
+| `Random.int(max)` | `system/CryptoRandom` | `FakeRandom` (phát lại dãy số) | dùng với `domain/shuffle`, `randomRoomCode` |
+| `EventPublisher.publish(sessionId, type)` | `events/BusEventPublisher` (bọc đúng `bus` toàn cục mà SSE đang subscribe) | `RecordingEventPublisher` | publish **sau** commit, không trong unit. Phase 2 đổi sang WebSocket bằng cách thay impl |
+
+`compose(db, overrides?)` dựng các port này (`SharedPorts`); test truyền fake qua `overrides`.
+
+Code cũ còn dùng trực tiếp (để P3-x xử lý khi chuyển module): `publish` toàn cục ở `services/{sessions,participants,attempts,grading}.ts` (13 chỗ); `new Date()` ở `services/*` và `auth/mentor.ts`; `randomBytes` ở `services/participants.ts` (token member) và `auth/mentor.ts` (salt, token mentor); `randomInt` truyền tay vào `shuffled`/`newRoomCode` ở `services/attempts.ts`, `services/room-code.ts`.

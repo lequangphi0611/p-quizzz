@@ -11,7 +11,6 @@ export const LEGACY_ALLOWLIST: string[] = [
   'src/server/app.test.ts',
   'src/server/config.ts',
   'src/server/events.ts',
-  'src/server/events.test.ts',
   'src/server/index.ts',
   'src/server/leak-guard.ts',
   'src/server/leak-guard.test.ts',
