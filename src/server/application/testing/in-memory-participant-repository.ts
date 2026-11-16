@@ -16,12 +16,16 @@ export class InMemoryParticipantRepository implements ParticipantRepository, Par
     return [...this.rows.values()].find(p => p.token === token) ?? null;
   }
 
+  async findByReplacedToken(token: string) {
+    return [...this.rows.values()].find(p => p.replacedToken === token) ?? null;
+  }
+
   async namesOf(sessionId: number) {
     return this.inSession(sessionId).map(p => ({ id: p.id, displayName: p.displayName }));
   }
 
   async listNotKicked(sessionId: number) {
-    return this.inSession(sessionId).filter(p => p.status !== 'kicked').map(p => ({ id: p.id, displayName: p.displayName, email: p.email }));
+    return this.inSession(sessionId).filter(p => p.status !== 'kicked').map(p => ({ id: p.id, displayName: p.displayName, email: p.email, status: p.status, rejoinAllowedUntil: p.rejoinAllowedUntil }));
   }
 
   async listActiveNames(sessionId: number) {
@@ -32,7 +36,7 @@ export class InMemoryParticipantRepository implements ParticipantRepository, Par
     const clash = this.inSession(p.sessionId).some(o => o.status !== 'kicked' && o.displayName.toLowerCase() === p.displayName.toLowerCase());
     if (p.status !== 'kicked' && p.email !== null && this.inSession(p.sessionId).some(o => o.status !== 'kicked' && o.email === p.email)) throw new EmailTakenError();
     if (p.status !== 'kicked' && clash) throw new NameTakenError('identity_in_use');
-    const row = { ...p, id: this.nextId++ };
+    const row: Participant = { ...p, replacedToken: null, rejoinAllowedUntil: null, id: this.nextId++ };
     this.rows.set(row.id, row);
     return row;
   }
@@ -41,6 +45,17 @@ export class InMemoryParticipantRepository implements ParticipantRepository, Par
     const row = { ...this.rows.get(id)!, ...patch };
     this.rows.set(id, row);
     return row;
+  }
+
+  async replaceToken(id: number, newToken: string) {
+    const old = this.rows.get(id)!;
+    const row = { ...old, token: newToken, replacedToken: old.token };
+    this.rows.set(id, row);
+    return row;
+  }
+
+  async setRejoinAllowedUntil(id: number, until: Date | null) {
+    this.rows.set(id, { ...this.rows.get(id)!, rejoinAllowedUntil: until });
   }
 
   snapshot() {

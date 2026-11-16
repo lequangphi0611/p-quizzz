@@ -23,11 +23,15 @@ export interface Participant {
   email: string | null;
   /** Secret: identifies the member's browser. Never leaves the server in a response. */
   token: string;
+  /** The token before the mentor let this person back in from another device; that old device is told it was replaced. */
+  replacedToken: string | null;
+  /** While in the future: entering this person's email/name again takes the seat over without asking (PRODUCT.md §7.23e). */
+  rejoinAllowedUntil: Date | null;
   status: ParticipantStatus;
   joinedAt: Date;
 }
 
-export type NewParticipant = Omit<Participant, 'id'>;
+export type NewParticipant = Omit<Participant, 'id' | 'replacedToken' | 'rejoinAllowedUntil'>;
 
 // Rules for who may be in a session. Pure: use cases load the facts and call these.
 

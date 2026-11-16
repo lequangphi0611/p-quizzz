@@ -2,6 +2,7 @@ import type { Participant } from '../../../domain/participant/participant.js';
 import { isValidEmail } from '../../../../shared/email-list.js';
 import { InvalidEmailError } from '../../../domain/participant/errors.js';
 import { assertCanJoin, assertEmailFree, assertNameFree, rosterDecision, statusOnJoin } from '../../../domain/participant/participant.js';
+import { findHolder } from '../../../domain/rejoin/rejoin.js';
 import { SessionNotFoundError } from '../../../domain/session/errors.js';
 import type { Clock } from '../../ports/clock.js';
 import type { EventPublisher } from '../../ports/event-publisher.js';
@@ -31,8 +32,14 @@ export class JoinSession {
         if (!isValidEmail(email)) throw new InvalidEmailError();
         // The list decides first: a stranger learns nothing about who has already joined (PRODUCT.md §7.22e).
         status = rosterDecision(await sessions.hasRosterEmail(input.sessionId, email), session.outsiderPolicy);
-        assertEmailFree(others, email);
       }
+      // The mentor may have said "let them back in" for this very person: then the seat is taken over, once (PRODUCT.md §7.23e).
+      const holder = findHolder(others, session, { email, displayName: input.displayName });
+      if (holder?.rejoinAllowedUntil && holder.rejoinAllowedUntil.getTime() > this.deps.clock.now().getTime()) {
+        await participants.setRejoinAllowedUntil(holder.id, null);
+        return participants.replaceToken(holder.id, token);
+      }
+      if (session.access === 'roster') assertEmailFree(others, email!);
       assertNameFree(others, input.displayName, undefined, true);
       return participants.add({
         sessionId: input.sessionId,

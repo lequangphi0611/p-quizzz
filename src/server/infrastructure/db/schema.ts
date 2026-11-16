@@ -123,6 +123,10 @@ export const participants = sqliteTable(
     // Normalized email in a roster session (mentor-only data, PRODUCT.md §7.24); null in a free one.
     email: text('email'),
     token: text('token').notNull().unique(),
+    // The token this person had before the mentor let them back in from another device: the old device is told so (403 `replaced`).
+    replacedToken: text('replaced_token'),
+    // The mentor said "let them back in": until then, entering the same email/name takes the seat over without asking (one time).
+    rejoinAllowedUntil: ts('rejoin_allowed_until'),
     status: text('status', { enum: ['active', 'pending', 'kicked'] }).notNull().default('active'),
     joinedAt: ts('joined_at').notNull(),
   },
@@ -136,6 +140,22 @@ export const participants = sqliteTable(
       .on(t.sessionId, t.email)
       .where(sql`${t.status} != 'kicked' and ${t.email} is not null`),
   ],
+);
+
+// Someone typed an email/name that already has a person in the session and asked the mentor to let them in (PRODUCT.md §7.23).
+// `token` is the token the claimant will hold if the mentor approves: until then it only reads the request's status.
+export const rejoinRequests = sqliteTable(
+  'rejoin_requests',
+  {
+    id: id(),
+    participantId: integer('participant_id').notNull().references(() => participants.id),
+    claimantName: text('claimant_name').notNull(),
+    token: text('token').notNull().unique(),
+    status: text('status', { enum: ['pending', 'approved', 'rejected', 'cancelled'] }).notNull().default('pending'),
+    createdAt: ts('created_at').notNull(),
+    resolvedAt: ts('resolved_at'),
+  },
+  t => [index('rejoin_requests_participant_idx').on(t.participantId, t.status)],
 );
 
 export const attempts = sqliteTable(

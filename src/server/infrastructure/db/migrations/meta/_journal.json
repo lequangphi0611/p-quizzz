@@ -43,6 +43,13 @@
       "when": 1794846654082,
       "tag": "0005_parallel_hannibal_king",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1794847608306,
+      "tag": "0006_wealthy_warstar",
+      "breakpoints": true
     }
   ]
 }

@@ -74,6 +74,10 @@ export interface ParticipantProgress {
 export interface SessionParticipantDetail extends SessionParticipantInfo {
   progress: ParticipantProgress;
   email: string | null; // mentor only (PRODUCT.md §7.24); null in free sessions
+  /** Mentor only (PRODUCT.md §7.23b): is the member's browser still talking to the server, and when was it last heard from. */
+  connection: { online: boolean; lastSeenAt: number | null };
+  /** The mentor said "let them back in": until this time (epoch ms) entering their email/name again takes the seat over once. */
+  rejoinAllowedUntil: number | null;
 }
 
 // How the session's list is doing: emails on it, how many have a participant, and those still missing. Mentor only.
@@ -87,6 +91,15 @@ export interface SessionDetail extends SessionSummary {
   exam: { id: number; title: string; hasEssay: boolean; totalPoints: number };
   participants: SessionParticipantDetail[];
   roster: SessionRoster | null; // null for free sessions
+  /** Someone claiming a seat that already has a person behind it, waiting for the mentor (PRODUCT.md §7.23). Open sessions only. */
+  rejoinRequests: RejoinRequestInfo[];
+}
+
+export interface RejoinRequestInfo {
+  id: number;
+  participantId: number; // the person holding the seat
+  claimantName: string; // what the person asking typed
+  requestedAt: number; // epoch ms
 }
 
 // GET /api/screen/sessions/:id/room — only answers on the mentor's machine (the projector). Never exposed publicly.

@@ -63,3 +63,18 @@ export interface RosterCounts {
   joinedCount: number;
   rosterSize: number;
 }
+
+// POST /api/sessions/:id/rejoin-requests (body: JoinBody) — "that email/name is me, let me back in" (PRODUCT.md §7.23).
+// `token` is what the asker holds: it only reads the request's status until the mentor approves, then it IS their token.
+// `approved` at once only when the mentor allowed that person back in beforehand.
+export interface RejoinRequestResponse {
+  requestId: number | null;
+  token: string;
+  status: 'pending' | 'approved';
+}
+
+// GET /api/rejoin/status (with the request token). `expired` = the session closed before the mentor answered.
+export interface RejoinStatusResponse {
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled' | 'expired';
+  sessionId: number;
+}

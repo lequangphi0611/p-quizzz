@@ -9,7 +9,7 @@ import type {
   SessionSummaryView,
 } from '../../application/ports/session-repository.js';
 import type { NewSession, Session, SessionPatch } from '../../domain/session/session.js';
-import { exams, participants, sessionRoster, sessions } from './schema.js';
+import { exams, participants, rejoinRequests, sessionRoster, sessions } from './schema.js';
 import type { RosterSource } from '../../../shared/api/index.js';
 import { NO_PROGRESS } from '../../domain/attempt/attempt.js';
 import { loadSessionProgress } from './session-progress.js';
@@ -121,13 +121,13 @@ export class DrizzleSessionReader implements SessionReader {
       if (!row) return null;
       const exam = db.select({ id: exams.id, title: exams.title, hasEssay: exams.hasEssay, totalPoints: exams.totalPoints }).from(exams).where(eq(exams.id, row.examId)).get()!;
       const people = db
-        .select({ id: participants.id, displayName: participants.displayName, status: participants.status, joinedAt: participants.joinedAt, email: participants.email })
+        .select({ id: participants.id, displayName: participants.displayName, status: participants.status, joinedAt: participants.joinedAt, email: participants.email, rejoinAllowedUntil: participants.rejoinAllowedUntil })
         .from(participants)
         .where(eq(participants.sessionId, id))
         .orderBy(participants.id)
         .all();
       const progress = loadSessionProgress(db, id, exam.totalPoints);
-      return { ...row, exam, participants: people.map(p => ({ ...p, progress: progress.get(p.id) ?? NO_PROGRESS(exam.totalPoints) })), roster: row.access === 'roster' ? rosterOf(db, id) : null };
+      return { ...row, exam, participants: people.map(p => ({ ...p, progress: progress.get(p.id) ?? NO_PROGRESS(exam.totalPoints) })), roster: row.access === 'roster' ? rosterOf(db, id) : null, rejoinRequests: rejoinRequestsOf(db, id, row.status) };
     });
   }
 
@@ -199,4 +199,16 @@ function rosterOf(db: Db, sessionId: number): { size: number; joined: number; no
   );
   const notJoined = emails.filter(e => !present.has(e));
   return { size: emails.length, joined: emails.length - notJoined.length, notJoined };
+}
+
+/** Requests still waiting to take over a seat in this session; none once the session is no longer open (they expired). */
+function rejoinRequestsOf(db: Db, sessionId: number, status: string): { id: number; participantId: number; claimantName: string; requestedAt: Date }[] {
+  if (!ACTIVE_STATUSES.includes(status as never)) return [];
+  return db
+    .select({ id: rejoinRequests.id, participantId: rejoinRequests.participantId, claimantName: rejoinRequests.claimantName, requestedAt: rejoinRequests.createdAt })
+    .from(rejoinRequests)
+    .innerJoin(participants, eq(rejoinRequests.participantId, participants.id))
+    .where(and(eq(participants.sessionId, sessionId), eq(rejoinRequests.status, 'pending')))
+    .orderBy(asc(rejoinRequests.id))
+    .all();
 }

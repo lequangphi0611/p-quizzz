@@ -81,6 +81,13 @@ export class NotJoinedError extends DomainError {
   }
 }
 
+/** The mentor let this person back in on another device, so this device (old token) stops working. */
+export class ReplacedError extends DomainError {
+  constructor() {
+    super('forbidden', 'Bài của bạn đang được mở ở thiết bị khác', 'replaced');
+  }
+}
+
 export class KickedOutError extends DomainError {
   constructor() {
     super('forbidden', 'Bạn đã bị mời ra khỏi phiên');

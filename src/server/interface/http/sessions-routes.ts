@@ -7,6 +7,7 @@ import type { FinalizeSession } from '../../application/use-cases/sessions/final
 import type { CloseSession } from '../../application/use-cases/sessions/close-session.js';
 import type { OpenSession } from '../../application/use-cases/sessions/open-session.js';
 import type { StartSession } from '../../application/use-cases/sessions/start-session.js';
+import type { PresenceTracker } from '../../application/ports/presence-tracker.js';
 import type { AddRosterEmails, SaveSessionGroup } from '../../application/use-cases/sessions/roster.js';
 import type { GetPublicSession, GetSessionDetail, ListSessions } from '../../application/use-cases/sessions/queries.js';
 import { sendDomainError } from './domain-errors.js';
@@ -14,6 +15,8 @@ import { parseId } from './params.js';
 import { toActiveSessionDto, toSessionDetailDto, toSessionSummaryDto } from './presenters/session-presenter.js';
 
 export interface SessionUseCases {
+  /** Who is still connected, for the mentor's detail view. */
+  presence: PresenceTracker;
   create: CreateSession;
   list: ListSessions;
   get: GetSessionDetail;
@@ -40,7 +43,7 @@ export const sessionsRoutes = (uc: SessionUseCases): FastifyPluginAsync =>
       const body = CreateSessionBody.safeParse(req.body);
       if (!body.success) return reply.code(400).send({ error: body.error.issues[0]?.message ?? 'Dữ liệu không hợp lệ' });
       try {
-        return reply.code(201).send(toSessionDetailDto(await uc.create.execute(body.data)));
+        return reply.code(201).send(toSessionDetailDto(await uc.create.execute(body.data), uc.presence));
       } catch (err) {
         return sendDomainError(reply, err);
       }
@@ -53,7 +56,7 @@ export const sessionsRoutes = (uc: SessionUseCases): FastifyPluginAsync =>
       try {
         const id = parseId(req.params.id);
         if (!id) throw new SessionNotFoundError();
-        return toSessionDetailDto(await uc.get.execute(id));
+        return toSessionDetailDto(await uc.get.execute(id), uc.presence);
       } catch (err) {
         return sendDomainError(reply, err);
       }
@@ -66,7 +69,7 @@ export const sessionsRoutes = (uc: SessionUseCases): FastifyPluginAsync =>
       const body = AddRosterBody.safeParse(req.body);
       if (!body.success) return reply.code(400).send({ error: body.error.issues[0]?.message ?? 'Dữ liệu không hợp lệ' });
       try {
-        return toSessionDetailDto(await uc.addRoster.execute(id, body.data.emails));
+        return toSessionDetailDto(await uc.addRoster.execute(id, body.data.emails), uc.presence);
       } catch (err) {
         return sendDomainError(reply, err);
       }
@@ -91,7 +94,7 @@ export const sessionsRoutes = (uc: SessionUseCases): FastifyPluginAsync =>
       const action = req.params.action as SessionAction;
       if (!id || !SESSION_ACTIONS.includes(action)) return reply.code(404).send({ error: 'Không tìm thấy' });
       try {
-        return toSessionDetailDto(await lifecycle[action].execute(id));
+        return toSessionDetailDto(await lifecycle[action].execute(id), uc.presence);
       } catch (err) {
         return sendDomainError(reply, err);
       }

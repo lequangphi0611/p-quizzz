@@ -4,7 +4,7 @@ import { createDb } from './client.js';
 import { answers, attempts, exams, options, participants, questions, sessions } from './schema.js';
 import { seedExam } from './testing/seed-exam.js';
 
-const TABLES = ['answers', 'app_meta', 'attempts', 'exams', 'group_emails', 'groups', 'options', 'participants', 'questions', 'session_roster', 'sessions'];
+const TABLES = ['answers', 'app_meta', 'attempts', 'exams', 'group_emails', 'groups', 'options', 'participants', 'questions', 'rejoin_requests', 'session_roster', 'sessions'];
 
 function setup() {
   const db = createDb(':memory:');

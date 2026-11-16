@@ -42,6 +42,12 @@ import { CreateGroup, DeleteGroup, GetGroup, ListGroups, UpdateGroup } from './a
 import { AddRosterEmails, SaveSessionGroup } from './application/use-cases/sessions/roster.js';
 import { GetRosterCounts } from './application/use-cases/participants/get-roster-counts.js';
 import { DrizzleGroupRepository } from './infrastructure/db/drizzle-group-repository.js';
+import { DrizzleRejoinRepository } from './infrastructure/db/drizzle-rejoin-repository.js';
+import { InMemoryPresenceTracker } from './application/testing/in-memory-presence-tracker.js';
+import { AllowRejoin, ApproveRejoinKeep, ApproveRejoinTakeover, CancelRejoin, GetRejoinStatus, RejectRejoin, RequestRejoin } from './application/use-cases/rejoin/rejoin-requests.js';
+import type { RejoinUseCases } from './interface/http/rejoin-routes.js';
+import type { PresenceTracker } from './application/ports/presence-tracker.js';
+import type { RejoinUnitContext } from './application/ports/participant-repository.js';
 import type { GroupUnitContext } from './application/ports/group-repository.js';
 import { StartSession } from './application/use-cases/sessions/start-session.js';
 import { defaultSessionModes } from './domain/session/mode.js';
@@ -82,6 +88,9 @@ export interface Composition {
   exams: ExamUseCases;
   sessions: SessionUseCases;
   groups: GroupUseCases;
+  rejoin: RejoinUseCases;
+  /** Who is still talking to the server (the mentor's connection column). */
+  presence: PresenceTracker;
   participants: ParticipantUseCases;
   attempts: AttemptUseCases;
   grading: GradingUseCases;
@@ -149,6 +158,13 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
     const access = async <T>(fn: (db: Db) => T) => fn(tx);
     return { sessions: new DrizzleSessionRepository(access), participants: new DrizzleParticipantRepository(access) };
   });
+  const presence = new InMemoryPresenceTracker(ports.clock);
+  const rejoinReader = new DrizzleRejoinRepository(fn => database.read(fn));
+  const rejoinUnitOfWork = new SqliteUnitOfWork<RejoinUnitContext>(database, tx => {
+    const access = async <T>(fn: (db: Db) => T) => fn(tx);
+    return { sessions: new DrizzleSessionRepository(access), participants: new DrizzleParticipantRepository(access), rejoin: new DrizzleRejoinRepository(access) };
+  });
+  const rejoinDeps = { unitOfWork: rejoinUnitOfWork, clock: ports.clock, events: ports.events };
   const adminDeps = {
     credentials: new DrizzleAdminCredentialStore(fn => database.read(fn), () => ports.clock.now()),
     sessions: new InMemoryAdminSessionStore(),
@@ -193,7 +209,17 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
       listPublic: new ListPublicParticipants({ sessions: sessionReader, participants: participantReader }),
       rosterCounts: new GetRosterCounts(sessionReader),
     },
-    resumeParticipant: new ResumeParticipant(participantReader),
+    resumeParticipant: new ResumeParticipant(participantReader, presence),
+    presence,
+    rejoin: {
+      request: new RequestRejoin({ ...rejoinDeps, tokens: ports.tokens }),
+      status: new GetRejoinStatus({ rejoin: rejoinReader, participants: participantReader, sessions: sessionReader }),
+      cancel: new CancelRejoin({ ...rejoinDeps, rejoin: rejoinReader }),
+      keep: new ApproveRejoinKeep(rejoinDeps),
+      takeover: new ApproveRejoinTakeover(rejoinDeps),
+      reject: new RejectRejoin(rejoinDeps),
+      allow: new AllowRejoin(rejoinDeps),
+    },
     admin: {
       status: new GetAdminStatus(adminDeps),
       setup: new SetupAdmin(adminDeps),
@@ -209,6 +235,7 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
       remove: new DeleteGroup(groupUnitOfWork),
     },
     sessions: {
+      presence,
       create: new CreateSession({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, clock: ports.clock, modes: lifecycle.modes }),
       list: new ListSessions(sessionReader),
       get: new GetSessionDetail(sessionReader),

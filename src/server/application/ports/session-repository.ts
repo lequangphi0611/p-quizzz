@@ -54,12 +54,15 @@ export interface SessionParticipantView {
   joinedAt: Date;
   progress: ParticipantProgress;
   email: string | null;
+  rejoinAllowedUntil: Date | null;
 }
 
 export interface SessionDetailView extends SessionSummaryView {
   exam: { id: number; title: string; hasEssay: boolean; totalPoints: number };
   participants: SessionParticipantView[];
   roster: { size: number; joined: number; notJoined: string[] } | null;
+  /** Requests to take over a seat that are still waiting (open sessions only). Mentor only. */
+  rejoinRequests: { id: number; participantId: number; claimantName: string; requestedAt: Date }[];
 }
 
 /** What the public may see: the exam title, never the mentor's session name. */
