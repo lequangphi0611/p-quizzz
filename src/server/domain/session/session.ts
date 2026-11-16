@@ -6,8 +6,12 @@ export interface Session {
   examId: number;
   mode: SessionModeId;
   status: SessionStatus;
+  /** Mentor-only label that tells parallel sessions apart (PRODUCT.md §7.5). Members and the projector see the exam title. */
+  name: string;
   shuffle: boolean;
   autoApprove: boolean;
+  /** Lowest number not used by another open session; set when the room opens, cleared when it closes. */
+  slot: number | null;
   /** Null until the session is opened; a fresh code each time it opens. */
   roomCode: string | null;
   createdAt: Date;
@@ -19,6 +23,7 @@ export interface Session {
 
 export interface NewSession {
   examId: number;
+  name: string;
   mode: SessionModeId;
   shuffle: boolean;
   autoApprove: boolean;
@@ -26,4 +31,4 @@ export interface NewSession {
 }
 
 /** The fields a lifecycle transition may change. */
-export type SessionPatch = Partial<Pick<Session, 'status' | 'roomCode' | 'openedAt' | 'startedAt' | 'closedAt' | 'finalizedAt'>>;
+export type SessionPatch = Partial<Pick<Session, 'status' | 'roomCode' | 'slot' | 'openedAt' | 'startedAt' | 'closedAt' | 'finalizedAt'>>;

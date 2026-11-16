@@ -33,4 +33,20 @@ describe('event bus', () => {
     expect(() => bus.publish(1, 'leaderboard')).not.toThrow();
     expect(second).toHaveBeenCalledOnce();
   });
+
+  it('subscribeAll hears every session with its id, and stops after unsubscribe', () => {
+    const bus = createEventBus();
+    const all = vi.fn(), one = vi.fn();
+    const off = bus.subscribeAll(all);
+    bus.subscribe(1, one);
+    bus.publish(1, 'participants');
+    bus.publish(2, 'session');
+    expect(all.mock.calls).toEqual([[1, 'participants'], [2, 'session']]);
+    expect(one).toHaveBeenCalledTimes(1);
+    expect(bus.allListenerCount()).toBe(1);
+    off();
+    bus.publish(1, 'session');
+    expect(all).toHaveBeenCalledTimes(2);
+    expect(bus.allListenerCount()).toBe(0);
+  });
 });

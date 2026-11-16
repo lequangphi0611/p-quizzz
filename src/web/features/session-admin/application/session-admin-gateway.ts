@@ -1,7 +1,7 @@
 import type { ExamSummary, LeaderboardResponse, ParticipantReview, SessionDetail, SessionSummary } from '../../../../shared/api/index.js';
 import type { SessionAction } from '../../../../shared/session-state.js';
 
-export interface NewSession { examId: number; shuffle: boolean; autoApprove: boolean }
+export interface NewSession { examId: number; /** Mentor-only label; blank = the server's default. */ name?: string; shuffle: boolean; autoApprove: boolean }
 
 /** Port: everything the mentor's session pages need from the server. Failures reject with `ApiError`. */
 export interface SessionAdminGateway {

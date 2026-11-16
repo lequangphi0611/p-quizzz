@@ -49,3 +49,8 @@ export function formatProgressScore(p: ParticipantProgress): string {
   if (p.countedScore === null) return '—';
   return `${String(p.countedScore).replace('.', ',')}/${p.maxScore}`;
 }
+
+const two = (n: number) => String(n).padStart(2, '0');
+
+/** The server's default session name, shown as the placeholder so the mentor sees what an empty field becomes. */
+export const suggestSessionName = (examTitle: string, now: Date): string => `${examTitle} – ${two(now.getDate())}/${two(now.getMonth() + 1)}`;

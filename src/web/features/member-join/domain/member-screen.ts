@@ -1,32 +1,26 @@
 import type { ActiveSession, MeResponse } from '../../../../shared/api/index.js';
 
-// Result of the latest GET /api/me for the active session.
+// Result of the latest GET /api/me for the session being followed.
 export type MeState = 'idle' | 'ok' | 'kicked' | 'error';
 
-export type MemberScreen = 'loading' | 'none' | 'join' | 'pending' | 'lobby' | 'running' | 'ended' | 'kicked' | 'error';
+/** `code` = ask for the room code (nothing found yet); `join` = the code found a session, ask for the name. */
+export type MemberScreen = 'loading' | 'code' | 'join' | 'pending' | 'lobby' | 'running' | 'ended' | 'kicked' | 'error';
 
 export interface ScreenInput {
-  /** `undefined` while the first /api/sessions/active call is in flight; `null` when nothing is active. */
-  active: ActiveSession | null | undefined;
-  /** Whether this browser holds a token for the session being shown (the active one, else the last one joined). */
-  hasToken: boolean;
+  /** The session this browser holds a token for and follows; null when it is not in any session. */
+  followId: number | null;
+  /** The open session the typed (or linked) room code found; null until one is found. */
+  room: ActiveSession | null;
   me: MeResponse | null;
   meState: MeState;
 }
 
-// Which member screen to show at "/" (S10). Pure so every combination is testable.
-export function decideScreen({ active, hasToken, me, meState }: ScreenInput): MemberScreen {
-  if (active === undefined) return 'loading';
-  if (active === null) {
-    // Nothing is open. A member who took part in the session that just closed still sees their result.
-    if (!hasToken || meState === 'kicked') return 'none';
-    if (!me) return meState === 'error' ? 'none' : 'loading';
-    return me.session.status === 'closed' || me.session.status === 'finalized' ? 'ended' : 'none';
-  }
-  if (!hasToken) return 'join';
+// Which member screen to show at "/" (S10, S20). Pure so every combination is testable.
+export function decideScreen({ followId, room, me, meState }: ScreenInput): MemberScreen {
+  if (followId === null) return room ? 'join' : 'code';
   if (meState === 'kicked') return 'kicked';
-  // `me` may still describe a previous session while the new one loads.
-  if (!me || me.session.id !== active.id) return meState === 'error' ? 'error' : 'loading';
+  // `me` may still describe another session while this one loads.
+  if (!me || me.session.id !== followId) return meState === 'error' ? 'error' : 'loading';
   if (me.participant.status === 'kicked') return 'kicked';
   if (me.session.status !== 'lobby' && me.session.status !== 'running') return 'ended';
   if (me.participant.status === 'pending') return 'pending';

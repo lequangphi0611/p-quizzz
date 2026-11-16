@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SessionParticipantDetail } from '../../../../shared/api/index.js';
-import { attentionFirst, buildNotices, editPendingCount, DESKTOP_BATCH_MAX, desktopNotifications, markSeenAt, newPendingNotices, pendingCount, titleWithCount, unreadCount } from './mentor-notices.js';
+import { attentionFirst, buildAllNotices, buildNotices, editPendingCount, DESKTOP_BATCH_MAX, desktopNotifications, markSeenAt, newPendingNotices, pendingCount, titleWithCount, unreadCount } from './mentor-notices.js';
 
 const person = (id: number, status: SessionParticipantDetail['status'], joinedAt: number, submittedAt: number | null = null): SessionParticipantDetail => ({
   id, displayName: `P${id}`, status, joinedAt,
@@ -93,5 +93,36 @@ describe('edit-request notices (PRODUCT.md §7.21)', () => {
     const ordered = attentionFirst(buildNotices([person(1, 'active', 100, 500), person(2, 'pending', 200), withEdit(3, 'pending', 900, 50), withEdit(4, 'approved', 950, 60)]));
     expect(ordered.slice(0, 2).map(n => n.key)).toEqual(['edit:3:900', 'join:2']);
     expect(ordered.slice(2).every(n => n.kind !== 'pending' && !(n.kind === 'edit' && n.editStatus === 'pending'))).toBe(true);
+  });
+});
+
+describe('several open sessions', () => {
+  const a = { id: 1, name: 'Git – #member-0908', slot: 1 };
+  const b = { id: 2, name: 'SQL – tự do', slot: 2 };
+
+  it('every notice names its session', () => {
+    const [n] = buildNotices([person(1, 'pending', 100)], a);
+    expect(n).toMatchObject({ sessionId: 1, sessionName: 'Git – #member-0908', slot: 1 });
+  });
+
+  it('merges the sessions into one list, newest first', () => {
+    const all = buildAllNotices([
+      { session: a, participants: [person(1, 'active', 100, 500)] },
+      { session: b, participants: [person(2, 'pending', 300)] },
+    ]);
+    expect(all.map(n => [n.key, n.sessionId])).toEqual([['submit:1', 1], ['join:2', 2], ['join:1', 1]]);
+  });
+
+  it('"seen" is per session: opening the list marks every session, and a quiet session does not hide another\'s news', () => {
+    const all = buildAllNotices([
+      { session: a, participants: [person(1, 'active', 100)] },
+      { session: b, participants: [person(2, 'pending', 300)] },
+    ]);
+    expect(unreadCount(all, {})).toBe(2);
+    expect(unreadCount(all, { 1: 100 })).toBe(1); // only b's join is new
+    const seen = markSeenAt(all, { 1: 100 });
+    expect(seen).toEqual({ 1: 100, 2: 300 });
+    expect(unreadCount(all, seen)).toBe(0);
+    expect(markSeenAt(all, seen)).toBe(seen); // nothing moved: same reference, nothing to save
   });
 });

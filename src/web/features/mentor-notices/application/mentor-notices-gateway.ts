@@ -1,8 +1,9 @@
-import type { ActiveSession, SessionDetail } from '../../../../shared/api/index.js';
+import type { SessionDetail, SessionSummary } from '../../../../shared/api/index.js';
 
 /** Port: what the mentor's notification bell reads and does. Failures reject with `ApiError`. */
 export interface MentorNoticesGateway {
-  getActive(): Promise<ActiveSession | null>;
+  /** Sessions in lobby/running, lowest slot first. */
+  listActive(): Promise<SessionSummary[]>;
   getSession(id: number): Promise<SessionDetail>;
   approveParticipant(participantId: number): Promise<void>;
   /** Approve or reject a member's request to edit their essays (PRODUCT.md §7.21). */

@@ -2,7 +2,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { Icon } from '../shared/ui/Icon.js';
 type NavKey = 'exams' | 'sessions';
 const NAV: [NavKey, string, string][] = [['exams', 'Đề thi', 'library'], ['sessions', 'Phiên thi', 'list-checks']];
-export function AdminLayout({ children, active = 'exams', onNavigate, onLogout, onOpenScreen, notifications }: { children?: ReactNode; active?: NavKey; onNavigate?: (key: NavKey) => void; onLogout?: () => void; onOpenScreen?: () => void; notifications?: ReactNode }) {
+export function AdminLayout({ children, active = 'exams', onNavigate, onLogout, onOpenScreen, notifications, strip }: { children?: ReactNode; active?: NavKey; onNavigate?: (key: NavKey) => void; onLogout?: () => void; onOpenScreen?: () => void; notifications?: ReactNode; strip?: ReactNode }) {
   return (
     <div style={{ minHeight: '100%', background: 'var(--surface-page)' }}>
       <header style={{ background: 'var(--ink-900)', color: '#fff' }}>
@@ -20,6 +20,7 @@ export function AdminLayout({ children, active = 'exams', onNavigate, onLogout, 
           </div>
         </div>
       </header>
+      {strip}
       <main style={{ maxWidth: 'var(--admin-max)', margin: '0 auto', padding: '28px var(--gutter-desk) 48px', boxSizing: 'border-box' }}>{children}</main>
     </div>
   );

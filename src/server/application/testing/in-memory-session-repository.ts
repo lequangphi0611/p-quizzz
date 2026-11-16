@@ -2,6 +2,7 @@ import type { NewSession, Session, SessionPatch } from '../../domain/session/ses
 import type {
   ActiveSessionView,
   AttemptAutoSubmitter,
+  ScreenSessionView,
   SessionDetailView,
   SessionReader,
   SessionRepository,
@@ -24,7 +25,7 @@ export class InMemorySessionRepository implements SessionRepository, SessionRead
 
   async create(s: NewSession) {
     const id = this.nextId++;
-    this.sessions.set(id, { ...s, id, status: 'draft', roomCode: null, openedAt: null, startedAt: null, closedAt: null, finalizedAt: null });
+    this.sessions.set(id, { ...s, id, status: 'draft', slot: null, roomCode: null, openedAt: null, startedAt: null, closedAt: null, finalizedAt: null });
     return id;
   }
 
@@ -32,8 +33,11 @@ export class InMemorySessionRepository implements SessionRepository, SessionRead
     this.sessions.set(id, { ...this.sessions.get(id)!, ...patch });
   }
 
-  async hasActiveOtherThan(id: number) {
-    return [...this.sessions.values()].some(s => s.id !== id && (s.status === 'lobby' || s.status === 'running'));
+  async lowestFreeSlot() {
+    const used = new Set([...this.sessions.values()].filter(s => this.isOpen(s)).map(s => s.slot));
+    let slot = 1;
+    while (used.has(slot)) slot++;
+    return slot;
   }
 
   async roomCodeInUse(code: string) {
@@ -56,16 +60,34 @@ export class InMemorySessionRepository implements SessionRepository, SessionRead
     return { ...summary, exam: { id: exam.id, title: exam.title, hasEssay: exam.hasEssay, totalPoints: exam.totalPoints }, participants: [] };
   }
 
-  async findActive(): Promise<ActiveSessionView | null> {
-    return this.view(s => s.status === 'lobby' || s.status === 'running');
+  async listActive() {
+    const open = [...this.sessions.values()].filter(s => this.isOpen(s)).sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0) || a.id - b.id);
+    const all = await Promise.all(open.map(s => this.summary(s.id)));
+    return all.filter((s): s is SessionSummaryView => !!s);
   }
 
-  async findActiveRoomCode() {
-    return [...this.sessions.values()].filter(s => s.status === 'lobby' || s.status === 'running').sort((a, b) => b.id - a.id)[0]?.roomCode ?? null;
+  async findPublic(id: number): Promise<ActiveSessionView | null> {
+    return this.view(s => s.id === id);
   }
 
-  async findLatest(): Promise<ActiveSessionView | null> {
-    return (await this.findActive()) ?? this.view(s => s.status === 'closed' || s.status === 'finalized');
+  async findOpenByRoomCode(code: string): Promise<ActiveSessionView | null> {
+    return this.view(s => this.isOpen(s) && s.roomCode === code);
+  }
+
+  async findOpenRoomCode(id: number) {
+    const s = this.sessions.get(id);
+    return s && this.isOpen(s) ? s.roomCode : null;
+  }
+
+  async listScreenSessions(): Promise<ScreenSessionView[]> {
+    const open = [...this.sessions.values()].filter(s => this.isOpen(s)).sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0) || a.id - b.id);
+    const rows = await Promise.all(open.map(s => this.screen(s)));
+    return rows.filter((r): r is ScreenSessionView => !!r);
+  }
+
+  async findLatestEnded(): Promise<ScreenSessionView | null> {
+    const ended = [...this.sessions.values()].filter(s => s.status === 'closed' || s.status === 'finalized').sort((a, b) => b.id - a.id)[0];
+    return ended ? this.screen(ended) : null;
   }
 
   snapshot() {
@@ -76,6 +98,15 @@ export class InMemorySessionRepository implements SessionRepository, SessionRead
     const s = snapshot as ReturnType<InMemorySessionRepository['snapshot']>;
     this.sessions = s.sessions;
     this.nextId = s.nextId;
+  }
+
+  private isOpen(s: Session) {
+    return s.status === 'lobby' || s.status === 'running';
+  }
+
+  private async screen(s: Session): Promise<ScreenSessionView | null> {
+    const exam = await this.exams.findSummary(s.examId);
+    return exam ? { id: s.id, name: s.name, slot: s.slot, title: exam.title, status: s.status } : null;
   }
 
   private async view(match: (s: Session) => boolean): Promise<ActiveSessionView | null> {

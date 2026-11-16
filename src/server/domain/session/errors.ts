@@ -12,12 +12,6 @@ export class InvalidSessionTransitionError extends DomainError {
   }
 }
 
-export class AnotherSessionActiveError extends DomainError {
-  constructor() {
-    super('conflict', 'Đang có phiên thi khác hoạt động');
-  }
-}
-
 export class UngradedEssaysError extends DomainError {
   constructor(readonly missing: number) {
     super('conflict', `Còn ${missing} bài tự luận chưa chấm điểm`);

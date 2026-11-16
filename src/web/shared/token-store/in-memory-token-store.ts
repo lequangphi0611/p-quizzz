@@ -10,4 +10,5 @@ export class InMemoryTokenStore implements TokenStore {
   clearToken(sessionId: number | string): void { this.tokens.delete(String(sessionId)); }
   getCurrentSessionId(): string | null { return this.current; }
   setCurrentSessionId(sessionId: number | string): void { this.current = String(sessionId); }
+  clearCurrentSessionId(): void { this.current = null; }
 }

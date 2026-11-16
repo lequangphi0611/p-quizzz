@@ -27,10 +27,10 @@ describe('SessionDetailController', () => {
   });
 
   it('shows the server message on a refused action (e.g. wrong state) and closes the dialog', async () => {
-    const { ctrl } = make({ runAction: async () => { throw new ApiError(409, 'Đã có phiên khác đang chạy') } });
+    const { ctrl } = make({ runAction: async () => { throw new ApiError(409, 'Không thể bắt đầu thi khi phiên đang ở trạng thái "Nháp"') } });
     ctrl.openDialog({ kind: 'action' });
     await ctrl.doAction();
-    expect(ctrl.getState()).toMatchObject({ error: 'Đã có phiên khác đang chạy', dialog: null, working: false });
+    expect(ctrl.getState()).toMatchObject({ error: 'Không thể bắt đầu thi khi phiên đang ở trạng thái "Nháp"', dialog: null, working: false });
   });
 
   it('uses a generic message when the failure is not an ApiError', async () => {

@@ -45,7 +45,7 @@ async function setup(opts: { shuffle?: boolean; random?: number[] } = {}) {
       ],
     }),
   );
-  sessionId = await sessions.create({ examId, mode: 'self_paced', shuffle: opts.shuffle ?? false, autoApprove: true, createdAt: new Date() });
+  sessionId = await sessions.create({ examId, name: 'Phiên', mode: 'self_paced', shuffle: opts.shuffle ?? false, autoApprove: true, createdAt: new Date() });
   await sessions.update(sessionId, { status: 'running', roomCode: '123456' });
   lan = await people.add({ sessionId, displayName: 'Lan', token: 't1', status: 'active', joinedAt: new Date() });
 

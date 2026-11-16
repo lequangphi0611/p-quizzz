@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, type ReactNode } from 'react';
-import type { EventStream, SessionEventHandlers } from './event-stream.js';
+import type { AdminEventHandlers, EventStream, SessionEventHandlers } from './event-stream.js';
 
 const Ctx = createContext<EventStream | null>(null);
 
@@ -16,4 +16,13 @@ export function useSessionEvents(sessionId: number | null, handlers: SessionEven
     if (sessionId === null) return;
     return stream.subscribe(sessionId, () => ref.current);
   }, [stream, sessionId]);
+}
+
+/** The mentor's single stream (every open session): signals say which session changed. Leaves on unmount. */
+export function useAdminEvents(handlers: AdminEventHandlers) {
+  const stream = useContext(Ctx);
+  if (!stream) throw new Error('EventStreamProvider is missing above this component');
+  const ref = useRef(handlers);
+  ref.current = handlers;
+  useEffect(() => stream.subscribeAdmin(() => ref.current), [stream]);
 }

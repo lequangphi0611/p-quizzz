@@ -47,7 +47,7 @@ async function setup() {
   );
   const exam = (await exams.findById(examId))!;
   ids = { single: exam.questions[0]!.id, correct: exam.questions[0]!.options[0]!.id, wrong: exam.questions[0]!.options[1]!.id, essay: exam.questions[1]!.id };
-  sessionId = await sessions.create({ examId, mode: 'self_paced', shuffle: false, autoApprove: true, createdAt: new Date() });
+  sessionId = await sessions.create({ examId, name: 'Phiên', mode: 'self_paced', shuffle: false, autoApprove: true, createdAt: new Date() });
   await sessions.update(sessionId, { status: 'running', roomCode: '123456' });
 
   const clock = new FakeClock(1000);
@@ -190,8 +190,9 @@ describe('GetDiscussionView', () => {
 describe('GetProjectorRoom', () => {
   it('returns the active session\'s room code, or null', async () => {
     const uc = await setup();
-    expect(await uc.projector.execute()).toEqual({ roomCode: null }); // closed
+    expect(await uc.projector.execute(sessionId)).toEqual({ roomCode: null }); // closed
     await sessions.update(sessionId, { status: 'lobby' });
-    expect(await uc.projector.execute()).toEqual({ roomCode: '123456' });
+    expect(await uc.projector.execute(sessionId)).toEqual({ roomCode: '123456' });
+    expect(await uc.projector.execute(sessionId + 1)).toEqual({ roomCode: null }); // another session
   });
 });

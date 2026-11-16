@@ -11,12 +11,12 @@ export function useScreenGateway(): ScreenGateway {
   return g;
 }
 
-/** One controller for the page's lifetime; polls while mounted and follows SSE for the session in view. */
-export function useScreen(): { state: ScreenState; gateway: ScreenGateway } {
+/** One controller per session in view; polls while mounted and follows SSE for that session. */
+export function useScreen(sessionId: number): { state: ScreenState; gateway: ScreenGateway } {
   const gateway = useScreenGateway();
-  const [ctrl] = useState(() => new ScreenController(gateway));
+  const [ctrl] = useState(() => new ScreenController(gateway, sessionId));
   const state = useSyncExternalStore(ctrl.subscribe, ctrl.getState);
   useEffect(() => ctrl.start(), [ctrl]);
-  useSessionEvents(state.latest?.id ?? null, { session: ctrl.onSessionEvent, participants: ctrl.onDataEvent, leaderboard: ctrl.onDataEvent });
+  useSessionEvents(sessionId, { session: ctrl.onSessionEvent, participants: ctrl.onDataEvent, leaderboard: ctrl.onDataEvent });
   return { state, gateway };
 }

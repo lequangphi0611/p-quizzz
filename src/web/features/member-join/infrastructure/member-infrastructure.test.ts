@@ -6,12 +6,12 @@ import { SessionStorageRoomCodeMemory } from './session-storage-room-code-memory
 afterEach(() => vi.unstubAllGlobals());
 
 describe('HttpMemberGateway', () => {
-  it('talks to the unchanged public/member endpoints', async () => {
+  it('finds the session by room code, then talks to the member endpoints', async () => {
     const calls: unknown[][] = [];
     const rec = (m: string) => vi.fn(async (...a: unknown[]) => { calls.push([m, ...a]); return {}; });
     const g = new HttpMemberGateway({ get: rec('GET'), post: rec('POST') } as unknown as HttpClient);
-    await g.getActive(); await g.getMe(); await g.join(4, { displayName: 'An', roomCode: '123456' });
-    expect(calls).toEqual([['GET', '/api/sessions/active'], ['GET', '/api/me'], ['POST', '/api/sessions/4/join', { displayName: 'An', roomCode: '123456' }]]);
+    await g.resolveRoom('123456'); await g.getMe(); await g.join(4, { displayName: 'An', roomCode: '123456' });
+    expect(calls).toEqual([['POST', '/api/rooms/resolve', { roomCode: '123456' }], ['GET', '/api/me'], ['POST', '/api/sessions/4/join', { displayName: 'An', roomCode: '123456' }]]);
   });
 });
 

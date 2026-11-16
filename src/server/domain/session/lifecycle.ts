@@ -20,13 +20,14 @@ export function assertTransition(session: Pick<Session, 'status'>, action: Sessi
   return next;
 }
 
-export const planOpen = (now: Date, roomCode: string): SessionPatch => ({ status: 'lobby', openedAt: now, roomCode });
+export const planOpen = (now: Date, roomCode: string, slot: number): SessionPatch => ({ status: 'lobby', openedAt: now, roomCode, slot });
 
 export const planStart = (now: Date): SessionPatch => ({ status: 'running', startedAt: now });
 
 export function planClose(mode: SessionMode, exam: { hasEssay: boolean }, now: Date): SessionPatch {
   const status = mode.statusAfterClose(exam);
-  return status === 'finalized' ? { status, closedAt: now, finalizedAt: now } : { status, closedAt: now };
+  // Closing frees the slot for the next session to open.
+  return status === 'finalized' ? { status, closedAt: now, finalizedAt: now, slot: null } : { status, closedAt: now, slot: null };
 }
 
 /** Official results need every counted essay answer scored (blank ones too, usually 0). */

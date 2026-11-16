@@ -23,6 +23,7 @@ import { SessionDetailPage } from '../features/session-admin/ui/SessionDetailPag
 import { SessionListPage } from '../features/session-admin/ui/SessionListPage.js';
 import { SessionReviewPage } from '../features/session-admin/ui/SessionReviewPage.js';
 import { ErrorMessage } from '../shared/ui/ErrorMessage.js';
+import { SessionStrip } from '../shared/ui/SessionStrip.js';
 import { Spinner } from '../shared/ui/Spinner.js';
 import { AdminLayout } from './AdminLayout.js';
 import { adminAuthGateway, examLibraryGateway, gradingGateway, sessionAdminGateway } from './composition.js';
@@ -39,6 +40,7 @@ function AdminShell() {
   const auth = useAdminAuthGateway();
   const notices = useMentorNotices(pathname);
   const openSession = (id: number) => nav(`/admin/sessions/${id}`);
+  const viewing = Number(/^\/admin\/sessions\/(\d+)/.exec(pathname)?.[1]) || null; // the session whose page is open, highlighted in the bar
   const desktop = useDesktopNotify(notices, openSession);
   // Unread count in the tab title, so new joins/submissions show while the mentor is in another tab.
   useEffect(() => {
@@ -49,6 +51,7 @@ function AdminShell() {
     <AdminLayout
       active={active}
       notifications={<NotificationBell state={notices} desktop={desktop} onOpenSession={openSession} />}
+      strip={<SessionStrip sessions={notices.sessions.map(s => ({ id: s.id, name: s.name, slot: s.slot, status: s.status, attention: s.pending + s.editPending }))} activeId={viewing} onOpen={openSession} onNew={() => nav('/admin/sessions')} />}
       onNavigate={k => nav(`/admin/${k}`)}
       onOpenScreen={() => window.open('/screen', '_blank')}
       onLogout={async () => { await auth.logout().catch(() => {}); nav('/admin/login', { replace: true }); }}
@@ -84,7 +87,8 @@ function NotFound() {
 export const router = createBrowserRouter([
   { path: '/', element: <MemberHomePage examScreen={props => <MemberExamPage {...props} />} />, errorElement: <RouteError /> }, // renders its own <MemberLayout> (title and name depend on its state)
   { path: '/review/:attemptId', element: <ReviewPage />, errorElement: <RouteError /> }, // member: own attempt with the answer key, once the session is over
-  { path: '/screen', element: <ScreenPage />, errorElement: <RouteError /> }, // public projector page; scales its own 1920×1080 stage
+  { path: '/screen', element: <ScreenPage />, errorElement: <RouteError /> }, // the mentor's machine: opens the only open session, or asks which
+  { path: '/screen/:sessionId', element: <ScreenPage />, errorElement: <RouteError /> }, // public projector page for ONE session; scales its own 1920×1080 stage
   { path: '/admin/login', loader: authLoaders.login, element: <AdminLoginPage />, errorElement: <RouteError />, hydrateFallbackElement: loading },
   // Projector discussion (S17): mentor-only, full-screen, outside the admin chrome; loads its own data (with its own states).
   { path: '/admin/sessions/:id/discuss', loader: authLoaders.requireLogin, element: <DiscussionPage />, errorElement: <RouteError />, hydrateFallbackElement: loading },

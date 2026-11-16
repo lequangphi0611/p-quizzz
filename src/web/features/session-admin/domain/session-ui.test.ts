@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { nextStatus, type SessionStatus } from '../../../../shared/session-state.js';
-import { ACTION_FOR_STATUS, formatProgressScore, progressLabelOf } from './session-ui.js';
+import { ACTION_FOR_STATUS, formatProgressScore, progressLabelOf, suggestSessionName } from './session-ui.js';
 
 describe('ACTION_FOR_STATUS', () => {
   it('every offered action is valid for its status, and finalized offers none', () => {
@@ -40,5 +40,11 @@ describe('progressLabelOf', () => {
   });
   it('ignores an edit request on someone who has not submitted', () => {
     expect(progressLabelOf({ ...sub('pending'), state: 'doing' }).label).toBe('Đang làm');
+  });
+});
+
+describe('suggestSessionName', () => {
+  it('matches the server default: "<exam> – dd/MM"', () => {
+    expect(suggestSessionName('Ôn tập Git', new Date(2026, 10, 5))).toBe('Ôn tập Git – 05/11');
   });
 });

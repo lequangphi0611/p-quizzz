@@ -10,12 +10,13 @@ import { meRoutes, participantReviewRoutes } from './interface/http/attempts-rou
 import { gradingRoutes } from './interface/http/grading-routes.js';
 import { leaderboardRoutes } from './interface/http/leaderboard-routes.js';
 import { screenRoutes } from './interface/http/screen-routes.js';
-import { eventsRoutes } from './interface/http/events-routes.js';
+import { adminEventsRoutes, eventsRoutes } from './interface/http/events-routes.js';
 import { healthRoutes } from './interface/http/health-routes.js';
 import { networkRoutes } from './interface/http/network-routes.js';
 import { adminRoutes } from './interface/http/admin-routes.js';
 import { examsRoutes } from './interface/http/exams-routes.js';
-import type { JoinLimiter } from './interface/http/join-limiter.js';
+import { createJoinLimiter, type JoinLimiter } from './interface/http/join-limiter.js';
+import { roomsRoutes } from './interface/http/rooms-routes.js';
 import { joinRoutes, participantsAdminRoutes, publicParticipantsRoutes } from './interface/http/participants-routes.js';
 import { publicSessionsRoutes, sessionsRoutes } from './interface/http/sessions-routes.js';
 import { registerLeakGuard } from './interface/http/leak-guard.js';
@@ -38,7 +39,9 @@ export interface AppOptions {
 
 // Builds the Fastify app without listening, so tests can use app.inject().
 export async function buildApp({ db, composition = compose(db), serveWeb = false, logger = false, allowRemoteAdmin = false, lanIps, joinLimiter, adminRoutes: extraAdminRoutes = [] }: AppOptions) {
-  const protectedRoutes = [examsRoutes(composition.exams), sessionsRoutes(composition.sessions), participantsAdminRoutes(composition.participants), participantReviewRoutes(composition.attempts), gradingRoutes(composition.grading), ...extraAdminRoutes];
+  // One counter for wrong room codes at `resolve` and at `join`: the code must not be guessable through either.
+  const limiter = joinLimiter ?? createJoinLimiter();
+  const protectedRoutes = [adminEventsRoutes(composition.eventSource), examsRoutes(composition.exams), sessionsRoutes(composition.sessions), participantsAdminRoutes(composition.participants), participantReviewRoutes(composition.attempts), gradingRoutes(composition.grading), ...extraAdminRoutes];
   // Honour X-Forwarded-For only when the direct peer is this machine (the Vite dev proxy). A LAN client
   // connecting straight to the server is not trusted, so it cannot forge its address.
   const app = Fastify({ logger, trustProxy: ['127.0.0.1', '::1'] });
@@ -52,7 +55,8 @@ export async function buildApp({ db, composition = compose(db), serveWeb = false
   await app.register(eventsRoutes(composition.eventSource));
   await app.register(publicSessionsRoutes(composition.sessions));
   await app.register(leaderboardRoutes(composition.leaderboard));
-  await app.register(joinRoutes(composition.participants), { limiter: joinLimiter });
+  await app.register(roomsRoutes(composition.rooms, limiter));
+  await app.register(joinRoutes(composition.participants), { limiter });
   await app.register(screenRoutes(composition.screen));
   await app.register(publicParticipantsRoutes(composition.participants));
   await app.register(networkRoutes({ lanIps: lanIps ?? lanIPv4, port: config.port }));

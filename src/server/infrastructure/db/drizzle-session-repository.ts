@@ -1,7 +1,8 @@
-import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { ACTIVE_STATUSES } from '../../../shared/session-state.js';
 import type {
   ActiveSessionView,
+  ScreenSessionView,
   SessionDetailView,
   SessionReader,
   SessionRepository,
@@ -18,6 +19,8 @@ const summaryColumns = {
   id: sessions.id,
   examId: sessions.examId,
   examTitle: exams.title,
+  name: sessions.name,
+  slot: sessions.slot,
   mode: sessions.mode,
   status: sessions.status,
   shuffle: sessions.shuffle,
@@ -43,7 +46,7 @@ export class DrizzleSessionRepository implements SessionRepository {
       db =>
         db
           .insert(sessions)
-          .values({ examId: s.examId, mode: s.mode, shuffle: s.shuffle, autoApprove: s.autoApprove, createdAt: s.createdAt })
+          .values({ examId: s.examId, name: s.name, mode: s.mode, shuffle: s.shuffle, autoApprove: s.autoApprove, createdAt: s.createdAt })
           .returning({ id: sessions.id })
           .get().id,
     );
@@ -53,11 +56,13 @@ export class DrizzleSessionRepository implements SessionRepository {
     await this.access(db => db.update(sessions).set(patch).where(eq(sessions.id, id)).run());
   }
 
-  async hasActiveOtherThan(id: number): Promise<boolean> {
-    const other = await this.access(db =>
-      db.select({ id: sessions.id }).from(sessions).where(and(inArray(sessions.status, [...ACTIVE_STATUSES]), ne(sessions.id, id))).get(),
+  async lowestFreeSlot(): Promise<number> {
+    const used = new Set(
+      (await this.access(db => db.select({ slot: sessions.slot }).from(sessions).where(inArray(sessions.status, [...ACTIVE_STATUSES])).all())).map(r => r.slot),
     );
-    return !!other;
+    let slot = 1;
+    while (used.has(slot)) slot++;
+    return slot;
   }
 
   async roomCodeInUse(code: string): Promise<boolean> {
@@ -94,28 +99,51 @@ export class DrizzleSessionReader implements SessionReader {
     });
   }
 
-  async findActiveRoomCode(): Promise<string | null> {
+  listActive(): Promise<SessionSummaryView[]> {
+    return this.access(db =>
+      db
+        .select(summaryColumns)
+        .from(sessions)
+        .innerJoin(exams, eq(sessions.examId, exams.id))
+        .where(inArray(sessions.status, [...ACTIVE_STATUSES]))
+        .orderBy(asc(sessions.slot), asc(sessions.id))
+        .all(),
+    );
+  }
+
+  async findPublic(id: number): Promise<ActiveSessionView | null> {
+    return (await this.access(db => this.publicRows(db).where(eq(sessions.id, id)).get())) ?? null;
+  }
+
+  async findOpenByRoomCode(code: string): Promise<ActiveSessionView | null> {
+    return (await this.access(db => this.publicRows(db).where(and(eq(sessions.roomCode, code), inArray(sessions.status, [...ACTIVE_STATUSES]))).get())) ?? null;
+  }
+
+  async findOpenRoomCode(id: number): Promise<string | null> {
     const row = await this.access(db =>
-      db.select({ roomCode: sessions.roomCode }).from(sessions).where(inArray(sessions.status, [...ACTIVE_STATUSES])).orderBy(desc(sessions.id)).get(),
+      db.select({ roomCode: sessions.roomCode }).from(sessions).where(and(eq(sessions.id, id), inArray(sessions.status, [...ACTIVE_STATUSES]))).get(),
     );
     return row?.roomCode ?? null;
   }
 
-  async findActive(): Promise<ActiveSessionView | null> {
-    return (await this.access(db => this.pick(db, [...ACTIVE_STATUSES]))) ?? null;
+  listScreenSessions(): Promise<ScreenSessionView[]> {
+    return this.access(db =>
+      this.screenRows(db).where(inArray(sessions.status, [...ACTIVE_STATUSES])).orderBy(asc(sessions.slot), asc(sessions.id)).all(),
+    );
   }
 
-  async findLatest(): Promise<ActiveSessionView | null> {
-    return (await this.access(db => this.pick(db, [...ACTIVE_STATUSES]) ?? this.pick(db, ['closed', 'finalized']))) ?? null;
+  async findLatestEnded(): Promise<ScreenSessionView | null> {
+    return (await this.access(db => this.screenRows(db).where(inArray(sessions.status, ['closed', 'finalized'])).orderBy(desc(sessions.id)).get())) ?? null;
   }
 
-  private pick(db: Parameters<Parameters<DbAccess>[0]>[0], statuses: Session['status'][]) {
+  private publicRows(db: Parameters<Parameters<DbAccess>[0]>[0]) {
+    return db.select({ id: sessions.id, title: exams.title, status: sessions.status }).from(sessions).innerJoin(exams, eq(sessions.examId, exams.id));
+  }
+
+  private screenRows(db: Parameters<Parameters<DbAccess>[0]>[0]) {
     return db
-      .select({ id: sessions.id, title: exams.title, status: sessions.status })
+      .select({ id: sessions.id, name: sessions.name, slot: sessions.slot, title: exams.title, status: sessions.status })
       .from(sessions)
-      .innerJoin(exams, eq(sessions.examId, exams.id))
-      .where(inArray(sessions.status, statuses))
-      .orderBy(desc(sessions.id))
-      .get();
+      .innerJoin(exams, eq(sessions.examId, exams.id));
   }
 }

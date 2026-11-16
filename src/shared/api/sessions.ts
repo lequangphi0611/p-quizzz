@@ -4,8 +4,12 @@ import type { EditRequestInfo } from './attempts.js';
 
 export type SessionMode = 'self_paced' | 'live';
 
+export const MAX_SESSION_NAME_LENGTH = 80;
+
 export const CreateSessionBody = z.object({
   examId: z.number().int().positive('Chọn một đề'),
+  // Mentor-only label; defaults to "<exam title> – dd/MM" (PRODUCT.md §7.5).
+  name: z.string().trim().max(MAX_SESSION_NAME_LENGTH, `Tên phiên tối đa ${MAX_SESSION_NAME_LENGTH} ký tự`).optional(),
   shuffle: z.boolean().optional(),
   autoApprove: z.boolean().optional(), // let everyone in without the mentor's approval (default false)
 });
@@ -14,6 +18,8 @@ export interface SessionSummary {
   id: number;
   examId: number;
   examTitle: string;
+  name: string; // mentor-only: members and the projector see the exam title
+  slot: number | null; // lowest free number among open sessions; null when not open
   mode: SessionMode;
   status: SessionStatus;
   shuffle: boolean;
@@ -55,14 +61,36 @@ export interface SessionDetail extends SessionSummary {
   participants: SessionParticipantDetail[];
 }
 
-// GET /api/screen/room — only answers on the mentor's machine (the projector). Never exposed publicly.
+// GET /api/screen/sessions/:id/room — only answers on the mentor's machine (the projector). Never exposed publicly.
 export interface ScreenRoom {
   roomCode: string | null;
 }
 
-// GET /api/sessions/active (public). `null` when no session is in lobby/running.
+// What the public may know about a session: the exam title, never the mentor's session name or room code.
+// Returned by POST /api/rooms/resolve and GET /api/sessions/:id/public.
 export interface ActiveSession {
   id: number;
   title: string;
   status: SessionStatus;
+}
+
+// POST /api/rooms/resolve: member types the room code, the server finds the open session.
+export const ResolveRoomBody = z.object({
+  roomCode: z
+    .string({ error: 'Nhập mã phòng' })
+    .transform(raw => raw.replace(/\D/g, ''))
+    .refine(s => s.length === 6, 'Mã phòng gồm 6 chữ số'),
+});
+
+// GET /api/screen/sessions (mentor machine only): what the projector can follow. `latestEnded` only when nothing is open.
+export interface ScreenSessionItem {
+  id: number;
+  name: string;
+  slot: number | null;
+  title: string; // exam title
+  status: SessionStatus;
+}
+export interface ScreenSessions {
+  open: ScreenSessionItem[];
+  latestEnded: ScreenSessionItem | null;
 }

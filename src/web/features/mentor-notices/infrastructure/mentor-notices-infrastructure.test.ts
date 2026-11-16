@@ -10,8 +10,8 @@ describe('HttpMentorNoticesGateway', () => {
     const calls: unknown[][] = [];
     const rec = (m: string) => vi.fn(async (...a: unknown[]) => { calls.push([m, ...a]); return {}; });
     const g = new HttpMentorNoticesGateway({ get: rec('GET'), post: rec('POST') } as unknown as HttpClient);
-    await g.getActive(); await g.getSession(3); await g.approveParticipant(9);
-    expect(calls).toEqual([['GET', '/api/sessions/active'], ['GET', '/api/admin/sessions/3'], ['POST', '/api/admin/participants/9/approve']]);
+    await g.listActive(); await g.getSession(3); await g.approveParticipant(9);
+    expect(calls).toEqual([['GET', '/api/admin/sessions?active=true'], ['GET', '/api/admin/sessions/3'], ['POST', '/api/admin/participants/9/approve']]);
   });
 });
 

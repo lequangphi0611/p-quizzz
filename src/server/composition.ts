@@ -13,6 +13,8 @@ import { GetGradingView } from './application/use-cases/grading/get-grading-view
 import { GradeAnswer } from './application/use-cases/grading/grade-answer.js';
 import { GetLeaderboard } from './application/use-cases/leaderboard/get-leaderboard.js';
 import { GetProjectorRoom } from './application/use-cases/sessions/get-projector-room.js';
+import { ListScreenSessions } from './application/use-cases/sessions/list-screen-sessions.js';
+import { ResolveRoom } from './application/use-cases/sessions/resolve-room.js';
 import { AutoSubmitOpenAttempts } from './application/use-cases/attempts/auto-submit-open-attempts.js';
 import { FinishEdit, RequestEdit, ResolveEditRequest } from './application/use-cases/attempts/edit-request.js';
 import { GetAttemptReview, GetAttemptView, GetMemberState, GetParticipantReview } from './application/use-cases/attempts/queries.js';
@@ -35,7 +37,7 @@ import { CloseSession } from './application/use-cases/sessions/close-session.js'
 import { CreateSession } from './application/use-cases/sessions/create-session.js';
 import { FinalizeSession } from './application/use-cases/sessions/finalize-session.js';
 import { OpenSession } from './application/use-cases/sessions/open-session.js';
-import { GetActiveSession, GetLatestSession, GetSessionDetail, ListSessions } from './application/use-cases/sessions/queries.js';
+import { GetPublicSession, GetSessionDetail, ListSessions } from './application/use-cases/sessions/queries.js';
 import { StartSession } from './application/use-cases/sessions/start-session.js';
 import { defaultSessionModes } from './domain/session/mode.js';
 import type { Db } from './infrastructure/db/client.js';
@@ -77,7 +79,9 @@ export interface Composition {
   attempts: AttemptUseCases;
   grading: GradingUseCases;
   leaderboard: { leaderboard: GetLeaderboard };
-  screen: { projectorRoom: GetProjectorRoom };
+  screen: { projectorRoom: GetProjectorRoom; screenSessions: ListScreenSessions };
+  /** Members find their session by room code. */
+  rooms: { resolve: ResolveRoom };
   /** Resolves a member from a token: backs the `/api/me` hook. */
   resumeParticipant: ResumeParticipant;
   admin: AdminUseCases;
@@ -157,7 +161,8 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
       gradeAnswer: new GradeAnswer({ unitOfWork: attemptUnitOfWork, clock: ports.clock, events: ports.events }),
     },
     leaderboard: { leaderboard: new GetLeaderboard(gradingReads) },
-    screen: { projectorRoom: new GetProjectorRoom(sessionReader) },
+    screen: { projectorRoom: new GetProjectorRoom(sessionReader), screenSessions: new ListScreenSessions(sessionReader) },
+    rooms: { resolve: new ResolveRoom(sessionReader) },
     attempts: {
       start: new StartAttempt({ unitOfWork: attemptUnitOfWork, clock: ports.clock, random: ports.random, events: ports.events }),
       view: new GetAttemptView(attemptReads),
@@ -193,8 +198,7 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
       start: new StartSession(lifecycle),
       close: new CloseSession(lifecycle),
       finalize: new FinalizeSession(lifecycle),
-      active: new GetActiveSession(sessionReader),
-      latest: new GetLatestSession(sessionReader),
+      publicSession: new GetPublicSession(sessionReader),
     },
     exams: {
       preview: new PreviewExam(),

@@ -4,6 +4,7 @@ import { Button } from '../../../shared/ui/Button.js';
 import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog.js';
 import { ErrorMessage } from '../../../shared/ui/ErrorMessage.js';
 import { Icon } from '../../../shared/ui/Icon.js';
+import { SessionSlot } from '../../../shared/ui/SessionSlot.js';
 import { StatusBadge } from '../../../shared/ui/StatusBadge.js';
 import { useSessionDetail } from '../application/session-admin-context.js';
 import { ACTION_FOR_STATUS } from '../domain/session-ui.js';
@@ -30,10 +31,14 @@ function SessionDetailView({ initial }: { initial: SessionDetail }) {
       </button>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-        <h1 style={{ font: 'var(--type-h1)', color: 'var(--text-title)', margin: 0 }}>{detail.exam.title}</h1>
+        {detail.slot !== null && <SessionSlot n={detail.slot} size={28} />}
+        <div style={{ display: 'grid', gap: 2, minWidth: 0 }}>
+          <h1 style={{ font: 'var(--type-h1)', color: 'var(--text-title)', margin: 0, overflowWrap: 'anywhere' }}>{detail.name}</h1>
+          {detail.name !== detail.exam.title && <span style={{ font: 'var(--type-meta)', color: 'var(--text-meta)' }}>Đề: {detail.exam.title}</span>}
+        </div>
         <StatusBadge status={detail.status} />
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <Button variant="secondary" icon="presentation" onClick={() => window.open('/screen', '_blank')}>Mở màn hình chiếu</Button>
+          <Button variant="secondary" icon="presentation" onClick={() => window.open(`/screen/${detail.id}`, '_blank')}>Mở màn hình chiếu</Button>
           {finished && (
             <>
               <Button variant="secondary" icon="message-square" onClick={() => nav(`/admin/sessions/${detail.id}/discuss`)}>Thảo luận</Button>

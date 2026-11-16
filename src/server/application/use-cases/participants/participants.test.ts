@@ -26,7 +26,7 @@ async function build(opts: { autoApprove?: boolean; status?: 'lobby' | 'running'
   people = new InMemoryParticipantRepository();
   events = new RecordingEventPublisher();
   const examId = await exams.add({ title: 'T', description: null, sourceMarkdown: '#', totalPoints: 1, hasEssay: false, createdAt: new Date(), questions: [] });
-  const sessionId = await sessions.create({ examId, mode: 'self_paced', shuffle: true, autoApprove: opts.autoApprove ?? false, createdAt: new Date() });
+  const sessionId = await sessions.create({ examId, name: 'Phiên', mode: 'self_paced', shuffle: true, autoApprove: opts.autoApprove ?? false, createdAt: new Date() });
   await sessions.update(sessionId, { status: opts.status ?? 'lobby', roomCode: '123456' });
   const unitOfWork = new InMemoryUnitOfWork({ sessions, participants: people }, [people]);
   const deps = { unitOfWork, clock: new FakeClock(500), tokens: new FakeTokenGenerator(), events };

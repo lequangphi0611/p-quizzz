@@ -1,13 +1,21 @@
 import type { SessionEventType } from '../../../shared/api/index.js';
 
 export type EventListener = (type: SessionEventType) => void;
+export type AllEventsListener = (sessionId: number, type: SessionEventType) => void;
 
 // In-process pub/sub keyed by session id. Nothing business-related travels through it.
 export function createEventBus() {
   const listeners = new Map<number, Set<EventListener>>();
+  const everyone = new Set<AllEventsListener>();
   return {
     publish(sessionId: number, type: SessionEventType) {
       for (const l of [...(listeners.get(sessionId) ?? [])]) l(type);
+      for (const l of [...everyone]) l(sessionId, type);
+    },
+    /** Returns an unsubscribe function. */
+    subscribeAll(listener: AllEventsListener): () => void {
+      everyone.add(listener);
+      return () => void everyone.delete(listener);
     },
     /** Returns an unsubscribe function. */
     subscribe(sessionId: number, listener: EventListener): () => void {
@@ -20,6 +28,7 @@ export function createEventBus() {
       };
     },
     listenerCount: (sessionId: number) => listeners.get(sessionId)?.size ?? 0,
+    allListenerCount: () => everyone.size,
   };
 }
 

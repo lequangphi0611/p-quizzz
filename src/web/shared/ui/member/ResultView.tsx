@@ -14,7 +14,7 @@ const timeOf = (ms: number) => new Date(ms).toLocaleTimeString('vi-VN', { hour: 
  * (official after finalize), the multiple-choice / essay split and "Xem lại bài". `autoSubmitted`: the mentor closed
  * the session while this member was still working, so the attempt was submitted for them.
  */
-export function ResultView({ me, ended, autoSubmitted = false, children }: { me: MeResponse; ended: boolean; autoSubmitted?: boolean; children?: ReactNode }) {
+export function ResultView({ me, ended, autoSubmitted = false, onAnotherRoom, children }: { me: MeResponse; ended: boolean; autoSubmitted?: boolean; onAnotherRoom?: () => void; children?: ReactNode }) {
   const desk = useIsDesk();
   const nav = useNavigate();
   const { session, attempt, participant } = me;
@@ -77,6 +77,7 @@ export function ResultView({ me, ended, autoSubmitted = false, children }: { me:
       )}
       {card}
       {children}
+      {ended && onAnotherRoom && <Button variant="secondary" size="lg" icon="door-open" block={!desk} onClick={onAnotherRoom}>Vào phòng khác</Button>}
     </MemberPage>
   );
 }

@@ -4,9 +4,19 @@ import type { EditRequestStatus, SessionParticipantDetail } from '../../../../sh
 // every non-kicked participant yields a "joined" notice, plus a "submitted" notice once they hand in.
 export type NoticeKind = 'pending' | 'joined' | 'submitted' | 'edit';
 
+/** Which session a notice belongs to: several may be open at once (PRODUCT.md §7.5), so every notice says. */
+export interface SessionLabel {
+  id: number;
+  name: string;
+  slot: number | null;
+}
+
 export interface MentorNotice {
-  key: string; // stable across refetches, e.g. "join:12"
+  key: string; // stable across refetches, e.g. "join:12" (participant ids are unique across sessions)
   kind: NoticeKind;
+  sessionId: number;
+  sessionName: string;
+  slot: number | null;
   participantId: number;
   displayName: string;
   at: number; // server epoch ms
@@ -16,24 +26,38 @@ export interface MentorNotice {
   resolvedAt?: number | null; // when the mentor answered; shown next to the outcome
 }
 
+const NO_SESSION: SessionLabel = { id: 0, name: '', slot: null };
+
 /** Newest first; at the same instant a submission sorts above a join. */
-export function buildNotices(participants: readonly SessionParticipantDetail[]): MentorNotice[] {
+export function buildNotices(participants: readonly SessionParticipantDetail[], session: SessionLabel = NO_SESSION): MentorNotice[] {
   const out: MentorNotice[] = [];
+  const base = { sessionId: session.id, sessionName: session.name, slot: session.slot };
   for (const p of participants) {
     if (p.status === 'kicked') continue;
-    out.push({ key: `join:${p.id}`, kind: p.status === 'pending' ? 'pending' : 'joined', participantId: p.id, displayName: p.displayName, at: p.joinedAt });
+    out.push({ ...base, key: `join:${p.id}`, kind: p.status === 'pending' ? 'pending' : 'joined', participantId: p.id, displayName: p.displayName, at: p.joinedAt });
     if (p.progress.submittedAt !== null) {
-      out.push({ key: `submit:${p.id}`, kind: 'submitted', participantId: p.id, displayName: p.displayName, at: p.progress.submittedAt });
+      out.push({ ...base, key: `submit:${p.id}`, kind: 'submitted', participantId: p.id, displayName: p.displayName, at: p.progress.submittedAt });
     }
     const edit = p.progress.editRequest;
-    if (edit) out.push({ key: `edit:${p.id}:${edit.requestedAt}`, kind: 'edit', participantId: p.id, displayName: p.displayName, at: edit.requestedAt, editStatus: edit.status, reason: edit.reason, resolvedAt: edit.resolvedAt });
+    if (edit) out.push({ ...base, key: `edit:${p.id}:${edit.requestedAt}`, kind: 'edit', participantId: p.id, displayName: p.displayName, at: edit.requestedAt, editStatus: edit.status, reason: edit.reason, resolvedAt: edit.resolvedAt });
   }
   return out.sort((a, b) => b.at - a.at || rank(a) - rank(b) || b.participantId - a.participantId);
 }
 const rank = (n: MentorNotice) => (n.kind === 'submitted' ? 0 : 1);
 
+/** The "seen" mark: one number (a single session), or one per session id (several open at once). */
+export type Seen = number | Readonly<Record<number, number>>;
+const seenFor = (seen: Seen, sessionId: number) => (typeof seen === 'number' ? seen : seen[sessionId] ?? 0);
+
 /** Notices newer than the last time the mentor opened the list. */
-export const unreadCount = (notices: readonly MentorNotice[], seenAt: number) => notices.filter(n => n.at > seenAt).length;
+export const unreadCount = (notices: readonly MentorNotice[], seen: Seen) => notices.filter(n => n.at > seenFor(seen, n.sessionId)).length;
+
+/** All sessions' notices as one list, newest first. Each session is built with its own label. */
+export function buildAllNotices(entries: readonly { session: SessionLabel; participants: readonly SessionParticipantDetail[] }[]): MentorNotice[] {
+  return entries
+    .flatMap(e => buildNotices(e.participants, e.session))
+    .sort((a, b) => b.at - a.at || rank(a) - rank(b) || b.participantId - a.participantId);
+}
 
 export const pendingCount = (participants: readonly SessionParticipantDetail[]) => participants.filter(p => p.status === 'pending').length;
 
@@ -44,7 +68,15 @@ export const editPendingCount = (participants: readonly SessionParticipantDetail
  * The "seen" mark is the newest notice time, not Date.now(): both sides of the comparison then come
  * from the server clock, so a skewed browser clock cannot hide or resurrect notices.
  */
-export const markSeenAt = (notices: readonly MentorNotice[], seenAt: number) => Math.max(seenAt, ...notices.map(n => n.at));
+export function markSeenAt(notices: readonly MentorNotice[], seen: number): number;
+export function markSeenAt(notices: readonly MentorNotice[], seen: Readonly<Record<number, number>>): Readonly<Record<number, number>>;
+export function markSeenAt(notices: readonly MentorNotice[], seen: Seen): Seen {
+  if (typeof seen === 'number') return Math.max(seen, ...notices.map(n => n.at));
+  const next: Record<number, number> = { ...seen };
+  let changed = false;
+  for (const n of notices) if (n.at > (next[n.sessionId] ?? 0)) { next[n.sessionId] = n.at; changed = true; }
+  return changed ? next : seen; // same reference when nothing moved, so callers can skip saving
+}
 
 export const NOTICE_TEXT: Record<NoticeKind, { text: string; icon: string; color: string }> = {
   pending: { text: 'xin vào phiên, đang chờ duyệt', icon: 'user-plus', color: 'var(--sun-ink)' },

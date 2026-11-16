@@ -56,12 +56,16 @@ export const sessions = sqliteTable(
   {
     id: id(),
     examId: integer('exam_id').notNull().references(() => exams.id),
+    // Mentor-only label that tells parallel sessions apart (PRODUCT.md §7.5); older rows were backfilled with the exam title.
+    name: text('name').notNull().default(''),
     mode: text('mode', { enum: ['self_paced', 'live'] }).notNull().default('self_paced'),
     status: text('status', { enum: ['draft', 'lobby', 'running', 'closed', 'finalized'] }).notNull().default('draft'),
     shuffle: integer('shuffle', { mode: 'boolean' }).notNull().default(true),
     autoApprove: integer('auto_approve', { mode: 'boolean' }).notNull().default(false),
     // 6 random digits, generated when the session is opened (null while draft). Members need it to join.
     roomCode: text('room_code'),
+    // Lowest number free among open sessions, set on open and cleared on close (for the mentor's "Đang mở" bar).
+    slot: integer('slot'),
     createdAt: ts('created_at').notNull(),
     openedAt: ts('opened_at'),
     startedAt: ts('started_at'),

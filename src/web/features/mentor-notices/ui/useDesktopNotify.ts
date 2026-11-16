@@ -23,17 +23,17 @@ function currentStatus(enabled: boolean): DesktopNotifyStatus {
 export function useDesktopNotify(state: MentorNoticesState, onOpenSession: (id: number) => void) {
   const [enabled, setEnabled] = useState(loadPref);
   const [status, setStatus] = useState<DesktopNotifyStatus>(() => currentStatus(loadPref()));
-  const known = useRef<{ sessionId: number; keys: Set<string> } | null>(null);
+  const known = useRef<Set<string> | null>(null); // keys are unique across sessions (participant ids are global)
   const lastPopAt = useRef(0);
   const openRef = useRef(onOpenSession);
   openRef.current = onOpenSession;
 
-  const { session, loaded, notices, pending } = state;
+  const { sessions, loaded, notices, pending } = state;
   useEffect(() => {
-    if (!session || !loaded) return;
-    const prev = known.current?.sessionId === session.id ? known.current.keys : null;
-    const fresh = newPendingNotices(prev, notices);
-    known.current = { sessionId: session.id, keys: new Set(notices.map(n => n.key)) };
+    if (!loaded) return;
+    if (sessions.length === 0) { known.current = null; return; }
+    const fresh = newPendingNotices(known.current, notices);
+    known.current = new Set(notices.map(n => n.key));
     if (!fresh.length || currentStatus(enabled) !== 'on') return;
     if (document.visibilityState === 'visible' && document.hasFocus()) return; // the bell is enough
     const now = Date.now();
@@ -42,11 +42,11 @@ export function useDesktopNotify(state: MentorNoticesState, onOpenSession: (id: 
     for (const n of desktopNotifications(fresh, pending, inBurst)) {
       try {
         const note = new Notification(n.title, { body: n.body, tag: n.tag });
-        const id = session.id;
+        const id = fresh.find(f => `pq-pending-${f.participantId}` === n.tag)?.sessionId ?? fresh[0]!.sessionId; // a summary opens the newest one's session
         note.onclick = () => { window.focus(); openRef.current(id); note.close(); };
       } catch { /* some browsers only allow notifications from a service worker */ }
     }
-  }, [session, loaded, notices, pending, enabled]);
+  }, [sessions, loaded, notices, pending, enabled]);
 
   const enable = useCallback(async () => {
     if (!supported()) return;

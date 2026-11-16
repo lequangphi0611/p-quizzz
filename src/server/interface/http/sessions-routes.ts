@@ -7,7 +7,7 @@ import type { FinalizeSession } from '../../application/use-cases/sessions/final
 import type { CloseSession } from '../../application/use-cases/sessions/close-session.js';
 import type { OpenSession } from '../../application/use-cases/sessions/open-session.js';
 import type { StartSession } from '../../application/use-cases/sessions/start-session.js';
-import type { GetActiveSession, GetLatestSession, GetSessionDetail, ListSessions } from '../../application/use-cases/sessions/queries.js';
+import type { GetPublicSession, GetSessionDetail, ListSessions } from '../../application/use-cases/sessions/queries.js';
 import { sendDomainError } from './domain-errors.js';
 import { parseId } from './params.js';
 import { toActiveSessionDto, toSessionDetailDto, toSessionSummaryDto } from './presenters/session-presenter.js';
@@ -20,8 +20,7 @@ export interface SessionUseCases {
   start: StartSession;
   close: CloseSession;
   finalize: FinalizeSession;
-  active: GetActiveSession;
-  latest: GetLatestSession;
+  publicSession: GetPublicSession;
 }
 
 // Mentor session routes. Registered inside the requireMentor scope of /api/admin (see buildApp).
@@ -44,7 +43,8 @@ export const sessionsRoutes = (uc: SessionUseCases): FastifyPluginAsync =>
       }
     });
 
-    app.get('/sessions', async () => (await uc.list.execute()).map(toSessionSummaryDto));
+    // ?active=true: only sessions in lobby/running, lowest slot first (the overview, the bell, the session bar).
+    app.get<{ Querystring: { active?: string } }>('/sessions', async req => (await uc.list.execute(req.query.active === 'true')).map(toSessionSummaryDto));
 
     app.get<{ Params: { id: string } }>('/sessions/:id', async (req, reply) => {
       try {
@@ -68,15 +68,16 @@ export const sessionsRoutes = (uc: SessionUseCases): FastifyPluginAsync =>
     });
   };
 
-// Public: lets members find the room from the root URL; the projector follows the latest.
-export const publicSessionsRoutes = (uc: Pick<SessionUseCases, 'active' | 'latest'>): FastifyPluginAsync =>
+// Public: the exam title and status of one session (the projector page follows it). Never the mentor's session name.
+export const publicSessionsRoutes = (uc: Pick<SessionUseCases, 'publicSession'>): FastifyPluginAsync =>
   async app => {
-    app.get('/api/sessions/active', async (_req, reply) => {
-      const s = await uc.active.execute();
-      return reply.send(s ? toActiveSessionDto(s) : null);
-    });
-    app.get('/api/sessions/latest', async (_req, reply) => {
-      const s = await uc.latest.execute();
-      return reply.send(s ? toActiveSessionDto(s) : null);
+    app.get<{ Params: { id: string } }>('/api/sessions/:id/public', async (req, reply) => {
+      try {
+        const id = parseId(req.params.id);
+        if (!id) throw new SessionNotFoundError();
+        return toActiveSessionDto(await uc.publicSession.execute(id));
+      } catch (err) {
+        return sendDomainError(reply, err);
+      }
     });
   };

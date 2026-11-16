@@ -1,44 +1,56 @@
 import type { ActiveSession, MeResponse } from '../../../../shared/api/index.js';
+import { ROOM_CODE_LENGTH } from '../../../../shared/api/index.js';
 import { ApiError } from '../../../shared/api-client/http-client.js';
 import type { TokenStore } from '../../../shared/token-store/token-store.js';
 import { decideScreen, type MeState, type MemberScreen } from '../domain/member-screen.js';
 import type { MemberGateway, RoomCodeMemory } from './member-gateway.js';
 
+/** What looking up a room code produced. `error.status` is the HTTP status (0 = no connection). */
+export interface RoomLookup {
+  code: string;
+  status: 'checking' | 'ok' | 'error';
+  session: ActiveSession | null;
+  error: { status: number; message: string } | null;
+}
+
 export interface MemberHomeState {
-  /** `undefined` until the first /api/sessions/active answer; `null` when nothing is active. */
-  active: ActiveSession | null | undefined;
-  hasToken: boolean;
+  /** The session this browser holds a token for and follows (several sessions may run at once, so this is explicit). */
+  followId: number | null;
+  /** The last room code looked up (typed or from a link). */
+  lookup: RoomLookup | null;
   me: MeResponse | null;
   meState: MeState;
-  /** The session this browser last joined: followed after it stops being active, so the result stays on screen. */
-  remembered: number | null;
-  /** The very first load failed: show "Mất kết nối" instead of spinning. */
-  activeError: boolean;
   /** This browser saw the member working, then the session closed under them (the attempt was submitted for them). */
   autoSubmitted: boolean;
 }
 
 export const POLL_MS = 5000;
 
-export const selectScreen = (s: MemberHomeState): MemberScreen => decideScreen({ active: s.active, hasToken: s.hasToken, me: s.me, meState: s.meState });
-export const selectActiveId = (s: MemberHomeState): number | null => (s.active ? s.active.id : s.active === null ? s.remembered : null);
+export const selectRoom = (s: MemberHomeState): ActiveSession | null => (s.lookup?.status === 'ok' ? s.lookup.session : null);
+export const selectScreen = (s: MemberHomeState): MemberScreen => decideScreen({ followId: s.followId, room: selectRoom(s), me: s.me, meState: s.meState });
+/** The session whose events and `/api/me` this page follows. */
+export const selectFollowedId = (s: MemberHomeState): number | null => s.followId;
 
 /**
- * What a member sees at "/": follows the active session (polling + SSE nudges), holds the member's own state, and
- * handles joining. Plain TypeScript, tested with fakes; `decideScreen` (domain) turns the state into a screen.
+ * What a member sees at "/": finds a session by its room code, follows the session they joined (polling + SSE
+ * nudges), holds the member's own state and handles joining. Plain TypeScript, tested with fakes; `decideScreen`
+ * (domain) turns the state into a screen.
  */
 export class MemberHomeController {
   private state: MemberHomeState;
   private listeners = new Set<() => void>();
   private meSeq = 0;
-  private lastActiveId: number | null;
+  private lookupSeq = 0;
+  private lastFollowId: number | null;
   private wasTaking = false;
 
   constructor(private gateway: MemberGateway, private tokens: TokenStore, private rooms: RoomCodeMemory, private pollMs = POLL_MS) {
+    // Resume the session this tab (or, for a new tab, the last tab) was in, if a token for it is still here.
     const id = Number(tokens.getCurrentSessionId());
-    const remembered = id > 0 && tokens.getToken(id) ? id : null;
-    this.state = { active: undefined, hasToken: false, me: null, meState: 'idle', remembered, activeError: false, autoSubmitted: false };
-    this.lastActiveId = selectActiveId(this.state);
+    const followId = id > 0 && tokens.getToken(id) ? id : null;
+    this.state = { followId, lookup: null, me: null, meState: 'idle', autoSubmitted: false };
+    this.lastFollowId = null; // so the first react() fetches `me` for a resumed session
+    this.react();
   }
 
   getState = (): MemberHomeState => this.state;
@@ -52,9 +64,9 @@ export class MemberHomeController {
 
   /** Side effects of a state change: follow a different session, remember an auto-submit. */
   private react(): void {
-    const id = selectActiveId(this.state);
-    if (id !== this.lastActiveId) {
-      this.lastActiveId = id;
+    const id = this.state.followId;
+    if (id !== this.lastFollowId) {
+      this.lastFollowId = id;
       this.state = { ...this.state, me: null, meState: 'idle' };
       if (id !== null) void this.fetchMe(id);
     }
@@ -66,24 +78,13 @@ export class MemberHomeController {
 
   /** Start polling (a safety net: SSE makes changes show at once). Returns the stop function. */
   start(): () => void {
-    void this.fetchActive();
-    const t = setInterval(() => {
-      void this.fetchActive();
-      const id = selectActiveId(this.state);
-      if (id !== null) void this.fetchMe(id);
-    }, this.pollMs);
+    const t = setInterval(() => { if (this.state.followId !== null) void this.fetchMe(this.state.followId); }, this.pollMs);
     return () => clearInterval(t);
   }
 
-  fetchActive = async (): Promise<void> => {
-    try { this.set({ active: await this.gateway.getActive(), activeError: false }); }
-    catch { this.set({ activeError: true }); /* keep what we have; the next poll retries */ }
-  };
-
   fetchMe = async (sessionId: number): Promise<void> => {
     const n = ++this.meSeq;
-    if (!this.tokens.getToken(sessionId)) { this.set({ hasToken: false, me: null, meState: 'idle' }); return; }
-    this.set({ hasToken: true });
+    if (!this.tokens.getToken(sessionId)) { this.set({ followId: null, me: null, meState: 'idle' }); return; }
     this.tokens.setCurrentSessionId(sessionId);
     try {
       const me = await this.gateway.getMe();
@@ -93,20 +94,53 @@ export class MemberHomeController {
       if (n !== this.meSeq) return;
       if (err instanceof ApiError && err.status === 401) { // unknown token (e.g. server DB was reset): start over
         this.tokens.clearToken(sessionId);
-        this.set({ remembered: this.state.remembered === sessionId ? null : this.state.remembered, hasToken: false, me: null, meState: 'idle' });
+        this.tokens.clearCurrentSessionId();
+        this.set({ followId: null, me: null, meState: 'idle' });
       } else if (err instanceof ApiError && err.status === 403) this.set({ meState: 'kicked' });
       else if (!this.state.me) this.set({ meState: 'error' });
     }
   };
 
-  /** SSE: the session changed. */
-  onSessionEvent = (): void => { void this.fetchActive(); const id = selectActiveId(this.state); if (id !== null) void this.fetchMe(id); };
-  /** SSE: people joined, were approved or kicked. */
-  onParticipantsEvent = (): void => { const id = selectActiveId(this.state); if (id !== null) void this.fetchMe(id); };
+  /** SSE: the session changed, or people joined, were approved or kicked. */
+  onSessionEvent = (): void => { if (this.state.followId !== null) void this.fetchMe(this.state.followId); };
+  onParticipantsEvent = this.onSessionEvent;
 
-  refreshMe = async (): Promise<void> => { const id = selectActiveId(this.state); if (id !== null) await this.fetchMe(id); };
+  refreshMe = async (): Promise<void> => { if (this.state.followId !== null) await this.fetchMe(this.state.followId); };
 
-  /** Ask to join. Stores the token and room code; rejects with the server error for the form to explain. */
+  /**
+   * Find the open session for a room code (typed, or from a join link). A code that is already being looked up or
+   * found is not asked again: every wrong code counts against the address (the server limits guessing).
+   * A session this browser already has a token for is resumed instead of asking for a name again.
+   */
+  async lookUpRoom(rawCode: string): Promise<void> {
+    const code = rawCode.replace(/\D/g, '');
+    if (code.length !== ROOM_CODE_LENGTH) { this.clearRoom(); return; }
+    const cur = this.state.lookup;
+    if (cur && cur.code === code && cur.status !== 'error') return;
+    const n = ++this.lookupSeq;
+    this.set({ lookup: { code, status: 'checking', session: null, error: null } });
+    try {
+      const session = await this.gateway.resolveRoom(code);
+      if (n !== this.lookupSeq) return;
+      this.rooms.remember(session.id, code);
+      if (this.tokens.getToken(session.id)) { // already in this session from this browser
+        this.tokens.setCurrentSessionId(session.id);
+        this.set({ lookup: { code, status: 'ok', session, error: null }, followId: session.id });
+      } else this.set({ lookup: { code, status: 'ok', session, error: null }, followId: null });
+    } catch (err) {
+      if (n !== this.lookupSeq) return;
+      const error = err instanceof ApiError ? { status: err.status, message: err.message } : { status: 0, message: '' };
+      this.set({ lookup: { code, status: 'error', session: null, error } });
+    }
+  }
+
+  /** The code was edited: forget what it found. */
+  clearRoom(): void {
+    this.lookupSeq++;
+    if (this.state.lookup) this.set({ lookup: null });
+  }
+
+  /** Ask to join the session the code found. Stores the token; rejects with the server error for the form to explain. */
   async join(sessionId: number, displayName: string, roomCode: string): Promise<void> {
     const res = await this.gateway.join(sessionId, { displayName, roomCode });
     this.tokens.setToken(sessionId, res.token);
@@ -114,14 +148,31 @@ export class MemberHomeController {
     this.rooms.remember(sessionId, roomCode);
   }
   /** After a successful `join`: follow that session and load the member's state. */
-  async joined(sessionId: number): Promise<void> { this.set({ remembered: sessionId }); await this.fetchMe(sessionId); }
+  async joined(sessionId: number): Promise<void> { this.set({ followId: sessionId }); await this.fetchMe(sessionId); }
 
   recallRoom(sessionId: number): string { return this.rooms.recall(sessionId); }
 
-  /** The kicked screen's "back to the join page". */
-  leaveKicked(): void {
-    const id = selectActiveId(this.state);
+  /** Done with the session on screen (its result, or being kicked): back to the room code step. */
+  leave(): void {
+    const id = this.state.followId;
     if (id !== null) this.tokens.clearToken(id);
-    this.set({ hasToken: false, me: null, meState: 'idle' });
+    this.tokens.clearCurrentSessionId();
+    this.lookupSeq++;
+    this.set({ followId: null, lookup: null, me: null, meState: 'idle' });
+  }
+
+  /** The kicked screen's "join again": clear the token, then look the room up again with the remembered code. */
+  leaveKicked(): void {
+    const id = this.state.followId;
+    const code = id !== null ? this.rooms.recall(id) : '';
+    this.leave();
+    if (code) void this.lookUpRoom(code);
+  }
+
+  /** The ended screen's "another room": keep the token (the result can still be reopened by its code). */
+  leaveEnded(): void {
+    this.tokens.clearCurrentSessionId();
+    this.lookupSeq++;
+    this.set({ followId: null, lookup: null, me: null, meState: 'idle' });
   }
 }

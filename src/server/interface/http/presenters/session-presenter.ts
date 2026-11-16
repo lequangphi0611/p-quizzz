@@ -1,5 +1,5 @@
-import type { ActiveSession, SessionDetail, SessionSummary } from '../../../../shared/api/index.js';
-import type { ActiveSessionView, SessionDetailView, SessionSummaryView } from '../../../application/ports/session-repository.js';
+import type { ActiveSession, ScreenSessionItem, SessionDetail, SessionSummary } from '../../../../shared/api/index.js';
+import type { ActiveSessionView, ScreenSessionView, SessionDetailView, SessionSummaryView } from '../../../application/ports/session-repository.js';
 
 const ms = (d: Date | null) => (d ? d.getTime() : null);
 
@@ -7,6 +7,8 @@ export const toSessionSummaryDto = (s: SessionSummaryView): SessionSummary => ({
   id: s.id,
   examId: s.examId,
   examTitle: s.examTitle,
+  name: s.name,
+  slot: s.slot,
   mode: s.mode,
   status: s.status,
   shuffle: s.shuffle,
@@ -27,3 +29,5 @@ export const toSessionDetailDto = (s: SessionDetailView): SessionDetail => ({
 });
 
 export const toActiveSessionDto = (s: ActiveSessionView): ActiveSession => ({ id: s.id, title: s.title, status: s.status });
+
+export const toScreenSessionDto = (s: ScreenSessionView): ScreenSessionItem => ({ id: s.id, name: s.name, slot: s.slot, title: s.title, status: s.status });
