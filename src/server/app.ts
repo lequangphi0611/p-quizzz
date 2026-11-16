@@ -4,6 +4,7 @@ import fastifyCookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
 import type { Db } from './db/client.js';
 import { compose, type Composition } from './composition.js';
+import { meRoutes, participantReviewRoutes } from './interface/http/attempts-routes.js';
 import { adminRoutes } from './interface/http/admin-routes.js';
 import { examsRoutes } from './interface/http/exams-routes.js';
 import type { JoinLimiter } from './interface/http/join-limiter.js';
@@ -13,7 +14,6 @@ import { registerLeakGuard } from './leak-guard.js';
 import { gradingRoutes } from './routes/grading.js';
 import { leaderboardRoutes } from './routes/leaderboard.js';
 import { networkRoutes } from './routes/network.js';
-import { meRoutes, participantReviewRoutes } from './routes/participants.js';
 import { screenRoutes } from './routes/screen.js';
 import { eventsRoutes } from './routes/events.js';
 import { healthRoutes } from './routes/health.js';
@@ -36,7 +36,7 @@ export interface AppOptions {
 
 // Builds the Fastify app without listening, so tests can use app.inject().
 export async function buildApp({ db, composition = compose(db), serveWeb = false, logger = false, allowRemoteAdmin = false, lanIps, joinLimiter, adminRoutes: extraAdminRoutes = [] }: AppOptions) {
-  const protectedRoutes = [examsRoutes(composition.exams), sessionsRoutes(composition.sessions), participantsAdminRoutes(composition.participants), participantReviewRoutes, gradingRoutes, ...extraAdminRoutes];
+  const protectedRoutes = [examsRoutes(composition.exams), sessionsRoutes(composition.sessions), participantsAdminRoutes(composition.participants), participantReviewRoutes(composition.attempts), gradingRoutes, ...extraAdminRoutes];
   // Honour X-Forwarded-For only when the direct peer is this machine (the Vite dev proxy). A LAN client
   // connecting straight to the server is not trusted, so it cannot forge its address.
   const app = Fastify({ logger, trustProxy: ['127.0.0.1', '::1'] });
@@ -53,7 +53,7 @@ export async function buildApp({ db, composition = compose(db), serveWeb = false
   await app.register(screenRoutes);
   await app.register(publicParticipantsRoutes(composition.participants));
   await app.register(networkRoutes, { lanIps });
-  await app.register(meRoutes(composition.resumeParticipant));
+  await app.register(meRoutes(composition.attempts, composition.resumeParticipant));
 
   if (serveWeb) {
     await app.register(fastifyStatic, { root: resolve('dist/web') });

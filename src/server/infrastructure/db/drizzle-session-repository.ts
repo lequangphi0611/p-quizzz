@@ -2,7 +2,6 @@ import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import { ACTIVE_STATUSES } from '../../../shared/session-state.js';
 import type {
   ActiveSessionView,
-  AttemptAutoSubmitter,
   SessionDetailView,
   SessionReader,
   SessionRepository,
@@ -11,7 +10,8 @@ import type {
 } from '../../application/ports/session-repository.js';
 import type { NewSession, Session, SessionPatch } from '../../domain/session/session.js';
 import { exams, participants, sessions } from '../../db/schema.js';
-import { autoSubmitOpenAttempts, getSessionProgress, NO_PROGRESS } from '../../services/attempts.js';
+import { NO_PROGRESS } from '../../domain/attempt/attempt.js';
+import { loadSessionProgress } from './session-progress.js';
 import { countUngradedEssays } from '../../services/grading.js';
 import type { DbAccess } from './drizzle-exam-repository.js';
 
@@ -91,8 +91,7 @@ export class DrizzleSessionReader implements SessionReader {
         .where(eq(participants.sessionId, id))
         .orderBy(participants.id)
         .all();
-      // Progress comes from the attempts module, which has not moved yet.
-      const progress = getSessionProgress(db, id, exam.totalPoints);
+      const progress = loadSessionProgress(db, id, exam.totalPoints);
       return { ...row, exam, participants: people.map(p => ({ ...p, progress: progress.get(p.id) ?? NO_PROGRESS(exam.totalPoints) })) };
     });
   }
@@ -113,15 +112,6 @@ export class DrizzleSessionReader implements SessionReader {
       .where(inArray(sessions.status, statuses))
       .orderBy(desc(sessions.id))
       .get();
-  }
-}
-
-/** Bridge to the legacy attempts service. P3-3 replaces it with the real use case. */
-export class LegacyAttemptAutoSubmitter implements AttemptAutoSubmitter {
-  constructor(private readonly access: DbAccess) {}
-
-  submitOpenAttempts(sessionId: number): Promise<number> {
-    return this.access(db => autoSubmitOpenAttempts(db, sessionId));
   }
 }
 

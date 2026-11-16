@@ -1,4 +1,4 @@
-import { desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, ne, sql } from 'drizzle-orm';
 import type { Exam, NewExam } from '../../domain/exam/exam.js';
 import type { ExamRepository, ExamSummary } from '../../application/ports/exam-repository.js';
 import type { Db } from '../../db/client.js';
@@ -48,6 +48,26 @@ export class DrizzleExamRepository implements ExamRepository {
         .sync(),
     );
     return row ?? null;
+  }
+
+  async findQuestion(questionId: number) {
+    const found = await this.access(db => {
+      const q = db.select({ id: questions.id, type: questions.type }).from(questions).where(eq(questions.id, questionId)).get();
+      if (!q) return null;
+      return { ...q, optionIds: db.select({ id: options.id }).from(options).where(eq(options.questionId, questionId)).all().map(o => o.id) };
+    });
+    return found;
+  }
+
+  maxAutoScoreOf(examId: number): Promise<number> {
+    return this.access(
+      db =>
+        db
+          .select({ s: sql<number>`coalesce(sum(${questions.points}), 0)` })
+          .from(questions)
+          .where(and(eq(questions.examId, examId), ne(questions.type, 'essay')))
+          .get()?.s ?? 0,
+    );
   }
 
   // No transaction of its own: the caller's unit of work makes the whole write atomic.

@@ -12,6 +12,7 @@ export interface ParticipantRepository {
 }
 
 export interface ParticipantReader {
+  findById(id: number): Promise<Participant | null>;
   findByToken(token: string): Promise<Participant | null>;
   /** Names of `active` members in join order (the projector's list). */
   listActiveNames(sessionId: number): Promise<{ displayName: string }[]>;

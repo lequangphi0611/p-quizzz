@@ -1,4 +1,4 @@
-import type { Exam, NewExam } from '../../domain/exam/exam.js';
+import type { Exam, NewExam, Question } from '../../domain/exam/exam.js';
 
 /** An exam plus how much it is used: the list and detail screens show these counts. */
 export interface ExamSummary {
@@ -20,6 +20,10 @@ export interface ExamReader {
   findSummary(id: number): Promise<ExamSummary | null>;
   /** The full exam with questions and options in position order. */
   findById(id: number): Promise<Exam | null>;
+  /** One question's type and option ids: what saving an answer must check, without loading the whole exam. */
+  findQuestion(questionId: number): Promise<{ id: number; type: Question['type']; optionIds: number[] } | null>;
+  /** Most the automatic part can give (every non-essay question), as one aggregate query: members poll it. */
+  maxAutoScoreOf(examId: number): Promise<number>;
 }
 
 /**

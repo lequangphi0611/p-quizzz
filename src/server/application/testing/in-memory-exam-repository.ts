@@ -40,6 +40,18 @@ export class InMemoryExamRepository implements ExamRepository, Snapshottable {
     return this.exams.get(id) ?? null;
   }
 
+  async findQuestion(questionId: number) {
+    for (const e of this.exams.values()) {
+      const q = e.questions.find(x => x.id === questionId);
+      if (q) return { id: q.id, type: q.type, optionIds: q.options.map(o => o.id) };
+    }
+    return null;
+  }
+
+  async maxAutoScoreOf(examId: number) {
+    return (this.exams.get(examId)?.questions ?? []).filter(q => q.type !== 'essay').reduce((sum, q) => sum + q.points, 0);
+  }
+
   /** Test helper: pretend `count` sessions were run from this exam. */
   setSessionCount(id: number, count: number) {
     this.sessionCounts.set(id, count);
