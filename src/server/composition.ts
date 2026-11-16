@@ -1,6 +1,7 @@
 import type { Clock } from './application/ports/clock.js';
 import type { EventPublisher } from './application/ports/event-publisher.js';
 import type { ExamUnitContext } from './application/ports/exam-repository.js';
+import type { SessionUnitContext } from './application/ports/session-repository.js';
 import type { Random } from './application/ports/random.js';
 import type { TokenGenerator } from './application/ports/token-generator.js';
 import { DeleteExam } from './application/use-cases/exams/delete-exam.js';
@@ -8,15 +9,29 @@ import { GetExam } from './application/use-cases/exams/get-exam.js';
 import { ImportExam } from './application/use-cases/exams/import-exam.js';
 import { ListExams } from './application/use-cases/exams/list-exams.js';
 import { PreviewExam } from './application/use-cases/exams/preview-exam.js';
+import { CloseSession } from './application/use-cases/sessions/close-session.js';
+import { CreateSession } from './application/use-cases/sessions/create-session.js';
+import { FinalizeSession } from './application/use-cases/sessions/finalize-session.js';
+import { OpenSession } from './application/use-cases/sessions/open-session.js';
+import { GetActiveSession, GetLatestSession, GetSessionDetail, ListSessions } from './application/use-cases/sessions/queries.js';
+import { StartSession } from './application/use-cases/sessions/start-session.js';
+import { defaultSessionModes } from './domain/session/mode.js';
 import type { Db } from './db/client.js';
 import { bus } from './events.js';
 import { DrizzleExamRepository } from './infrastructure/db/drizzle-exam-repository.js';
 import { SqliteDatabase, SqliteUnitOfWork } from './infrastructure/db/sqlite-database.js';
+import {
+  DrizzleSessionReader,
+  DrizzleSessionRepository,
+  LegacyAttemptAutoSubmitter,
+  LegacyUngradedEssayCounter,
+} from './infrastructure/db/drizzle-session-repository.js';
 import { BusEventPublisher } from './infrastructure/events/bus-event-publisher.js';
 import { CryptoRandom } from './infrastructure/system/crypto-random.js';
 import { SecureTokenGenerator } from './infrastructure/system/secure-token-generator.js';
 import { SystemClock } from './infrastructure/system/system-clock.js';
 import type { ExamUseCases } from './interface/http/exams-routes.js';
+import type { SessionUseCases } from './interface/http/sessions-routes.js';
 
 /** Ports every module shares. Tests pass fakes for any of them (see `application/testing`). */
 export interface SharedPorts {
@@ -29,6 +44,7 @@ export interface SharedPorts {
 /** Everything the HTTP layer needs from the application. Grows as modules move to Clean Architecture. */
 export interface Composition {
   exams: ExamUseCases;
+  sessions: SessionUseCases;
 }
 
 // Composition root: the one place that knows which implementation backs each port. Wired by hand.
@@ -48,7 +64,30 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
     exams: new DrizzleExamRepository(async fn => fn(tx)),
   }));
 
+  const sessionReader = new DrizzleSessionReader(fn => database.read(fn));
+  const sessionUnitOfWork = new SqliteUnitOfWork<SessionUnitContext>(database, tx => {
+    const access = async <T>(fn: (db: Db) => T) => fn(tx);
+    return {
+      sessions: new DrizzleSessionRepository(access),
+      exams: new DrizzleExamRepository(access),
+      attempts: new LegacyAttemptAutoSubmitter(access),
+      grading: new LegacyUngradedEssayCounter(access),
+    };
+  });
+  const lifecycle = { unitOfWork: sessionUnitOfWork, sessions: sessionReader, clock: ports.clock, random: ports.random, events: ports.events, modes: defaultSessionModes() };
+
   return {
+    sessions: {
+      create: new CreateSession({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, clock: ports.clock, modes: lifecycle.modes }),
+      list: new ListSessions(sessionReader),
+      get: new GetSessionDetail(sessionReader),
+      open: new OpenSession(lifecycle),
+      start: new StartSession(lifecycle),
+      close: new CloseSession(lifecycle),
+      finalize: new FinalizeSession(lifecycle),
+      active: new GetActiveSession(sessionReader),
+      latest: new GetLatestSession(sessionReader),
+    },
     exams: {
       preview: new PreviewExam(),
       importExam: new ImportExam({ unitOfWork: examUnitOfWork, exams: examReader, clock: ports.clock }),

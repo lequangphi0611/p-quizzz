@@ -6,6 +6,7 @@ import type { Db } from './db/client.js';
 import type { JoinLimiter } from './auth/join-limiter.js';
 import { compose, type Composition } from './composition.js';
 import { examsRoutes } from './interface/http/exams-routes.js';
+import { publicSessionsRoutes, sessionsRoutes } from './interface/http/sessions-routes.js';
 import { registerLeakGuard } from './leak-guard.js';
 import { adminRoutes as adminRoutesPlugin } from './routes/admin.js';
 import { gradingRoutes } from './routes/grading.js';
@@ -13,7 +14,6 @@ import { leaderboardRoutes } from './routes/leaderboard.js';
 import { networkRoutes } from './routes/network.js';
 import { joinRoutes, meRoutes, participantsRoutes, publicParticipantsRoutes } from './routes/participants.js';
 import { screenRoutes } from './routes/screen.js';
-import { publicSessionsRoutes, sessionsRoutes } from './routes/sessions.js';
 import { eventsRoutes } from './routes/events.js';
 import { healthRoutes } from './routes/health.js';
 
@@ -35,7 +35,7 @@ export interface AppOptions {
 
 // Builds the Fastify app without listening, so tests can use app.inject().
 export async function buildApp({ db, composition = compose(db), serveWeb = false, logger = false, allowRemoteAdmin = false, lanIps, joinLimiter, adminRoutes: extraAdminRoutes = [] }: AppOptions) {
-  const protectedRoutes = [examsRoutes(composition.exams), sessionsRoutes, participantsRoutes, gradingRoutes, ...extraAdminRoutes];
+  const protectedRoutes = [examsRoutes(composition.exams), sessionsRoutes(composition.sessions), participantsRoutes, gradingRoutes, ...extraAdminRoutes];
   // Honour X-Forwarded-For only when the direct peer is this machine (the Vite dev proxy). A LAN client
   // connecting straight to the server is not trusted, so it cannot forge its address.
   const app = Fastify({ logger, trustProxy: ['127.0.0.1', '::1'] });
@@ -46,7 +46,7 @@ export async function buildApp({ db, composition = compose(db), serveWeb = false
   await app.register(healthRoutes);
   await app.register(adminRoutesPlugin, { protectedRoutes, allowRemote: allowRemoteAdmin });
   await app.register(eventsRoutes);
-  await app.register(publicSessionsRoutes);
+  await app.register(publicSessionsRoutes(composition.sessions));
   await app.register(leaderboardRoutes);
   await app.register(joinRoutes, { limiter: joinLimiter });
   await app.register(screenRoutes);

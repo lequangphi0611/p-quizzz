@@ -18,3 +18,7 @@ export function createDb(file: string) {
 }
 
 export type Db = ReturnType<typeof createDb>;
+
+export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
+/** A database handle or the transaction handle of a legacy sync `db.transaction`. */
+export type DbOrTx = Db | Tx;

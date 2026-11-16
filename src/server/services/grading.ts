@@ -6,7 +6,7 @@ import type { Db } from '../db/client.js';
 import { answers, attempts, exams, participants, questions, sessions } from '../db/schema.js';
 import { publish } from '../events.js';
 import { ServiceError } from './errors.js';
-import type { DbOrTx } from './sessions.js';
+import type { DbOrTx } from '../db/client.js';
 
 type AttemptRow = typeof attempts.$inferSelect;
 

@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ExamInUseError, ExamNotFoundError } from '../../../domain/exam/errors.js';
 import { FakeClock } from '../../testing/fakes.js';
-import { InMemoryExamRepository, InMemoryExamUnitOfWork } from '../../testing/in-memory-exam-repository.js';
+import { InMemoryExamRepository } from '../../testing/in-memory-exam-repository.js';
+import { InMemoryUnitOfWork } from '../../testing/in-memory-unit-of-work.js';
 import { DeleteExam } from './delete-exam.js';
 import { InvalidExamError } from './errors.js';
 import { GetExam } from './get-exam.js';
@@ -16,7 +17,7 @@ const broken = '---\ntitle: Hỏng\n---\n\n## Câu không có đáp án đúng\n
 let repo: InMemoryExamRepository;
 let clock: FakeClock;
 const build = () => {
-  const unitOfWork = new InMemoryExamUnitOfWork(repo);
+  const unitOfWork = new InMemoryUnitOfWork({ exams: repo }, [repo]);
   return {
     preview: new PreviewExam(),
     importExam: new ImportExam({ unitOfWork, exams: repo, clock }),

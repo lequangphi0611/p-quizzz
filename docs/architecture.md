@@ -294,3 +294,12 @@ Quy ước rút ra:
 `compose(db, overrides?)` dựng các port này (`SharedPorts`); test truyền fake qua `overrides`.
 
 Code cũ còn dùng trực tiếp (để P3-x xử lý khi chuyển module): `publish` toàn cục ở `services/{sessions,participants,attempts,grading}.ts` (13 chỗ); `new Date()` ở `services/*` và `auth/mentor.ts`; `randomBytes` ở `services/participants.ts` (token member) và `auth/mentor.ts` (salt, token mentor); `randomInt` truyền tay vào `shuffled`/`newRoomCode` ở `services/attempts.ts`, `services/room-code.ts`.
+
+### 11.2 Module `sessions` (P3-1, issue #13)
+
+- `domain/session/`: `Session`, `lifecycle.ts` (`assertTransition`, `planOpen/Start/Close/Finalize`: quy tắc chuyển trạng thái, thuần), `mode.ts` (strategy `SessionMode`: `SelfPacedMode`; `live` của phase 2 chỉ cần viết thêm một `SessionMode` và đăng ký vào `SessionModeRegistry`, không sửa use case), `room-code.ts`, `errors.ts` (đều là `DomainError`).
+- `application/use-cases/sessions/`: `CreateSession`, `ListSessions`, `GetSessionDetail`, `GetActiveSession`, `GetLatestSession`, `OpenSession`, `StartSession`, `CloseSession`, `FinalizeSession` (bốn use case cuối gọi chung `transition-session.ts`: toàn bộ kiểm tra + đổi trạng thái là một unit, sự kiện phát sau commit).
+- Port đọc/ghi: `SessionRepository` (chỉ trong unit), `SessionReader` (view cho màn hình mentor).
+- **Cầu nối tới module chưa chuyển** (`application/ports/session-repository.ts`): `AttemptAutoSubmitter` (nộp bài dở khi `close`) và `UngradedEssayCounter` (đếm tự luận chưa chấm khi `finalize`). Adapter `LegacyAttemptAutoSubmitter`/`LegacyUngradedEssayCounter` ở `infrastructure/db/drizzle-session-repository.ts` bọc `services/attempts.ts`, `services/grading.ts`. P3-3 và P3-4 thay bằng use case thật rồi xóa adapter. `DrizzleSessionReader.findDetail` cũng còn gọi `getSessionProgress` của attempts và đọc bảng `participants` trực tiếp, đổi ở P3-2/P3-3.
+- Mã phòng: `application/use-cases/sessions/new-room-code.ts` (thử lại khi trùng) thay `services/room-code.ts`.
+- Kiểu `Tx`/`DbOrTx` chuyển sang `db/client.ts` (trước nằm ở `services/sessions.ts`).

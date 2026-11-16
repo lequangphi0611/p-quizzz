@@ -1,10 +1,9 @@
 import type { Exam, NewExam } from '../../domain/exam/exam.js';
 import type { ExamRepository, ExamSummary } from '../ports/exam-repository.js';
-import type { UnitOfWork } from '../ports/unit-of-work.js';
-import type { ExamUnitContext } from '../ports/exam-repository.js';
+import type { Snapshottable } from './in-memory-unit-of-work.js';
 
 /** Test double for `ExamRepository`: keeps exams in memory, no database. */
-export class InMemoryExamRepository implements ExamRepository {
+export class InMemoryExamRepository implements ExamRepository, Snapshottable {
   private exams = new Map<number, Exam>();
   private sessionCounts = new Map<number, number>();
   private nextId = 1;
@@ -50,7 +49,8 @@ export class InMemoryExamRepository implements ExamRepository {
     return { exams: new Map(this.exams), nextId: this.nextId };
   }
 
-  restore(s: ReturnType<InMemoryExamRepository['snapshot']>) {
+  restore(snapshot: unknown) {
+    const s = snapshot as ReturnType<InMemoryExamRepository['snapshot']>;
     this.exams = s.exams;
     this.nextId = s.nextId;
   }
@@ -61,20 +61,5 @@ export class InMemoryExamRepository implements ExamRepository {
     const { questions, ...rest } = e;
     const { sourceMarkdown: _source, ...fields } = rest;
     return { ...fields, questionCount: questions.length, sessionCount: this.sessionCounts.get(id) ?? 0 };
-  }
-}
-
-/** Test double for `UnitOfWork`: restores the repository to its state before `run` if the callback throws. */
-export class InMemoryExamUnitOfWork implements UnitOfWork<ExamUnitContext> {
-  constructor(private readonly repository: InMemoryExamRepository) {}
-
-  async run<T>(fn: (ctx: ExamUnitContext) => Promise<T>): Promise<T> {
-    const before = this.repository.snapshot();
-    try {
-      return await fn({ exams: this.repository });
-    } catch (err) {
-      this.repository.restore(before);
-      throw err;
-    }
   }
 }

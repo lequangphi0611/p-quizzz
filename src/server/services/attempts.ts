@@ -18,7 +18,7 @@ import { answers, attempts, exams, options, participants, questions, sessions } 
 import { publish } from '../events.js';
 import { ServiceError } from './errors.js';
 import { shuffled } from '../domain/shuffle.js';
-import type { DbOrTx } from './sessions.js';
+import type { DbOrTx } from '../db/client.js';
 
 type QuestionRow = typeof questions.$inferSelect;
 type OptionRow = typeof options.$inferSelect;
