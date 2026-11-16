@@ -21,6 +21,10 @@ export class DrizzleParticipantRepository implements ParticipantRepository, Part
     return (await this.access(db => db.select().from(participants).where(eq(participants.token, token)).get())) ?? null;
   }
 
+  namesOf(sessionId: number) {
+    return this.access(db => db.select({ id: participants.id, displayName: participants.displayName }).from(participants).where(eq(participants.sessionId, sessionId)).all());
+  }
+
   listNotKicked(sessionId: number) {
     return this.access(db =>
       db

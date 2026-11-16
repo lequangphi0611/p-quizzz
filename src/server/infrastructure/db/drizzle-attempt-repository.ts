@@ -1,4 +1,4 @@
-import { and, asc, count, eq, isNull } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 import type { Answer, Attempt, NewAttempt } from '../../domain/attempt/attempt.js';
 import type { AttemptRepository, MemberRoom, MemberRoomReader } from '../../application/ports/attempt-repository.js';
 import { answers, attempts, exams, participants, questions, sessions } from '../../db/schema.js';
@@ -6,6 +6,39 @@ import type { DbAccess } from './drizzle-exam-repository.js';
 
 export class DrizzleAttemptRepository implements AttemptRepository {
   constructor(private readonly access: DbAccess) {}
+
+  async findById(id: number): Promise<Attempt | null> {
+    return (await this.access(db => db.select().from(attempts).where(eq(attempts.id, id)).get())) ?? null;
+  }
+
+  async findAnswerById(answerId: number): Promise<Answer | null> {
+    return (await this.access(db => db.select().from(answers).where(eq(answers.id, answerId)).get())) ?? null;
+  }
+
+  listSubmittedOfActiveMembers(sessionId: number): Promise<Attempt[]> {
+    return this.access(db =>
+      db
+        .select({ attempt: attempts })
+        .from(attempts)
+        .innerJoin(participants, eq(attempts.participantId, participants.id))
+        .where(and(eq(participants.sessionId, sessionId), eq(participants.status, 'active'), isNotNull(attempts.submittedAt)))
+        .all()
+        .map(r => r.attempt),
+    );
+  }
+
+  answersOfAttempts(attemptIds: number[]): Promise<Answer[]> {
+    if (attemptIds.length === 0) return Promise.resolve([]);
+    return this.access(db => db.select().from(answers).where(inArray(answers.attemptId, attemptIds)).all());
+  }
+
+  gradeAnswer(answerId: number, grade: { manualScore: number; feedback: string | null; gradedAt: Date }): Promise<Answer> {
+    return this.access(db => db.update(answers).set(grade).where(eq(answers.id, answerId)).returning().get());
+  }
+
+  async setManualScore(attemptId: number, score: number): Promise<void> {
+    await this.access(db => db.update(attempts).set({ manualScore: score }).where(eq(attempts.id, attemptId)).run());
+  }
 
   async findOwned(participantId: number, attemptId: number): Promise<Attempt | null> {
     return (await this.access(db => db.select().from(attempts).where(and(eq(attempts.id, attemptId), eq(attempts.participantId, participantId))).get())) ?? null;

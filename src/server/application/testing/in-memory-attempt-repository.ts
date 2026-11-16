@@ -12,6 +12,38 @@ export class InMemoryAttemptRepository implements AttemptRepository, Snapshottab
 
   constructor(private readonly participants: InMemoryParticipantRepository) {}
 
+  async findById(id: number) {
+    return this.attempts.get(id) ?? null;
+  }
+
+  async findAnswerById(answerId: number) {
+    return [...this.answers.values()].find(a => a.id === answerId) ?? null;
+  }
+
+  async listSubmittedOfActiveMembers(sessionId: number) {
+    const out: Attempt[] = [];
+    for (const a of this.attempts.values()) {
+      const p = await this.participants.findById(a.participantId);
+      if (p && p.sessionId === sessionId && p.status === 'active' && a.submittedAt) out.push(a);
+    }
+    return out;
+  }
+
+  async answersOfAttempts(attemptIds: number[]) {
+    return [...this.answers.values()].filter(a => attemptIds.includes(a.attemptId));
+  }
+
+  async gradeAnswer(answerId: number, grade: { manualScore: number; feedback: string | null; gradedAt: Date }) {
+    const [key, existing] = [...this.answers].find(([, a]) => a.id === answerId)!;
+    const updated = { ...existing, ...grade };
+    this.answers.set(key, updated);
+    return updated;
+  }
+
+  async setManualScore(attemptId: number, score: number) {
+    this.attempts.set(attemptId, { ...this.attempts.get(attemptId)!, manualScore: score });
+  }
+
   async findOwned(participantId: number, attemptId: number) {
     const a = this.attempts.get(attemptId);
     return a && a.participantId === participantId ? a : null;

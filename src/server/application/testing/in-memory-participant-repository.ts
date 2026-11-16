@@ -16,6 +16,10 @@ export class InMemoryParticipantRepository implements ParticipantRepository, Par
     return [...this.rows.values()].find(p => p.token === token) ?? null;
   }
 
+  async namesOf(sessionId: number) {
+    return this.inSession(sessionId).map(p => ({ id: p.id, displayName: p.displayName }));
+  }
+
   async listNotKicked(sessionId: number) {
     return this.inSession(sessionId).filter(p => p.status !== 'kicked').map(p => ({ id: p.id, displayName: p.displayName }));
   }

@@ -60,6 +60,10 @@ export class InMemorySessionRepository implements SessionRepository, SessionRead
     return this.view(s => s.status === 'lobby' || s.status === 'running');
   }
 
+  async findActiveRoomCode() {
+    return [...this.sessions.values()].filter(s => s.status === 'lobby' || s.status === 'running').sort((a, b) => b.id - a.id)[0]?.roomCode ?? null;
+  }
+
   async findLatest(): Promise<ActiveSessionView | null> {
     return (await this.findActive()) ?? this.view(s => s.status === 'closed' || s.status === 'finalized');
   }

@@ -43,7 +43,7 @@ export class InMemoryExamRepository implements ExamRepository, Snapshottable {
   async findQuestion(questionId: number) {
     for (const e of this.exams.values()) {
       const q = e.questions.find(x => x.id === questionId);
-      if (q) return { id: q.id, type: q.type, optionIds: q.options.map(o => o.id) };
+      if (q) return { id: q.id, type: q.type, points: q.points, optionIds: q.options.map(o => o.id) };
     }
     return null;
   }

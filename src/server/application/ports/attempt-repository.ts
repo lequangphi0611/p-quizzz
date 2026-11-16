@@ -7,6 +7,11 @@ import type { SessionRepository } from './session-repository.js';
 
 /** Read side. Safe to use outside a unit of work. */
 export interface AttemptReader {
+  findById(id: number): Promise<Attempt | null>;
+  findAnswerById(answerId: number): Promise<Answer | null>;
+  /** Submitted attempts of `active` members: the candidates for "the counted attempt" of each member. */
+  listSubmittedOfActiveMembers(sessionId: number): Promise<Attempt[]>;
+  answersOfAttempts(attemptIds: number[]): Promise<Answer[]>;
   /** The attempt only if it belongs to this participant: someone else's looks exactly like a missing one. */
   findOwned(participantId: number, attemptId: number): Promise<Attempt | null>;
   /** All attempts of one member, by attempt number. */
@@ -16,6 +21,10 @@ export interface AttemptReader {
 
 /** Write side: reachable inside a unit of work (see `AttemptUnitContext`). */
 export interface AttemptRepository extends AttemptReader {
+  /** Stores the mentor's score and comment on one answer. */
+  gradeAnswer(answerId: number, grade: { manualScore: number; feedback: string | null; gradedAt: Date }): Promise<Answer>;
+  /** Stores the attempt's manual total. */
+  setManualScore(attemptId: number, score: number): Promise<void>;
   create(attempt: NewAttempt): Promise<Attempt>;
   /** Unsubmitted attempts of `active` members of the session. Kicked members' attempts never count, so they are left out. */
   listOpenOfActiveMembers(sessionId: number): Promise<Attempt[]>;

@@ -61,6 +61,8 @@ export interface SessionReader {
   findActive(): Promise<ActiveSessionView | null>;
   /** The active session, else the most recent one that has ended (the projector follows this). */
   findLatest(): Promise<ActiveSessionView | null>;
+  /** Room code of the active session. Mentor machine only: never part of a public response. */
+  findActiveRoomCode(): Promise<string | null>;
 }
 
 // ── Seams to modules that have not moved yet ─────────────────────────────────────────────────────

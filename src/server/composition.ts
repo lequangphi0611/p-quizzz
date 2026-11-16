@@ -6,6 +6,12 @@ import type { ParticipantUnitContext } from './application/ports/participant-rep
 import type { SessionUnitContext } from './application/ports/session-repository.js';
 import type { Random } from './application/ports/random.js';
 import type { TokenGenerator } from './application/ports/token-generator.js';
+import { CountUngradedEssays } from './application/use-cases/grading/essay-progress.js';
+import { GetDiscussionView } from './application/use-cases/grading/get-discussion-view.js';
+import { GetGradingView } from './application/use-cases/grading/get-grading-view.js';
+import { GradeAnswer } from './application/use-cases/grading/grade-answer.js';
+import { GetLeaderboard } from './application/use-cases/leaderboard/get-leaderboard.js';
+import { GetProjectorRoom } from './application/use-cases/sessions/get-projector-room.js';
 import { AutoSubmitOpenAttempts } from './application/use-cases/attempts/auto-submit-open-attempts.js';
 import { GetAttemptReview, GetAttemptView, GetMemberState, GetParticipantReview } from './application/use-cases/attempts/queries.js';
 import { SaveAnswer } from './application/use-cases/attempts/save-answer.js';
@@ -39,12 +45,13 @@ import { DrizzleParticipantRepository } from './infrastructure/db/drizzle-partic
 import { DrizzleExamRepository } from './infrastructure/db/drizzle-exam-repository.js';
 import { SqliteDatabase, SqliteUnitOfWork } from './infrastructure/db/sqlite-database.js';
 import { DrizzleAttemptRepository, DrizzleMemberRoomReader } from './infrastructure/db/drizzle-attempt-repository.js';
-import { DrizzleSessionReader, DrizzleSessionRepository, LegacyUngradedEssayCounter } from './infrastructure/db/drizzle-session-repository.js';
+import { DrizzleSessionReader, DrizzleSessionRepository } from './infrastructure/db/drizzle-session-repository.js';
 import { BusEventPublisher } from './infrastructure/events/bus-event-publisher.js';
 import { CryptoRandom } from './infrastructure/system/crypto-random.js';
 import { SecureTokenGenerator } from './infrastructure/system/secure-token-generator.js';
 import { SystemClock } from './infrastructure/system/system-clock.js';
 import type { AttemptUseCases } from './interface/http/attempts-routes.js';
+import type { GradingUseCases } from './interface/http/grading-routes.js';
 import type { ExamUseCases } from './interface/http/exams-routes.js';
 import type { AdminUseCases } from './interface/http/admin-routes.js';
 import type { ParticipantUseCases } from './interface/http/participants-routes.js';
@@ -64,6 +71,9 @@ export interface Composition {
   sessions: SessionUseCases;
   participants: ParticipantUseCases;
   attempts: AttemptUseCases;
+  grading: GradingUseCases;
+  leaderboard: { leaderboard: GetLeaderboard };
+  screen: { projectorRoom: GetProjectorRoom };
   /** Resolves a member from a token: backs the `/api/me` hook. */
   resumeParticipant: ResumeParticipant;
   admin: AdminUseCases;
@@ -98,7 +108,11 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
         exams: new DrizzleExamRepository(access),
         clock: ports.clock,
       }),
-      grading: new LegacyUngradedEssayCounter(access),
+      grading: new CountUngradedEssays({
+        attempts: new DrizzleAttemptRepository(access),
+        sessions: new DrizzleSessionRepository(access),
+        exams: new DrizzleExamRepository(access),
+      }),
     };
   });
   const attemptReader = new DrizzleAttemptRepository(fn => database.read(fn));
@@ -128,7 +142,16 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
 
   const attemptReads = { attempts: attemptReader, sessions: sessionLookup, exams: examReader };
 
+  const gradingReads = { ...attemptReads, participants: participantReader };
+
   return {
+    grading: {
+      gradingView: new GetGradingView(gradingReads),
+      discussionView: new GetDiscussionView(attemptReads),
+      gradeAnswer: new GradeAnswer({ unitOfWork: attemptUnitOfWork, clock: ports.clock, events: ports.events }),
+    },
+    leaderboard: { leaderboard: new GetLeaderboard(gradingReads) },
+    screen: { projectorRoom: new GetProjectorRoom(sessionReader) },
     attempts: {
       start: new StartAttempt({ unitOfWork: attemptUnitOfWork, clock: ports.clock, random: ports.random, events: ports.events }),
       view: new GetAttemptView(attemptReads),

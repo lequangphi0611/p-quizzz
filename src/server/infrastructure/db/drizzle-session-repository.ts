@@ -6,13 +6,11 @@ import type {
   SessionReader,
   SessionRepository,
   SessionSummaryView,
-  UngradedEssayCounter,
 } from '../../application/ports/session-repository.js';
 import type { NewSession, Session, SessionPatch } from '../../domain/session/session.js';
 import { exams, participants, sessions } from '../../db/schema.js';
 import { NO_PROGRESS } from '../../domain/attempt/attempt.js';
 import { loadSessionProgress } from './session-progress.js';
-import { countUngradedEssays } from '../../services/grading.js';
 import type { DbAccess } from './drizzle-exam-repository.js';
 
 // Qualified names inside the subquery: drizzle would render a bare "id" that resolves to the wrong table.
@@ -96,6 +94,13 @@ export class DrizzleSessionReader implements SessionReader {
     });
   }
 
+  async findActiveRoomCode(): Promise<string | null> {
+    const row = await this.access(db =>
+      db.select({ roomCode: sessions.roomCode }).from(sessions).where(inArray(sessions.status, [...ACTIVE_STATUSES])).orderBy(desc(sessions.id)).get(),
+    );
+    return row?.roomCode ?? null;
+  }
+
   async findActive(): Promise<ActiveSessionView | null> {
     return (await this.access(db => this.pick(db, [...ACTIVE_STATUSES]))) ?? null;
   }
@@ -112,14 +117,5 @@ export class DrizzleSessionReader implements SessionReader {
       .where(inArray(sessions.status, statuses))
       .orderBy(desc(sessions.id))
       .get();
-  }
-}
-
-/** Bridge to the legacy grading service. P3-4 replaces it. */
-export class LegacyUngradedEssayCounter implements UngradedEssayCounter {
-  constructor(private readonly access: DbAccess) {}
-
-  count(sessionId: number): Promise<number> {
-    return this.access(db => countUngradedEssays(db, sessionId));
   }
 }

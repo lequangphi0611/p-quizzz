@@ -12,6 +12,8 @@ export interface ParticipantRepository {
 }
 
 export interface ParticipantReader {
+  /** Every participant of the session (kicked ones too), with names: the screens label counted attempts with them. */
+  namesOf(sessionId: number): Promise<{ id: number; displayName: string }[]>;
   findById(id: number): Promise<Participant | null>;
   findByToken(token: string): Promise<Participant | null>;
   /** Names of `active` members in join order (the projector's list). */
