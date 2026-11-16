@@ -7,3 +7,7 @@ data/
 # Real exams contain answers; members may have repo access. Only examples are committed.
 exams/*
 !exams/examples/
+
+# Playwright
+test-results/
+playwright-report/

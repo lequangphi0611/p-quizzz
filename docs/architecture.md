@@ -15,6 +15,7 @@
 | CSS | Tailwind CSS v4 qua `@tailwindcss/vite` (bundle offline, không CDN) |
 | Render Markdown | `react-markdown` + `remark-gfm` + `rehype-highlight` (highlight.js, CSS theme import local) — chỉ qua component dùng chung `<Markdown>` |
 | Test | `vitest`; API test bằng `app.inject()` trên DB `:memory:` |
+| E2E + ảnh chụp | `@playwright/test` 1.63.0 (devDependency; chạy `npm run e2e`, dùng Chromium có sẵn trong máy). Test ở `e2e/`, ảnh lưu `docs/design/<story>-assets/` |
 
 ## 2. Data model
 
