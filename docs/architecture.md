@@ -32,7 +32,7 @@ exams ──< questions ──< options
 | `exams` | id, title, description?, source_markdown, total_points, has_essay, created_at | `source_markdown` lưu nguyên file đã import. **Đề bất biến** sau khi tạo (không có API sửa). |
 | `questions` | id, exam_id, position, type (`single`\|`multi`\|`essay`), prompt, body, points, explanation? | `position` theo thứ tự trong file. |
 | `options` | id, question_id, position, text, is_correct | |
-| `sessions` | id, exam_id, mode (`self_paced`\|`live`), status, shuffle (bool, mặc định true), auto_approve (bool, mặc định false), room_code?, created_at, opened_at?, started_at?, closed_at?, finalized_at? | MVP chỉ tạo `self_paced`. `room_code`: 6 chữ số ngẫu nhiên, sinh khi `open`, unique; `null` khi còn `draft`. |
+| `sessions` | id, exam_id, name, mode (`self_paced`\|`live`), status, shuffle (bool, mặc định true), auto_approve (bool, mặc định false), room_code?, slot?, created_at, opened_at?, started_at?, closed_at?, finalized_at? | MVP chỉ tạo `self_paced`. `room_code`: 6 chữ số ngẫu nhiên, sinh khi `open`, unique; `null` khi còn `draft`. `name`: nhãn **chỉ mentor thấy** để phân biệt các phiên chạy song song (mặc định "tên đề – dd/MM"; member và màn chiếu chỉ thấy tên đề, PRODUCT.md §7.5/§7.24). `slot`: số nhỏ nhất chưa dùng trong các phiên đang mở, gán khi `open`, xoá khi `close`. |
 | `participants` | id, session_id, display_name, token (unique), status (`active`\|`pending`\|`kicked`), joined_at | Unique (session_id, lower(display_name)) cho participant chưa bị kick. |
 | `attempts` | id, participant_id, attempt_no, question_order (JSON `number[]`), option_order (JSON `Record<questionId, optionId[]>`), started_at, submitted_at?, auto_score?, manual_score?, edit_status? (`pending`\|`approved`\|`rejected`\|`done`), edit_reason?, edit_requested_at?, edit_resolved_at? | Thứ tự trộn sinh **lúc tạo attempt**. Mỗi participant có đúng 1 attempt mỗi phiên (`attempt_no` luôn là 1). `edit_*` = yêu cầu sửa bài tự luận (PRODUCT.md §7.21): tối đa một yêu cầu sống, `rejected` được gửi lại (ghi đè), `approved`/`done` thì không xin thêm. `NULL` = chưa từng xin. |
 | `answers` | id, attempt_id, question_id, selected_option_ids (JSON `number[]`)?, text_answer?, auto_score?, manual_score?, feedback?, graded_at? | Unique (attempt_id, question_id). Upsert khi autosave. |
@@ -50,7 +50,7 @@ function nextStatus(current: SessionStatus, action: SessionAction): SessionStatu
 
 | Từ | Action | Sang | Điều kiện / tác dụng phụ |
 |---|---|---|---|
-| draft | open | lobby | Không có phiên nào khác ở `lobby`/`running` (**tối đa 1 phiên hoạt động**). |
+| draft | open | lobby | Sinh `room_code` mới và `slot` thấp nhất còn trống. **Nhiều phiên có thể hoạt động cùng lúc** (PRODUCT.md §7.5). |
 | lobby | start | running | |
 | running | close | closed | Mọi attempt chưa nộp được **tự nộp** với câu trả lời đã lưu. Nếu đề không có tự luận → tự chuyển tiếp `finalized`. |
 | closed | finalize | finalized | Mọi câu tự luận của các attempt được tính đã có `manual_score`. |
@@ -74,8 +74,8 @@ Mọi body/response là JSON. Lỗi: `{ error: string }` (tiếng Việt, hiển
 | POST | `/exams` | `{ markdown }` → parse lại phía server; có lỗi → 400 kèm `errors`; ok → tạo exam |
 | GET | `/exams` · `/exams/:id` | list (không kèm câu hỏi) · chi tiết đầy đủ kèm đáp án |
 | DELETE | `/exams/:id` | Chỉ khi chưa có session nào dùng → ngược lại 409 |
-| POST | `/sessions` | `{ examId, shuffle?, autoApprove? }` → session `draft` |
-| GET | `/sessions` · `/sessions/:id` | list (mới nhất trước) · chi tiết kèm participants, mỗi người có `progress { state: none\|doing\|submitted, attempts, countedScore, maxScore, submittedAt, editRequest }` (`editRequest: { status, reason, requestedAt } \| null`, cho chuông và trang điều khiển) (`submittedAt` = epoch ms lúc nộp lượt được tính, `null` khi chưa nộp; dùng cho chuông thông báo) |
+| POST | `/sessions` | `{ examId, name?, shuffle?, autoApprove? }` → session `draft` |
+| GET | `/sessions` · `/sessions/:id` | list (mới nhất trước; `?active=true` = chỉ `lobby`/`running`, slot thấp trước) · chi tiết kèm participants, mỗi người có `progress { state: none\|doing\|submitted, attempts, countedScore, maxScore, submittedAt, editRequest }` (`editRequest: { status, reason, requestedAt } \| null`, cho chuông và trang điều khiển) (`submittedAt` = epoch ms lúc nộp lượt được tính, `null` khi chưa nộp; dùng cho chuông thông báo) |
 | POST | `/sessions/:id/{open,start,close,finalize}` | Chuyển trạng thái theo §3; sai → 409 |
 | PATCH | `/participants/:id` | `{ displayName }` đổi tên |
 | POST | `/participants/:id/{kick,approve}` | |
@@ -88,11 +88,12 @@ Mọi body/response là JSON. Lỗi: `{ error: string }` (tiếng Việt, hiển
 ### Công khai / member
 | Method | Path | Auth | Mô tả |
 |---|---|---|---|
-| GET | `/api/sessions/active` | — | Phiên đang `lobby`/`running` (id, title, status) hoặc `null` |
-| GET | `/api/sessions/latest` | — | Như `active`, nhưng khi không có phiên hoạt động thì trả phiên `closed`/`finalized` gần nhất (cho màn hình chiếu); `null` nếu chưa có |
+| POST | `/api/rooms/resolve` | — | `{ roomCode }` → `{ id, title, status }` của phiên `lobby`/`running` có mã đó (title = tên đề, không bao giờ trả tên phiên hay mã). Mã sai **hoặc** phiên không còn mở → cùng một lỗi 403 "Mã phòng không đúng"; dùng **chung bộ giới hạn** (5 lần sai/phút/IP → 429) với `join` |
+| GET | `/api/sessions/:id/public` | — | `{ id, title, status }` của một phiên (trang chiếu theo dõi); 404 nếu không có |
 | GET | `/api/network` | — | `{ joinHosts: string[] }` — địa chỉ LAN `ip:cổng` để member gõ vào trình duyệt (cổng lấy từ Host của request) |
 | POST | `/api/sessions/:id/join` | — | `{ displayName, roomCode }` → `{ token, participant }`. Mã sai → 403, sai quá 5 lần/phút từ một IP → 429. Mặc định → `pending` (mentor duyệt, cả ở lobby); phiên có `autoApprove` → `active` ngay; trùng tên → 409 |
-| GET | `/api/screen/room` | chỉ máy mentor (không tính `--allow-remote-admin`) | `{ roomCode: string \| null }` của phiên `lobby`/`running` — cho màn hình chiếu. Không bao giờ trả mã qua endpoint công khai |
+| GET | `/api/screen/sessions` | chỉ máy mentor (không tính `--allow-remote-admin`) | `{ open: { id, name, slot, title, status }[], latestEnded }` — các phiên `/screen` theo dõi được (có tên phiên nên không ra LAN); `latestEnded` chỉ khi không có phiên nào mở |
+| GET | `/api/screen/sessions/:id/room` | chỉ máy mentor (không tính `--allow-remote-admin`) | `{ roomCode: string \| null }` của phiên `lobby`/`running` đó — cho màn hình chiếu. Không bao giờ trả mã qua endpoint công khai |
 | GET | `/api/sessions/:id/participants` | — | Chỉ `{ displayName }[]` của participant `active` (cho màn hình chiếu) |
 | GET | `/api/sessions/:id/leaderboard` | — | Xem §6 |
 | GET | `/api/sessions/:id/events` | — | SSE, xem §7 |
@@ -126,6 +127,7 @@ Hàm thuần trong `src/shared/scoring.ts`:
 - Event bus trong process: `src/server/infrastructure/events/event-bus.ts` — `publish(sessionId, type)`, `subscribe(sessionId, listener)` (use case phát qua port `EventPublisher`, SSE nghe qua `EventSubscriber`).
 - `GET /api/sessions/:id/events` → `text/event-stream`, gửi `event: <type>\ndata: {}\n\n`; heartbeat comment mỗi 20s.
 - Event types: `session` (đổi status), `participants` (join/kick/rename/approve), `leaderboard` (có bài nộp/chấm điểm).
+- **Kênh của mentor** `GET /api/admin/events` (trong vùng `/api/admin`, chỉ máy mentor): **một** kết nối mang tín hiệu của **mọi** phiên, payload `data: {"sessionId":N}` (vẫn chỉ là tín hiệu, client gọi lại REST). Lý do: trình duyệt chỉ cho ~6 kết nối HTTP/1.1 mỗi địa chỉ, chuông không thể mở một `EventSource` cho mỗi phiên đang mở. Web: `EventStream.subscribeAdmin`, hook `useAdminEvents`.
 - **Event chỉ là tín hiệu "có thay đổi"** — client nhận event thì gọi lại API REST tương ứng. Không đẩy dữ liệu qua SSE (tránh lộ đáp án, đơn giản hoá).
 - Web: hook `useSessionEvents(sessionId, handlers)` dùng `EventSource`, tự kết nối lại. **Mỗi tab chỉ mở 1 `EventSource` cho mỗi phiên**, dùng chung cho mọi component (đếm người đăng ký, người cuối rời thì đóng): mỗi `EventSource` giữ một kết nối HTTP/1.1 và trình duyệt chỉ cho 6 kết nối/địa chỉ, mở thừa sẽ làm treo mọi request khác. Không tạo `EventSource` trực tiếp ngoài hook này.
 
@@ -133,8 +135,9 @@ Hàm thuần trong `src/shared/scoring.ts`:
 
 | Route | Ai | Màn hình |
 |---|---|---|
-| `/` | member | Vào phiên đang hoạt động (nhập tên) → phòng chờ → làm bài → kết quả/xếp hạng → xem lại |
-| `/screen` | máy chiếu | Màn hình chiếu của phiên đang hoạt động (hoặc phiên gần nhất) |
+| `/` | member | Nhập mã phòng (hoặc mở link `/?room=…`) → nhập tên → phòng chờ → làm bài → kết quả/xếp hạng → xem lại |
+| `/screen` | máy chiếu (máy mentor) | Chỉ có một phiên mở → chuyển sang nó; nhiều phiên → trang chọn phiên; không có phiên mở → phiên vừa kết thúc |
+| `/screen/:sessionId` | máy chiếu | Màn hình chiếu của **một** phiên (công khai trong LAN; chỉ hiện tên đề) |
 | `/admin/login` | mentor | Setup lần đầu / đăng nhập |
 | `/admin/exams` · `/admin/exams/import` · `/admin/exams/:id` | mentor | Danh sách đề · import + preview · chi tiết đề |
 | `/admin/sessions` · `/admin/sessions/:id` | mentor | Lịch sử phiên · điều khiển phiên (lobby, tiến độ, đóng) |
@@ -142,7 +145,7 @@ Hàm thuần trong `src/shared/scoring.ts`:
 | `/admin/sessions/:id/review` | mentor | Xem lại phiên: ai tham gia, bài từng người |
 | `/admin/sessions/:id/discuss` | mentor | Chế độ thảo luận: chiếu từng câu, chấm tự luận cùng lớp (S17) |
 
-Chuông thông báo mentor (PRODUCT.md §7.20) nằm trong khung `/admin/*`: `useMentorNotices` (`features/mentor-notices/application`) lấy `/api/sessions/active`, rồi `/api/admin/sessions/:id` + SSE của phiên đó; danh sách dựng bằng hàm thuần `features/mentor-notices/domain/mentor-notices.ts` từ `joinedAt`/`progress.submittedAt`; mốc đã xem ở `localStorage` key `pq:mentor:notices-seen:<sessionId>`. Thông báo desktop: `useDesktopNotify` (Notification API, cần secure context nên chỉ chạy trên `localhost`), lựa chọn bật/tắt ở `localStorage` key `pq:mentor:desktop-notify`, `tag` theo participant để nhiều tab không hiện trùng. Loại thông báo "xin sửa bài" (§7.21) dựng từ `progress.editRequest` của chính response đó; event `participants` có sẵn đủ để làm mới, không thêm event mới.
+Chuông thông báo mentor (PRODUCT.md §7.20) nằm trong khung `/admin/*`: `useMentorNotices` (`features/mentor-notices/application`) lấy `/api/admin/sessions?active=true`, rồi `/api/admin/sessions/:id` của từng phiên đang mở và nghe **một** kênh `/api/admin/events` (mỗi thông báo gắn tên + slot của phiên); danh sách dựng bằng hàm thuần `features/mentor-notices/domain/mentor-notices.ts` từ `joinedAt`/`progress.submittedAt`; mốc đã xem ở `localStorage` key `pq:mentor:notices-seen:<sessionId>` (từng phiên một). Thanh "Đang mở" (`shared/ui/SessionStrip`, `Alt+1…9` theo slot) và phím `N` mở chuông nằm cùng khung. Thông báo desktop: `useDesktopNotify` (Notification API, cần secure context nên chỉ chạy trên `localhost`), lựa chọn bật/tắt ở `localStorage` key `pq:mentor:desktop-notify`, `tag` theo participant để nhiều tab không hiện trùng. Loại thông báo "xin sửa bài" (§7.21) dựng từ `progress.editRequest` của chính response đó; event `participants` có sẵn đủ để làm mới, không thêm event mới.
 
 Gọi API qua client lõi `src/web/shared/api-client/` (wrapper `fetch`, interceptor gắn token member, ném `ApiError` có `message` từ `{ error }`); mỗi feature dùng nó qua `Http*Gateway` của mình (§12). UI text tiếng Việt. Hướng dẫn thêm feature: [how-to-add-a-feature.md](how-to-add-a-feature.md).
 

@@ -1,6 +1,6 @@
 # S20 — Nhiều phiên chạy song song
 
-**Phụ thuộc:** S06, S08, S09, S10, S14 · **Trạng thái:** ⬜ chưa làm (UI chờ designer: [group-sessions-ui-prompt.md](../design/group-sessions-ui-prompt.md); phần API/domain làm được trước)
+**Phụ thuộc:** S06, S08, S09, S10, S14 · **Trạng thái:** ✅ xong (2026-11-16)
 
 ## Bối cảnh
 Mentor dạy nhiều nhóm và muốn mỗi nhóm một phiên, chạy cùng lúc. Bỏ luật "tối đa 1 phiên hoạt động". Business: [PRODUCT.md §7.5, §7.16, §7.20](../PRODUCT.md). Đây là **nền tảng** cho S21 (nhóm và email) và S22 (xin vào lại), nên chưa có gì về email ở story này.
@@ -33,16 +33,25 @@ Mentor dạy nhiều nhóm và muốn mỗi nhóm một phiên, chạy cùng lú
 Nhóm và email (S21). Xin vào lại (S22). Giới hạn số phiên tối đa. Chiếu nhiều phiên cùng lúc trên một màn.
 
 ## Acceptance criteria
-- [ ] Mở và bắt đầu được ≥ 2 phiên cùng lúc, mã phòng khác nhau; `start`/`close`/`finalize` độc lập.
-- [ ] Cô lập giữa phiên: người của phiên A không xuất hiện ở danh sách/xếp hạng của phiên B; token A không dùng được cho B (test).
-- [ ] `resolve`: đúng mã → phiên; sai mã hoặc phiên không mở → 403; sai quá 5 lần/phút (cộng cả `join`) → 429; response không chứa mã phòng.
-- [ ] Member vào được cả từ link `?room=` lẫn nhập mã khi có 2 phiên song song.
-- [ ] Màn chiếu: `/screen/:id` đúng phiên; `/screen` đúng ở các trường hợp 0, 1, nhiều phiên; `GET /api/screen/*` không mở cho máy khác (cập nhật `require-local.test.ts`).
-- [ ] Chuông hiện thông báo từ cả hai phiên, mỗi cái gắn tên phiên; badge tính tổng; chỉ mở một kết nối realtime cho chuông bất kể số phiên.
-- [ ] Tên phiên mặc định đúng; migration chạy trên DB có phiên cũ.
-- [ ] Các test cũ về "tối đa 1 phiên" được sửa theo luật mới, không bị xoá âm thầm.
-- [ ] `architecture.md` cập nhật (§2, §3, §5, §7, §8).
-- [ ] `npm test`, `npm run typecheck`, `npm run arch:check` pass.
+- [x] Mở và bắt đầu được ≥ 2 phiên cùng lúc, mã phòng khác nhau; `start`/`close`/`finalize` độc lập.
+- [x] Cô lập giữa phiên: người của phiên A không xuất hiện ở danh sách/xếp hạng của phiên B; token A không dùng được cho B (test).
+- [x] `resolve`: đúng mã → phiên; sai mã hoặc phiên không mở → 403; sai quá 5 lần/phút (cộng cả `join`) → 429; response không chứa mã phòng.
+- [x] Member vào được cả từ link `?room=` lẫn nhập mã khi có 2 phiên song song.
+- [x] Màn chiếu: `/screen/:id` đúng phiên; `/screen` đúng ở các trường hợp 0, 1, nhiều phiên; `GET /api/screen/*` không mở cho máy khác (cập nhật `require-local.test.ts`).
+- [x] Chuông hiện thông báo từ cả hai phiên, mỗi cái gắn tên phiên; badge tính tổng; chỉ mở một kết nối realtime cho chuông bất kể số phiên.
+- [x] Tên phiên mặc định đúng; migration chạy trên DB có phiên cũ.
+- [x] Các test cũ về "tối đa 1 phiên" được sửa theo luật mới, không bị xoá âm thầm.
+- [x] `architecture.md` cập nhật (§2, §3, §5, §7, §8).
+- [x] `npm test`, `npm run typecheck`, `npm run arch:check` pass.
 
 ## UI (chờ designer)
 Theo [group-sessions-ui-prompt.md](../design/group-sessions-ui-prompt.md): A1 (tổng quan phiên), A3 (ô tên phiên ở form tạo), A5 (nhãn phiên trong chuông), A7 (màn chiếu), B1 (nhập mã phòng trước, rồi tới tên).
+
+## Đã thao tác tay (Playwright, `e2e/s20-parallel-sessions.spec.ts`, ảnh ở `docs/design/S20-assets/`)
+Hai phiên cùng đề ("Git – #member-0908", "Git – lớp chiều") mở song song: tổng quan phiên có 2 thẻ kèm slot 1 và 2 (`1-mentor-overview`); member An vào bằng link `?room=` trên máy tính (`2`, `3`), member Bình gõ mã của phiên kia trên điện thoại 390×844, ô tên chỉ hiện sau khi mã tìm ra phiên (`4`); mỗi phiên chỉ có người của mình (API); bấm `N` mở chuông, thấy cả hai thông báo kèm slot và tên phiên (`5`); `Alt+2` nhảy sang phiên 2; bắt đầu phiên 1 thì phiên 2 vẫn ở phòng chờ; `/screen` hiện trang chọn phiên (`6`), chọn một phiên thì màn chiếu chỉ có mã, tên đề và người của phiên đó, không có tên phiên (`7`); thanh "Đang mở" ở khổ laptop 1280×720 (`8`); đoán sai mã 5 lần qua `resolve` thì `resolve` đúng mã cũng bị 429 và trang member báo "sai quá nhiều lần" (`9`).
+
+## Ghi chú khi làm
+- **Tên phiên chỉ mentor thấy** (quyết định PO 2026-11-16): `resolve`, `/api/sessions/:id/public` và màn chiếu chỉ có tên đề; tên phiên nằm ở API mentor và ở `/api/screen/sessions` (chỉ máy mentor).
+- **Con trỏ "phiên hiện tại" của member theo từng tab** (sessionStorage, có dự phòng localStorage cho tab mới) để hai tab ở hai phiên song song không đổi token của nhau.
+- **Migration `0004`**: thêm `name`, `slot`; sửa tay phần điền dữ liệu cũ (tên = tên đề, phiên đang mở lúc đó lấy slot 1).
+- `/api/sessions/active` và `/latest` đã bỏ; bản vẽ designer chưa có màn chọn phiên cho `/screen` nên trang chọn do code dựng (chờ designer xem).

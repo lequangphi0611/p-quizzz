@@ -76,7 +76,7 @@ function ScreenChooser() {
             {choices.map(s => (
               <button key={s.id} type="button" onClick={() => nav(`/screen/${s.id}`)}
                 style={{ display: 'flex', alignItems: 'center', gap: 24, padding: '28px 32px', borderRadius: 'var(--radius-lg)', background: 'var(--screen-panel)', border: '1px solid var(--screen-line-strong)', color: '#fff', cursor: 'pointer', textAlign: 'left', font: '700 40px/1.2 var(--font-sans)' }}>
-                <SessionSlot n={s.slot} size={28} />
+                <SessionSlot n={s.slot} size={48} />
                 <span style={{ flex: 1, minWidth: 0, display: 'grid', gap: 8 }}>
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
                   <span style={{ font: '500 28px/1.2 var(--font-sans)', color: 'var(--screen-meta)' }}>{s.title}</span>
