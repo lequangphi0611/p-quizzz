@@ -144,7 +144,7 @@ Gọi API qua `src/web/lib/api.ts` (wrapper `fetch`, tự gắn token member, n�
 
 ## 9. Layering (Clean Architecture)
 
-> Đích của epic #7. Code cũ (`routes/`, `services/`, `src/web/pages`, `src/web/lib`) đang được chuyển dần từng module; phần chưa chuyển được miễn tạm trong allowlist của `arch:check` (xem §9.6). Refactor **không đổi hành vi nghiệp vụ và không đổi §1-§8**.
+> Đích của epic #7. Code cũ (`routes/`, `services/`, `src/web/pages`, `src/web/lib`) đang được chuyển dần từng module; phần chưa chuyển được miễn tạm trong allowlist của `arch:check` (xem §9.7). Refactor **không đổi hành vi nghiệp vụ và không đổi §1-§8**.
 
 ### 9.1 Sơ đồ thư mục đích
 
@@ -217,3 +217,10 @@ Hệ quả: `db.transaction()` của Drizzle chỉ nhận callback đồng bộ 
 - Use case: test bằng fake in-memory (`InMemoryXxxRepository`, `Clock`/`TokenGenerator` giả), không cần Fastify hay DB.
 - Route: giữ `app.inject()` trên `createDb(':memory:')` làm integration test; test không lộ đáp án (§5) và `leak-guard` giữ nguyên.
 - Quy tắc phụ thuộc §9.2 kiểm bằng `npm run arch:check` (P0-2), chạy cả trong `npm test`.
+
+### 9.7 Kiểm tra tự động: `npm run arch:check`
+
+- Script tự viết (không thêm thư viện, nên §1 không đổi): `scripts/arch-check.ts` + `scripts/arch/{rules,check,allowlist}.ts`. Quét import (tĩnh, re-export, `import()`) của mọi `.ts/.tsx` trong `src/` và đối chiếu với bảng ở §9.2. Chạy được trên mọi OS; `scripts/arch/check.test.ts` chạy trong `npm test` nên vi phạm làm test đỏ.
+- Mọi file dưới `src/` phải nằm trong một layer (đường dẫn theo §9.1) **hoặc** trong allowlist legacy. File mới ngoài layer mà không có trong allowlist sẽ fail: không viết thêm code kiểu cũ.
+- **Allowlist** nằm ở một file duy nhất `scripts/arch/allowlist.ts` (entry kết thúc bằng `/` là cả thư mục). Khi chuyển xong một module, xóa phần của nó khỏi allowlist trong cùng PR. Entry không còn khớp file nào cũng làm `arch:check` fail, nên danh sách chỉ co lại. Mục tiêu cuối: rỗng.
+- Thêm/sửa luật: sửa `scripts/arch/rules.ts` và thêm test fixture tương ứng.
