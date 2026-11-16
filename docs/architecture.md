@@ -123,7 +123,7 @@ Hàm thuần trong `src/shared/scoring.ts`:
 - `GET /api/sessions/:id/events` → `text/event-stream`, gửi `event: <type>\ndata: {}\n\n`; heartbeat comment mỗi 20s.
 - Event types: `session` (đổi status), `participants` (join/kick/rename/approve), `leaderboard` (có bài nộp/chấm điểm).
 - **Event chỉ là tín hiệu "có thay đổi"** — client nhận event thì gọi lại API REST tương ứng. Không đẩy dữ liệu qua SSE (tránh lộ đáp án, đơn giản hoá).
-- Web: hook `useSessionEvents(sessionId, handlers)` dùng `EventSource`, tự kết nối lại.
+- Web: hook `useSessionEvents(sessionId, handlers)` dùng `EventSource`, tự kết nối lại. **Mỗi tab chỉ mở 1 `EventSource` cho mỗi phiên**, dùng chung cho mọi component (đếm người đăng ký, người cuối rời thì đóng): mỗi `EventSource` giữ một kết nối HTTP/1.1 và trình duyệt chỉ cho 6 kết nối/địa chỉ, mở thừa sẽ làm treo mọi request khác. Không tạo `EventSource` trực tiếp ngoài hook này.
 
 ## 8. Frontend routes
 
