@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { connectSessionEvents, type EventSourceLike } from './useSessionEvents.js';
+import { connectSessionEvents, createSessionEventHub, type EventSourceLike } from './useSessionEvents.js';
 
 function fakeSource() {
   const l = new Map<string, () => void>();
@@ -39,5 +39,64 @@ describe('connectSessionEvents', () => {
     const src = fakeSource();
     connectSessionEvents(1, () => ({}), () => src.es)();
     expect(src.isClosed()).toBe(true);
+  });
+});
+
+describe('createSessionEventHub', () => {
+  function factory() {
+    const opened: { url: string; src: ReturnType<typeof fakeSource> }[] = [];
+    return { opened, create: (url: string) => { const src = fakeSource(); opened.push({ url, src }); return src.es; } };
+  }
+
+  it('shares one connection per session between subscribers and fans events out to each', () => {
+    const f = factory();
+    const hub = createSessionEventHub(f.create);
+    const a = { participants: vi.fn() };
+    const b = { participants: vi.fn(), session: vi.fn() };
+    hub.subscribe(3, () => a);
+    hub.subscribe(3, () => b);
+    expect(f.opened).toHaveLength(1);
+    f.opened[0]!.src.fire('participants');
+    expect(a.participants).toHaveBeenCalledOnce();
+    expect(b.participants).toHaveBeenCalledOnce();
+    expect(b.session).not.toHaveBeenCalled();
+  });
+
+  it('opens a separate connection per session', () => {
+    const f = factory();
+    const hub = createSessionEventHub(f.create);
+    hub.subscribe(1, () => ({}));
+    hub.subscribe(2, () => ({}));
+    expect(f.opened.map(o => o.url)).toEqual(['/api/sessions/1/events', '/api/sessions/2/events']);
+  });
+
+  it('closes only when the last subscriber leaves, and reopens for a later subscriber', () => {
+    const f = factory();
+    const hub = createSessionEventHub(f.create);
+    const offA = hub.subscribe(3, () => ({}));
+    const offB = hub.subscribe(3, () => ({}));
+    offA();
+    offA(); // leaving twice is harmless
+    expect(f.opened[0]!.src.isClosed()).toBe(false);
+    offB();
+    expect(f.opened[0]!.src.isClosed()).toBe(true);
+    expect(hub.openCount()).toBe(0);
+    hub.subscribe(3, () => ({}));
+    expect(f.opened).toHaveLength(2);
+  });
+
+  it('a subscriber that leaves stops receiving events; the reconnect refetch reaches all remaining ones', () => {
+    const f = factory();
+    const hub = createSessionEventHub(f.create);
+    const a = { session: vi.fn() };
+    const b = { session: vi.fn() };
+    const offA = hub.subscribe(3, () => a);
+    hub.subscribe(3, () => b);
+    offA();
+    const { src } = f.opened[0]!;
+    src.fire('error');
+    src.fire('open');
+    expect(a.session).not.toHaveBeenCalled();
+    expect(b.session).toHaveBeenCalledOnce();
   });
 });

@@ -31,12 +31,46 @@ export function connectSessionEvents(
   return () => es.close();
 }
 
-/** Subscribe to change signals for a session; pass null to stay disconnected. Closes on unmount. */
+/**
+ * One EventSource per session per tab, shared by every component that listens to it. Each open
+ * EventSource holds an HTTP/1.1 connection for its lifetime and browsers allow only 6 per origin,
+ * so a page with several listeners (e.g. the mentor's session page plus the notification bell)
+ * must not open one each. The connection closes when its last subscriber leaves.
+ */
+export function createSessionEventHub(create?: EventSourceFactory) {
+  const streams = new Map<number, { subscribers: Set<() => SessionEventHandlers>; close: () => void }>();
+  return {
+    subscribe(sessionId: number, getHandlers: () => SessionEventHandlers): () => void {
+      let stream = streams.get(sessionId);
+      if (!stream) {
+        const subscribers = new Set<() => SessionEventHandlers>();
+        // Fan each event out to the current subscribers (snapshot: a handler may unsubscribe).
+        const fanOut = (): SessionEventHandlers =>
+          Object.fromEntries(SESSION_EVENT_TYPES.map(t => [t, () => { for (const get of [...subscribers]) get()[t]?.(); }]));
+        stream = { subscribers, close: connectSessionEvents(sessionId, fanOut, create) };
+        streams.set(sessionId, stream);
+      }
+      const s = stream;
+      s.subscribers.add(getHandlers);
+      return () => {
+        if (!s.subscribers.delete(getHandlers) || s.subscribers.size > 0) return;
+        s.close();
+        if (streams.get(sessionId) === s) streams.delete(sessionId);
+      };
+    },
+    openCount: () => streams.size,
+  };
+}
+
+const hub = createSessionEventHub();
+
+/** Subscribe to change signals for a session; pass null to stay disconnected. Leaves on unmount. */
 export function useSessionEvents(sessionId: number | null, handlers: SessionEventHandlers) {
   const ref = useRef(handlers);
   ref.current = handlers; // always call the latest handlers without reconnecting
   useEffect(() => {
     if (sessionId === null) return;
-    return connectSessionEvents(sessionId, () => ref.current);
+    const get = () => ref.current;
+    return hub.subscribe(sessionId, get);
   }, [sessionId]);
 }
