@@ -41,6 +41,7 @@ export interface ParticipantProgress {
   attempts: number; // attempts started, including one in progress
   countedScore: number | null;
   maxScore: number; // exam total points
+  submittedAt: number | null; // epoch ms the counted attempt was submitted (drives mentor notifications)
 }
 
 export interface SessionParticipantDetail extends SessionParticipantInfo {

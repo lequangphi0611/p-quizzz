@@ -21,7 +21,7 @@ describe('ACTION_FOR_STATUS', () => {
 });
 
 describe('formatProgressScore', () => {
-  const p = (countedScore: number | null) => ({ state: 'submitted' as const, attempts: 1, countedScore, maxScore: 9 });
+  const p = (countedScore: number | null) => ({ state: 'submitted' as const, attempts: 1, countedScore, maxScore: 9, submittedAt: null });
   it('shows score/max with a decimal comma', () => {
     expect(formatProgressScore(p(7.5))).toBe('7,5/9');
     expect(formatProgressScore(p(0))).toBe('0/9');

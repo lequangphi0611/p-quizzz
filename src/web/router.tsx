@@ -1,7 +1,11 @@
+import { useEffect } from 'react';
 import { createBrowserRouter, isRouteErrorResponse, Outlet, redirect, useLocation, useNavigate, useRouteError } from 'react-router';
 import type { AdminStatus } from '../shared/api/index.js';
 import { api } from './lib/api.js';
+import { NotificationBell } from './components/NotificationBell.js';
 import { ErrorMessage } from './components/ui/ErrorMessage.js';
+import { titleWithCount } from './lib/mentor-notices.js';
+import { useMentorNotices } from './lib/useMentorNotices.js';
 import { Spinner } from './components/ui/Spinner.js';
 import { AdminLogin } from './pages/AdminLogin.js';
 import { AdminLayout } from './layouts/AdminLayout.js';
@@ -21,9 +25,16 @@ function AdminShell() {
   const nav = useNavigate();
   const { pathname } = useLocation();
   const active = pathname.startsWith('/admin/sessions') ? 'sessions' : 'exams';
+  const notices = useMentorNotices(pathname);
+  // Unread count in the tab title, so new joins/submissions show while the mentor is in another tab.
+  useEffect(() => {
+    document.title = titleWithCount('p-quizzz', notices.unread);
+    return () => { document.title = 'p-quizzz'; };
+  }, [notices.unread]);
   return (
     <AdminLayout
       active={active}
+      notifications={<NotificationBell state={notices} onOpenSession={id => nav(`/admin/sessions/${id}`)} />}
       onNavigate={k => nav(`/admin/${k}`)}
       onOpenScreen={() => window.open('/screen', '_blank')}
       onLogout={async () => { await api.post('/api/admin/logout').catch(() => {}); nav('/admin/login', { replace: true }); }}

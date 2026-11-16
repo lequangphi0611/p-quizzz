@@ -2,7 +2,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { Icon } from '../components/ui/Icon.js';
 type NavKey = 'exams' | 'sessions';
 const NAV: [NavKey, string, string][] = [['exams', 'Đề thi', 'library'], ['sessions', 'Phiên thi', 'list-checks']];
-export function AdminLayout({ children, active = 'exams', onNavigate, onLogout, onOpenScreen }: { children?: ReactNode; active?: NavKey; onNavigate?: (key: NavKey) => void; onLogout?: () => void; onOpenScreen?: () => void }) {
+export function AdminLayout({ children, active = 'exams', onNavigate, onLogout, onOpenScreen, notifications }: { children?: ReactNode; active?: NavKey; onNavigate?: (key: NavKey) => void; onLogout?: () => void; onOpenScreen?: () => void; notifications?: ReactNode }) {
   return (
     <div style={{ minHeight: '100%', background: 'var(--surface-page)' }}>
       <header style={{ background: 'var(--ink-900)', color: '#fff' }}>
@@ -14,6 +14,7 @@ export function AdminLayout({ children, active = 'exams', onNavigate, onLogout, 
             ))}
           </nav>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+            {notifications}
             <button onClick={onOpenScreen} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 12px', background: 'none', border: 0, borderRadius: 'var(--radius-sm)', color: 'var(--ink-300)', font: 'var(--type-meta)', fontWeight: 500, cursor: 'pointer' }}><Icon name="presentation" size={16} />Màn hình chiếu</button>
             <button onClick={onLogout} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 12px', background: 'none', border: 0, borderRadius: 'var(--radius-sm)', color: 'var(--ink-300)', font: 'var(--type-meta)', fontWeight: 500, cursor: 'pointer' }}><Icon name="log-out" size={16} />Đăng xuất</button>
           </div>
