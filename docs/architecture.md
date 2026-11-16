@@ -255,3 +255,27 @@ Hệ quả: `db.transaction()` của Drizzle chỉ nhận callback đồng bộ 
 4. Một process, một kết nối: không chạy hai instance server trên cùng file DB (đã là giả định của sản phẩm).
 
 **Đo sơ bộ** (`npx tsx scripts/bench-uow.ts`, 100k lần, Node 22, `:memory:`, một query `SELECT ... WHERE key = ?`; 3 lần chạy): đọc đồng bộ trực tiếp 37.7-38.6 µs/lần, qua `read()` 37.2-40.4 µs/lần, 50 đọc đồng thời qua mutex 38.6-41.0 µs/lần. Chênh lệch nằm trong nhiễu đo. Đây là micro-benchmark một query, **chưa phải** `GET /api/me` thật (nhiều query + HTTP); so sánh trước/sau trên endpoint thật chỉ làm được khi một route chuyển sang `SqliteDatabase` (P1-1 trở đi).
+
+## 11. Module mẫu: `exams` (P1-1, issue #11)
+
+Module đầu tiên đã chuyển sang Clean Architecture. Module sau bắt chước cấu trúc này. Hành vi và API không đổi (§1-§5).
+
+| File | Vai trò |
+|---|---|
+| `domain/errors.ts` | `DomainError` với `kind` (`not_found`, `conflict`, `invalid`, `forbidden`): lỗi nghiệp vụ không biết HTTP |
+| `domain/exam/exam.ts` | Entity `Exam`/`Question`/`Option` (TS thuần) và `newExam()` tính `totalPoints`, `hasEssay`, đánh số `position` |
+| `domain/exam/errors.ts` | `ExamNotFoundError`, `ExamInUseError` (message tiếng Việt cho người dùng) |
+| `application/ports/exam-repository.ts` | Port: `ExamReader` (đọc, dùng riêng được), `ExamRepository` (thêm `add`/`remove`, chỉ tới được qua `ExamUnitContext` trong `UnitOfWork`), kiểu `ExamSummary` (kèm `questionCount`, `sessionCount`) |
+| `application/use-cases/exams/*.ts` | 1 file = 1 use case: `PreviewExam`, `ImportExam`, `ListExams`, `GetExam`, `DeleteExam`; `errors.ts` có `InvalidExamError` (mang danh sách lỗi parser) |
+| `application/testing/in-memory-exam-repository.ts` | Fake `InMemoryExamRepository` + `InMemoryExamUnitOfWork` (rollback bằng snapshot) cho test use case |
+| `infrastructure/db/drizzle-exam-repository.ts` | `DrizzleExamRepository`: nhận một hàm truy cập `(fn) => Promise`; ngoài unit là `SqliteDatabase.read`, trong unit là kết nối của unit |
+| `interface/http/exams-routes.ts` | Chỉ parse zod, gọi một use case, trả presenter; `InvalidExamError` thành 400 kèm `errors` |
+| `interface/http/presenters/exam-presenter.ts` | Entity/`ExamSummary` thành DTO của `src/shared/api` (`Date` thành epoch ms) |
+| `interface/http/domain-errors.ts` | `DomainError.kind` thành status (400/403/404/409); lỗi khác ném lại (500) |
+| `composition.ts` | `compose(db)`: dựng `SqliteDatabase`, repository, `SqliteUnitOfWork`, use case; `buildApp()` nhận `Composition` (mặc định `compose(db)`) |
+
+Quy ước rút ra:
+- Ghi nhiều bảng: đi qua `UnitOfWork.run`, repository ghi không tự mở transaction. Kiểm tra rồi ghi (ví dụ `DeleteExam`: đếm session rồi xóa) cũng nằm trong một unit để không bị chen ngang.
+- Test: use case bằng fake in-memory (`exams.test.ts`), repository bằng `createDb(':memory:')` (`drizzle-exam-repository.test.ts`), HTTP bằng `routes/exams.test.ts` (không đổi, trừ test transaction đã chuyển sang test repository).
+- Tạm thời `ImportExam` nhận `now: () => Date`; P2-1 thay bằng port `Clock`.
+- `infrastructure` còn import `db/schema.ts` và `db/client.ts` cũ (legacy); chuyển vào `infrastructure/db/` ở P3-5.

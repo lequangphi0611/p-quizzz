@@ -1,9 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { CreateExamResponse, ExamDetail, ExamSummary } from '../../shared/api/index.js';
-import { parseExam, type ParsedExam, type ParseResult } from '../../shared/exam-format/index.js';
+import { parseExam, type ParseResult } from '../../shared/exam-format/index.js';
 import { exams, options, questions, sessions } from '../db/schema.js';
-import { createExam } from './exams.js';
 import { createTestApp, loginAsMentor, seedExam } from '../test/helpers.js';
 
 const sample = readFileSync('exams/examples/git-co-ban.md', 'utf8');
@@ -100,17 +99,6 @@ describe('POST /exams', () => {
     const res = await post('/api/admin/exams', sample + '\n' + 'x'.repeat(1024 * 1024));
     expect(res.statusCode).toBe(413);
     expect(counts().exams).toBe(0);
-  });
-});
-
-describe('createExam transaction', () => {
-  it('a failing insert mid-way leaves no partial data', async () => {
-    const { db, counts } = await setup();
-    const good = parseExam(sample).exam!;
-    // Second question has a NULL prompt → NOT NULL violation after exam, question 1 and its options were written.
-    const bad: ParsedExam = { ...good, questions: [good.questions[0]!, { ...good.questions[1]!, prompt: null as unknown as string }] };
-    expect(() => createExam(db, bad, sample)).toThrow();
-    expect(counts()).toEqual({ exams: 0, questions: 0, options: 0 });
   });
 });
 

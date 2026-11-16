@@ -4,9 +4,10 @@ import fastifyCookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
 import type { Db } from './db/client.js';
 import type { JoinLimiter } from './auth/join-limiter.js';
+import { compose, type Composition } from './composition.js';
+import { examsRoutes } from './interface/http/exams-routes.js';
 import { registerLeakGuard } from './leak-guard.js';
 import { adminRoutes as adminRoutesPlugin } from './routes/admin.js';
-import { examsRoutes } from './routes/exams.js';
 import { gradingRoutes } from './routes/grading.js';
 import { leaderboardRoutes } from './routes/leaderboard.js';
 import { networkRoutes } from './routes/network.js';
@@ -18,6 +19,8 @@ import { healthRoutes } from './routes/health.js';
 
 export interface AppOptions {
   db: Db;
+  /** Use cases for modules already on Clean Architecture. Defaults to `compose(db)`; tests may inject fakes. */
+  composition?: Composition;
   serveWeb?: boolean;
   logger?: boolean;
   /** Let machines other than the mentor's reach /api/admin/*. Off by default: members share the LAN. */
@@ -31,8 +34,8 @@ export interface AppOptions {
 }
 
 // Builds the Fastify app without listening, so tests can use app.inject().
-export async function buildApp({ db, serveWeb = false, logger = false, allowRemoteAdmin = false, lanIps, joinLimiter, adminRoutes: extraAdminRoutes = [] }: AppOptions) {
-  const protectedRoutes = [examsRoutes, sessionsRoutes, participantsRoutes, gradingRoutes, ...extraAdminRoutes];
+export async function buildApp({ db, composition = compose(db), serveWeb = false, logger = false, allowRemoteAdmin = false, lanIps, joinLimiter, adminRoutes: extraAdminRoutes = [] }: AppOptions) {
+  const protectedRoutes = [examsRoutes(composition.exams), sessionsRoutes, participantsRoutes, gradingRoutes, ...extraAdminRoutes];
   // Honour X-Forwarded-For only when the direct peer is this machine (the Vite dev proxy). A LAN client
   // connecting straight to the server is not trusted, so it cannot forge its address.
   const app = Fastify({ logger, trustProxy: ['127.0.0.1', '::1'] });
