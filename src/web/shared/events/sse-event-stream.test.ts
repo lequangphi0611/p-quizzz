@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { connectSessionEvents, createSessionEventHub, type EventSourceLike } from './useSessionEvents.js';
+import { connectSessionEvents, createSessionEventHub, type EventSourceLike } from './sse-event-stream.js';
 
 function fakeSource() {
   const l = new Map<string, () => void>();

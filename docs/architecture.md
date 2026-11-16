@@ -329,3 +329,18 @@ Code cũ còn dùng trực tiếp (để P3-x xử lý khi chuyển module): `pu
 - Use case: `GetGradingView`, `GradeAnswer` (một unit: chấm, tính lại tổng điểm tay của attempt, trả `graded/total`, phát `leaderboard` sau commit), `GetDiscussionView`, `GetLeaderboard`, `GetProjectorRoom`, và `CountUngradedEssays` (cài `UngradedEssayCounter` của P3-1: adapter tạm đã xóa).
 - **Read model**: grading view, discussion view và leaderboard là truy vấn thuần đọc nên use case dựng thẳng DTO của `src/shared/api` (không qua entity). Ẩn danh/ẩn đáp án vẫn do use case quyết định (chỉ mở sau `closed`; thảo luận không có tên). Port đọc mới: `AttemptReader.listSubmittedOfActiveMembers/answersOfAttempts/findById/findAnswerById`, `ParticipantReader.namesOf`, `SessionReader.findActiveRoomCode`.
 - `screenRoutes` giữ `requireLocal(false)`: mã phòng chỉ trả cho máy mentor, bỏ qua `--allow-remote-admin`.
+
+## 12. Web: hạ tầng dùng chung (P4-1, issue #18)
+
+Các port phía web nằm ở `src/web/shared/`, implementation được chọn tại `src/web/app/composition.ts` (composition root phía web).
+
+| Thành phần | Vị trí | Ghi chú |
+|---|---|---|
+| Lõi HTTP | `shared/api-client/http-client.ts` | `createHttpClient({ interceptors, fetch })`, `ApiError`. Không biết token là gì. |
+| Gắn token | `shared/api-client/participant-auth.ts` | Interceptor `participantAuth(store)` thêm header `X-Participant-Token`. Quy ước path (`/api/sessions/:id/...`, `/api/me/...`) nằm riêng ở `sessionIdForPath`, không còn trong lõi. |
+| Port `TokenStore` | `shared/token-store/` | `LocalStorageTokenStore` (không bao giờ throw, giữ nguyên key `pq:participant:<id>` và `pq-current-session`), `InMemoryTokenStore` cho test. |
+| Port `EventStream` | `shared/events/event-stream.ts` | Implementation SSE `sse-event-stream.ts`: một `EventSource` cho mỗi phiên mỗi tab, tự gọi lại handler sau khi kết nối lại. |
+
+- **Module-level, không dùng React context** cho composition: hub SSE phải là một cho cả tab (trình duyệt giới hạn ~6 kết nối HTTP/1.1 mỗi origin), và code chưa chuyển (`pages/`, `lib/`) import thẳng mà không cần provider. Feature nhận port qua gateway/hook của chính nó; test dựng bản riêng với fake.
+- `lib/api.ts` và `lib/useSessionEvents.ts` còn lại là lớp mỏng cho page cũ; code mới không import từ đó. Chúng biến mất khi các page được chuyển (P5).
+- Hạn chế đã biết: việc chọn session theo path vẫn là quy ước ngầm, nhưng đã tách khỏi lõi và có test. Khi page chuyển sang gateway truyền `sessionId` tường minh thì interceptor này có thể bỏ.
