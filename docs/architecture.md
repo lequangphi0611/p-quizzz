@@ -138,9 +138,9 @@ Hàm thuần trong `src/shared/scoring.ts`:
 | `/admin/sessions/:id/review` | mentor | Xem lại phiên: ai tham gia, bài từng người |
 | `/admin/sessions/:id/discuss` | mentor | Chế độ thảo luận: chiếu từng câu, chấm tự luận cùng lớp (S17) |
 
-Chuông thông báo mentor (PRODUCT.md §7.20) nằm trong khung `/admin/*`: `useMentorNotices` lấy `/api/sessions/active`, rồi `/api/admin/sessions/:id` + SSE của phiên đó; danh sách dựng bằng hàm thuần `src/web/lib/mentor-notices.ts` từ `joinedAt`/`progress.submittedAt`; mốc đã xem ở `localStorage` key `pq:mentor:notices-seen:<sessionId>`. Thông báo desktop: `useDesktopNotify` (Notification API, cần secure context nên chỉ chạy trên `localhost`), lựa chọn bật/tắt ở `localStorage` key `pq:mentor:desktop-notify`, `tag` theo participant để nhiều tab không hiện trùng. Không có API hay event mới.
+Chuông thông báo mentor (PRODUCT.md §7.20) nằm trong khung `/admin/*`: `useMentorNotices` (`features/mentor-notices/application`) lấy `/api/sessions/active`, rồi `/api/admin/sessions/:id` + SSE của phiên đó; danh sách dựng bằng hàm thuần `features/mentor-notices/domain/mentor-notices.ts` từ `joinedAt`/`progress.submittedAt`; mốc đã xem ở `localStorage` key `pq:mentor:notices-seen:<sessionId>`. Thông báo desktop: `useDesktopNotify` (Notification API, cần secure context nên chỉ chạy trên `localhost`), lựa chọn bật/tắt ở `localStorage` key `pq:mentor:desktop-notify`, `tag` theo participant để nhiều tab không hiện trùng. Không có API hay event mới.
 
-Gọi API qua `src/web/lib/api.ts` (wrapper `fetch`, tự gắn token member, ném lỗi có `message` từ `{ error }`). UI text tiếng Việt.
+Gọi API qua client lõi `src/web/shared/api-client/` (wrapper `fetch`, interceptor gắn token member, ném `ApiError` có `message` từ `{ error }`); mỗi feature dùng nó qua `Http*Gateway` của mình (§12). UI text tiếng Việt. Hướng dẫn thêm feature: [how-to-add-a-feature.md](how-to-add-a-feature.md).
 
 ## 9. Layering (Clean Architecture)
 
@@ -294,14 +294,14 @@ Quy ước rút ra:
 
 `compose(db, overrides?)` dựng các port này (`SharedPorts`); test truyền fake qua `overrides`.
 
-Code cũ còn dùng trực tiếp (để P3-x xử lý khi chuyển module): `publish` toàn cục ở `services/{sessions,participants,attempts,grading}.ts` (13 chỗ); `new Date()` ở `services/*` và `auth/mentor.ts`; `randomBytes` ở `services/participants.ts` (token member) và `auth/mentor.ts` (salt, token mentor); `randomInt` truyền tay vào `shuffled`/`newRoomCode` ở `services/attempts.ts`, `services/room-code.ts`.
+_(Lịch sử P2-1; đã xử lý hết ở P3-x, `services/` không còn.)_ Code cũ từng dùng trực tiếp: `publish` toàn cục ở `services/{sessions,participants,attempts,grading}.ts` (13 chỗ); `new Date()` ở `services/*` và `auth/mentor.ts`; `randomBytes` ở `services/participants.ts` (token member) và `auth/mentor.ts` (salt, token mentor); `randomInt` truyền tay vào `shuffled`/`newRoomCode` ở `services/attempts.ts`, `services/room-code.ts`.
 
 ### 11.2 Module `sessions` (P3-1, issue #13)
 
 - `domain/session/`: `Session`, `lifecycle.ts` (`assertTransition`, `planOpen/Start/Close/Finalize`: quy tắc chuyển trạng thái, thuần), `mode.ts` (strategy `SessionMode`: `SelfPacedMode`; `live` của phase 2 chỉ cần viết thêm một `SessionMode` và đăng ký vào `SessionModeRegistry`, không sửa use case), `room-code.ts`, `errors.ts` (đều là `DomainError`).
 - `application/use-cases/sessions/`: `CreateSession`, `ListSessions`, `GetSessionDetail`, `GetActiveSession`, `GetLatestSession`, `OpenSession`, `StartSession`, `CloseSession`, `FinalizeSession` (bốn use case cuối gọi chung `transition-session.ts`: toàn bộ kiểm tra + đổi trạng thái là một unit, sự kiện phát sau commit).
 - Port đọc/ghi: `SessionRepository` (chỉ trong unit), `SessionReader` (view cho màn hình mentor).
-- **Cầu nối tới module chưa chuyển** (`application/ports/session-repository.ts`): `AttemptAutoSubmitter` (nộp bài dở khi `close`) và `UngradedEssayCounter` (đếm tự luận chưa chấm khi `finalize`). Adapter `LegacyAttemptAutoSubmitter`/`LegacyUngradedEssayCounter` ở `infrastructure/db/drizzle-session-repository.ts` bọc `services/attempts.ts`, `services/grading.ts`. P3-3 và P3-4 thay bằng use case thật rồi xóa adapter. `DrizzleSessionReader.findDetail` cũng còn gọi `getSessionProgress` của attempts và đọc bảng `participants` trực tiếp, đổi ở P3-2/P3-3.
+- **(Lịch sử P3-1; đã thay bằng use case thật ở P3-3/P3-4, adapter `Legacy*` đã xoá)** Cầu nối tới module chưa chuyển (`application/ports/session-repository.ts`): `AttemptAutoSubmitter` (nộp bài dở khi `close`) và `UngradedEssayCounter` (đếm tự luận chưa chấm khi `finalize`). Adapter `LegacyAttemptAutoSubmitter`/`LegacyUngradedEssayCounter` ở `infrastructure/db/drizzle-session-repository.ts` bọc `services/attempts.ts`, `services/grading.ts`. P3-3 và P3-4 thay bằng use case thật rồi xóa adapter. `DrizzleSessionReader.findDetail` cũng còn gọi `getSessionProgress` của attempts và đọc bảng `participants` trực tiếp, đổi ở P3-2/P3-3.
 - Mã phòng: `application/use-cases/sessions/new-room-code.ts` (thử lại khi trùng) thay `services/room-code.ts`.
 - Kiểu `Tx`/`DbOrTx` chuyển sang `db/client.ts` (trước nằm ở `services/sessions.ts`).
 
@@ -341,8 +341,8 @@ Các port phía web nằm ở `src/web/shared/`, implementation được chọn 
 | Port `TokenStore` | `shared/token-store/` | `LocalStorageTokenStore` (không bao giờ throw, giữ nguyên key `pq:participant:<id>` và `pq-current-session`), `InMemoryTokenStore` cho test. |
 | Port `EventStream` | `shared/events/event-stream.ts` | Implementation SSE `sse-event-stream.ts`: một `EventSource` cho mỗi phiên mỗi tab, tự gọi lại handler sau khi kết nối lại. |
 
-- **Module-level, không dùng React context** cho composition: hub SSE phải là một cho cả tab (trình duyệt giới hạn ~6 kết nối HTTP/1.1 mỗi origin), và code chưa chuyển (`pages/`, `lib/`) import thẳng mà không cần provider. Feature nhận gateway của mình qua React context (`app/AppProviders.tsx`, P4-2) nên `ui` không import `infrastructure`; test dựng bản riêng với fake.
-- `lib/api.ts` và `lib/useSessionEvents.ts` còn lại là lớp mỏng cho page cũ; code mới không import từ đó. Chúng biến mất khi các page được chuyển (P5).
+- **Module-level, không dùng React context** cho composition: hub SSE phải là một cho cả tab (trình duyệt giới hạn ~6 kết nối HTTP/1.1 mỗi origin), (và để code không-React import thẳng được mà không cần provider). Feature nhận gateway của mình qua React context (`app/AppProviders.tsx`, P4-2) nên `ui` không import `infrastructure`; test dựng bản riêng với fake.
+- (Lịch sử) `lib/api.ts` và `lib/useSessionEvents.ts` từng là lớp mỏng cho page cũ; đã xoá ở P5-3.
 - Hạn chế đã biết: việc chọn session theo path vẫn là quy ước ngầm, nhưng đã tách khỏi lõi và có test. Khi page chuyển sang gateway truyền `sessionId` tường minh thì interceptor này có thể bỏ.
 
 ### 12.1 Feature mẫu: `member-exam` (P4-2, issue #19)

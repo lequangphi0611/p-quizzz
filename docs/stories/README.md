@@ -5,8 +5,9 @@ Mỗi story là một file tự đủ ngữ cảnh để một model/người im
 ## Trước khi bắt đầu một story
 
 1. Đọc `CLAUDE.md`, [PRODUCT.md](../PRODUCT.md), [architecture.md](../architecture.md) (contract), rồi file story.
-2. Kiểm tra mọi story trong mục **Phụ thuộc** đã ✅ ở bảng dưới. Chưa xong → không làm.
-3. Làm trên branch riêng `story/sXX-<slug>`.
+2. Code mới theo [how-to-add-a-feature.md](../how-to-add-a-feature.md) (layering `architecture.md` §9). Đường dẫn trong các file story là **lịch sử** (viết trước refactor epic #7); cấu trúc hiện hành ở `architecture.md` §9, §11, §12.
+3. Kiểm tra mọi story trong mục **Phụ thuộc** đã ✅ ở bảng dưới. Chưa xong → không làm.
+4. Làm trên branch riêng `story/sXX-<slug>`.
 
 ## Quy tắc khi implement
 
@@ -18,7 +19,7 @@ Mỗi story là một file tự đủ ngữ cảnh để một model/người im
 ## Definition of Done (mọi story)
 
 - [ ] Tất cả acceptance criteria đạt.
-- [ ] Test bắt buộc trong story đã viết và pass; `npm test` và `npm run typecheck` pass toàn bộ.
+- [ ] Test bắt buộc trong story đã viết và pass; `npm test`, `npm run typecheck` và `npm run arch:check` pass toàn bộ.
 - [ ] Story có UI: đã chạy `npm run dev` và tự thao tác luồng chính (ghi lại đã kiểm những gì).
 - [ ] Cập nhật bảng trạng thái dưới đây (✅) và tick checkbox trong file story.
 - [ ] Báo cáo ngắn: đã làm gì, lệch contract chỗ nào (nếu có), việc phát sinh ngoài phạm vi.

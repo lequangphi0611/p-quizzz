@@ -9,7 +9,7 @@ Bảng xếp hạng tạo không khí thi đua — mục tiêu "đỡ chán". Co
 
 ## Phạm vi
 - `GET /api/sessions/:id/leaderboard` đúng §6 (dùng `pickCountedAttempt` từ S11). Đồng hạng cùng điểm cùng thời điểm → cùng rank.
-- Component `<Leaderboard sessionId highlightName? />` ở `src/web/components/` (S14 tái dùng với kích thước lớn): tự refetch khi nhận event `leaderboard`/`session`; nhãn "Tạm tính" khi `provisional`; tô sáng dòng của chính member.
+- Component `<Leaderboard sessionId highlightName? />` ở `src/web/shared/leaderboard/` (_ban đầu `components/`_) (S14 tái dùng với kích thước lớn): tự refetch khi nhận event `leaderboard`/`session`; nhãn "Tạm tính" khi `provisional`; tô sáng dòng của chính member.
 - Gắn vào màn hình kết quả của member (S12) — nếu S12 chưa merge, chỉ export component và ghi chú trong báo cáo.
 
 ## Acceptance criteria

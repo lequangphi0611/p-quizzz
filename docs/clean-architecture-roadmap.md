@@ -1,5 +1,7 @@
 # Lộ trình refactor sang Clean Architecture
 
+> **✅ Hoàn thành (epic #7).** Tài liệu này giữ lại như **lịch sử quyết định**. Cấu trúc và quy tắc hiện hành: [architecture.md §9, §11, §12](architecture.md); cách thêm code mới: [how-to-add-a-feature.md](how-to-add-a-feature.md). Phần "Checklist thêm feature" cuối file đã chuyển sang trang đó.
+
 > Snapshot hiện trạng: ngày 2026-11-16, commit `90caf33`. Source **có thể đã thay đổi** khi một issue được làm, nên mọi issue đều bắt đầu bằng **Bước 0: Scan source** (xem bên dưới).
 > Mục tiêu: vừa học, vừa dễ đọc, dễ thêm feature. Không đổi hành vi nghiệp vụ (`PRODUCT.md`) và không đổi API contract (`architecture.md` §5) trong quá trình refactor.
 

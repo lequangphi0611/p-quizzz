@@ -8,7 +8,7 @@ Lobby và màn hình chiếu cần cập nhật tức thì. Contract: [architect
 ## Phạm vi
 - `src/server/events.ts`: event bus trong process (`publish`, `subscribe` trả hàm unsubscribe), type `SessionEventType = 'session' | 'participants' | 'leaderboard'` đặt ở `src/shared/api/events.ts`.
 - Route `GET /api/sessions/:id/events`: header SSE, heartbeat `: ping` mỗi 20s, dọn listener khi client ngắt (`request.raw.on('close')`). Dùng `reply.hijack()` + ghi `reply.raw`.
-- Web: `src/web/lib/useSessionEvents.ts` — `useSessionEvents(sessionId | null, { session?, participants?, leaderboard? })`, tự đóng khi unmount, dựa vào cơ chế reconnect của `EventSource`; khi reconnect thành công gọi **tất cả** handler một lần (đề phòng lỡ event lúc mất kết nối).
+- Web (_nay ở `src/web/shared/events/use-session-events.tsx`, architecture §12_): `src/web/lib/useSessionEvents.ts` — `useSessionEvents(sessionId | null, { session?, participants?, leaderboard? })`, tự đóng khi unmount, dựa vào cơ chế reconnect của `EventSource`; khi reconnect thành công gọi **tất cả** handler một lần (đề phòng lỡ event lúc mất kết nối).
 - Trang demo tạm không cần; viết test.
 
 ## Acceptance criteria

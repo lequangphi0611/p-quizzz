@@ -1,6 +1,6 @@
 # Prompt thiết kế UI — Giao diện học viên cho cả máy tính và điện thoại
 
-> Dán nguyên phần dưới đường kẻ vào công cụ thiết kế có **p-quizzz Design System**. Business: [PRODUCT.md §4.2–4.6](../PRODUCT.md). Màn hiện tại: `src/web/pages/MemberHome.tsx`, `MemberExam.tsx`, `ReviewPage.tsx`, khung `MemberLayout` (một cột rộng tối đa 640px).
+> Dán nguyên phần dưới đường kẻ vào công cụ thiết kế có **p-quizzz Design System**. Business: [PRODUCT.md §4.2–4.6](../PRODUCT.md). Màn hiện tại: `features/member-join/ui/MemberHomePage.tsx`, `features/member-exam/ui/MemberExamPage.tsx`, `features/member-review/ui`, khung `shared/ui/member/MemberLayout` (_đường dẫn sau epic #7_) (một cột rộng tối đa 640px).
 
 ---
 

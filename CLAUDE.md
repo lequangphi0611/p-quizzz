@@ -11,7 +11,7 @@ p-quizzz is a practice-quiz app that runs **locally on one mentor's machine**; m
 **`docs/architecture.md` is the implementation contract**: data model, session state machine, API endpoints, auth, SSE and the chosen libraries. Work is split into stories in `docs/stories/`. When implementing a story, follow `docs/stories/README.md` (scope rules, Definition of Done, dependency order). Do not change the contract silently.
 
 The rules that most often affect code:
-- **Layering** (Clean Architecture, đang refactor dần theo epic #7): xem `docs/architecture.md` §9 trước khi thêm code server/web mới.
+- **Layering** (Clean Architecture, epic #7 đã xong): xem `docs/architecture.md` §9 và `docs/how-to-add-a-feature.md` trước khi thêm code server/web mới. Mọi file dưới `src/` phải nằm trong một layer; `npm run arch:check` chặn import vượt layer.
 - **Exam** (question content, imported from Markdown) is separate from **Session** (one run of an exam). Sessions have a `mode`; only `self_paced` is in scope now, while `live` is phase 2, so don't hard-code a single mode.
 - Session lifecycle: `DRAFT → LOBBY → RUNNING → CLOSED → FINALIZED`. Answers and explanations are revealed only from `CLOSED` onward.
 - Every participant gets exactly **one attempt per session**, for every exam type. To retake, the mentor opens a new session from the same exam.
@@ -25,6 +25,7 @@ npm start          # vite build, then Fastify serves API + dist/web on :3000 (--
 npm test           # vitest run
 npx vitest run src/server/app.test.ts -t "returns ok"   # single file / single test
 npm run typecheck  # tsc --noEmit (no separate lint step yet)
+npm run arch:check # layer dependency rules (docs/architecture.md §9.2); also runs inside npm test
 npm run db:generate  # drizzle-kit: generate migration after editing src/server/infrastructure/db/schema.ts
 npm run exam:check -- exams/<file>.md   # validate exam Markdown; exit 1 on errors
 ```

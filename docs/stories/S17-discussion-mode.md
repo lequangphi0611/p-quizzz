@@ -67,7 +67,7 @@ Sau khi đóng phiên, mentor muốn **chiếu từng câu** để cả lớp c�
 - UI: không bắt buộc test tự động; ghi lại luồng đã thao tác tay (chiếu, phím tắt, chấm từng bài, chấm 0 hàng loạt, chốt).
 
 ## Ghi chú khi làm
-- **Thiết kế**: theo bộ p-quizzz Design System bản 2 (component mới `OptionTally`, `EssayCard`, `ScoreField` ở `src/web/components/screen/`; `Button`/`ConfirmDialog`/`TextField`/`ErrorMessage`/`QuestionNav`/`SaveIndicator`/`StatusBadge`/`ScreenLayout` thêm biến thể màn chiếu; token `--screen-*` mới).
+- **Thiết kế**: theo bộ p-quizzz Design System bản 2 (component mới `OptionTally`, `EssayCard`, `ScoreField` ở `src/web/features/discussion/ui/` và `shared/ui/screen/` (_ban đầu `components/screen/`_); `Button`/`ConfirmDialog`/`TextField`/`ErrorMessage`/`QuestionNav`/`SaveIndicator`/`StatusBadge`/`ScreenLayout` thêm biến thể màn chiếu; token `--screen-*` mới).
 - **Lệch so với bản vẽ**: bản vẽ tách "Rubric" và "Bài mẫu" thành 2 tab, nhưng format đề chỉ có **một** khối giải thích cho câu tự luận (đáp án mẫu + rubric viết chung) → hiển thị một khung Markdown, không có tab.
 - "Nhầm phổ biến": phương án sai được chọn nhiều nhất, chỉ khi ≥ 20% số bài và không hoà (`commonMistakeId`).
 - Tiến độ chấm (thanh câu, danh sách bài, đầu trang) **tính cả bài bỏ trống**, vì bài bỏ trống cũng phải có điểm mới chốt được.

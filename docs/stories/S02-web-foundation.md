@@ -9,7 +9,7 @@ Các story UI sau dùng chung router, API client, component Markdown và layout.
 - Cài `react-router`, `tailwindcss` + `@tailwindcss/vite`, `react-markdown`, `remark-gfm`, `rehype-highlight`, `highlight.js`.
 - Router (`createBrowserRouter`) với route khung cho mọi đường dẫn ở §8, mỗi route tạm là trang placeholder có tiêu đề.
 - Layout: `MemberLayout` (tối giản, mobile-first), `AdminLayout` (thanh điều hướng: Đề thi, Phiên thi), `ScreenLayout` (toàn màn hình, chữ lớn).
-- `src/web/lib/api.ts`: `api.get/post/put/patch/delete<T>(path, body?)`; tự gắn header `X-Participant-Token` khi có token cho session tương ứng (helper `setParticipantToken(sessionId, token)`, `getParticipantToken(sessionId)` dùng localStorage, bọc try/catch); lỗi HTTP → ném `ApiError { status, message }` lấy từ `{ error }`.
+- _(Đã chuyển ở epic #7: nay là `src/web/shared/api-client/` + `shared/token-store/`, xem architecture §12.)_ Ban đầu `src/web/lib/api.ts`: `api.get/post/put/patch/delete<T>(path, body?)`; tự gắn header `X-Participant-Token` khi có token cho session tương ứng (helper `setParticipantToken(sessionId, token)`, `getParticipantToken(sessionId)` dùng localStorage, bọc try/catch); lỗi HTTP → ném `ApiError { status, message }` lấy từ `{ error }`.
 - `<Markdown source>`: render GFM + highlight code, import CSS theme highlight.js từ package (không CDN), class Tailwind typography cơ bản tự viết (không thêm plugin typography).
 - Chuyển `src/shared/api.ts` thành thư mục `src/shared/api/` (`health.ts` + `index.ts`), cập nhật import.
 - Component dùng chung tối thiểu: `Button`, `Card`, `ErrorMessage`, `Spinner`.
