@@ -3,6 +3,7 @@
 .pq-spin{animation:pq-spin 0.9s linear infinite}@keyframes pq-spin{to{transform:rotate(360deg)}}
 .pq-icon-arrow-left{-webkit-mask-image:url("../assets/icons/arrow-left.svg");mask-image:url("../assets/icons/arrow-left.svg")}
 .pq-icon-arrow-right{-webkit-mask-image:url("../assets/icons/arrow-right.svg");mask-image:url("../assets/icons/arrow-right.svg")}
+.pq-icon-bell{-webkit-mask-image:url("../assets/icons/bell.svg");mask-image:url("../assets/icons/bell.svg")}
 .pq-icon-calendar{-webkit-mask-image:url("../assets/icons/calendar.svg");mask-image:url("../assets/icons/calendar.svg")}
 .pq-icon-check{-webkit-mask-image:url("../assets/icons/check.svg");mask-image:url("../assets/icons/check.svg")}
 .pq-icon-chevron-down{-webkit-mask-image:url("../assets/icons/chevron-down.svg");mask-image:url("../assets/icons/chevron-down.svg")}

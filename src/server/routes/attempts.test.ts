@@ -326,14 +326,18 @@ describe('mentor progress (GET /api/admin/sessions/:id)', () => {
   it('none → doing → submitted, with the counted score', async () => {
     const { an, single, multi, detail } = await world({ essay: false });
     const progress = async () => (await detail()).participants[0]!.progress;
-    expect(await progress()).toEqual({ state: 'none', attempts: 0, countedScore: null, maxScore: 3 });
+    expect(await progress()).toEqual({ state: 'none', attempts: 0, countedScore: null, maxScore: 3, submittedAt: null });
 
     const v = (await an.start()).json<AttemptView>();
-    expect(await progress()).toMatchObject({ state: 'doing', attempts: 1, countedScore: null });
+    expect(await progress()).toMatchObject({ state: 'doing', attempts: 1, countedScore: null, submittedAt: null });
     await an.put(v.id, single.q.id, { selectedOptionIds: [single.opts[0]!.id] });
     await an.put(v.id, multi.q.id, { selectedOptionIds: [multi.opts[0]!.id, multi.opts[1]!.id] });
+    const before = Date.now();
     await an.submit(v.id); // 1 + 2 points
-    expect(await progress()).toMatchObject({ state: 'submitted', attempts: 1, countedScore: 3 });
+    const done = await progress();
+    expect(done).toMatchObject({ state: 'submitted', attempts: 1, countedScore: 3 });
+    expect(done.submittedAt).toBeGreaterThanOrEqual(before);
+    expect(done.submittedAt).toBeLessThanOrEqual(Date.now());
   });
 });
 

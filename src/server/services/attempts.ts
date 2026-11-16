@@ -326,9 +326,10 @@ export function getSessionProgress(db: DbOrTx, sessionId: number, totalPoints: n
       attempts: list.length,
       countedScore: counted ? counted.score : null,
       maxScore: totalPoints,
+      submittedAt: counted ? counted.submittedAt : null,
     });
   }
   return result;
 }
 
-export const NO_PROGRESS = (totalPoints: number): ParticipantProgress => ({ state: 'none', attempts: 0, countedScore: null, maxScore: totalPoints });
+export const NO_PROGRESS = (totalPoints: number): ParticipantProgress => ({ state: 'none', attempts: 0, countedScore: null, maxScore: totalPoints, submittedAt: null });
