@@ -138,6 +138,6 @@ Hàm thuần trong `src/shared/scoring.ts`:
 | `/admin/sessions/:id/review` | mentor | Xem lại phiên: ai tham gia, bài từng người |
 | `/admin/sessions/:id/discuss` | mentor | Chế độ thảo luận: chiếu từng câu, chấm tự luận cùng lớp (S17) |
 
-Chuông thông báo mentor (PRODUCT.md §7.20) nằm trong khung `/admin/*`: `useMentorNotices` lấy `/api/sessions/active`, rồi `/api/admin/sessions/:id` + SSE của phiên đó; danh sách dựng bằng hàm thuần `src/web/lib/mentor-notices.ts` từ `joinedAt`/`progress.submittedAt`; mốc đã xem ở `localStorage` key `pq:mentor:notices-seen:<sessionId>`. Không có API hay event mới.
+Chuông thông báo mentor (PRODUCT.md §7.20) nằm trong khung `/admin/*`: `useMentorNotices` lấy `/api/sessions/active`, rồi `/api/admin/sessions/:id` + SSE của phiên đó; danh sách dựng bằng hàm thuần `src/web/lib/mentor-notices.ts` từ `joinedAt`/`progress.submittedAt`; mốc đã xem ở `localStorage` key `pq:mentor:notices-seen:<sessionId>`. Thông báo desktop: `useDesktopNotify` (Notification API, cần secure context nên chỉ chạy trên `localhost`), lựa chọn bật/tắt ở `localStorage` key `pq:mentor:desktop-notify`, `tag` theo participant để nhiều tab không hiện trùng. Không có API hay event mới.
 
 Gọi API qua `src/web/lib/api.ts` (wrapper `fetch`, tự gắn token member, ném lỗi có `message` từ `{ error }`). UI text tiếng Việt.

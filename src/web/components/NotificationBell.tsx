@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api.js';
 import { NOTICE_TEXT } from '../lib/mentor-notices.js';
+import type { DesktopNotifyStatus } from '../lib/useDesktopNotify.js';
 import type { MentorNoticesState } from '../lib/useMentorNotices.js';
 import { Icon } from './ui/Icon.js';
 
@@ -8,7 +9,9 @@ const time = (ms: number) => new Date(ms).toLocaleTimeString('vi-VN', { hour: '2
 
 // Bell in the mentor header: a count of unread joins/submissions in the active session, and a
 // dropdown listing them. Pending joiners can be approved right here without leaving the page.
-export function NotificationBell({ state, onOpenSession }: { state: MentorNoticesState; onOpenSession: (id: number) => void }) {
+export interface DesktopNotifyControl { status: DesktopNotifyStatus; enable: () => void; disable: () => void }
+
+export function NotificationBell({ state, desktop, onOpenSession }: { state: MentorNoticesState; desktop?: DesktopNotifyControl; onOpenSession: (id: number) => void }) {
   const { session, notices, unread, pending, seenAt, markAllSeen, refresh } = state;
   const [open, setOpen] = useState(false);
   const [approving, setApproving] = useState<number | null>(null);
@@ -97,8 +100,28 @@ export function NotificationBell({ state, onOpenSession }: { state: MentorNotice
           {session && (
             <button onClick={() => { setOpen(false); onOpenSession(session.id); }} style={{ width: '100%', padding: '10px 16px', background: 'none', border: 0, color: 'var(--text-link)', font: 'var(--type-meta)', fontWeight: 600, cursor: 'pointer' }}>Xem điều khiển phiên</button>
           )}
+          {desktop && <DesktopRow desktop={desktop} />}
         </div>
       )}
+    </div>
+  );
+}
+
+const linkBtn = { background: 'none', border: 0, padding: 0, color: 'var(--text-link)', font: 'var(--type-meta)', fontWeight: 600, cursor: 'pointer' } as const;
+
+// Footer switch for OS notifications about pending joiners.
+function DesktopRow({ desktop }: { desktop: DesktopNotifyControl }) {
+  const { status, enable, disable } = desktop;
+  const port = location.port ? `:${location.port}` : '';
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 16px', borderTop: '1px solid var(--border-hairline)', background: 'var(--surface-page)', font: 'var(--type-meta)', fontSize: 12, color: 'var(--text-meta)' }}>
+      <Icon name="monitor" size={14} style={{ marginTop: 2 }} />
+      <span style={{ flex: 1, minWidth: 0 }}>
+        {status === 'on' && <>Đang bật thông báo desktop khi có người chờ duyệt. <button onClick={disable} style={linkBtn}>Tắt</button></>}
+        {status === 'off' && <>Báo lên màn hình máy tính khi có người chờ duyệt, kể cả lúc bạn ở ứng dụng khác. <button onClick={enable} style={linkBtn}>Bật thông báo desktop</button></>}
+        {status === 'denied' && <>Trình duyệt đang chặn thông báo của trang này. Cho phép lại trong cài đặt trang (biểu tượng ổ khoá/thông tin cạnh thanh địa chỉ), rồi tải lại trang.</>}
+        {status === 'unsupported' && <>Thông báo desktop chỉ dùng được khi mở trang quản trị bằng <strong>http://localhost{port}</strong> (trình duyệt chặn khi mở bằng địa chỉ IP).</>}
+      </span>
     </div>
   );
 }

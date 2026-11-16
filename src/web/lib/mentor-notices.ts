@@ -54,3 +54,31 @@ export function loadSeenAt(sessionId: number): number {
 export function saveSeenAt(sessionId: number, at: number) {
   try { localStorage.setItem(seenKey(sessionId), String(at)); } catch { /* ignore */ }
 }
+
+// ── Desktop (OS) notifications for pending joiners (PRODUCT.md §7.20) ──────────────────────────
+/**
+ * Pending-join notices that appeared since the previous snapshot. `known` is null on the first
+ * snapshot of a session: people already waiting then are shown in the bell, not announced again.
+ */
+export function newPendingNotices(known: ReadonlySet<string> | null, notices: readonly MentorNotice[]): MentorNotice[] {
+  if (known === null) return [];
+  return notices.filter(n => n.kind === 'pending' && !known.has(n.key));
+}
+
+export const DESKTOP_BATCH_MAX = 3; // more new joiners at once → one summary instead of a burst
+export const DESKTOP_BURST_MS = 15_000; // after a pop, later joiners update one summary instead of stacking up
+
+/**
+ * One entry per notification to show. `tag` lets the OS de-duplicate across open admin tabs, and the
+ * shared summary tag replaces the previous summary. `inBurst` = a notification was shown moments ago
+ * (people trickle into a lobby one request at a time, so batching alone would not catch it).
+ */
+export function desktopNotifications(fresh: readonly MentorNotice[], totalPending: number, inBurst = false): { title: string; body: string; tag: string }[] {
+  if (!fresh.length) return [];
+  if (inBurst || fresh.length > DESKTOP_BATCH_MAX) {
+    const latest = fresh.slice(0, DESKTOP_BATCH_MAX).map(n => n.displayName).join(', ') + (fresh.length > DESKTOP_BATCH_MAX ? '…' : '');
+    return [{ title: `${totalPending} người đang chờ duyệt`, body: `Mới vào: ${latest}. Bấm để mở phiên.`, tag: 'pq-pending-summary' }];
+  }
+  const body = `${totalPending} người đang chờ duyệt. Bấm để mở phiên.`;
+  return fresh.map(n => ({ title: `${n.displayName} xin vào phiên`, body, tag: `pq-pending-${n.participantId}` }));
+}

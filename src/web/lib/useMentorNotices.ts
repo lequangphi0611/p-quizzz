@@ -6,6 +6,7 @@ import { useSessionEvents } from './useSessionEvents.js';
 
 export interface MentorNoticesState {
   session: { id: number; title: string } | null;
+  loaded: boolean; // the active session's detail has arrived (notices reflect it)
   notices: MentorNotice[];
   unread: number;
   pending: number;
@@ -56,7 +57,8 @@ export function useMentorNotices(recheckKey: string): MentorNoticesState {
     session: () => { void checkActive(); void loadDetail(); },
   });
 
-  const notices = useMemo(() => (detail && detail.id === activeId ? buildNotices(detail.participants) : []), [detail, activeId]);
+  const loaded = detail !== null && detail.id === activeId;
+  const notices = useMemo(() => (loaded ? buildNotices(detail.participants) : []), [detail, loaded]);
   const markAllSeen = useCallback(() => {
     if (activeId === null) return;
     const next = markSeenAt(notices, seenAt);
@@ -67,9 +69,10 @@ export function useMentorNotices(recheckKey: string): MentorNoticesState {
 
   return {
     session: active ? { id: active.id, title: active.title } : null,
+    loaded,
     notices,
     unread: unreadCount(notices, seenAt),
-    pending: detail && detail.id === activeId ? pendingCount(detail.participants) : 0,
+    pending: loaded ? pendingCount(detail.participants) : 0,
     seenAt,
     markAllSeen,
     refresh: () => void loadDetail(),

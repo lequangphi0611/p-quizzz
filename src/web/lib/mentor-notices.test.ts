@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SessionParticipantDetail } from '../../shared/api/index.js';
-import { buildNotices, markSeenAt, pendingCount, titleWithCount, unreadCount } from './mentor-notices.js';
+import { buildNotices, DESKTOP_BATCH_MAX, desktopNotifications, markSeenAt, newPendingNotices, pendingCount, titleWithCount, unreadCount } from './mentor-notices.js';
 
 const person = (id: number, status: SessionParticipantDetail['status'], joinedAt: number, submittedAt: number | null = null): SessionParticipantDetail => ({
   id, displayName: `P${id}`, status, joinedAt,
@@ -36,5 +36,30 @@ describe('mentor notices', () => {
     expect(titleWithCount('p-quizzz', 0)).toBe('p-quizzz');
     expect(titleWithCount('p-quizzz', 3)).toBe('(3) p-quizzz');
     expect(titleWithCount('p-quizzz', 120)).toBe('(99+) p-quizzz');
+  });
+});
+
+describe('desktop notifications', () => {
+  it('announces only pending joins that are new since the last snapshot, never on the first one', () => {
+    const first = buildNotices([person(1, 'pending', 100)]);
+    expect(newPendingNotices(null, first)).toEqual([]);
+    const known = new Set(first.map(n => n.key));
+    const next = buildNotices([person(1, 'pending', 100), person(2, 'pending', 200), person(3, 'active', 300, 400)]);
+    expect(newPendingNotices(known, next).map(n => n.key)).toEqual(['join:2']);
+  });
+
+  it('one notification per joiner, or a single summary for a burst', () => {
+    const fresh = (n: number) => buildNotices(Array.from({ length: n }, (_, i) => person(i + 1, 'pending', i)));
+    expect(desktopNotifications(fresh(2), 5)).toEqual([
+      { title: 'P2 xin vào phiên', body: '5 người đang chờ duyệt. Bấm để mở phiên.', tag: 'pq-pending-2' },
+      { title: 'P1 xin vào phiên', body: '5 người đang chờ duyệt. Bấm để mở phiên.', tag: 'pq-pending-1' },
+    ]);
+    expect(desktopNotifications(fresh(DESKTOP_BATCH_MAX + 1), 9)).toEqual([{ title: '9 người đang chờ duyệt', body: 'Mới vào: P4, P3, P2…. Bấm để mở phiên.', tag: 'pq-pending-summary' }]);
+    expect(desktopNotifications([], 9)).toEqual([]);
+  });
+
+  it('right after a pop, a new joiner updates the shared summary instead of stacking another notification', () => {
+    const one = buildNotices([person(7, 'pending', 1)]);
+    expect(desktopNotifications(one, 4, true)).toEqual([{ title: '4 người đang chờ duyệt', body: 'Mới vào: P7. Bấm để mở phiên.', tag: 'pq-pending-summary' }]);
   });
 });
