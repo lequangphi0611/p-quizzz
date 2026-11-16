@@ -63,7 +63,7 @@ Mỗi story là một file tự đủ ngữ cảnh để một model/người im
 Đợt 7:  S14 ─┬─ S16            (song song)
 ```
 
-Đợt 8 (sau MVP, theo [group-sessions-ui-prompt.md](../design/group-sessions-ui-prompt.md)): S20 → S21 → S22 làm **tuần tự** (S21 dựa vào tra phiên theo mã của S20; S22 dựa vào danh tính email của S21). Phần API/domain của mỗi story làm được trước, UI chờ bản thiết kế.
+Đợt 8 (sau MVP, theo bản thiết kế UI của đợt này): S20 → S21 → S22 làm **tuần tự** (S21 dựa vào tra phiên theo mã của S20; S22 dựa vào danh tính email của S21). Phần API/domain của mỗi story làm được trước, UI chờ bản thiết kế.
 
 Các story trong cùng đợt chạm file khác nhau là chính; nếu cùng sửa `src/server/app.ts` (đăng ký route) hoặc router web thì merge tay phần đăng ký — đó là xung đột dự kiến, không phải lỗi.
 

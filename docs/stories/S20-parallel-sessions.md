@@ -45,7 +45,7 @@ Nhóm và email (S21). Xin vào lại (S22). Giới hạn số phiên tối đa.
 - [x] `npm test`, `npm run typecheck`, `npm run arch:check` pass.
 
 ## UI (chờ designer)
-Theo [group-sessions-ui-prompt.md](../design/group-sessions-ui-prompt.md): A1 (tổng quan phiên), A3 (ô tên phiên ở form tạo), A5 (nhãn phiên trong chuông), A7 (màn chiếu), B1 (nhập mã phòng trước, rồi tới tên).
+Theo bản thiết kế UI (mã màn): A1 (tổng quan phiên), A3 (ô tên phiên ở form tạo), A5 (nhãn phiên trong chuông), A7 (màn chiếu), B1 (nhập mã phòng trước, rồi tới tên).
 
 ## Đã thao tác tay (Playwright, `e2e/s20-parallel-sessions.spec.ts`, ảnh ở `docs/design/S20-assets/`)
 Hai phiên cùng đề ("Git – #member-0908", "Git – lớp chiều") mở song song: tổng quan phiên có 2 thẻ kèm slot 1 và 2 (`1-mentor-overview`); member An vào bằng link `?room=` trên máy tính (`2`, `3`), member Bình gõ mã của phiên kia trên điện thoại 390×844, ô tên chỉ hiện sau khi mã tìm ra phiên (`4`); mỗi phiên chỉ có người của mình (API); bấm `N` mở chuông, thấy cả hai thông báo kèm slot và tên phiên (`5`); `Alt+2` nhảy sang phiên 2; bắt đầu phiên 1 thì phiên 2 vẫn ở phòng chờ; `/screen` hiện trang chọn phiên (`6`), chọn một phiên thì màn chiếu chỉ có mã, tên đề và người của phiên đó, không có tên phiên (`7`); thanh "Đang mở" ở khổ laptop 1280×720 (`8`); đoán sai mã 5 lần qua `resolve` thì `resolve` đúng mã cũng bị 429 và trang member báo "sai quá nhiều lần" (`9`).

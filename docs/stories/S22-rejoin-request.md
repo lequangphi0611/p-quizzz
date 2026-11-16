@@ -58,7 +58,7 @@ Lịch sử yêu cầu đã xử lý. Thông báo desktop riêng cho loại này
 - [x] `architecture.md` cập nhật; `npm test`, `npm run typecheck`, `npm run arch:check` pass.
 
 ## UI (chờ designer)
-Theo [group-sessions-ui-prompt.md](../design/group-sessions-ui-prompt.md): A4 (trạng thái kết nối, "Cho vào lại"), A5 (thẻ yêu cầu trong chuông, ba kết quả), B2 (màn xác nhận trùng), B3 (chờ mentor), B4 (thiết bị cũ bị thay).
+Theo bản thiết kế UI (mã màn): A4 (trạng thái kết nối, "Cho vào lại"), A5 (thẻ yêu cầu trong chuông, ba kết quả), B2 (màn xác nhận trùng), B3 (chờ mentor), B4 (thiết bị cũ bị thay).
 
 ## Đã thao tác tay (Playwright, `e2e/s22-rejoin.spec.ts`, ảnh ở `docs/design/S22-assets/`)
 Máy thứ hai nhập đúng email đang có người vào (viết hoa khác) → màn xác nhận, chỉ hiện email chính họ gõ (`1`) → "Đúng là tôi, xin vào lại" → màn chờ (`2`). Mentor thấy khối "Xin vào lại · 1" kèm người giữ chỗ, email, **Online** và nhắc "hỏi trực tiếp trước khi cho vào lại" (`3`), cùng thẻ đó trong chuông (`4`). "Cho vào lại, giữ bài": máy mới vào đúng chỗ với tên gốc "Phi", máy cũ trong vài giây thấy "Bài của bạn đang được mở ở thiết bị khác" (`5`). "Đây là mạo danh…": hộp xác nhận nói rõ người giữ chỗ **mất lượt** (`6`) → người cũ thấy "đã được mời ra", người xin vào với tên "Phi thật". "Từ chối": người xin thấy "Mentor chưa cho bạn vào lại" (`7`). Phiên tự do: member đóng trình duyệt → sau ~15 giây mentor thấy "Ngắt từ HH:MM" (`8`, `9`) → "Cho vào lại" (`10`) → nhập lại tên (viết thường) ở trình duyệt khác thì vào thẳng, quyền được dùng hết; lần sau lại là xung đột bình thường. Bốn member, ba người mất mạng cùng lúc → một banner "3 người ngắt kết nối cùng lúc" (`11`).
