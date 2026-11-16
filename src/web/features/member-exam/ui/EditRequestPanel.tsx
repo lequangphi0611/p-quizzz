@@ -27,7 +27,7 @@ export function EditRequestPanel({ me, onChanged }: { me: MeResponse; onChanged:
 
   let body;
   if (mode === 'editing') body = <EssayEditor attemptId={done.id} onChanged={onChanged} />;
-  else if (mode === 'waiting') body = <Note icon="hourglass" title="Đã gửi yêu cầu sửa bài" text={`Chờ mentor trả lời. Lý do của bạn: “${done.editRequest?.reason ?? ''}”`} />;
+  else if (mode === 'waiting') body = <Note icon="hourglass" title="Đã gửi yêu cầu sửa bài" text={`Chờ mentor trả lời. Nếu được duyệt, bạn chỉ sửa được các câu tự luận; câu trắc nghiệm giữ nguyên. Lý do của bạn: “${done.editRequest?.reason ?? ''}”`} />;
   else if (mode === 'done') body = <Note icon="circle-check" title="Bạn đã sửa bài tự luận" text="Mỗi bài chỉ được mở lại một lần. Bản sửa của bạn đã được lưu." />;
   else body = <AskForm attemptId={done.id} retry={mode === 'retry'} onChanged={onChanged} />;
 
@@ -63,7 +63,7 @@ function AskForm({ attemptId, retry, onChanged }: { attemptId: number; retry: bo
       {retry && <ErrorMessage tone="warning" message="Mentor đã từ chối yêu cầu trước. Bạn có thể gửi lại kèm lý do rõ hơn." />}
       {!open ? (
         <>
-          <p style={mText.meta}>Cần bổ sung bài tự luận? Gửi yêu cầu để mentor mở lại <b>phần tự luận</b> (chỉ một lần; trắc nghiệm và điểm tự động không đổi).</p>
+          <p style={mText.meta}>Cần bổ sung bài tự luận? Gửi yêu cầu để mentor mở lại <b>tất cả các câu tự luận</b> của bạn. <b>Câu trắc nghiệm không sửa được</b> và điểm trắc nghiệm không đổi. Mỗi bài chỉ được mở lại một lần.</p>
           <Button variant="secondary" icon="pencil" onClick={() => setOpen(true)}>{retry ? 'Gửi lại yêu cầu sửa bài' : 'Xin sửa bài tự luận'}</Button>
         </>
       ) : (
@@ -122,10 +122,12 @@ function EssayEditor({ attemptId, onChanged }: { attemptId: number; onChanged: (
         <b style={mText.label}>Sửa bài tự luận</b>
         <SaveIndicator state={save} onRetry={() => void saver.current?.retry()} />
       </div>
-      <p style={mText.meta}>Mentor đã mở lại phần tự luận. Chỉ sửa được một lần: bấm “Xong” khi đã sửa xong.</p>
-      {essays.map((q, i) => (
+      <p style={mText.meta}>
+        Mentor đã mở lại <b>{essays.length} câu tự luận</b> bên dưới{view.questions.length > essays.length ? <>; {view.questions.length - essays.length} câu trắc nghiệm giữ nguyên, không sửa được</> : null}. Chỉ sửa được một lần: bấm “Xong” khi đã sửa xong.
+      </p>
+      {essays.map(q => (
         <div key={q.id} style={{ display: 'grid', gap: 8 }}>
-          <b style={mText.label}>Câu tự luận {i + 1}</b>
+          <b style={mText.label}>Câu {view.questions.indexOf(q) + 1}/{view.questions.length} · tự luận</b>
           <div style={{ font: 'var(--type-body)' }}><Markdown inlineOnly source={q.prompt} /></div>
           {q.body && <Markdown source={q.body} />}
           <TextField multiline mono rows={10} spellCheck={false} value={texts[q.id] ?? ''} onChange={text => { setTexts(t => ({ ...t, [q.id]: text })); saver.current?.queue(q.id, { textAnswer: text }, true); }} />
