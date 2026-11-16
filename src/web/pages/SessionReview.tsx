@@ -11,7 +11,7 @@ import { Spinner } from '../components/ui/Spinner.js';
 import { StatusBadge } from '../components/ui/StatusBadge.js';
 import { th, td } from '../components/ui/tableStyles.js';
 import { api, ApiError } from '../lib/api.js';
-import { formatPoints } from '../lib/exam-progress.js';
+import { formatPoints } from '../shared/format/points.js';
 import { formatDate } from '../lib/format.js';
 import { PROGRESS_LABEL } from '../lib/session-ui.js';
 import { defaultSelection, MEMBERSHIP_LABEL, summarize } from '../lib/session-review.js';

@@ -56,7 +56,7 @@ Lưu nháp cục bộ khi mất mạng · đồng hồ đếm giờ · đổi gi
 - UI: Playwright thao tác tay ở các khổ trên, ghi lại luồng.
 
 ## Ghi chú khi làm
-- Thành phần mới: `components/member/MemberParts.tsx` (MemberPage, SideNav, StripNav, NavSheet, Progress, ShortcutHelp, Switch…), `components/ui/Kbd.tsx`, `MemberLayout variant="wide"`, `SaveIndicator state="offline"`, `QuestionPreview pendingLabel`. Logic thuần ở `lib/member-ui.ts` (có test).
+- Thành phần mới: `shared/ui/member/` (MemberPage, SideNav, StripNav, Switch…) và `features/member-exam/ui/ExamParts.tsx` (NavSheet, Progress, ShortcutHelp…), `components/ui/Kbd.tsx`, `MemberLayout variant="wide"`, `SaveIndicator state="offline"`, `QuestionPreview pendingLabel`. Logic thuần ở `features/member-exam/domain/` (có test).
 - Trường mới đặt tên `essayScore` (không phải `manualScore`) vì test chống lộ dữ liệu cấm khoá `manualScore` trong response của học viên (ở chỗ khác nó là điểm từng câu).
 - Ở ≥ 1280px, dòng code ~110 ký tự vẫn cuộn ngang **trong khối code** (vùng đọc 960px vừa ~100 ký tự); trang không tràn.
 

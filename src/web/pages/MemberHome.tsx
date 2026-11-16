@@ -1,19 +1,20 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { ROOM_CODE_LENGTH, type ActiveSession, type JoinResponse, type MeResponse } from '../../shared/api/index.js';
-import { HeroIcon, InfoBox, InfoRow, MemberPage, PageCard, mText, useIsDesk } from '../components/member/MemberParts.js';
+import { HeroIcon, InfoBox, InfoRow, MemberPage, PageCard, mText, useIsDesk } from '../shared/ui/member/member-shell.js';
 import { Button } from '../components/ui/Button.js';
 import { ErrorMessage } from '../components/ui/ErrorMessage.js';
 import { Spinner } from '../components/ui/Spinner.js';
 import { StatusBadge } from '../components/ui/StatusBadge.js';
 import { TextField } from '../components/ui/TextField.js';
-import { NameChip } from '../layouts/MemberLayout.js';
+import { NameChip } from '../shared/ui/member/MemberLayout.js';
 import { api, ApiError, clearParticipantToken, getCurrentSessionId, getParticipantToken, setCurrentSessionId, setParticipantToken } from '../lib/api.js';
 import { decideScreen, type MeState } from '../lib/member-screen.js';
 import { retrySecondsFrom } from '../lib/member-ui.js';
 import { useSessionEvents } from '../lib/useSessionEvents.js';
 import { Leaderboard } from '../components/Leaderboard.js';
 import { cleanRoomCode, formatRoomCode, recallRoomCode, rememberRoomCode, roomFromSearch } from '../lib/room-code.js';
-import { MemberExam, ResultView } from './MemberExam.js';
+import { MemberExamPage } from '../features/member-exam/ui/MemberExamPage.js';
+import { ResultView } from '../features/member-exam/ui/ResultView.js';
 
 const POLL_MS = 5000;
 
@@ -168,7 +169,7 @@ export function MemberHome() {
   }, [screen, me]);
 
   if (screen === 'running') {
-    return <MemberExam me={me!} onChanged={refreshMe} leaderboard={<Leaderboard sessionId={me!.session.id} highlightName={me!.participant.displayName} />} />;
+    return <MemberExamPage me={me!} onChanged={refreshMe} leaderboard={<Leaderboard sessionId={me!.session.id} highlightName={me!.participant.displayName} />} />;
   }
   if (screen === 'ended') {
     return <ResultView me={me!} ended autoSubmitted={autoSubmitted}><Leaderboard sessionId={me!.session.id} highlightName={me!.participant.displayName} /></ResultView>;

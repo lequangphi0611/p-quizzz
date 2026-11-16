@@ -2,17 +2,20 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import type { ReviewView } from '../../shared/api/index.js';
 import { QuestionPreview } from '../components/QuestionPreview.js';
-import { MemberPage, OfficialChip, StripNav, SideNav, Switch, mText, useIsDesk } from '../components/member/MemberParts.js';
+import { MemberPage, OfficialChip, mText, useIsDesk } from '../shared/ui/member/member-shell.js';
+import { SideNav, StripNav } from '../shared/ui/member/question-nav.js';
+import { Switch } from '../shared/ui/member/Switch.js';
 import { Button } from '../components/ui/Button.js';
 import { Card } from '../components/ui/Card.js';
 import { ErrorMessage } from '../components/ui/ErrorMessage.js';
 import { Spinner } from '../components/ui/Spinner.js';
 import { StatusBadge } from '../components/ui/StatusBadge.js';
-import { MemberLayout } from '../layouts/MemberLayout.js';
+import { MemberLayout } from '../shared/ui/member/MemberLayout.js';
 import { api, ApiError } from '../lib/api.js';
-import { formatPoints } from '../lib/exam-progress.js';
-import { WIDE_MIN, notCorrectIndexes, reviewMark } from '../lib/member-ui.js';
-import { useMediaQuery } from '../lib/useMediaQuery.js';
+import { formatPoints } from '../shared/format/points.js';
+import { WIDE_MIN } from '../shared/ui/member/breakpoints.js';
+import { notCorrectIndexes, reviewMark } from '../lib/member-ui.js';
+import { useMediaQuery } from '../shared/hooks/useMediaQuery.js';
 
 // "/review/:attemptId" — the member's own attempt with the answer key. The server only answers once the session
 // has closed (403 before that), so nobody reads the answers while others are still working.

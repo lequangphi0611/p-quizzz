@@ -341,6 +341,25 @@ Các port phía web nằm ở `src/web/shared/`, implementation được chọn 
 | Port `TokenStore` | `shared/token-store/` | `LocalStorageTokenStore` (không bao giờ throw, giữ nguyên key `pq:participant:<id>` và `pq-current-session`), `InMemoryTokenStore` cho test. |
 | Port `EventStream` | `shared/events/event-stream.ts` | Implementation SSE `sse-event-stream.ts`: một `EventSource` cho mỗi phiên mỗi tab, tự gọi lại handler sau khi kết nối lại. |
 
-- **Module-level, không dùng React context** cho composition: hub SSE phải là một cho cả tab (trình duyệt giới hạn ~6 kết nối HTTP/1.1 mỗi origin), và code chưa chuyển (`pages/`, `lib/`) import thẳng mà không cần provider. Feature nhận port qua gateway/hook của chính nó; test dựng bản riêng với fake.
+- **Module-level, không dùng React context** cho composition: hub SSE phải là một cho cả tab (trình duyệt giới hạn ~6 kết nối HTTP/1.1 mỗi origin), và code chưa chuyển (`pages/`, `lib/`) import thẳng mà không cần provider. Feature nhận gateway của mình qua React context (`app/AppProviders.tsx`, P4-2) nên `ui` không import `infrastructure`; test dựng bản riêng với fake.
 - `lib/api.ts` và `lib/useSessionEvents.ts` còn lại là lớp mỏng cho page cũ; code mới không import từ đó. Chúng biến mất khi các page được chuyển (P5).
 - Hạn chế đã biết: việc chọn session theo path vẫn là quy ước ngầm, nhưng đã tách khỏi lõi và có test. Khi page chuyển sang gateway truyền `sessionId` tường minh thì interceptor này có thể bỏ.
+
+### 12.1 Feature mẫu: `member-exam` (P4-2, issue #19)
+
+Màn làm bài của member (`features/member-exam/`). Các feature sau bắt chước cấu trúc này.
+
+| Lớp | File | Vai trò |
+|---|---|---|
+| `domain` | `answer-progress.ts` | Thuần: `isAnswered`, bản nháp (`Drafts`), `nextSelection` (single thay, multi bật/tắt), `progressOf`. |
+| | `shortcuts.ts` | Thuần: `shortcutFor(key…)` trả hành động; luật tắt khi đang gõ / mở hộp thoại / có Ctrl-Alt-⌘. |
+| `application` | `exam-gateway.ts` | Port `ExamGateway` (`startAttempt/getAttempt/saveAnswer/submitAttempt`). |
+| | `answer-saver.ts` | Engine autosave (debounce, một request mỗi câu, retry 2s/5s/10s, `flushAll`). |
+| | `taking-controller.ts` | `TakingController`: lớp TS thuần giữ state (`getState/subscribe`), gọi gateway + `AnswerSaver`, xử lý 409 (phiên đóng) và nộp bài. Test bằng gateway giả, không cần render. |
+| | `use-taking-exam.ts`, `exam-gateway-context.tsx` | Nối controller vào React (`useSyncExternalStore`), cấp gateway qua context. |
+| `infrastructure` | `http-exam-gateway.ts` | `ExamGateway` trên `HttpClient` (cùng endpoint `/api/me/*`). |
+| `ui` | `MemberExamPage` (+ `StartScreen`, `TakingView`, `ResultView`, `QuestionContent`, `TakingDesktop/Phone`, `ExamParts`, `use-exam-shortcuts`) | Chỉ render và gọi controller; không import `infrastructure`. |
+
+Dùng chung (3 page cùng dùng) nằm ở `shared/`: `hooks/{useMediaQuery,useOnline,useKeyboardOpen}`, `format/points.ts`, `ui/member/{MemberLayout,member-shell,question-nav,Switch,breakpoints,review-mark}`.
+
+Còn để lại cho P5-3 vì thuộc luồng khác: `lib/member-screen.ts` (chọn màn ở `/` = `member-join`), `retrySecondsFrom`, `reviewMark`, `notCorrectIndexes` (review).

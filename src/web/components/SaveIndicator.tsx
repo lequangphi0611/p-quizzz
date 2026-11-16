@@ -1,4 +1,4 @@
-import type { SaveState } from '../lib/answer-saver.js';
+type SaveState = 'saved' | 'saving' | 'error';
 import { Icon } from './ui/Icon.js';
 
 // 'offline': the member's device has no network — answers wait in memory and are sent when it is back.
