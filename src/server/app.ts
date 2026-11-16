@@ -2,22 +2,28 @@ import { resolve } from 'node:path';
 import Fastify, { type FastifyPluginAsync } from 'fastify';
 import fastifyCookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
-import type { Db } from './db/client.js';
-import type { JoinLimiter } from './auth/join-limiter.js';
-import { registerLeakGuard } from './leak-guard.js';
-import { adminRoutes as adminRoutesPlugin } from './routes/admin.js';
-import { examsRoutes } from './routes/exams.js';
-import { gradingRoutes } from './routes/grading.js';
-import { leaderboardRoutes } from './routes/leaderboard.js';
-import { networkRoutes } from './routes/network.js';
-import { joinRoutes, meRoutes, participantsRoutes, publicParticipantsRoutes } from './routes/participants.js';
-import { screenRoutes } from './routes/screen.js';
-import { publicSessionsRoutes, sessionsRoutes } from './routes/sessions.js';
-import { eventsRoutes } from './routes/events.js';
-import { healthRoutes } from './routes/health.js';
+import type { Db } from './infrastructure/db/client.js';
+import { config } from './config.js';
+import { lanIPv4 } from './infrastructure/system/network.js';
+import { compose, type Composition } from './composition.js';
+import { meRoutes, participantReviewRoutes } from './interface/http/attempts-routes.js';
+import { gradingRoutes } from './interface/http/grading-routes.js';
+import { leaderboardRoutes } from './interface/http/leaderboard-routes.js';
+import { screenRoutes } from './interface/http/screen-routes.js';
+import { eventsRoutes } from './interface/http/events-routes.js';
+import { healthRoutes } from './interface/http/health-routes.js';
+import { networkRoutes } from './interface/http/network-routes.js';
+import { adminRoutes } from './interface/http/admin-routes.js';
+import { examsRoutes } from './interface/http/exams-routes.js';
+import type { JoinLimiter } from './interface/http/join-limiter.js';
+import { joinRoutes, participantsAdminRoutes, publicParticipantsRoutes } from './interface/http/participants-routes.js';
+import { publicSessionsRoutes, sessionsRoutes } from './interface/http/sessions-routes.js';
+import { registerLeakGuard } from './interface/http/leak-guard.js';
 
 export interface AppOptions {
   db: Db;
+  /** Use cases for modules already on Clean Architecture. Defaults to `compose(db)`; tests may inject fakes. */
+  composition?: Composition;
   serveWeb?: boolean;
   logger?: boolean;
   /** Let machines other than the mentor's reach /api/admin/*. Off by default: members share the LAN. */
@@ -31,25 +37,26 @@ export interface AppOptions {
 }
 
 // Builds the Fastify app without listening, so tests can use app.inject().
-export async function buildApp({ db, serveWeb = false, logger = false, allowRemoteAdmin = false, lanIps, joinLimiter, adminRoutes: extraAdminRoutes = [] }: AppOptions) {
-  const protectedRoutes = [examsRoutes, sessionsRoutes, participantsRoutes, gradingRoutes, ...extraAdminRoutes];
+export async function buildApp({ db, composition = compose(db), serveWeb = false, logger = false, allowRemoteAdmin = false, lanIps, joinLimiter, adminRoutes: extraAdminRoutes = [] }: AppOptions) {
+  const protectedRoutes = [examsRoutes(composition.exams), sessionsRoutes(composition.sessions), participantsAdminRoutes(composition.participants), participantReviewRoutes(composition.attempts), gradingRoutes(composition.grading), ...extraAdminRoutes];
   // Honour X-Forwarded-For only when the direct peer is this machine (the Vite dev proxy). A LAN client
   // connecting straight to the server is not trusted, so it cannot forge its address.
   const app = Fastify({ logger, trustProxy: ['127.0.0.1', '::1'] });
+  // Only the integration-test harness reads this (it peeks at rows to set up scenarios); no production code does.
   app.decorate('db', db);
   registerLeakGuard(app);
 
   await app.register(fastifyCookie);
   await app.register(healthRoutes);
-  await app.register(adminRoutesPlugin, { protectedRoutes, allowRemote: allowRemoteAdmin });
-  await app.register(eventsRoutes);
-  await app.register(publicSessionsRoutes);
-  await app.register(leaderboardRoutes);
-  await app.register(joinRoutes, { limiter: joinLimiter });
-  await app.register(screenRoutes);
-  await app.register(publicParticipantsRoutes);
-  await app.register(networkRoutes, { lanIps });
-  await app.register(meRoutes);
+  await app.register(adminRoutes(composition.admin), { protectedRoutes, allowRemote: allowRemoteAdmin });
+  await app.register(eventsRoutes(composition.eventSource));
+  await app.register(publicSessionsRoutes(composition.sessions));
+  await app.register(leaderboardRoutes(composition.leaderboard));
+  await app.register(joinRoutes(composition.participants), { limiter: joinLimiter });
+  await app.register(screenRoutes(composition.screen));
+  await app.register(publicParticipantsRoutes(composition.participants));
+  await app.register(networkRoutes({ lanIps: lanIps ?? lanIPv4, port: config.port }));
+  await app.register(meRoutes(composition.attempts, composition.resumeParticipant));
 
   if (serveWeb) {
     await app.register(fastifyStatic, { root: resolve('dist/web') });

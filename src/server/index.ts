@@ -1,7 +1,7 @@
 import { buildApp } from './app.js';
 import { config } from './config.js';
-import { createDb } from './db/client.js';
-import { lanIPv4 } from './network.js';
+import { createDb } from './infrastructure/db/client.js';
+import { lanIPv4 } from './infrastructure/system/network.js';
 
 const db = createDb(config.dbFile);
 const app = await buildApp({ db, serveWeb: config.serveWeb, logger: true, allowRemoteAdmin: config.allowRemoteAdmin });

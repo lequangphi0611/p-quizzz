@@ -13,6 +13,7 @@
     "build": "vite build",
     "start": "vite build && tsx src/server/index.ts --serve-web",
     "typecheck": "tsc --noEmit",
+    "arch:check": "tsx scripts/arch-check.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",

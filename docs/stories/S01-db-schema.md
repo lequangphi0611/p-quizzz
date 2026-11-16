@@ -6,8 +6,8 @@
 Mọi story backend dựa trên schema này. Contract: [architecture.md §2](../architecture.md#2-data-model).
 
 ## Phạm vi
-- Khai báo đủ các bảng §2 trong `src/server/db/schema.ts` (giữ `app_meta`), kèm relations Drizzle, index/unique như mô tả.
-- Sinh migration bằng `npm run db:generate`, commit thư mục `src/server/db/migrations/`.
+- Khai báo đủ các bảng §2 trong `src/server/infrastructure/db/schema.ts` (giữ `app_meta`), kèm relations Drizzle, index/unique như mô tả.
+- Sinh migration bằng `npm run db:generate`, commit thư mục `src/server/infrastructure/db/migrations/`.
 - `createDb()` chạy migrate tự động (`migrate()` của `drizzle-orm/better-sqlite3/migrator`) — áp dụng cả cho `:memory:` để test có schema.
 - Test helper `src/server/test/helpers.ts`: `createTestApp()` trả về `{ app, db }` với DB `:memory:` đã migrate; `seedExam(db, overrides?)` tạo nhanh 1 đề có 1 câu single, 1 multi, 1 essay.
 
