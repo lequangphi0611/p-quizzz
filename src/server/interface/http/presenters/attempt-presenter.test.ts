@@ -4,7 +4,7 @@ import { toAttemptViewDto, toReviewViewDto } from './attempt-presenter.js';
 
 const data: ReviewData = {
   sessionStatus: 'running',
-  attempt: { id: 1, participantId: 1, attemptNo: 1, questionOrder: [2, 1], optionOrder: { '1': [12, 11], '2': [] }, startedAt: new Date(1), submittedAt: null, autoScore: 1, manualScore: null },
+  attempt: { id: 1, participantId: 1, attemptNo: 1, questionOrder: [2, 1], optionOrder: { '1': [12, 11], '2': [] }, startedAt: new Date(1), submittedAt: null, autoScore: 1, manualScore: null, editStatus: null, editReason: null, editRequestedAt: null, editResolvedAt: null },
   answers: [{ id: 1, attemptId: 1, questionId: 1, selectedOptionIds: [11], textAnswer: null, autoScore: 1, manualScore: null, feedback: 'secret feedback', gradedAt: null }],
   exam: {
     id: 1, title: 'T', description: null, sourceMarkdown: 'SECRET SOURCE', totalPoints: 5, hasEssay: true, createdAt: new Date(0),

@@ -1,5 +1,5 @@
 import { and, asc, count, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
-import type { Answer, Attempt, NewAttempt } from '../../domain/attempt/attempt.js';
+import type { Answer, Attempt, EditStatus, NewAttempt } from '../../domain/attempt/attempt.js';
 import type { AttemptRepository, MemberRoom, MemberRoomReader } from '../../application/ports/attempt-repository.js';
 import { answers, attempts, exams, participants, questions, sessions } from './schema.js';
 import type { DbAccess } from './drizzle-exam-repository.js';
@@ -70,6 +70,10 @@ export class DrizzleAttemptRepository implements AttemptRepository {
 
   async markSubmitted(id: number, submittedAt: Date, autoScore: number): Promise<void> {
     await this.access(db => db.update(attempts).set({ submittedAt, autoScore }).where(eq(attempts.id, id)).run());
+  }
+
+  async setEditRequest(id: number, edit: { editStatus: EditStatus; editReason: string | null; editRequestedAt: Date | null; editResolvedAt: Date | null }): Promise<void> {
+    await this.access(db => db.update(attempts).set(edit).where(eq(attempts.id, id)).run());
   }
 
   async saveAnswer(attemptId: number, questionId: number, value: { selectedOptionIds?: number[]; textAnswer?: string }): Promise<void> {

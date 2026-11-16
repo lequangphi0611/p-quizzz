@@ -25,7 +25,7 @@ export class StartAttempt {
       // The order is fixed here, when the attempt is created, so F5 never reshuffles it.
       const { questionOrder, optionOrder } = planOrder(exam, session.shuffle, n => this.deps.random.int(n));
       const attempt = await ctx.attempts.create({ participantId, attemptNo: 1, questionOrder, optionOrder, startedAt: this.deps.clock.now() });
-      return { data: { attempt, answers: [], exam }, sessionId: session.id };
+      return { data: { attempt, answers: [], exam, sessionStatus: session.status }, sessionId: session.id };
     });
     await this.deps.events.publish(sessionId, 'participants'); // the mentor's progress column changes
     return data;

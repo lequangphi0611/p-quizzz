@@ -13,6 +13,8 @@ export interface SessionAdminGateway {
   runAction(id: number, action: SessionAction): Promise<SessionDetail>;
   approveParticipant(participantId: number): Promise<void>;
   kickParticipant(participantId: number): Promise<void>;
+  /** Approve or reject a member's request to edit their essays (PRODUCT.md §7.21). */
+  resolveEditRequest(participantId: number, decision: 'approve' | 'reject'): Promise<void>;
   renameParticipant(participantId: number, displayName: string): Promise<void>;
   getParticipantReview(participantId: number): Promise<ParticipantReview>;
   getLeaderboard(sessionId: number): Promise<LeaderboardResponse>;

@@ -54,3 +54,21 @@ export class AttemptNotSubmittedError extends DomainError {
     super('conflict', 'Lượt này chưa được nộp');
   }
 }
+
+export class EditRequestNotAllowedError extends DomainError {
+  constructor(message: string) {
+    super('conflict', message);
+  }
+}
+
+export class NoPendingEditRequestError extends DomainError {
+  constructor() {
+    super('conflict', 'Không có yêu cầu sửa bài nào đang chờ');
+  }
+}
+
+export class EditLockedError extends DomainError {
+  constructor() {
+    super('conflict', 'Bài đã nộp: chỉ sửa được câu tự luận');
+  }
+}

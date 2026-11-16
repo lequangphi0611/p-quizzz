@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { SessionStatus } from '../session-state.js';
+import type { EditRequestInfo } from './attempts.js';
 
 export type SessionMode = 'self_paced' | 'live';
 
@@ -42,6 +43,7 @@ export interface ParticipantProgress {
   countedScore: number | null;
   maxScore: number; // exam total points
   submittedAt: number | null; // epoch ms the counted attempt was submitted (drives mentor notifications)
+  editRequest: EditRequestInfo | null; // the counted attempt's request to edit the essays (PRODUCT.md §7.21)
 }
 
 export interface SessionParticipantDetail extends SessionParticipantInfo {

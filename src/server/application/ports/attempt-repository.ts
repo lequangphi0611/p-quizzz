@@ -1,4 +1,4 @@
-import type { Answer, Attempt, NewAttempt } from '../../domain/attempt/attempt.js';
+import type { Answer, Attempt, EditStatus, NewAttempt } from '../../domain/attempt/attempt.js';
 import type { Participant } from '../../domain/participant/participant.js';
 import type { SessionStatus } from '../../../shared/session-state.js';
 import type { ExamReader } from './exam-repository.js';
@@ -29,6 +29,8 @@ export interface AttemptRepository extends AttemptReader {
   /** Unsubmitted attempts of `active` members of the session. Kicked members' attempts never count, so they are left out. */
   listOpenOfActiveMembers(sessionId: number): Promise<Attempt[]>;
   markSubmitted(id: number, submittedAt: Date, autoScore: number): Promise<void>;
+  /** Stores the state of the attempt's request to edit its essays (PRODUCT.md §7.21). */
+  setEditRequest(id: number, edit: { editStatus: EditStatus; editReason: string | null; editRequestedAt: Date | null; editResolvedAt: Date | null }): Promise<void>;
   /** Insert or replace the saved answer for that question (one row per attempt and question). */
   saveAnswer(attemptId: number, questionId: number, value: { selectedOptionIds?: number[]; textAnswer?: string }): Promise<void>;
   /** Stores the automatic score of every question; creates a blank answer row where the member saved nothing. */

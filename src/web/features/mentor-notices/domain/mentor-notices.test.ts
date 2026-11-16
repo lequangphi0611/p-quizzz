@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { SessionParticipantDetail } from '../../../../shared/api/index.js';
-import { buildNotices, DESKTOP_BATCH_MAX, desktopNotifications, markSeenAt, newPendingNotices, pendingCount, titleWithCount, unreadCount } from './mentor-notices.js';
+import { buildNotices, editPendingCount, DESKTOP_BATCH_MAX, desktopNotifications, markSeenAt, newPendingNotices, pendingCount, titleWithCount, unreadCount } from './mentor-notices.js';
 
 const person = (id: number, status: SessionParticipantDetail['status'], joinedAt: number, submittedAt: number | null = null): SessionParticipantDetail => ({
   id, displayName: `P${id}`, status, joinedAt,
-  progress: { state: submittedAt ? 'submitted' : 'none', attempts: submittedAt ? 1 : 0, countedScore: submittedAt ? 1 : null, maxScore: 2, submittedAt },
+  progress: { state: submittedAt ? 'submitted' : 'none', attempts: submittedAt ? 1 : 0, countedScore: submittedAt ? 1 : null, maxScore: 2, submittedAt, editRequest: null },
 });
 
 describe('mentor notices', () => {
@@ -61,5 +61,31 @@ describe('desktop notifications', () => {
   it('right after a pop, a new joiner updates the shared summary instead of stacking another notification', () => {
     const one = buildNotices([person(7, 'pending', 1)]);
     expect(desktopNotifications(one, 4, true)).toEqual([{ title: '4 người đang chờ duyệt', body: 'Mới vào: P7. Bấm để mở phiên.', tag: 'pq-pending-summary' }]);
+  });
+});
+
+describe('edit-request notices (PRODUCT.md §7.21)', () => {
+  const withEdit = (id: number, status: 'pending' | 'approved' | 'rejected', requestedAt: number, joinedAt = 1) => {
+    const p = person(id, 'active', joinedAt, 50);
+    p.progress.editRequest = { status, reason: 'quên ý', requestedAt };
+    return p;
+  };
+
+  it('adds one notice per request, carrying its status and reason', () => {
+    const edit = buildNotices([withEdit(1, 'pending', 900)]).find(n => n.kind === 'edit')!;
+    expect(edit).toMatchObject({ key: 'edit:1:900', at: 900, editStatus: 'pending', reason: 'quên ý', displayName: 'P1' });
+  });
+
+  it('a second request (after a rejection) is a new notice, so it counts as unread again', () => {
+    const first = buildNotices([withEdit(1, 'rejected', 900)]).find(n => n.kind === 'edit')!;
+    const again = buildNotices([withEdit(1, 'pending', 1500)]).find(n => n.kind === 'edit')!;
+    expect(again.key).not.toBe(first.key);
+    expect(unreadCount([again], 1000)).toBe(1);
+  });
+
+  it('counts only requests still waiting for the mentor, and skips kicked people', () => {
+    const kicked = withEdit(3, 'pending', 1);
+    kicked.status = 'kicked';
+    expect(editPendingCount([withEdit(1, 'pending', 1), withEdit(2, 'approved', 1), kicked])).toBe(1);
   });
 });

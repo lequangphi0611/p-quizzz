@@ -10,7 +10,9 @@ import type {
   SubmitResponse,
 } from '../../../../shared/api/index.js';
 import { totalScore } from '../../../../shared/scoring.js';
-import type { Attempt } from '../../../domain/attempt/attempt.js';
+import { canRequestEdit, toEditRequestInfo, type Attempt } from '../../../domain/attempt/attempt.js';
+import type { ParticipantStatus } from '../../../domain/participant/participant.js';
+import type { SessionStatus } from '../../../../shared/session-state.js';
 import type { AttemptViewData, ReviewData } from '../../../application/use-cases/attempts/attempt-data.js';
 import type { MemberState, ParticipantReviewResult } from '../../../application/use-cases/attempts/queries.js';
 import type { SubmitResult } from '../../../application/use-cases/attempts/submit-attempt.js';
@@ -19,7 +21,7 @@ import { toParticipantInfoDto } from './participant-presenter.js';
 // ⚠️ The only place where member-facing attempt DTOs are built. Field by field on purpose: handing over a domain
 // object here would leak `isCorrect` / `explanation` while the session is still running (architecture.md §5).
 
-export function toAttemptViewDto({ attempt, answers, exam }: AttemptViewData): AttemptView {
+export function toAttemptViewDto({ attempt, answers, exam, sessionStatus }: AttemptViewData): AttemptView {
   const byId = new Map(exam.questions.map(q => [q.id, q]));
   const questions: MemberQuestion[] = attempt.questionOrder.flatMap(qid => {
     const q = byId.get(qid);
@@ -42,21 +44,27 @@ export function toAttemptViewDto({ attempt, answers, exam }: AttemptViewData): A
     attemptNo: attempt.attemptNo,
     startedAt: attempt.startedAt.getTime(),
     submittedAt: attempt.submittedAt ? attempt.submittedAt.getTime() : null,
+    editRequest: toEditRequestInfo(attempt, sessionStatus),
     questions,
     answers: saved,
   };
 }
 
-const toSummary = (a: Attempt, maxScore: number): AttemptSummary => ({
+const toSummary = (a: Attempt, maxScore: number, ctx: { sessionStatus: SessionStatus; participantStatus: ParticipantStatus }): AttemptSummary => ({
   id: a.id,
   attemptNo: a.attemptNo,
   submittedAt: a.submittedAt!.getTime(),
   score: a.autoScore ?? 0,
   maxScore,
   essayScore: a.manualScore ?? null,
+  editRequest: toEditRequestInfo(a, ctx.sessionStatus),
+  canRequestEdit: canRequestEdit(a, ctx.sessionStatus, ctx.participantStatus),
 });
 
-export const toSubmitResponseDto = (r: SubmitResult): SubmitResponse => ({ attempt: toSummary(r.attempt, r.maxScore), essayPending: r.essayPending });
+export const toSubmitResponseDto = (r: SubmitResult): SubmitResponse => ({
+  attempt: toSummary(r.attempt, r.maxScore, { sessionStatus: 'running', participantStatus: 'active' }), // just submitted, so the session runs and the member is active
+  essayPending: r.essayPending,
+});
 
 // ⚠️ Carries the answer key. Only call it with data the use case released (member after the close, or the mentor).
 export function toReviewViewDto({ attempt, answers, exam, sessionStatus }: ReviewData): ReviewView {
@@ -105,7 +113,7 @@ export const toMeResponseDto = (m: MemberState): MeResponse => ({
   session: m.room,
   attempt: {
     current: m.current ? { id: m.current.id, attemptNo: m.current.attemptNo, startedAt: m.current.startedAt.getTime() } : null,
-    submitted: m.submitted.map(a => toSummary(a, m.maxScore)),
+    submitted: m.submitted.map(a => toSummary(a, m.maxScore, { sessionStatus: m.room.status, participantStatus: m.participant.status })),
     canStartNew: m.canStartNew,
   },
 });

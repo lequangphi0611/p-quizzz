@@ -60,6 +60,7 @@ export class SessionDetailController {
   approveAll(list: readonly { id: number }[]): Promise<boolean> {
     return this.run(async () => { for (const p of list) await this.gateway.approveParticipant(p.id); await this.refetch(); }, 'Không duyệt hết được');
   }
+  resolveEdit(id: number, decision: 'approve' | 'reject'): Promise<boolean> { return this.run(async () => { await this.gateway.resolveEditRequest(id, decision); await this.refetch(); }, 'Không xử lý được yêu cầu sửa bài'); }
   approve(id: number): Promise<boolean> { return this.run(async () => { await this.gateway.approveParticipant(id); await this.refetch(); }, 'Không duyệt được'); }
   async kickConfirmed(): Promise<void> {
     const d = this.state.dialog;

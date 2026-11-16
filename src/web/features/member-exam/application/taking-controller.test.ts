@@ -15,6 +15,8 @@ function fakeGateway(over: Partial<ExamGateway> = {}) {
     getAttempt: vi.fn(async () => view()),
     saveAnswer: vi.fn(async (a, qid, p) => { saved.push([a, qid, p]); }),
     submitAttempt: vi.fn(async () => ({}) as never),
+    requestEdit: vi.fn(async () => {}),
+    finishEdit: vi.fn(async () => {}),
     ...over,
   };
   return { gateway, saved };
