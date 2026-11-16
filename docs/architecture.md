@@ -141,3 +141,79 @@ Hàm thuần trong `src/shared/scoring.ts`:
 Chuông thông báo mentor (PRODUCT.md §7.20) nằm trong khung `/admin/*`: `useMentorNotices` lấy `/api/sessions/active`, rồi `/api/admin/sessions/:id` + SSE của phiên đó; danh sách dựng bằng hàm thuần `src/web/lib/mentor-notices.ts` từ `joinedAt`/`progress.submittedAt`; mốc đã xem ở `localStorage` key `pq:mentor:notices-seen:<sessionId>`. Thông báo desktop: `useDesktopNotify` (Notification API, cần secure context nên chỉ chạy trên `localhost`), lựa chọn bật/tắt ở `localStorage` key `pq:mentor:desktop-notify`, `tag` theo participant để nhiều tab không hiện trùng. Không có API hay event mới.
 
 Gọi API qua `src/web/lib/api.ts` (wrapper `fetch`, tự gắn token member, ném lỗi có `message` từ `{ error }`). UI text tiếng Việt.
+
+## 9. Layering (Clean Architecture)
+
+> Đích của epic #7. Code cũ (`routes/`, `services/`, `src/web/pages`, `src/web/lib`) đang được chuyển dần từng module; phần chưa chuyển được miễn tạm trong allowlist của `arch:check` (xem §9.6). Refactor **không đổi hành vi nghiệp vụ và không đổi §1-§8**.
+
+### 9.1 Sơ đồ thư mục đích
+
+```
+src/server/
+  domain/                 # entity, value object, policy. TS thuần
+  application/
+    ports/                # interface async: XxxRepository, UnitOfWork, EventPublisher, Clock, TokenGenerator
+    use-cases/<module>/   # 1 file = 1 use case, tên là động từ
+  infrastructure/
+    db/                   # schema Drizzle, DrizzleXxxRepository, UnitOfWork
+    events/               # SSE bus (implement EventPublisher)
+  interface/http/         # route Fastify, parse zod, presenter entity -> DTO, plugin auth
+  composition.ts          # composition root: nối tay, không DI container
+
+src/web/
+  features/<feature>/
+    domain/               # model thuần, quy tắc
+    application/          # use case dạng hook/reducer; port: ApiGateway, TokenStore, EventStream
+    infrastructure/       # fetch, localStorage, EventSource
+    ui/                   # page + component: chỉ render và gọi application
+  shared/                 # ui kit, hook hạ tầng, api-client lõi
+  app/                    # router, layout, composition
+
+src/shared/               # DTO, zod schema, hàm thuần mà cả web và server cùng cần
+```
+
+### 9.2 Quy tắc phụ thuộc (một chiều)
+
+Backend: `interface -> application -> domain`; `infrastructure -> application, domain`.
+
+| Layer | Được import | **Cấm** import |
+|---|---|---|
+| `domain` | `domain`, `src/shared` | `application`, `infrastructure`, `interface`, `fastify`, `drizzle-orm`, `better-sqlite3` |
+| `application` | `domain`, `application`, `src/shared` | `infrastructure`, `interface`, `fastify`, `drizzle-orm`, `better-sqlite3` |
+| `infrastructure` | `application`, `domain`, `src/shared`, thư viện hạ tầng | `interface` |
+| `interface` | `application`, `domain`, `src/shared`, `fastify` | `infrastructure` (ngoại lệ duy nhất: `composition.ts`) |
+
+Frontend (trong một feature): `ui -> application -> domain`; `infrastructure -> application, domain`.
+- `domain` không import `react`.
+- `ui` không import `infrastructure` (nhận implementation qua composition/context).
+- Feature này không import nội bộ feature khác; muốn dùng chung thì đưa vào `shared/`.
+
+`src/shared/` không import Node hay DOM API (quy tắc có sẵn) và không import `src/server`, `src/web`.
+
+### 9.3 Quyết định: port async
+
+Mọi port trong `application/ports` trả `Promise`, kể cả khi hiện thực bằng `better-sqlite3` (đồng bộ). Lý do: use case không được phụ thuộc đặc thù của `better-sqlite3`; đổi DB hay thêm I/O (file, mạng) sau này không phải sửa use case.
+
+Hệ quả: `db.transaction()` của Drizzle chỉ nhận callback đồng bộ nên không dùng được cho use case async. Cần `UnitOfWork.run(async ctx => ...)` tự `BEGIN`/`COMMIT`/`ROLLBACK` và tuần tự hóa các unit of work trên SQLite. Thiết kế được chứng minh ở spike P0-3 (issue #10); ADR ghi ở mục §10 khi spike xong. Nếu spike kết luận không khả thi gọn, quay lại bàn port sync (do chủ dự án quyết).
+
+### 9.4 Quy ước đặt tên
+
+| Loại | Quy ước | Ví dụ |
+|---|---|---|
+| Use case | Động từ, 1 file/1 use case | `StartAttempt`, `ImportExam` |
+| Port repository | `XxxRepository` | `ExamRepository` |
+| Implementation Drizzle | `DrizzleXxxRepository` | `DrizzleExamRepository` |
+| Fake cho test | `InMemoryXxxRepository` | `InMemoryExamRepository` |
+| Port khác | Danh từ chỉ vai trò | `UnitOfWork`, `EventPublisher`, `Clock`, `TokenGenerator` |
+
+### 9.5 Ranh giới `src/shared/` và `domain/`
+
+- `src/shared/`: thứ **cả web và server** cùng cần: DTO và schema zod (`api/`), hàm thuần dùng chung (`scoring.ts`, `session-state.ts`, `exam-format/`).
+- `domain/` (server): entity, policy **chỉ server** cần (ví dụ quy tắc sinh mã phòng, trộn thứ tự). Có thể import `src/shared`, không ngược lại.
+- Không chắc: bắt đầu ở `domain/`; chỉ chuyển sang `src/shared/` khi web thực sự cần.
+
+### 9.6 Quy tắc test
+
+- Use case: test bằng fake in-memory (`InMemoryXxxRepository`, `Clock`/`TokenGenerator` giả), không cần Fastify hay DB.
+- Route: giữ `app.inject()` trên `createDb(':memory:')` làm integration test; test không lộ đáp án (§5) và `leak-guard` giữ nguyên.
+- Quy tắc phụ thuộc §9.2 kiểm bằng `npm run arch:check` (P0-2), chạy cả trong `npm test`.
