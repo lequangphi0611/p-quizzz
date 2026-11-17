@@ -14,7 +14,7 @@ const GraderConfigSchema = z.object({
 
 export type GraderConfig = z.infer<typeof GraderConfigSchema>;
 
-// Flags the app sets itself, or that would give the AI tools, other directories or skip permissions.
+// Flags the app sets itself, or that would give the AI tools, other directories, plugins/agents or skip permissions.
 const FORBIDDEN = [
   '-p',
   '--print',
@@ -27,6 +27,8 @@ const FORBIDDEN = [
   '--dangerously-skip-permissions',
   '--allow-dangerously-skip-permissions',
   '--add-dir',
+  '--plugin-dir',
+  '--agents',
   '--permission-mode',
   '--system-prompt',
   '--system-prompt-file',

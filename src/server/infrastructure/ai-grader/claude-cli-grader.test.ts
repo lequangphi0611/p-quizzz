@@ -83,7 +83,7 @@ describe('checkGraderConfig', () => {
   });
 
   it('refuses flags that give tools or replace what the app sets', () => {
-    for (const flag of ['--mcp-config', '--tools', '--allowedTools', '--dangerously-skip-permissions', '--add-dir', '--system-prompt', '-p', '--output-format=text'])
+    for (const flag of ['--mcp-config', '--tools', '--allowedTools', '--dangerously-skip-permissions', '--add-dir', '--plugin-dir', '--agents', '--system-prompt', '-p', '--output-format=text'])
       expect(checkGraderConfig({ command: 'claude', args: [flag, 'x'] }).ok, flag).toBe(false);
     expect(checkGraderConfig({ command: 'claude', args: ['--model', 'opus', '--settings', 's.json'] }).ok).toBe(true);
   });
