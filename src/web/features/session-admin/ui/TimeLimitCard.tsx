@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import type { SessionDetail } from '../../../../shared/api/index.js';
 import { formatMinutes } from '../../../shared/format/countdown.js';
-import { useCountdown } from '../../../shared/hooks/useCountdown.js';
 import { Button } from '../../../shared/ui/Button.js';
 import { Card } from '../../../shared/ui/Card.js';
 import { Countdown } from '../../../shared/ui/Countdown.js';
 import { SegmentedControl } from '../../../shared/ui/SegmentedControl.js';
+import { MAX_TIME_LIMIT_MINUTES, MIN_TIME_LIMIT_MINUTES } from '../../../../shared/session-timer.js';
 import { EXTEND_STEPS, chosenTimeLimit, timeLimitHint } from '../domain/time-limit-ui.js';
 
 const meta = { margin: 0, font: 'var(--type-meta)', color: 'var(--text-meta)' } as const;
@@ -14,8 +14,7 @@ const meta = { margin: 0, font: 'var(--type-meta)', color: 'var(--text-meta)' } 
  * Time limit (PRODUCT.md §7.27): editable before the start; while running, the shared countdown and "+N phút" for
  * everyone (never shorter); afterwards just what it was.
  */
-export function TimeLimitCard({ detail, working, onSave, onExtend }: { detail: SessionDetail; working: boolean; onSave: (minutes: number | null) => void; onExtend: (minutes: number) => void }) {
-  const left = useCountdown(detail.timer);
+export function TimeLimitCard({ detail, left, working, onSave, onExtend }: { detail: SessionDetail; left: number | null; working: boolean; onSave: (minutes: number | null) => void; onExtend: (minutes: number) => void }) {
   const editable = detail.status === 'draft' || detail.status === 'lobby';
   return (
     <Card title="Thời gian làm bài">
@@ -52,7 +51,7 @@ function Editor({ current, working, onSave }: { current: number | null; working:
           items={[{ value: 'none', label: 'Không giới hạn' }, { value: 'limited', label: 'Giới hạn' }]} />
         {limited && (
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, font: 'var(--type-ui)', color: 'var(--text-title)' }}>
-            <input type="number" inputMode="numeric" min={1} max={300} step={1} value={minutes} disabled={working} onChange={e => setMinutes(e.target.value)} aria-label="Số phút" aria-invalid={value === undefined}
+            <input type="number" inputMode="numeric" min={MIN_TIME_LIMIT_MINUTES} max={MAX_TIME_LIMIT_MINUTES} step={1} value={minutes} disabled={working} onChange={e => setMinutes(e.target.value)} aria-label="Số phút" aria-invalid={value === undefined}
               style={{ width: 80, height: 36, padding: '0 10px', font: 'var(--type-body)', fontSize: 16, color: 'var(--text-title)', background: 'var(--paper)', border: `1.5px solid ${value === undefined ? 'var(--wrong-500)' : 'var(--border-strong)'}`, borderRadius: 'var(--radius-md)' }} />
             phút
           </label>

@@ -35,7 +35,10 @@ export function TakingView({ me, attemptId, onChanged }: { me: MeResponse; attem
   const q = questions[cur];
   const { answered, unanswered } = useMemo(() => progressOf(questions, drafts), [questions, drafts]);
   const timeLeft = useCountdown(me.session.timer);
-  useEffect(() => { if (timeLeft === 0) ctrl?.timeUp(); }, [timeLeft, ctrl]);
+  useEffect(() => {
+    if (timeLeft === 0) ctrl?.timeUp();
+    else if (timeLeft !== null) ctrl?.timeResumed();
+  }, [timeLeft, ctrl]);
 
   // New question: back to the top, focus its heading (screen readers read "Câu 3/4").
   useEffect(() => {

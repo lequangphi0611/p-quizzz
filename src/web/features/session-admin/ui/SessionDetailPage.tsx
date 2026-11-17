@@ -94,7 +94,7 @@ function SessionDetailView({ initial }: { initial: SessionDetail }) {
         <ParticipantsCard status={detail.status} questionCount={detail.exam.questionCount} active={active} working={working} finalized={finalized} showEmail={detail.access === 'roster'} onAllow={p => void ctrl.allowRejoin(p.id, p.displayName)} onRename={(id, name) => ctrl.rename(id, name)} onResolveEdit={(id, decision) => void ctrl.resolveEdit(id, decision)} onKick={p => ctrl.openDialog({ kind: 'kick', p })} />
         <div style={{ display: 'grid', gap: 20, flex: '1 1 300px', maxWidth: 420 }}>
           <JoinCard status={detail.status} roomCode={detail.roomCode} />
-          <TimeLimitCard detail={detail} working={working} onSave={m => void ctrl.setTimeLimit(m)} onExtend={m => void ctrl.extendTime(m)} />
+          <TimeLimitCard detail={detail} left={left} working={working} onSave={m => void ctrl.setTimeLimit(m)} onExtend={m => void ctrl.extendTime(m)} />
           <ScoresCard detail={detail} working={working} onChange={v => void ctrl.setScoreVisibility(v)} onRelease={() => ctrl.openDialog({ kind: 'releaseScores' })} />
           <AccessCard detail={detail} working={working} onAdd={() => ctrl.openDialog({ kind: 'addRoster' })} onSave={() => ctrl.openDialog({ kind: 'saveGroup' })} />
           {pending.length > 0 && <PendingCard status={detail.status} pending={pending} working={working} onApprove={id => void ctrl.approve(id)} onApproveAll={() => void ctrl.approveAll(pending)} onReject={p => ctrl.openDialog({ kind: 'kick', p })} />}

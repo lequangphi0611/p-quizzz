@@ -14,6 +14,7 @@ import { useCreateSession } from '../application/session-admin-context.js';
 import { ACCESS_CHOICES, accessBlocker, buildAccess, isAccessChoice, OUTSIDER_CHOICES, type AccessChoice } from '../domain/access-ui.js';
 import { suggestSessionName } from '../domain/session-ui.js';
 import { SCORE_VISIBILITY_CHOICES } from '../domain/score-visibility-ui.js';
+import { MAX_TIME_LIMIT_MINUTES, MIN_TIME_LIMIT_MINUTES } from '../../../../shared/session-timer.js';
 import { chosenTimeLimit, timeLimitHint } from '../domain/time-limit-ui.js';
 
 const selectStyle = { width: '100%', height: 44, padding: '0 12px', font: 'var(--type-body)', fontSize: 16, color: 'var(--text-title)', background: 'var(--paper)', border: '1.5px solid var(--border-strong)', borderRadius: 'var(--radius-md)' } as const;
@@ -139,7 +140,7 @@ export function CreateSessionForm({ exams, groups, initialExamId, onCancel }: { 
               items={[{ value: 'none', label: 'Không giới hạn' }, { value: 'limited', label: 'Giới hạn' }]} />
             {limited && (
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, font: 'var(--type-ui)', color: 'var(--text-title)' }}>
-                <input type="number" inputMode="numeric" min={1} max={300} step={1} value={minutes} onChange={e => setMinutes(e.target.value)} aria-label="Số phút"
+                <input type="number" inputMode="numeric" min={MIN_TIME_LIMIT_MINUTES} max={MAX_TIME_LIMIT_MINUTES} step={1} value={minutes} onChange={e => setMinutes(e.target.value)} aria-label="Số phút"
                   aria-invalid={timeLimit === undefined} style={{ ...selectStyle, width: 96, height: 36, borderColor: timeLimit === undefined ? 'var(--wrong-500)' : 'var(--border-strong)' }} />
                 phút
               </label>

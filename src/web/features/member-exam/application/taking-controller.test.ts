@@ -193,4 +193,12 @@ describe('TakingController: time up (PRODUCT.md §7.27)', () => {
     await vi.waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
     expect(saved).toContainEqual([9, 3, { textAnswer: 'last words' }]);
   });
+
+  it('lifts the time-up overlay when the mentor adds time before the session closes', async () => {
+    const { ctrl } = make();
+    await ctrl.load();
+    ctrl.timeUp();
+    ctrl.timeResumed();
+    expect(ctrl.getState().timeUp).toBe(false);
+  });
 });

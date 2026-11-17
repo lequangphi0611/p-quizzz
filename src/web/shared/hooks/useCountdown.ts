@@ -14,7 +14,8 @@ export function useCountdown(timer: SessionTimer | null | undefined): number | n
   useEffect(() => {
     if (remaining === null) { setLeft(null); return; }
     const anchor = performance.now();
-    const tick = () => setLeft(Math.max(0, remaining - (performance.now() - anchor)));
+    // Rounded up to whole seconds (what the clock shows), so React skips the 3 of 4 ticks that change nothing on screen.
+    const tick = () => setLeft(Math.max(0, Math.ceil((remaining - (performance.now() - anchor)) / 1000) * 1000));
     tick();
     const t = setInterval(tick, 250);
     return () => clearInterval(t);

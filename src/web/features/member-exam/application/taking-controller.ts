@@ -105,6 +105,11 @@ export class TakingController {
     void this.saver.flushAll().finally(() => { void this.deps.onChanged(); });
   }
 
+  /** The mentor added time ("+N phút") after the clock hit 00:00 but before the session closed: back to work. */
+  timeResumed(): void {
+    if (this.state.timeUp) this.set({ timeUp: false });
+  }
+
   /** True when leaving the page would lose answers. After a 409 nothing more can be saved, so never trap the member. */
   hasUnsavedWork(): boolean { return !this.sessionEnded && this.saver.state !== 'saved'; }
 

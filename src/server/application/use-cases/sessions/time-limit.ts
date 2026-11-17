@@ -47,18 +47,22 @@ export class ExtendTime {
 /**
  * Closes every running session whose clock (plus grace) has run out, exactly as the mentor's "Đóng" would
  * (PRODUCT.md §7.27f). Run on a short interval and once at startup, so a server that was off at the deadline catches up.
- * Returns the ids it closed.
+ * Returns the ids it closed. One session failing to close is reported to `onError` and does not hold up the others.
  */
 export class CloseExpiredSessions {
   constructor(private readonly deps: TransitionDeps) {}
 
-  async execute(): Promise<number[]> {
+  async execute(onError: (err: unknown) => void = () => {}): Promise<number[]> {
     const now = this.deps.clock.now();
     const due = (await this.deps.sessions.listActive()).filter(s => isExpired(s, now));
     const closed: number[] = [];
     for (const s of due) {
-      // Re-checked inside the unit: the mentor may have closed it or added time a moment ago.
-      if (await applyTransition(this.deps, s.id, 'close', isExpired)) closed.push(s.id);
+      try {
+        // Re-checked inside the unit: the mentor may have closed it or added time a moment ago.
+        if (await applyTransition(this.deps, s.id, 'close', isExpired)) closed.push(s.id);
+      } catch (err) {
+        onError(err);
+      }
     }
     return closed;
   }
