@@ -26,6 +26,8 @@ export interface Exam {
   id: number;
   title: string;
   description: string | null;
+  /** Default time limit for sessions, in minutes; null = no limit (PRODUCT.md §7.27). */
+  durationMinutes: number | null;
   /** The imported file, verbatim. */
   sourceMarkdown: string;
   totalPoints: number;
@@ -42,6 +44,7 @@ export type NewExam = Omit<Exam, 'id' | 'questions'> & { questions: NewQuestion[
 export interface NewExamInput {
   title: string;
   description: string | null;
+  durationMinutes: number | null;
   sourceMarkdown: string;
   createdAt: Date;
   questions: {
@@ -68,6 +71,7 @@ export function newExam(input: NewExamInput): NewExam {
   return {
     title: input.title,
     description: input.description,
+    durationMinutes: input.durationMinutes,
     sourceMarkdown: input.sourceMarkdown,
     createdAt: input.createdAt,
     totalPoints: questions.reduce((sum, q) => sum + q.points, 0),

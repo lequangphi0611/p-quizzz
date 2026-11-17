@@ -5,6 +5,8 @@ export interface ExamSummary {
   id: number;
   title: string;
   description: string | null;
+  /** Default session time limit in minutes; null = no limit (PRODUCT.md §7.27). */
+  durationMinutes: number | null;
   totalPoints: number;
   hasEssay: boolean;
   createdAt: Date;

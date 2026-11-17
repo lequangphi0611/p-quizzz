@@ -4,6 +4,7 @@ import { newExam, type NewExamInput } from './exam.js';
 const input = (types: ('single' | 'multi' | 'essay')[], points = 2): NewExamInput => ({
   title: 'T',
   description: null,
+  durationMinutes: null,
   sourceMarkdown: '# T',
   createdAt: new Date(5),
   questions: types.map(type => ({

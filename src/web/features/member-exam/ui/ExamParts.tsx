@@ -75,3 +75,20 @@ export function ShortcutHelp({ onClose }: { onClose: () => void }) {
     </div>
   );
 }
+
+/**
+ * 00:00 (PRODUCT.md §7.27g): covers the questions so nobody keeps typing into a closed attempt. The session closes
+ * itself a few seconds later and the result screen replaces this one.
+ */
+export function TimeUpOverlay({ saving }: { saving: boolean }) {
+  return (
+    <div role="alertdialog" aria-modal="true" aria-labelledby="pq-time-up" style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'grid', placeItems: 'center', padding: 16, background: 'rgba(15, 20, 30, 0.55)' }}>
+      <div style={{ width: '100%', maxWidth: 420, display: 'grid', gap: 12, justifyItems: 'center', textAlign: 'center', padding: 28, background: 'var(--paper)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-raised)' }}>
+        <span aria-hidden="true" style={{ width: 56, height: 56, borderRadius: '50%', display: 'grid', placeItems: 'center', background: 'var(--wrong-surface)', color: 'var(--wrong-600)' }}><Icon name="hourglass" size={28} /></span>
+        <h2 id="pq-time-up" style={{ ...mText.h1, fontSize: 24 }}>Đã hết giờ</h2>
+        <p style={mText.meta}>{saving ? 'Đang gửi nốt các câu trả lời cuối…' : 'Bài của bạn đã được lưu và sẽ được nộp tự động.'} Kết quả hiện ngay khi phiên đóng.</p>
+        <Icon name="loader-circle" size={20} spin />
+      </div>
+    </div>
+  );
+}

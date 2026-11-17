@@ -37,7 +37,7 @@ async function setup(opts: { shuffle?: boolean; random?: number[] } = {}) {
   clock = new FakeClock(1000);
   examId = await exams.add(
     newExam({
-      title: 'T', description: null, sourceMarkdown: '#', createdAt: new Date(),
+      title: 'T', description: null, durationMinutes: null, sourceMarkdown: '#', createdAt: new Date(),
       questions: [
         { type: 'single', prompt: 'S', body: '', points: 1, explanation: 'why S', options: [{ text: 'a', correct: true }, { text: 'b', correct: false }] },
         { type: 'multi', prompt: 'M', body: '', points: 2, explanation: null, options: [{ text: 'a', correct: true }, { text: 'b', correct: true }, { text: 'c', correct: false }] },
@@ -45,7 +45,7 @@ async function setup(opts: { shuffle?: boolean; random?: number[] } = {}) {
       ],
     }),
   );
-  sessionId = await sessions.create({ examId, name: 'Phiên', access: 'free', outsiderPolicy: 'block', sourceGroupId: null, scoreVisibility: 'on_submit', mode: 'self_paced', shuffle: opts.shuffle ?? false, autoApprove: true, createdAt: new Date() });
+  sessionId = await sessions.create({ examId, name: 'Phiên', access: 'free', outsiderPolicy: 'block', sourceGroupId: null, scoreVisibility: 'on_submit', mode: 'self_paced', shuffle: opts.shuffle ?? false, autoApprove: true, timeLimitMinutes: null, createdAt: new Date() });
   await sessions.update(sessionId, { status: 'running', roomCode: '123456' });
   lan = await people.add({ sessionId, displayName: 'Lan', email: null, token: 't1', status: 'active', joinedAt: new Date() });
 
@@ -53,12 +53,12 @@ async function setup(opts: { shuffle?: boolean; random?: number[] } = {}) {
   const reads = { attempts, sessions, exams };
   return {
     start: new StartAttempt({ unitOfWork, clock, random: new FakeRandom(opts.random ?? [0]), events }),
-    save: new SaveAnswer(unitOfWork),
+    save: new SaveAnswer(unitOfWork, clock),
     submit: new SubmitAttempt({ unitOfWork, clock, events }),
     view: new GetAttemptView(reads),
     review: new GetAttemptReview(reads),
     participantReview: new GetParticipantReview({ ...reads, participants: people }),
-    memberState: new GetMemberState({ ...reads, rooms: new FakeMemberRoomReader({ id: 1, title: 'T', status: 'running', totalPoints: 7, hasEssay: true, participantCount: 1, questionCount: 3 }) }),
+    memberState: new GetMemberState({ ...reads, rooms: new FakeMemberRoomReader({ id: 1, title: 'T', status: 'running', totalPoints: 7, hasEssay: true, participantCount: 1, questionCount: 3 }), clock }),
     autoSubmit: new AutoSubmitOpenAttempts({ attempts, sessions, exams, clock }),
   };
 }

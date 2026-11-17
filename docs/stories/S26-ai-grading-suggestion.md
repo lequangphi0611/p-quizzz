@@ -1,9 +1,9 @@
-# S25 — Gợi ý chấm tự luận bằng AI (Claude CLI trên máy mentor)
+# S26 — Gợi ý chấm tự luận bằng AI (Claude CLI trên máy mentor)
 
 **Phụ thuộc:** S15, S16, S17 · **Trạng thái:** chưa làm
 
 ## Bối cảnh
-Lớp đông, bài tự luận dài thì mentor chấm mỏi tay. App gọi Claude CLI cài sẵn trên máy mentor để chấm nháp; mentor xác nhận từng bài. Business: [PRODUCT.md §7.27](../PRODUCT.md), §4.5. Contract: [architecture.md §2](../architecture.md) (`ai_suggestions`), §5 (endpoint `ai-grader/status`, `ai-suggest`, `grading`, `review`), §11.6 (module `ai-grading`).
+Lớp đông, bài tự luận dài thì mentor chấm mỏi tay. App gọi Claude CLI cài sẵn trên máy mentor để chấm nháp; mentor xác nhận từng bài. Business: [PRODUCT.md §7.28](../PRODUCT.md), §4.5. Contract: [architecture.md §2](../architecture.md) (`ai_suggestions`), §5 (endpoint `ai-grader/status`, `ai-suggest`, `grading`, `review`), §11.6 (module `ai-grading`).
 
 ## Phạm vi
 
@@ -57,4 +57,4 @@ AI chỉ gợi ý, mentor xác nhận từng bài, không có duyệt tất cả
 - `args` của mentor (ví dụ `--settings`) vẫn có thể thêm hook hoặc quyền; app chỉ chặn các cờ đã liệt kê. File mẫu ghi cảnh báo.
 
 ## Ngoài phạm vi
-Gợi ý khi phiên đang chạy, chấm cả phiên một lần, gợi ý trong chế độ thảo luận, thống kê độ lệch AI/mentor (dữ liệu đã lưu, chưa làm màn hình). Thiết kế UI: [S25-ai-grading-ui-prompt.md](../design/S25-ai-grading-ui-prompt.md); phần web chờ bản thiết kế.
+Gợi ý khi phiên đang chạy, chấm cả phiên một lần, gợi ý trong chế độ thảo luận, thống kê độ lệch AI/mentor (dữ liệu đã lưu, chưa làm màn hình). Thiết kế UI: [S26-ai-grading-ui-prompt.md](../design/S26-ai-grading-ui-prompt.md); phần web chờ bản thiết kế.

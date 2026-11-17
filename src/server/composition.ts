@@ -51,6 +51,7 @@ import type { PresenceTracker } from './application/ports/presence-tracker.js';
 import type { RejoinUnitContext } from './application/ports/participant-repository.js';
 import type { GroupUnitContext } from './application/ports/group-repository.js';
 import { StartSession } from './application/use-cases/sessions/start-session.js';
+import { CloseExpiredSessions, ExtendTime, SetTimeLimit } from './application/use-cases/sessions/time-limit.js';
 import { defaultSessionModes } from './domain/session/mode.js';
 import type { Db } from './infrastructure/db/client.js';
 import { InMemoryAdminSessionStore } from './infrastructure/auth/in-memory-admin-session-store.js';
@@ -98,7 +99,7 @@ export interface Composition {
   leaderboard: { leaderboard: GetLeaderboard };
   screen: { projectorRoom: GetProjectorRoom; screenSessions: ListScreenSessions };
   /** Members find their session by room code. */
-  rooms: { resolve: ResolveRoom };
+  rooms: { resolve: ResolveRoom; clock: Clock };
   /** Resolves a member from a token: backs the `/api/me` hook. */
   resumeParticipant: ResumeParticipant;
   admin: AdminUseCases;
@@ -189,14 +190,14 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
     },
     leaderboard: { leaderboard: new GetLeaderboard(gradingReads) },
     screen: { projectorRoom: new GetProjectorRoom(sessionReader), screenSessions: new ListScreenSessions(sessionReader) },
-    rooms: { resolve: new ResolveRoom(sessionReader) },
+    rooms: { resolve: new ResolveRoom(sessionReader), clock: ports.clock },
     attempts: {
       start: new StartAttempt({ unitOfWork: attemptUnitOfWork, clock: ports.clock, random: ports.random, events: ports.events }),
       view: new GetAttemptView(attemptReads),
       review: new GetAttemptReview(attemptReads),
-      saveAnswer: new SaveAnswer(attemptUnitOfWork),
+      saveAnswer: new SaveAnswer(attemptUnitOfWork, ports.clock),
       submit: new SubmitAttempt({ unitOfWork: attemptUnitOfWork, clock: ports.clock, events: ports.events }),
-      memberState: new GetMemberState({ ...attemptReads, rooms: new DrizzleMemberRoomReader(fn => database.read(fn)) }),
+      memberState: new GetMemberState({ ...attemptReads, rooms: new DrizzleMemberRoomReader(fn => database.read(fn)), clock: ports.clock }),
       participantReview: new GetParticipantReview({ ...attemptReads, participants: participantReader }),
       requestEdit: new RequestEdit(editDeps),
       finishEdit: new FinishEdit(editDeps),
@@ -237,6 +238,7 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
     },
     sessions: {
       presence,
+      clock: ports.clock,
       create: new CreateSession({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, clock: ports.clock, modes: lifecycle.modes }),
       list: new ListSessions(sessionReader),
       get: new GetSessionDetail(sessionReader),
@@ -248,6 +250,9 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
       addRoster: new AddRosterEmails({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, events: ports.events }),
       setScoreVisibility: new SetScoreVisibility({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, events: ports.events }),
       releaseScores: new ReleaseScores({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, events: ports.events, clock: ports.clock }),
+      setTimeLimit: new SetTimeLimit({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, events: ports.events, clock: ports.clock }),
+      extendTime: new ExtendTime({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, events: ports.events, clock: ports.clock }),
+      closeExpired: new CloseExpiredSessions(lifecycle),
       saveGroup: new SaveSessionGroup({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, events: ports.events, groups: groupReader, clock: ports.clock }),
     },
     exams: {

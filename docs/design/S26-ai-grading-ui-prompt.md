@@ -1,6 +1,6 @@
-# Prompt thiết kế UI — Gợi ý chấm tự luận bằng AI (S25)
+# Prompt thiết kế UI — Gợi ý chấm tự luận bằng AI (S26)
 
-> Dán nguyên phần dưới đường kẻ vào công cụ thiết kế có **p-quizzz Design System**. Business: [PRODUCT.md §7.27](../PRODUCT.md), §4.5. Spec: [S25-ai-grading-suggestion.md](../stories/S25-ai-grading-suggestion.md). Màn hiện tại: `features/grading/ui/GradingPage.tsx`, `AnswerCard.tsx`, `QuestionChips.tsx`; trang xem lại của member: `features/member-review/ui`.
+> Dán nguyên phần dưới đường kẻ vào công cụ thiết kế có **p-quizzz Design System**. Business: [PRODUCT.md §7.28](../PRODUCT.md), §4.5. Spec: [S26-ai-grading-suggestion.md](../stories/S26-ai-grading-suggestion.md). Màn hiện tại: `features/grading/ui/GradingPage.tsx`, `AnswerCard.tsx`, `QuestionChips.tsx`; trang xem lại của member: `features/member-review/ui`.
 
 ---
 

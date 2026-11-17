@@ -14,6 +14,8 @@ export interface NewSession {
   outsiderPolicy?: OutsiderPolicy;
   /** Show scores on submit (default) or hold them until the mentor publishes (PRODUCT.md §7.25). */
   scoreVisibility?: ScoreVisibility;
+  /** Minutes, or null for no limit (PRODUCT.md §7.27). Omitted = the exam's `duration`. */
+  timeLimitMinutes?: number | null;
 }
 
 /** Port: everything the mentor's session pages need from the server. Failures reject with `ApiError`. */
@@ -34,6 +36,10 @@ export interface SessionAdminGateway {
   setScoreVisibility(sessionId: number, scoreVisibility: ScoreVisibility): Promise<SessionDetail>;
   /** "Công bố điểm": held-back scores appear for members and the projector. */
   releaseScores(sessionId: number): Promise<SessionDetail>;
+  /** Change, add or remove the time limit before the start (PRODUCT.md §7.27c). */
+  setTimeLimit(sessionId: number, timeLimitMinutes: number | null): Promise<SessionDetail>;
+  /** "+N phút" for the whole room while the session runs. */
+  extendTime(sessionId: number, minutes: number): Promise<SessionDetail>;
   approveParticipant(participantId: number): Promise<void>;
   kickParticipant(participantId: number): Promise<void>;
   /** Approve or reject a member's request to edit their essays (PRODUCT.md §7.21). */

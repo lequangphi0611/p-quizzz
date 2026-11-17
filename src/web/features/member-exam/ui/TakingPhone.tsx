@@ -6,8 +6,8 @@ import { StripNav } from '../../../shared/ui/member/question-nav.js';
 import { NavSheet, OfflineBanner, ShortcutHelp } from './ExamParts.js';
 
 /** Exam-taking frame for phones/tablets: question strip on top, prev/next/submit bar at the bottom (hidden while the keyboard is up). */
-export function TakingPhone({ title, name, online, total, cur, answered, content, dialog, sheet, help, onGo, onSubmit, onOpenSheet, onCloseSheet, onCloseHelp }: {
-  title: string; name: string; online: boolean; total: number; cur: number; answered: number[]; content: ReactNode; dialog: ReactNode; sheet: boolean; help: boolean;
+export function TakingPhone({ title, name, online, clock, total, cur, answered, content, dialog, sheet, help, onGo, onSubmit, onOpenSheet, onCloseSheet, onCloseHelp }: {
+  title: string; name: string; online: boolean; clock: ReactNode; total: number; cur: number; answered: number[]; content: ReactNode; dialog: ReactNode; sheet: boolean; help: boolean;
   onGo: (i: number) => void; onSubmit: () => void; onOpenSheet: () => void; onCloseSheet: () => void; onCloseHelp: () => void;
 }) {
   const keyboardOpen = useKeyboardOpen();
@@ -23,6 +23,7 @@ export function TakingPhone({ title, name, online, total, cur, answered, content
     <MemberLayout sessionTitle={title} displayName={name} footer={footer}>
       <div style={{ display: 'grid', gap: 16, minWidth: 0 }}>
         {!online && <OfflineBanner compact />}
+        {clock && <div style={{ position: 'sticky', top: 60, zIndex: 4, justifySelf: 'center' }}>{clock}</div>}
         <StripNav count={total} current={cur} answered={answered} onSelect={onGo} onOpenAll={onOpenSheet} />
         {content}
       </div>

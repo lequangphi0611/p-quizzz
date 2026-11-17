@@ -20,6 +20,8 @@ export interface ParsedQuestion {
 export interface ParsedExam {
   title: string;
   description: string | null;
+  /** Default time limit for sessions of this exam, in minutes; null = no limit (PRODUCT.md §7.27). */
+  durationMinutes: number | null;
   questions: ParsedQuestion[];
   totalPoints: number;
   hasEssay: boolean;
