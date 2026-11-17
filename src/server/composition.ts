@@ -10,7 +10,14 @@ import type { TokenGenerator } from './application/ports/token-generator.js';
 import { CountUngradedEssays } from './application/use-cases/grading/essay-progress.js';
 import { GetDiscussionView } from './application/use-cases/grading/get-discussion-view.js';
 import { GetGradingView } from './application/use-cases/grading/get-grading-view.js';
-import { GradeAnswer } from './application/use-cases/grading/grade-answer.js';
+import { ClearGrade, GradeAnswer } from './application/use-cases/grading/grade-answer.js';
+import { FailUnfinishedSuggestions, RequestAiSuggestions, RunAiSuggestion, StopAiSuggestions } from './application/use-cases/grading/ai-suggestions.js';
+import type { GradingUnitContext } from './application/ports/ai-suggestion-repository.js';
+import type { EssayGrader } from './application/ports/essay-grader.js';
+import { DrizzleAiSuggestionRepository } from './infrastructure/db/drizzle-ai-suggestion-repository.js';
+import { ClaudeCliGrader } from './infrastructure/ai-grader/claude-cli-grader.js';
+import { InProcessSuggestionQueue } from './infrastructure/ai-grader/suggestion-queue.js';
+import { config as appConfig } from './config.js';
 import { GetLeaderboard } from './application/use-cases/leaderboard/get-leaderboard.js';
 import { GetProjectorRoom } from './application/use-cases/sessions/get-projector-room.js';
 import { ListScreenSessions } from './application/use-cases/sessions/list-screen-sessions.js';
@@ -103,10 +110,19 @@ export interface Composition {
   /** Resolves a member from a token: backs the `/api/me` hook. */
   resumeParticipant: ResumeParticipant;
   admin: AdminUseCases;
+  /** AI grading background work (PRODUCT.md §7.28): fail leftovers at startup; tests wait for the queue to drain. */
+  ai: { failUnfinished: FailUnfinishedSuggestions; idle: () => Promise<void> };
+}
+
+/** How the AI grader is reached. Tests pass a fake grader (or a fake CLI through `configPath`). */
+export interface AiOptions {
+  grader?: EssayGrader & { concurrency?: () => Promise<number> };
+  configPath?: string;
+  onError?: (err: unknown) => void;
 }
 
 // Composition root: the one place that knows which implementation backs each port. Wired by hand.
-export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Composition {
+export function compose(db: Db, overrides: Partial<SharedPorts> = {}, aiOptions: AiOptions = {}): Composition {
   const ports: SharedPorts = {
     clock: new SystemClock(),
     tokens: new SecureTokenGenerator(),
@@ -156,6 +172,21 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
     };
   });
   const participantReader = new DrizzleParticipantRepository(fn => database.read(fn));
+  const aiReader = new DrizzleAiSuggestionRepository(fn => database.read(fn));
+  const gradingUnitOfWork = new SqliteUnitOfWork<GradingUnitContext>(database, tx => {
+    const access = async <T>(fn: (db: Db) => T) => fn(tx);
+    return {
+      attempts: new DrizzleAttemptRepository(access),
+      sessions: new DrizzleSessionRepository(access),
+      participants: new DrizzleParticipantRepository(access),
+      exams: new DrizzleExamRepository(access),
+      aiSuggestions: new DrizzleAiSuggestionRepository(access),
+    };
+  });
+  const grader = aiOptions.grader ?? new ClaudeCliGrader(aiOptions.configPath ?? appConfig.aiGraderConfig);
+  const aiDeps = { unitOfWork: gradingUnitOfWork, clock: ports.clock };
+  const runAi = new RunAiSuggestion({ ...aiDeps, grader, onError: aiOptions.onError });
+  const aiQueue = new InProcessSuggestionQueue(id => runAi.execute(id), grader.concurrency ? () => grader.concurrency!() : undefined);
   const participantUnitOfWork = new SqliteUnitOfWork<ParticipantUnitContext>(database, tx => {
     const access = async <T>(fn: (db: Db) => T) => fn(tx);
     return { sessions: new DrizzleSessionRepository(access), participants: new DrizzleParticipantRepository(access) };
@@ -184,17 +215,21 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
   return {
     eventSource: bus,
     grading: {
-      gradingView: new GetGradingView(gradingReads),
+      gradingView: new GetGradingView({ ...gradingReads, aiSuggestions: aiReader, grader }),
       discussionView: new GetDiscussionView(attemptReads),
-      gradeAnswer: new GradeAnswer({ unitOfWork: attemptUnitOfWork, clock: ports.clock, events: ports.events }),
+      gradeAnswer: new GradeAnswer({ unitOfWork: gradingUnitOfWork, clock: ports.clock, events: ports.events }),
+      clearGrade: new ClearGrade({ unitOfWork: gradingUnitOfWork, clock: ports.clock, events: ports.events }),
+      requestAi: new RequestAiSuggestions({ ...aiDeps, grader, queue: aiQueue }),
+      stopAi: new StopAiSuggestions(aiDeps),
     },
+    ai: { failUnfinished: new FailUnfinishedSuggestions(aiDeps), idle: () => aiQueue.idle() },
     leaderboard: { leaderboard: new GetLeaderboard(gradingReads) },
     screen: { projectorRoom: new GetProjectorRoom(sessionReader), screenSessions: new ListScreenSessions(sessionReader) },
     rooms: { resolve: new ResolveRoom(sessionReader), clock: ports.clock },
     attempts: {
       start: new StartAttempt({ unitOfWork: attemptUnitOfWork, clock: ports.clock, random: ports.random, events: ports.events }),
       view: new GetAttemptView(attemptReads),
-      review: new GetAttemptReview(attemptReads),
+      review: new GetAttemptReview({ ...attemptReads, aiSuggestions: aiReader }),
       saveAnswer: new SaveAnswer(attemptUnitOfWork, ports.clock),
       submit: new SubmitAttempt({ unitOfWork: attemptUnitOfWork, clock: ports.clock, events: ports.events }),
       memberState: new GetMemberState({ ...attemptReads, rooms: new DrizzleMemberRoomReader(fn => database.read(fn)), clock: ports.clock }),

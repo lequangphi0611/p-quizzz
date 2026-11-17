@@ -134,5 +134,6 @@ export interface ReviewView {
   score: number; // automatic + manual points of this attempt so far
   maxScore: number; // exam total points
   official: boolean; // true once the session is finalized
+  aiAssisted: boolean; // essays of this session got AI suggestions (scores are still the mentor's, PRODUCT.md §7.28f)
   questions: ReviewQuestion[]; // in this member's attempt order
 }

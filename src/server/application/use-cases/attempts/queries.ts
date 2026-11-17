@@ -13,6 +13,7 @@ import type { ExamReader } from '../../ports/exam-repository.js';
 import type { ParticipantReader } from '../../ports/participant-repository.js';
 import type { SessionRepository } from '../../ports/session-repository.js';
 import type { AttemptViewData, ReviewData } from './attempt-data.js';
+import type { AiSuggestionReader } from '../../ports/ai-suggestion-repository.js';
 
 interface ReadDeps {
   attempts: AttemptReader;
@@ -47,7 +48,7 @@ export class GetAttemptView {
 
 /** ⚠️ Carries the answer key. Refused until the session has closed, so nobody reads it while others are still working. */
 export class GetAttemptReview {
-  constructor(private readonly deps: ReadDeps) {}
+  constructor(private readonly deps: ReadDeps & { aiSuggestions?: Pick<AiSuggestionReader, 'anyDoneInSession'> }) {}
 
   async execute(participant: Participant, attemptId: number): Promise<ReviewData> {
     const attempt = await this.deps.attempts.findOwned(participant.id, attemptId);
@@ -55,7 +56,8 @@ export class GetAttemptReview {
     const session = await loadSession(this.deps, participant.sessionId);
     assertReviewable(attempt, session.status);
     const exam = await loadExam(this.deps, session.examId);
-    return { attempt, answers: await this.deps.attempts.answersOf(attempt.id), exam, sessionStatus: session.status };
+    const aiAssisted = exam.questions.some(q => q.type === 'essay') && (await this.deps.aiSuggestions?.anyDoneInSession(session.id)) === true;
+    return { attempt, answers: await this.deps.attempts.answersOf(attempt.id), exam, sessionStatus: session.status, aiAssisted };
   }
 }
 

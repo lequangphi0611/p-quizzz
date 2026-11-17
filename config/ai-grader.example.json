@@ -1,0 +1,17 @@
+{
+  "_readme": [
+    "AI chấm nháp tự luận (PRODUCT.md §7.28). Copy file này thành config/ai-grader.local.json (không commit) rồi sửa.",
+    "command: lệnh Claude CLI trên máy bạn, ví dụ \"claude\" hoặc \"claude_custom\" hoặc đường dẫn đầy đủ.",
+    "args: tham số riêng của bạn (model, file setting...). App tự thêm phần còn lại: chạy -p, KHÔNG có công cụ, KHÔNG có MCP, xuất JSON.",
+    "Không được thêm: -p/--print, --tools, --allowedTools, --mcp-config, --add-dir, --permission-mode, --dangerously-skip-permissions, --system-prompt*, --append-system-prompt*, --json-schema, --output-format, --resume/--continue. App sẽ coi cấu hình là không hợp lệ.",
+    "Cẩn thận với --settings: file setting có thể bật hook hoặc quyền. Chỉ dùng file bạn hiểu rõ.",
+    "Windows: command không được là .cmd/.bat. Trỏ tới node và để đường dẫn cli.js của Claude Code là phần tử đầu của args, hoặc trỏ tới claude.exe.",
+    "timeoutSeconds: thời gian tối đa cho một bài. concurrency: số bài chấm cùng lúc (1-4). maxAnswerChars: bài dài hơn thì không gửi AI.",
+    "Mọi khoá bắt đầu bằng _ bị bỏ qua."
+  ],
+  "command": "claude",
+  "args": ["--model", "sonnet"],
+  "timeoutSeconds": 120,
+  "concurrency": 1,
+  "maxAnswerChars": 20000
+}

@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import type { AttemptView, SessionDetail } from '../../shared/api/index.js';
 import { exams, options, questions } from '../infrastructure/db/schema.js';
 import { createTestApp, joinAs, loginAsMentor, seedExam } from './helpers.js';
+import type { AiOptions } from '../composition.js';
 
 export const KEY_LEAKS = ['isCorrect', 'is_correct', 'explanation'];
 // Every key at any depth of a JSON value.
@@ -11,8 +12,8 @@ export function allKeys(v: unknown, out = new Set<string>()): Set<string> {
   return out;
 }
 
-export async function world(opts: { essay?: boolean; shuffle?: boolean; state?: 'lobby' | 'running'; scoreVisibility?: 'on_submit' | 'on_release' } = {}) {
-  const { app, db } = await createTestApp();
+export async function world(opts: { essay?: boolean; shuffle?: boolean; state?: 'lobby' | 'running'; scoreVisibility?: 'on_submit' | 'on_release'; ai?: AiOptions } = {}) {
+  const { app, db, composition } = await createTestApp({ ai: opts.ai });
   const headers = await loginAsMentor(app);
   const essay = opts.essay ?? false;
 
@@ -48,6 +49,6 @@ export async function world(opts: { essay?: boolean; shuffle?: boolean; state?: 
   if (running) await admin(`/sessions/${session.id}/start`);
   const detail = async () => (await app.inject({ url: `/api/admin/sessions/${session.id}`, headers })).json<SessionDetail>();
   const startedAttempt = async (m: ReturnType<typeof asMember>) => (await m.start()).json<AttemptView>();
-  return { app, db, headers, exam, single, multi, essayQ, session, admin, join, asMember, an: asMember(first), detail, startedAttempt };
+  return { app, db, composition, headers, exam, single, multi, essayQ, session, admin, join, asMember, an: asMember(first), detail, startedAttempt };
 }
 

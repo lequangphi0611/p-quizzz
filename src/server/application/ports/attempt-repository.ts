@@ -21,8 +21,8 @@ export interface AttemptReader {
 
 /** Write side: reachable inside a unit of work (see `AttemptUnitContext`). */
 export interface AttemptRepository extends AttemptReader {
-  /** Stores the mentor's score and comment on one answer. */
-  gradeAnswer(answerId: number, grade: { manualScore: number; feedback: string | null; gradedAt: Date }): Promise<Answer>;
+  /** Stores the mentor's score and comment on one answer (all null = "Hoàn tác", back to ungraded). */
+  gradeAnswer(answerId: number, grade: { manualScore: number | null; feedback: string | null; gradedAt: Date | null }): Promise<Answer>;
   /** Stores the attempt's manual total. */
   setManualScore(attemptId: number, score: number): Promise<void>;
   create(attempt: NewAttempt): Promise<Attempt>;
