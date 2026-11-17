@@ -34,8 +34,10 @@ const RE_META = /\s*\{([^{}]*)\}\s*$/;
 const RE_META_CONTENT = /^\s*[a-z]+(\s*=\s*[^,\s]+)?(\s*,\s*[a-z]+(\s*=\s*[^,\s]+)?)*\s*$/i;
 const RE_LETTER_OPTION = /^\s*[A-Da-d][.)]\s+\S/;
 // Options whose meaning depends on other options or their position break when options are shuffled.
+// `\b` treats accented letters as non-word characters ("cục và cấu" would match "c và c"),
+// so word boundaries are Unicode-aware lookarounds instead.
 const RE_POSITIONAL =
-  /(tất cả (các )?(đáp án|phương án|ý|câu) (trên|đều)|cả (hai|ba|bốn) (đáp án|ý|phương án)|không (có )?(đáp án|phương án|ý) nào|all of the above|none of the above|both [a-d] and [a-d]|\b(đáp án|phương án|ý) [a-d]\b|\b[a-d] (và|hoặc|and|or) [a-d]\b)/i;
+  /(tất cả (các )?(đáp án|phương án|ý|câu) (trên|đều)|cả (hai|ba|bốn) (đáp án|ý|phương án)|không (có )?(đáp án|phương án|ý) nào|all of the above|none of the above|(?<![\p{L}\p{N}_])both [a-d] and [a-d](?![\p{L}\p{N}_])|(?<![\p{L}\p{N}_])(đáp án|phương án|ý) [a-d](?![\p{L}\p{N}_])|(?<![\p{L}\p{N}_])[a-d] (và|hoặc|and|or) [a-d](?![\p{L}\p{N}_]))/iu;
 
 type Phase = 'body' | 'options' | 'explanation';
 
