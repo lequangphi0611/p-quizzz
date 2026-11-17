@@ -66,7 +66,7 @@ export interface AttemptSummary {
   submittedAt: number;
   score: number | null; // null = held back by the mentor
   maxScore: number;
-  essayScore: number | null; // essay points graded so far (attempt total, not per question) (null = none graded yet, or held back); official once the session is finalized
+  essayScore: number | null; // essay points (attempt total, not per question); null until the session is finalized (PRODUCT.md §7.19) or while scores are held back
   editRequest: EditRequestInfo | null;
   canRequestEdit: boolean; // session running, no pending/approved/finished request yet
 }
@@ -131,7 +131,7 @@ export interface ReviewView {
   attemptId: number;
   attemptNo: number;
   submittedAt: number;
-  score: number; // automatic + manual points of this attempt so far
+  score: number; // automatic points, plus manual points once finalized (the mentor sees the manual points so far)
   maxScore: number; // exam total points
   official: boolean; // true once the session is finalized
   questions: ReviewQuestion[]; // in this member's attempt order

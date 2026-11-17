@@ -57,7 +57,8 @@ const toSummary = (a: Attempt, maxScore: number, ctx: { sessionStatus: SessionSt
   submittedAt: a.submittedAt!.getTime(),
   score: ctx.scoresHidden ? null : a.autoScore ?? 0,
   maxScore,
-  essayScore: ctx.scoresHidden ? null : a.manualScore ?? null,
+  // Manual (essay) points stay out until the mentor finalizes: the grading may still change (PRODUCT.md §7.19).
+  essayScore: ctx.scoresHidden || ctx.sessionStatus !== 'finalized' ? null : a.manualScore ?? null,
   editRequest: toEditRequestInfo(a, ctx.sessionStatus),
   canRequestEdit: canRequestEdit(a, ctx.sessionStatus, ctx.participantStatus),
 });
@@ -68,7 +69,10 @@ export const toSubmitResponseDto = (r: SubmitResult): SubmitResponse => ({
 });
 
 // ⚠️ Carries the answer key. Only call it with data the use case released (member after the close, or the mentor).
-export function toReviewViewDto({ attempt, answers, exam, sessionStatus }: ReviewData): ReviewView {
+// `viewer`: a member sees essay scores and feedback only once the session is finalized, since the mentor may still
+// change them (PRODUCT.md §7.19); the mentor always sees the grading so far.
+export function toReviewViewDto({ attempt, answers, exam, sessionStatus }: ReviewData, viewer: 'member' | 'mentor' = 'member'): ReviewView {
+  const showManual = viewer === 'mentor' || sessionStatus === 'finalized';
   const byId = new Map(exam.questions.map(q => [q.id, q]));
   const saved = new Map(answers.map(a => [a.questionId, a]));
   const questions: ReviewQuestion[] = attempt.questionOrder.flatMap(qid => {
@@ -87,8 +91,8 @@ export function toReviewViewDto({ attempt, answers, exam, sessionStatus }: Revie
         options: (attempt.optionOrder[String(qid)] ?? []).flatMap(oid => (optById.has(oid) ? [{ id: oid, text: optById.get(oid)!.text, isCorrect: optById.get(oid)!.isCorrect }] : [])),
         selectedOptionIds: a?.selectedOptionIds ?? null,
         textAnswer: a?.textAnswer ?? null,
-        score: q.type === 'essay' ? a?.manualScore ?? null : a?.autoScore ?? 0,
-        feedback: q.type === 'essay' ? a?.feedback ?? null : null,
+        score: q.type === 'essay' ? (showManual ? a?.manualScore ?? null : null) : a?.autoScore ?? 0,
+        feedback: q.type === 'essay' && showManual ? a?.feedback ?? null : null,
       },
     ];
   });
@@ -96,7 +100,7 @@ export function toReviewViewDto({ attempt, answers, exam, sessionStatus }: Revie
     attemptId: attempt.id,
     attemptNo: attempt.attemptNo,
     submittedAt: attempt.submittedAt!.getTime(), // callers only pass submitted attempts
-    score: totalScore(attempt),
+    score: showManual ? totalScore(attempt) : attempt.autoScore ?? 0,
     maxScore: exam.totalPoints,
     official: sessionStatus === 'finalized',
     questions,
@@ -106,7 +110,7 @@ export function toReviewViewDto({ attempt, answers, exam, sessionStatus }: Revie
 export const toParticipantReviewDto = (r: ParticipantReviewResult): ParticipantReview => ({
   participant: toParticipantInfoDto(r.participant),
   state: r.state,
-  attempt: r.review ? toReviewViewDto(r.review) : null,
+  attempt: r.review ? toReviewViewDto(r.review, 'mentor') : null,
 });
 
 export const toMeResponseDto = (m: MemberState): MeResponse => ({

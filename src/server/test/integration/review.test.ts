@@ -127,6 +127,35 @@ describe('review of an exam with an essay', () => {
   });
 });
 
+describe('essay grading in progress stays private until finalize (PRODUCT.md §7.19)', () => {
+  it('graded but not finalized: the member sees no essay score, feedback or essayScore; the mentor sees the grading', async () => {
+    const w = await lobbyWorld({ essay: true });
+    const token = w.tokenOf.get('Bảo')!;
+    const v = (await w.bao.start()).json<AttemptView>();
+    await w.bao.put(v.id, w.single.q.id, { selectedOptionIds: [w.single.opts[0]!.id] });
+    await w.bao.put(v.id, w.essayQ!.id, { textAnswer: 'bài làm của Bảo' });
+    await w.bao.submit(v.id);
+    await w.close();
+    const grading = (await w.app.inject({ url: `/api/admin/sessions/${w.session.id}/grading`, headers: w.headers })).json<{ questions: { answers: { answerId: number; displayName: string }[] }[] }>();
+    const id = grading.questions[0]!.answers.find(a => a.displayName === 'Bảo')!.answerId;
+    await w.app.inject({ method: 'PUT', url: `/api/admin/answers/${id}/grade`, headers: w.headers, payload: { score: 3.5, feedback: 'Nhận xét nháp' } });
+
+    const res = await w.reviewAs(token, v.id);
+    expect(res.body).not.toContain('Nhận xét nháp');
+    const r = res.json<ReviewView>();
+    expect(r).toMatchObject({ official: false, score: 1 }); // automatic part only
+    expect(r.questions.find(q => q.type === 'essay')).toMatchObject({ score: null, feedback: null });
+    const me = await w.bao.me();
+    expect(me.json<{ attempt: { submitted: { essayScore: number | null }[] } }>().attempt.submitted[0]!.essayScore).toBeNull();
+
+    const detail = (await w.app.inject({ url: `/api/admin/sessions/${w.session.id}`, headers: w.headers })).json<{ participants: { id: number; displayName: string }[] }>();
+    const pid = detail.participants.find(p => p.displayName === 'Bảo')!.id;
+    const mentor = (await w.app.inject({ url: `/api/admin/participants/${pid}/review`, headers: w.headers })).json<{ attempt: ReviewView }>();
+    expect(mentor.attempt).toMatchObject({ official: false, score: 4.5 });
+    expect(mentor.attempt.questions.find(q => q.type === 'essay')).toMatchObject({ score: 3.5, feedback: 'Nhận xét nháp' });
+  });
+});
+
 describe('the answer key stays out of the earlier endpoints', () => {
   it('start / get / me still carry no isCorrect or explanation, even in a session that has already closed', async () => {
     const w = await lobbyWorld();

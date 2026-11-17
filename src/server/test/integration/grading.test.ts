@@ -120,13 +120,15 @@ describe('PUT /api/admin/answers/:id/grade', () => {
     expect((await s.answerOf('Bình')).manualScore).toBeNull();
   });
 
-  it("the member's own summary carries the essay total once graded (null before)", async () => {
-    const s = await setup();
+  it("the member's own summary carries the essay total only once finalized (PRODUCT.md §7.19)", async () => {
+    const s = await setup({ names: ['An'] });
     await s.submit('An', 'a');
     await s.close();
     const mine = async () => (await s.members.get('An')!.me()).json<MeResponse>().attempt.submitted[0]!;
     expect(await mine()).toMatchObject({ score: 3, maxScore: 3, essayScore: null });
     await s.grade('An', { score: 2.5 });
+    expect(await mine()).toMatchObject({ score: 3, essayScore: null }); // graded, not finalized: still private
+    expect((await s.finalize()).statusCode).toBe(200);
     expect(await mine()).toMatchObject({ score: 3, essayScore: 2.5 });
   });
 
