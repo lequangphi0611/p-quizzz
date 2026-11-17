@@ -165,6 +165,24 @@ describe('parseExam — warnings (exam still valid)', () => {
     expect(ext[0]!.line).toBeGreaterThan(0);
   });
 
+  it('does not flag Vietnamese words that end/start with a-d around "và"/"hoặc"', () => {
+    // Accented letters are word characters: "cục và cấu" is not "c và c".
+    const src = fm(
+      '## Q\n- [x] Bố cục và cấu trúc nội dung\n- [ ] Học và dạy\n- [ ] Bậc hoặc cấp\n> x',
+    );
+    expect(parseExam(src).warnings).toEqual([]);
+  });
+
+  it('flags letter references next to accented text and at the start of an option', () => {
+    const src = fm('## Q\n- [x] Đáp án A\n- [ ] Chọn cả A và B\n- [ ] (b hoặc d)\n- [ ] x\n> x');
+    const positional = parseExam(src).warnings.filter((w) => w.message.includes('trộn'));
+    expect(positional.map((w) => w.line)).toEqual([
+      lineOf(src, 'Đáp án A'),
+      lineOf(src, 'cả A và B'),
+      lineOf(src, 'b hoặc d'),
+    ]);
+  });
+
   it('does not flag ordinary wording like "cả hai mục"', () => {
     const { warnings } = parseExam(fm('## Q\n- [x] Xuất hiện ở cả hai mục\n- [ ] Untracked\n> x'));
     expect(warnings).toEqual([]);
