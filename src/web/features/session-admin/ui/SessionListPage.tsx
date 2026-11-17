@@ -8,6 +8,7 @@ import { th, td } from '../../../shared/ui/tableStyles.js';
 import { formatDate } from '../../../shared/format/date.js';
 import type { SessionListData } from '../application/session-admin-loaders.js';
 import { CreateSessionForm } from './CreateSessionForm.js';
+import { InviteDialog } from './InviteDialog.js';
 import { SessionCard } from './SessionCard.js';
 
 export function SessionListPage() {
@@ -16,6 +17,7 @@ export function SessionListPage() {
   const [params] = useSearchParams();
   const preselected = Number(params.get('examId')) || null;
   const [creating, setCreating] = useState(preselected !== null); // coming from "Mở phiên thi" in the exam list
+  const [inviting, setInviting] = useState(false);
   // Sessions in lobby/running side by side (PRODUCT.md §7.5), lowest slot first; everything else is history.
   const open = sessions.filter(s => s.status === 'lobby' || s.status === 'running').sort((a, b) => (a.slot ?? 99) - (b.slot ?? 99) || a.id - b.id);
   const history = sessions.filter(s => s.status !== 'lobby' && s.status !== 'running');
@@ -37,10 +39,14 @@ export function SessionListPage() {
 
       {open.length > 0 && (
         <section aria-label="Phiên đang mở" style={{ display: 'grid', gap: 12 }}>
-          <h2 style={{ margin: 0, font: 'var(--type-h2)', fontSize: 16, color: 'var(--text-title)' }}>Đang mở · {open.length}</h2>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <h2 style={{ margin: 0, font: 'var(--type-h2)', fontSize: 16, color: 'var(--text-title)' }}>Đang mở · {open.length}</h2>
+            <Button size="sm" variant="secondary" icon="send" onClick={() => setInviting(true)}>Gửi lời mời</Button>
+          </div>
           <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))' }}>
             {open.map(s => <SessionCard key={s.id} session={s} onControl={() => nav(`/admin/sessions/${s.id}`)} onScreen={() => window.open(`/screen/${s.id}`, '_blank')} />)}
           </div>
+          {inviting && <InviteDialog sessions={open} onClose={() => setInviting(false)} />}
         </section>
       )}
 
