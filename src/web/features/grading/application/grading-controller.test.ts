@@ -109,7 +109,7 @@ describe('GradingController · AI suggestions', () => {
   it('starts the AI for the question on screen, refreshes and announces it', async () => {
     const { ctrl, gateway } = make({ getGrading: vi.fn(async () => view()) });
     await ctrl.runAi();
-    expect(gateway.requestAi).toHaveBeenCalledWith(9, 1);
+    expect(gateway.requestAi).toHaveBeenCalledWith(9, 1, expect.any(Array));
     expect(gateway.getGrading).toHaveBeenCalledWith(9);
     expect(ctrl.getState()).toMatchObject({ aiBusy: false, error: '' });
     expect(ctrl.getState().live).toMatch(/AI bắt đầu chấm nháp/);

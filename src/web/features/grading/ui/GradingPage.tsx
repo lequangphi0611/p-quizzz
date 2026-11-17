@@ -25,7 +25,7 @@ export function GradingPage() {
   const { grading, session } = useLoaderData() as GradingData;
   const nav = useNavigate();
   const { state, ctrl } = useGrading(session.id, grading);
-  const { view, cur, blind, error, zeroing, confirming, finalizing, filter, acks, aiBusy, live } = state;
+  const { view, cur, blind, error, zeroing, confirming, finalizing, filter, kept, acks, aiBusy, live } = state;
   const q = ctrl.question;
   const { locked, done } = ctrl;
   const final = view.status === 'finalized';
@@ -66,7 +66,7 @@ export function GradingPage() {
   const mode = q && c ? stripMode(view, q, c) : 'off';
   const aiOn = view.aiGrader.available;
   const { left, suggestedOnly } = finalizeBlockers(view);
-  const rows = q ? visibleAnswers(q.answers, filter) : [];
+  const rows = q ? visibleAnswers(q.answers, filter, kept) : [];
   const showFilters = aiOn && !!c && c.sent > 0 && !final;
 
   const fBtn = (k: AnswerFilter, label: string, n: number, icon?: string) => (

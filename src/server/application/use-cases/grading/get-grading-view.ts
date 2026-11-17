@@ -30,7 +30,8 @@ export class GetGradingView {
     const questions: GradingQuestion[] = exam.questions
       .filter(q => q.type === 'essay')
       .map(q => {
-        const ids = answers.filter(a => a.questionId === q.id).map(a => a.id);
+        const own = answers.filter(a => a.questionId === q.id);
+        const ids = own.map(a => a.id);
         return {
         id: q.id,
         position: q.position,
@@ -41,8 +42,7 @@ export class GetGradingView {
         hasRubric: hasRubric(q.explanation),
         rubric: parseRubric(q.explanation, q.points),
         ai: { queued: count(ids, 'queued'), running: count(ids, 'running'), done: count(ids, 'done'), failed: count(ids, 'failed') },
-        answers: answers
-          .filter(a => a.questionId === q.id)
+        answers: own
           .map((a): GradingAnswer => {
             const pid = participantOf.get(a.attemptId)!;
             return { answerId: a.id, participantId: pid, displayName: names.get(pid) ?? '', textAnswer: a.textAnswer, manualScore: a.manualScore, feedback: a.feedback, aiSuggestion: toAiSuggestionDto(suggestions.get(a.id)) };

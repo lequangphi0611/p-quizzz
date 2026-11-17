@@ -91,6 +91,8 @@ export function normalizeSuggestion(raw: RawSuggestion, points: number, rubric: 
     criteria = criteria.map((c, i) => ({ ...c, label: `T${i + 1}`, max: rubric[i]!.points }));
   }
   for (const c of criteria) if (!ok(c.score) || !ok(c.max) || c.score < 0 || c.score > c.max) throw new InvalidSuggestionError('criterion');
+  // The criteria are the reason for the score: a total that disagrees with them would mislead the mentor.
+  if (criteria.length > 0 && Math.abs(criteria.reduce((t, c) => t + c.score, 0) - raw.score) > 1e-9) throw new InvalidSuggestionError('criteria sum');
   const lines = [...new Set(raw.suspiciousLines.filter(n => Number.isInteger(n) && n >= 1 && n <= answerLines))].sort((a, b) => a - b);
   return {
     score: raw.score,

@@ -50,8 +50,11 @@ async function writeGrade(deps: Deps, answerId: number, grade: { score: number; 
     );
     await ctx.attempts.setManualScore(attempt.id, manualTotal(await ctx.attempts.answersOf(attempt.id)));
     await ctx.aiSuggestions.removeQueued([answerId]);
-    await ctx.aiSuggestions.setUsed(answerId, grade?.aiUse ?? null);
-    const [suggestion] = await ctx.aiSuggestions.listByAnswerIds([answerId]);
+    // Only a finished suggestion can have been used: anything else would skew the AI-vs-mentor comparison (§7.28i).
+    const [current] = await ctx.aiSuggestions.listByAnswerIds([answerId]);
+    const used = current?.status === 'done' ? (grade?.aiUse ?? null) : null;
+    if (current) await ctx.aiSuggestions.setUsed(answerId, used);
+    const suggestion = current && { ...current, used };
 
     const { graded, total } = essayProgressOf(await loadCountedWork(ctx, session.id, session.examId));
     return {

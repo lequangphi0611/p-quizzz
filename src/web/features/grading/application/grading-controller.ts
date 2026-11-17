@@ -1,7 +1,7 @@
 import type { GradeResponse, GradingAnswer, GradingQuestion, GradingView } from '../../../../shared/api/index.js';
 import { ApiError } from '../../../shared/api-client/http-client.js';
 import { isBlank } from '../domain/grading-ui.js';
-import { aiCounts, failedIds, needsPolling, type AnswerFilter } from '../domain/ai-ui.js';
+import { aiCounts, failedIds, needsPolling, unsentIds, type AnswerFilter } from '../domain/ai-ui.js';
 import type { GradingGateway } from './grading-gateway.js';
 
 const errorText = (err: unknown, fallback: string) => (err instanceof ApiError ? err.message : fallback);
@@ -20,6 +20,8 @@ export interface GradingState {
   filter: AnswerFilter;
   /** Suspicious answers the mentor ticked "Đã đọc toàn bộ bài" for (this browser only). */
   acks: ReadonlySet<number>;
+  /** Answers graded while the current filter is on: they stay visible (with "Hoàn tác") until the filter or question changes. */
+  kept: ReadonlySet<number>;
   /** A request to start, retry or stop the AI is on its way. */
   aiBusy: boolean;
   /** Polite screen-reader message: when a run starts and when it ends. */
@@ -32,7 +34,7 @@ export class GradingController {
   private listeners = new Set<() => void>();
 
   constructor(private gateway: GradingGateway, private sessionId: number, initial: GradingView) {
-    this.state = { view: initial, cur: 0, blind: true, error: '', zeroing: false, confirming: false, finalizing: false, filter: 'all', acks: new Set(), aiBusy: false, live: '' };
+    this.state = { view: initial, cur: 0, blind: true, error: '', zeroing: false, confirming: false, finalizing: false, filter: 'all', kept: new Set(), acks: new Set(), aiBusy: false, live: '' };
   }
 
   getState = (): GradingState => this.state;
@@ -48,8 +50,8 @@ export class GradingController {
   /** Ungraded blank answers of the question on screen. */
   get blankUngraded(): GradingAnswer[] { return (this.question?.answers ?? []).filter(a => a.manualScore === null && isBlank(a)); }
 
-  select(index: number): void { this.set({ cur: index, filter: 'all' }); }
-  setFilter(filter: AnswerFilter): void { this.set({ filter }); }
+  select(index: number): void { this.set({ cur: index, filter: 'all', kept: new Set() }); }
+  setFilter(filter: AnswerFilter): void { this.set({ filter, kept: new Set() }); }
   setAck(answerId: number, read: boolean): void { const acks = new Set(this.state.acks); if (read) acks.add(answerId); else acks.delete(answerId); this.set({ acks }); }
   /** Keep refreshing while a suggestion is queued or running. */
   get polling(): boolean { return needsPolling(this.state.view); }
@@ -65,7 +67,9 @@ export class GradingController {
 
   /** Save one answer's grade (used by the answer cards). Rejects with the server error so the card can show it. */
   async grade(answerId: number, score: number, feedback: string, aiUse?: 'accepted' | 'edited'): Promise<void> {
-    this.applySaved(await this.gateway.grade(answerId, aiUse ? { score, feedback, aiUse } : { score, feedback }));
+    const r = await this.gateway.grade(answerId, aiUse ? { score, feedback, aiUse } : { score, feedback });
+    if (this.state.filter !== 'all') this.set({ kept: new Set(this.state.kept).add(answerId) });
+    this.applySaved(r);
   }
 
   private find(answerId: number): GradingAnswer | undefined {
@@ -112,8 +116,9 @@ export class GradingController {
   runAi(): Promise<void> {
     const q = this.question;
     if (!q) return Promise.resolve();
-    const n = aiCounts(q).toSend;
-    return this.aiAction(() => this.gateway.requestAi(this.sessionId, q.id), 'Không bắt đầu được AI chấm nháp', `AI bắt đầu chấm nháp ${n} bài của câu ${q.position}. Bạn vẫn chấm tay được.`);
+    // Explicit ids: without them the server would also retry the failed answers, which the strip does not announce.
+    const ids = unsentIds(q);
+    return this.aiAction(() => this.gateway.requestAi(this.sessionId, q.id, ids), 'Không bắt đầu được AI chấm nháp', `AI bắt đầu chấm nháp ${ids.length} bài của câu ${q.position}. Bạn vẫn chấm tay được.`);
   }
 
   /** Retry one answer, or every failed answer of the question on screen. */

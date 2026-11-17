@@ -80,8 +80,9 @@ export const matchesFilter = (a: GradingAnswer, f: AnswerFilter): boolean =>
  * The cards to show, each with its "Bài #k" number from the shuffled order (stable, unrelated to filters). Ungraded
  * suspicious answers are pinned first; everything else keeps the shuffled order.
  */
-export function visibleAnswers(answers: GradingAnswer[], f: AnswerFilter): { answer: GradingAnswer; index: number; pinned: boolean }[] {
-  const rows = answers.map((answer, index) => ({ answer, index, pinned: isFlagPending(answer) })).filter(r => matchesFilter(r.answer, f));
+export function visibleAnswers(answers: GradingAnswer[], f: AnswerFilter, kept: ReadonlySet<number> = new Set()): { answer: GradingAnswer; index: number; pinned: boolean }[] {
+  // `kept`: answers graded while this filter is on stay in place (so "Hoàn tác" is still reachable) until the filter changes.
+  const rows = answers.map((answer, index) => ({ answer, index, pinned: isFlagPending(answer) })).filter(r => kept.has(r.answer.answerId) || matchesFilter(r.answer, f));
   return [...rows.filter(r => r.pinned), ...rows.filter(r => !r.pinned)];
 }
 
@@ -108,6 +109,9 @@ export function gradeSource(a: GradingAnswer): 'ai' | 'ai-edit' | null {
   if (!graded(a) || !a.aiSuggestion) return null;
   return a.aiSuggestion.used === 'accepted' ? 'ai' : a.aiSuggestion.used === 'edited' ? 'ai-edit' : null;
 }
+
+/** Ids of the written, ungraded answers of this question never sent to the AI (what "AI chấm nháp" announces). */
+export const unsentIds = (q: Pick<GradingQuestion, 'answers'>): number[] => q.answers.filter(a => !isBlank(a) && !a.aiSuggestion && !graded(a)).map(a => a.answerId);
 
 /** Ids of the answers of this question whose suggestion failed and are still ungraded ("Thử lại các bài lỗi"). */
 export const failedIds = (q: Pick<GradingQuestion, 'answers'>): number[] => q.answers.filter(isErrPending).map(a => a.answerId);
