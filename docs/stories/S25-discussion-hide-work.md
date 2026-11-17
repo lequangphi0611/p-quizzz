@@ -1,6 +1,6 @@
 # S25 — Thảo luận: đọc đề trước, ẩn bài làm của lớp
 
-**Phụ thuộc:** S17 · **Thiết kế UI:** chưa có (xem "Thiết kế" dưới) · **Trạng thái:** ⬜ chưa làm
+**Phụ thuộc:** S17 · **Thiết kế UI:** [prompt cho designer](../design/S25-discussion-hide-work-ui-prompt.md) (chờ bản vẽ) · **Trạng thái:** ⬜ chưa làm
 
 ## Bối cảnh
 Màn thảo luận (S17) đã ẩn đáp án, nhưng **số người chọn từng phương án** và **các bài tự luận** hiện ngay khi mở câu. Thấy "80% chọn B" là cả lớp ngả theo B, nên việc ẩn đáp án mất tác dụng. Mentor muốn mỗi câu mở ra **chỉ có đề**, rồi tự chọn lúc mở bài làm của lớp và lúc mở đáp án, theo thứ tự tuỳ câu. Business: [PRODUCT.md §4.6, §7.17d](../PRODUCT.md) (PO duyệt 2026-11-17, phương án "hai nút độc lập").
