@@ -12,9 +12,9 @@ export class InvalidSessionTransitionError extends DomainError {
   }
 }
 
-export class AnotherSessionActiveError extends DomainError {
+export class SessionEndedError extends DomainError {
   constructor() {
-    super('conflict', 'Đang có phiên thi khác hoạt động');
+    super('conflict', 'Phiên đã kết thúc, không thêm email được nữa');
   }
 }
 

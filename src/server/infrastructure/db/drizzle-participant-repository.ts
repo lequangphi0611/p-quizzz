@@ -1,13 +1,15 @@
 import { and, eq, ne } from 'drizzle-orm';
 import type { ParticipantReader, ParticipantRepository } from '../../application/ports/participant-repository.js';
-import { NameTakenError } from '../../domain/participant/errors.js';
+import { EmailTakenError, NameTakenError } from '../../domain/participant/errors.js';
 import type { NewParticipant, Participant, ParticipantStatus } from '../../domain/participant/participant.js';
 import { participants } from './schema.js';
 import type { DbAccess } from './drizzle-exam-repository.js';
 
-// Only the display-name index counts as a name clash; any other constraint failure (token, foreign key...) is a real bug.
+// Only the display-name / email indexes count as a clash; any other constraint failure (token, foreign key...) is a real bug.
 const isNameViolation = (err: unknown) =>
   err instanceof Error && 'code' in err && err.code === 'SQLITE_CONSTRAINT_UNIQUE' && err.message.includes('participants_session_name_uq');
+const isEmailViolation = (err: unknown) =>
+  err instanceof Error && 'code' in err && err.code === 'SQLITE_CONSTRAINT_UNIQUE' && err.message.includes('participants_session_email_uq');
 
 export class DrizzleParticipantRepository implements ParticipantRepository, ParticipantReader {
   constructor(private readonly access: DbAccess) {}
@@ -21,6 +23,11 @@ export class DrizzleParticipantRepository implements ParticipantRepository, Part
     return (await this.access(db => db.select().from(participants).where(eq(participants.token, token)).get())) ?? null;
   }
 
+  async findByReplacedToken(token: string): Promise<Participant | null> {
+    if (!token) return null;
+    return (await this.access(db => db.select().from(participants).where(eq(participants.replacedToken, token)).get())) ?? null;
+  }
+
   namesOf(sessionId: number) {
     return this.access(db => db.select({ id: participants.id, displayName: participants.displayName }).from(participants).where(eq(participants.sessionId, sessionId)).all());
   }
@@ -28,7 +35,7 @@ export class DrizzleParticipantRepository implements ParticipantRepository, Part
   listNotKicked(sessionId: number) {
     return this.access(db =>
       db
-        .select({ id: participants.id, displayName: participants.displayName })
+        .select({ id: participants.id, displayName: participants.displayName, email: participants.email, status: participants.status, rejoinAllowedUntil: participants.rejoinAllowedUntil })
         .from(participants)
         .where(and(eq(participants.sessionId, sessionId), ne(participants.status, 'kicked')))
         .all(),
@@ -52,9 +59,21 @@ export class DrizzleParticipantRepository implements ParticipantRepository, Part
     try {
       return await this.access(db => db.insert(participants).values(p).returning().get());
     } catch (err) {
-      if (isNameViolation(err)) throw new NameTakenError();
+      if (isEmailViolation(err)) throw new EmailTakenError();
+      if (isNameViolation(err)) throw new NameTakenError('identity_in_use');
       throw err;
     }
+  }
+
+  async replaceToken(id: number, newToken: string): Promise<Participant> {
+    return this.access(db => {
+      const old = db.select({ token: participants.token }).from(participants).where(eq(participants.id, id)).get()!;
+      return db.update(participants).set({ token: newToken, replacedToken: old.token }).where(eq(participants.id, id)).returning().get();
+    });
+  }
+
+  async setRejoinAllowedUntil(id: number, until: Date | null): Promise<void> {
+    await this.access(db => db.update(participants).set({ rejoinAllowedUntil: until }).where(eq(participants.id, id)).run());
   }
 
   async update(id: number, patch: { displayName?: string; status?: ParticipantStatus }): Promise<Participant> {

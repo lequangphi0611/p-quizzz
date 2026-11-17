@@ -1,13 +1,13 @@
-import type { SessionDetail, SessionParticipantInfo } from '../../../../shared/api/index.js';
+import type { RejoinRequestInfo, SessionDetail, SessionParticipantInfo } from '../../../../shared/api/index.js';
 import { ApiError } from '../../../shared/api-client/http-client.js';
 import { ACTION_FOR_STATUS } from '../domain/session-ui.js';
 import type { SessionAdminGateway } from './session-admin-gateway.js';
 
 const errorText = (err: unknown, fallback: string) => (err instanceof ApiError ? err.message : fallback);
 
-export type Dialog = { kind: 'action' } | { kind: 'kick'; p: SessionParticipantInfo } | null;
+export type Dialog = { kind: 'action' } | { kind: 'kick'; p: SessionParticipantInfo } | { kind: 'addRoster' } | { kind: 'saveGroup' } | { kind: 'impostor'; request: RejoinRequestInfo } | null;
 
-export interface SessionDetailState { detail: SessionDetail; error: string; working: boolean; dialog: Dialog }
+export interface SessionDetailState { detail: SessionDetail; error: string; working: boolean; dialog: Dialog; /** A confirmation to show after saving a group, until dismissed. */ notice: string }
 
 /** State and actions of the mentor's control page for one session. Plain TypeScript, tested with a fake gateway. */
 export class SessionDetailController {
@@ -16,7 +16,7 @@ export class SessionDetailController {
   private seq = 0; // drops a fetch that finished after a newer one (or after an action's own response)
 
   constructor(private gateway: SessionAdminGateway, initial: SessionDetail) {
-    this.state = { detail: initial, error: '', working: false, dialog: null };
+    this.state = { detail: initial, error: '', working: false, dialog: null, notice: '' };
   }
 
   getState = (): SessionDetailState => this.state;
@@ -68,5 +68,37 @@ export class SessionDetailController {
     await this.run(async () => { await this.gateway.kickParticipant(d.p.id); await this.refetch(); }, 'Không kick được');
     this.closeDialog();
   }
+  /** Answers someone who asks to take a seat. "Đây là mạo danh" goes through a confirmation (the holder loses the attempt). */
+  async answerRejoin(requestId: number, answer: 'keep' | 'takeover' | 'reject'): Promise<boolean> {
+    const ok = await this.run(async () => { await this.gateway.answerRejoin(requestId, answer); await this.refetch(); }, answer === 'takeover' ? 'Không cho người xin vào được' : 'Không xử lý được yêu cầu vào lại');
+    if (answer === 'takeover') this.closeDialog();
+    return ok;
+  }
+
+  /** "Cho vào lại" ahead of time for someone who dropped off. */
+  async allowRejoin(participantId: number, name: string): Promise<boolean> {
+    let until = 0;
+    const ok = await this.run(async () => { until = await this.gateway.allowRejoin(participantId); await this.refetch(); }, 'Không cho phép vào lại được');
+    if (ok) this.set({ notice: `Đã cho phép ${name} vào lại trong 10 phút: họ chỉ cần nhập lại email hoặc tên.` });
+    void until;
+    return ok;
+  }
+
+  /** Lets more emails into this session's list (an exception); the saved group is untouched. Resolves false after setting `error`. */
+  async addRoster(emails: string[]): Promise<boolean> {
+    const ok = await this.run(async () => { const d = await this.gateway.addRoster(this.state.detail.id, emails); this.seq++; this.set({ detail: d }); }, 'Không thêm được email');
+    if (ok) this.closeDialog();
+    return ok;
+  }
+
+  /** Saves the typed list as a group; afterwards the session counts as saved. */
+  async saveGroup(name: string): Promise<boolean> {
+    let saved: { name: string; emailCount: number } | null = null;
+    const ok = await this.run(async () => { saved = await this.gateway.saveGroup(this.state.detail.id, name); await this.refetch(); }, 'Không lưu được nhóm');
+    if (ok && saved) { this.closeDialog(); this.set({ notice: `Đã lưu thành nhóm “${(saved as { name: string }).name}” · ${(saved as { emailCount: number }).emailCount} email` }); }
+    return ok;
+  }
+  dismissNotice(): void { this.set({ notice: '' }); }
+
   rename(id: number, name: string): Promise<boolean> { return this.run(async () => { await this.gateway.renameParticipant(id, name); await this.refetch(); }, 'Không đổi được tên'); }
 }

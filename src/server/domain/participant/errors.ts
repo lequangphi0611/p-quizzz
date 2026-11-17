@@ -7,8 +7,33 @@ export class ParticipantNotFoundError extends DomainError {
 }
 
 export class NameTakenError extends DomainError {
+  /** `identity_in_use` only on the join path: that is where the member can ask the mentor to let them back in (PRODUCT.md §7.23). */
+  constructor(code?: 'identity_in_use') {
+    super('conflict', 'Tên đã có người dùng', code);
+  }
+}
+
+/** The email a member typed is on this session's list and someone already joined with it. */
+export class EmailTakenError extends DomainError {
   constructor() {
-    super('conflict', 'Tên đã có người dùng');
+    super('conflict', 'Email này đã có người vào phòng', 'identity_in_use');
+  }
+}
+
+export class InvalidEmailError extends DomainError {
+  constructor(message = 'Email chưa đúng định dạng') {
+    super('invalid', message);
+  }
+}
+
+/**
+ * One message for every email that is not on the list: never says which emails are, or why this one is not (sloppy
+ * typing, other domain...), so the list cannot be probed (PRODUCT.md §7.22e). The HTTP layer counts it towards the
+ * per-address limit, like a wrong room code.
+ */
+export class NotInRosterError extends DomainError {
+  constructor() {
+    super('forbidden', 'Email này không có trong danh sách của phòng. Kiểm tra lại, hoặc nhắn mentor.');
   }
 }
 
@@ -53,6 +78,13 @@ export class SessionClosedForApprovalError extends DomainError {
 export class NotJoinedError extends DomainError {
   constructor() {
     super('unauthenticated', 'Bạn chưa vào phiên thi');
+  }
+}
+
+/** The mentor let this person back in on another device, so this device (old token) stops working. */
+export class ReplacedError extends DomainError {
+  constructor() {
+    super('forbidden', 'Bài của bạn đang được mở ở thiết bị khác', 'replaced');
   }
 }
 

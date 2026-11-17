@@ -8,6 +8,8 @@ export class DomainError extends Error {
   constructor(
     readonly kind: DomainErrorKind,
     message: string,
+    /** Optional machine-readable reason the web acts on (e.g. `identity_in_use`); the status and `error` text stay the contract. */
+    readonly code?: string,
   ) {
     super(message);
     this.name = new.target.name;

@@ -39,6 +39,11 @@ export function extractImports(source: string): { spec: string; line: number }[]
   return out;
 }
 
+/** Test code: `*.test.ts(x)` and anything under a `testing/` or `test/` folder. Production code must not import it. */
+function isTestCode(path: string): boolean {
+  return /\.test\.tsx?$/.test(path) || /\/(testing|test)\//.test(path);
+}
+
 function isAllowlisted(path: string, allowlist: string[]): boolean {
   return allowlist.some(e => (e.endsWith('/') ? path.startsWith(e) : path === e));
 }
@@ -60,6 +65,15 @@ export function checkArchitecture(files: SourceFile[], allowlist: string[]): Che
       continue;
     }
     if (isAllowlisted(file.path, allowlist)) continue;
+
+    // Every layer, composition root included: test fakes are for tests (a fake wired into production hides a missing adapter).
+    if (!isTestCode(file.path)) {
+      for (const { spec, line } of extractImports(file.source)) {
+        if (spec.startsWith('.') && /(^|\/)testing\//.test(resolveRelative(file.path, spec))) {
+          violations.push({ file: file.path, line, spec, message: 'production code must not import test fakes from a testing/ folder (put the real adapter in infrastructure/)' });
+        }
+      }
+    }
 
     const rule = RULES[from.layer];
     if (!rule) continue;

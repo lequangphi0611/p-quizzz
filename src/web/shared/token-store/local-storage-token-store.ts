@@ -17,10 +17,18 @@ export class LocalStorageTokenStore implements TokenStore {
   clearToken(sessionId: number | string): void {
     try { localStorage.removeItem(tokenKey(sessionId)); } catch { /* ignore */ }
   }
+  // The "current session" is per TAB (sessionStorage), because several sessions may run at once and each tab follows its own.
+  // localStorage keeps the last one only so a NEW tab can resume where the member was.
   getCurrentSessionId(): string | null {
+    try { const own = sessionStorage.getItem(CURRENT_KEY); if (own) return own; } catch { /* fall through */ }
     try { return localStorage.getItem(CURRENT_KEY); } catch { return null; }
   }
   setCurrentSessionId(sessionId: number | string): void {
+    try { sessionStorage.setItem(CURRENT_KEY, String(sessionId)); } catch { /* ignore */ }
     try { localStorage.setItem(CURRENT_KEY, String(sessionId)); } catch { /* ignore */ }
+  }
+  clearCurrentSessionId(): void {
+    try { sessionStorage.removeItem(CURRENT_KEY); } catch { /* ignore */ }
+    try { localStorage.removeItem(CURRENT_KEY); } catch { /* ignore */ }
   }
 }

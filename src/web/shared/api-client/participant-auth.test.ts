@@ -28,6 +28,15 @@ describe('participantAuth', () => {
     expect(run(s, '/api/me/attempt')).toEqual({ 'X-Participant-Token': 'tok5' });
   });
 
+  it('/api/rejoin/* carries the current session\'s token too: while asking to be let back in it is the REQUEST token', () => {
+    const s = new InMemoryTokenStore();
+    s.setToken(5, 'req-tok');
+    s.setCurrentSessionId(5);
+    expect(run(s, '/api/rejoin/status')).toEqual({ 'X-Participant-Token': 'req-tok' });
+    expect(run(s, '/api/rejoin/cancel')).toEqual({ 'X-Participant-Token': 'req-tok' });
+    expect(run(new InMemoryTokenStore(), '/api/rejoin/status')).toEqual({});
+  });
+
   it('sends nothing when there is no token or the path is not a member path', () => {
     const s = new InMemoryTokenStore();
     s.setToken(5, 'tok5');

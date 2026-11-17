@@ -7,7 +7,8 @@ export class ListPublicParticipants {
   constructor(private readonly deps: { sessions: SessionReader; participants: ParticipantReader }) {}
 
   async execute(sessionId: number): Promise<{ displayName: string }[]> {
-    if (!(await this.deps.sessions.exists(sessionId))) throw new SessionNotFoundError();
+    const session = await this.deps.sessions.findPublic(sessionId);
+    if (!session || session.status === 'draft') throw new SessionNotFoundError(); // a draft is not public yet
     return this.deps.participants.listActiveNames(sessionId);
   }
 }

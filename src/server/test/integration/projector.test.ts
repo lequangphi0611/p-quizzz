@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ActiveSession, NetworkInfo, PublicParticipant } from '../../../shared/api/index.js';
+import type { NetworkInfo, PublicParticipant } from '../../../shared/api/index.js';
 import { joinHosts } from '../../interface/http/network-routes.js';
 import { createTestApp } from '../helpers.js';
 import { world } from '../world.js';
@@ -32,35 +32,6 @@ describe('GET /api/sessions/:id/participants (public)', () => {
     const w = await world({ state: 'lobby' });
     const res = await w.app.inject({ url: `/api/sessions/${w.session.id}/participants`, remoteAddress: '192.168.1.50' });
     expect(res.statusCode).toBe(200);
-  });
-});
-
-describe('GET /api/sessions/latest (public)', () => {
-  const latest = (app: Awaited<ReturnType<typeof createTestApp>>['app']) => app.inject({ url: '/api/sessions/latest' }).then(r => r.json<ActiveSession | null>());
-
-  it('is null before any session has run (a draft does not count)', async () => {
-    const w = await world({ state: 'lobby' });
-    expect(await latest(w.app)).toMatchObject({ status: 'lobby' }); // world() opens one…
-    const empty = await createTestApp();
-    expect(await latest(empty.app)).toBeNull();
-  });
-
-  it('follows the active session, then stays on the one that just ended', async () => {
-    const w = await world({ essay: true });
-    expect(await latest(w.app)).toEqual({ id: w.session.id, title: 'Seed exam', status: 'running' });
-    await w.admin(`/sessions/${w.session.id}/close`);
-    expect(await latest(w.app)).toEqual({ id: w.session.id, title: 'Seed exam', status: 'closed' });
-    await w.admin(`/sessions/${w.session.id}/finalize`);
-    expect(await latest(w.app)).toEqual({ id: w.session.id, title: 'Seed exam', status: 'finalized' });
-  });
-
-  it('prefers a newly opened session over an ended one, and the newest ended one otherwise', async () => {
-    const w = await world({ essay: false });
-    await w.admin(`/sessions/${w.session.id}/close`); // multiple-choice → finalized
-    const next = (await w.admin('/sessions', { examId: w.exam.id })).json<{ id: number }>();
-    expect(await latest(w.app)).toMatchObject({ id: w.session.id, status: 'finalized' }); // the draft is ignored
-    await w.admin(`/sessions/${next.id}/open`);
-    expect(await latest(w.app)).toMatchObject({ id: next.id, status: 'lobby' });
   });
 });
 

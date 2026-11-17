@@ -12,17 +12,17 @@ async function setup() {
   const act = (id: number, action: string) => app.inject({ method: 'POST', url: `/api/admin/sessions/${id}/${action}`, headers });
   const get = async (id: number) => (await app.inject({ url: `/api/admin/sessions/${id}`, headers })).json<SessionDetail>();
   const newSession = async (examId: number) => (await create(examId)).json<SessionDetail>();
-  const active = async () => (await app.inject({ url: '/api/sessions/active' })).json<ActiveSession | null>();
-  return { app, db, headers, create, act, get, newSession, active };
+  return { app, db, headers, create, act, get, newSession };
 }
 
 describe('sessions — auth', () => {
-  it('admin routes are 401 without the mentor cookie; /api/sessions/active is public', async () => {
+  it('admin routes are 401 without the mentor cookie; the public session view is open', async () => {
     const { app } = await createTestApp();
     for (const [method, url] of [['POST', '/api/admin/sessions'], ['GET', '/api/admin/sessions'], ['GET', '/api/admin/sessions/1'], ['POST', '/api/admin/sessions/1/open']] as const) {
       expect((await app.inject({ method, url })).statusCode, url).toBe(401);
     }
-    expect((await app.inject({ url: '/api/sessions/active' })).statusCode).toBe(200);
+    expect((await app.inject({ url: '/api/sessions/1/public' })).statusCode).toBe(404); // reachable, just unknown
+    expect((await app.inject({ url: '/api/admin/events' })).statusCode).toBe(401);
   });
 });
 
@@ -142,57 +142,67 @@ describe('lifecycle', () => {
   });
 });
 
-describe('at most one active session', () => {
-  it('open is blocked while another session is in lobby or running', async () => {
+describe('parallel sessions (PRODUCT.md §7.5)', () => {
+  it('several sessions can be open at once: own code and slot each, started and closed independently', async () => {
     const { db, newSession, act, get } = await setup();
     const exam = seedExam(db, { hasEssay: false });
-    const a = await newSession(exam.id);
-    const b = await newSession(exam.id);
+    const [a, b, c] = [await newSession(exam.id), await newSession(exam.id), await newSession(exam.id)];
 
-    await act(a.id, 'open');
-    const blocked = await act(b.id, 'open');
-    expect(blocked.statusCode).toBe(409);
-    expect(blocked.json()).toEqual({ error: 'Đang có phiên thi khác hoạt động' });
-    expect((await get(b.id)).status).toBe('draft');
+    for (const x of [a, b, c]) expect((await act(x.id, 'open')).statusCode).toBe(200);
+    const [sa, sb, sc] = [await get(a.id), await get(b.id), await get(c.id)];
+    expect([sa.slot, sb.slot, sc.slot]).toEqual([1, 2, 3]);
+    expect(new Set([sa.roomCode, sb.roomCode, sc.roomCode]).size).toBe(3);
 
-    await act(a.id, 'start'); // still active while running
-    expect((await act(b.id, 'open')).statusCode).toBe(409);
-    expect((await get(b.id)).openedAt).toBeNull();
+    await act(a.id, 'start');
+    expect((await get(b.id)).status).toBe('lobby'); // untouched
+    for (const x of ['start', 'close']) await act(b.id, x);
+    expect((await get(b.id)).slot).toBeNull(); // closing frees the slot
+    expect((await get(c.id)).slot).toBe(3);
   });
 
-  it('two sessions of the same exam can run one after another', async () => {
-    const { db, newSession, act } = await setup();
+  it('?active=true lists only sessions in lobby/running, lowest slot first', async () => {
+    const { app, headers, db, newSession, act } = await setup();
     const exam = seedExam(db, { hasEssay: false });
-    const a = await newSession(exam.id);
-    const b = await newSession(exam.id);
-
-    for (const x of ['open', 'start', 'close']) await act(a.id, x); // a → finalized
-    expect((await act(b.id, 'open')).statusCode).toBe(200);
+    const [a, b, c] = [await newSession(exam.id), await newSession(exam.id), await newSession(exam.id)];
+    await act(c.id, 'open');
+    await act(a.id, 'open');
+    void b; // stays a draft: not listed as active
+    const active = (await app.inject({ url: '/api/admin/sessions?active=true', headers })).json<SessionSummary[]>();
+    expect(active.map(s => [s.id, s.slot])).toEqual([[c.id, 1], [a.id, 2]]);
+    const all = (await app.inject({ url: '/api/admin/sessions', headers })).json<SessionSummary[]>();
+    expect(all).toHaveLength(3);
   });
 
-  it('a closed session (essay exam awaiting grading) no longer blocks a new one', async () => {
-    const { db, newSession, act } = await setup();
-    const exam = seedExam(db, { hasEssay: true });
-    const a = await newSession(exam.id);
-    const b = await newSession(exam.id);
-    for (const x of ['open', 'start', 'close']) await act(a.id, x);
-    expect((await act(b.id, 'open')).statusCode).toBe(200);
+  it('the name is the mentor\'s label: default "<exam> – dd/MM", trimmed when typed, too long is refused', async () => {
+    const { db, create } = await setup();
+    const exam = seedExam(db, { title: 'Đề Git' });
+    expect((await create(exam.id)).json<SessionDetail>().name).toMatch(/^Đề Git – \d{2}\/\d{2}$/);
+    expect((await create(exam.id, { name: '  Lớp 0908  ' })).json<SessionDetail>().name).toBe('Lớp 0908');
+    expect((await create(exam.id, { name: 'x'.repeat(81) })).statusCode).toBe(400);
   });
 });
 
-describe('GET /api/sessions/active', () => {
-  it('is null with no active session, then follows lobby/running, then null again', async () => {
-    const { db, newSession, act, active } = await setup();
+describe('GET /api/sessions/:id/public', () => {
+  it('shows the exam title and status only: never the session name, room code or slot', async () => {
+    const { app, db, create, act } = await setup();
     const exam = seedExam(db, { title: 'Đề Git', hasEssay: false });
-    const { id } = await newSession(exam.id);
-    expect(await active()).toBeNull(); // draft is not active
+    const { id } = (await create(exam.id, { name: '#member-0908' })).json<SessionDetail>();
+    const pub = async () => app.inject({ url: `/api/sessions/${id}/public` });
 
+    expect((await pub()).statusCode).toBe(404); // a draft is not public: its exam title may be the upcoming test
     await act(id, 'open');
-    expect(await active()).toEqual({ id, title: 'Đề Git', status: 'lobby' });
-    await act(id, 'start');
-    expect(await active()).toEqual({ id, title: 'Đề Git', status: 'running' });
-    await act(id, 'close');
-    expect(await active()).toBeNull();
+    const res = await pub();
+    expect(res.json<ActiveSession>()).toEqual({ id, title: 'Đề Git', status: 'lobby', access: 'free' });
+    expect(res.body).not.toMatch(/member-0908|roomCode|slot|name/);
+    for (const x of ['start', 'close']) await act(id, x);
+    expect((await pub()).json<ActiveSession>().status).toBe('finalized');
+  });
+
+  it('404 for an unknown or malformed id; open to LAN machines', async () => {
+    const { app } = await setup();
+    expect((await app.inject({ url: '/api/sessions/999/public' })).statusCode).toBe(404);
+    expect((await app.inject({ url: '/api/sessions/abc/public' })).statusCode).toBe(404);
+    expect((await app.inject({ url: '/api/sessions/999/public', remoteAddress: '192.168.1.50' })).statusCode).toBe(404); // not 403
   });
 });
 
@@ -223,7 +233,7 @@ describe('GET /sessions', () => {
       { sessionId: a.id, displayName: 'An', token: 'ta', status: 'active', joinedAt: new Date() },
       { sessionId: b.id, displayName: 'Bình', token: 'tb', status: 'pending', joinedAt: new Date() },
     ]).run();
-    expect((await get(a.id)).participants).toEqual([{ id: expect.any(Number), displayName: 'An', status: 'active', joinedAt: expect.any(Number), progress: { state: 'none', attempts: 0, countedScore: null, maxScore: 7, submittedAt: null, editRequest: null } }]);
+    expect((await get(a.id)).participants).toEqual([{ id: expect.any(Number), displayName: 'An', status: 'active', joinedAt: expect.any(Number), progress: { state: 'none', attempts: 0, countedScore: null, maxScore: 7, submittedAt: null, editRequest: null }, email: null, connection: { online: false, lastSeenAt: null }, rejoinAllowedUntil: null }]);
   });
 });
 

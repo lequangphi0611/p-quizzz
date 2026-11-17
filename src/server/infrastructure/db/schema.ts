@@ -1,7 +1,7 @@
 // Drizzle schema — contract: docs/architecture.md §2. Run `npm run db:generate` after changing this file.
 // Column naming: snake_case in SQLite, camelCase in Drizzle. Timestamps are epoch ms (`timestamp_ms`).
 import { relations, sql } from 'drizzle-orm';
-import { integer, real, sqliteTable, text, uniqueIndex, index } from 'drizzle-orm/sqlite-core';
+import { integer, real, sqliteTable, text, uniqueIndex, index, type AnySQLiteColumn } from 'drizzle-orm/sqlite-core';
 
 const id = () => integer('id').primaryKey({ autoIncrement: true });
 const ts = (name: string) => integer(name, { mode: 'timestamp_ms' });
@@ -50,18 +50,47 @@ export const options = sqliteTable(
   t => [index('options_question_idx').on(t.questionId, t.position)],
 );
 
+// A saved list of member emails (PRODUCT.md §7.22). Only the mentor sees or edits it; a session copies it when created.
+export const groups = sqliteTable('groups', {
+  id: id(),
+  name: text('name').notNull(),
+  createdAt: ts('created_at').notNull(),
+  updatedAt: ts('updated_at').notNull(),
+});
+
+export const groupEmails = sqliteTable(
+  'group_emails',
+  {
+    id: id(),
+    groupId: integer('group_id').notNull().references(() => groups.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(), // normalized
+    position: integer('position').notNull(), // the order the mentor typed them
+  },
+  t => [uniqueIndex('group_emails_uq').on(t.groupId, t.email)],
+);
+
 // No cascade from exams: deleting an exam that has sessions is blocked (API layer returns a friendly error).
 export const sessions = sqliteTable(
   'sessions',
   {
     id: id(),
     examId: integer('exam_id').notNull().references(() => exams.id),
+    // Mentor-only label that tells parallel sessions apart (PRODUCT.md §7.5); older rows were backfilled with the exam title.
+    name: text('name').notNull().default(''),
     mode: text('mode', { enum: ['self_paced', 'live'] }).notNull().default('self_paced'),
     status: text('status', { enum: ['draft', 'lobby', 'running', 'closed', 'finalized'] }).notNull().default('draft'),
     shuffle: integer('shuffle', { mode: 'boolean' }).notNull().default(true),
     autoApprove: integer('auto_approve', { mode: 'boolean' }).notNull().default(false),
+    // Who may join (PRODUCT.md §7.22): anyone with the code, or only the emails on `session_roster`.
+    access: text('access', { enum: ['free', 'roster'] }).notNull().default('free'),
+    // Roster sessions: someone not on the list is turned away ('block') or waits for the mentor ('pending').
+    outsiderPolicy: text('outsider_policy', { enum: ['block', 'pending'] }).notNull().default('block'),
+    // The saved group this session's list came from (or was saved as). Deleting the group only forgets the link.
+    sourceGroupId: integer('source_group_id').references((): AnySQLiteColumn => groups.id, { onDelete: 'set null' }),
     // 6 random digits, generated when the session is opened (null while draft). Members need it to join.
     roomCode: text('room_code'),
+    // Lowest number free among open sessions, set on open and cleared on close (for the mentor's "Đang mở" bar).
+    slot: integer('slot'),
     createdAt: ts('created_at').notNull(),
     openedAt: ts('opened_at'),
     startedAt: ts('started_at'),
@@ -72,13 +101,32 @@ export const sessions = sqliteTable(
   t => [uniqueIndex('sessions_room_code_uq').on(t.roomCode)],
 );
 
+// The list of one session: a copy taken when the session was created, so editing or deleting the group later changes
+// nothing here (PRODUCT.md §7.22d). The mentor may add emails to a running session.
+export const sessionRoster = sqliteTable(
+  'session_roster',
+  {
+    id: id(),
+    sessionId: integer('session_id').notNull().references(() => sessions.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(), // normalized
+    position: integer('position').notNull(),
+  },
+  t => [uniqueIndex('session_roster_uq').on(t.sessionId, t.email)],
+);
+
 export const participants = sqliteTable(
   'participants',
   {
     id: id(),
     sessionId: integer('session_id').notNull().references(() => sessions.id),
     displayName: text('display_name').notNull(),
+    // Normalized email in a roster session (mentor-only data, PRODUCT.md §7.24); null in a free one.
+    email: text('email'),
     token: text('token').notNull().unique(),
+    // The token this person had before the mentor let them back in from another device: the old device is told so (403 `replaced`).
+    replacedToken: text('replaced_token'),
+    // The mentor said "let them back in": until then, entering the same email/name takes the seat over without asking (one time).
+    rejoinAllowedUntil: ts('rejoin_allowed_until'),
     status: text('status', { enum: ['active', 'pending', 'kicked'] }).notNull().default('active'),
     joinedAt: ts('joined_at').notNull(),
   },
@@ -87,7 +135,27 @@ export const participants = sqliteTable(
     uniqueIndex('participants_session_name_uq')
       .on(t.sessionId, sql`lower(${t.displayName})`)
       .where(sql`${t.status} != 'kicked'`),
+    // One person per email in a session (emails are normalized in the domain, so a plain index is exact).
+    uniqueIndex('participants_session_email_uq')
+      .on(t.sessionId, t.email)
+      .where(sql`${t.status} != 'kicked' and ${t.email} is not null`),
   ],
+);
+
+// Someone typed an email/name that already has a person in the session and asked the mentor to let them in (PRODUCT.md §7.23).
+// `token` is the token the claimant will hold if the mentor approves: until then it only reads the request's status.
+export const rejoinRequests = sqliteTable(
+  'rejoin_requests',
+  {
+    id: id(),
+    participantId: integer('participant_id').notNull().references(() => participants.id),
+    claimantName: text('claimant_name').notNull(),
+    token: text('token').notNull().unique(),
+    status: text('status', { enum: ['pending', 'approved', 'rejected', 'cancelled'] }).notNull().default('pending'),
+    createdAt: ts('created_at').notNull(),
+    resolvedAt: ts('resolved_at'),
+  },
+  t => [index('rejoin_requests_participant_idx').on(t.participantId, t.status)],
 );
 
 export const attempts = sqliteTable(

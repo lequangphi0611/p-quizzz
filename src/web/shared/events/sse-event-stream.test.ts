@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { connectSessionEvents, createSessionEventHub, type EventSourceLike } from './sse-event-stream.js';
+import { connectAdminEvents, connectSessionEvents, createSessionEventHub, type EventSourceLike } from './sse-event-stream.js';
 
 function fakeSource() {
-  const l = new Map<string, () => void>();
+  const l = new Map<string, (e: { data?: string }) => void>();
   let closed = false;
   const es: EventSourceLike = { addEventListener: (t, f) => void l.set(t, f), close: () => { closed = true; } };
-  return { es, fire: (t: string) => l.get(t)?.(), isClosed: () => closed };
+  return { es, fire: (t: string, data?: string) => l.get(t)?.({ data }), isClosed: () => closed };
 }
 
 describe('connectSessionEvents', () => {
@@ -98,5 +98,57 @@ describe('createSessionEventHub', () => {
     src.fire('open');
     expect(a.session).not.toHaveBeenCalled();
     expect(b.session).toHaveBeenCalledOnce();
+  });
+});
+
+describe('the mentor stream', () => {
+  it('connects once to /api/admin/events and reports which session changed', () => {
+    const src = fakeSource();
+    let url = '';
+    const handlers = { onEvent: vi.fn(), onResync: vi.fn() };
+    connectAdminEvents(() => handlers, u => { url = u; return src.es; });
+    src.fire('participants', '{"sessionId":7}');
+    src.fire('session', '{"sessionId":9}');
+    expect(url).toBe('/api/admin/events');
+    expect(handlers.onEvent.mock.calls).toEqual([['participants', 7], ['session', 9]]);
+  });
+
+  it('ignores malformed payloads, and asks for a resync after a reconnect (not on the first open)', () => {
+    const src = fakeSource();
+    const handlers = { onEvent: vi.fn(), onResync: vi.fn() };
+    connectAdminEvents(() => handlers, () => src.es);
+    src.fire('session', 'not json');
+    src.fire('session', '{}');
+    src.fire('session', '{"sessionId":-1}');
+    expect(handlers.onEvent).not.toHaveBeenCalled();
+    src.fire('open');
+    expect(handlers.onResync).not.toHaveBeenCalled();
+    src.fire('error');
+    src.fire('open');
+    expect(handlers.onResync).toHaveBeenCalledOnce();
+  });
+
+  it('the hub shares ONE connection among all subscribers and closes it with the last one', () => {
+    const sources: ReturnType<typeof fakeSource>[] = [];
+    const hub = createSessionEventHub(() => { const s = fakeSource(); sources.push(s); return s.es; });
+    const a = { onEvent: vi.fn(), onResync: vi.fn() }, b = { onEvent: vi.fn(), onResync: vi.fn() };
+    const offA = hub.subscribeAdmin(() => a);
+    const offB = hub.subscribeAdmin(() => b);
+    expect(sources).toHaveLength(1);
+    expect(hub.openCount()).toBe(1);
+    sources[0]!.fire('participants', '{"sessionId":3}');
+    expect(a.onEvent).toHaveBeenCalledWith('participants', 3);
+    expect(b.onEvent).toHaveBeenCalledWith('participants', 3);
+    offA();
+    expect(sources[0]!.isClosed()).toBe(false);
+    offB();
+    expect(sources[0]!.isClosed()).toBe(true);
+    expect(hub.openCount()).toBe(0);
+  });
+
+  it('many open sessions still cost the mentor page only one admin connection', () => {
+    const hub = createSessionEventHub(() => fakeSource().es);
+    for (let i = 0; i < 5; i++) hub.subscribeAdmin(() => ({ onEvent: vi.fn(), onResync: vi.fn() }));
+    expect(hub.openCount()).toBe(1);
   });
 });

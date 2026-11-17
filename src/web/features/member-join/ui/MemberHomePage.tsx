@@ -8,21 +8,22 @@ import { StatusBadge } from '../../../shared/ui/StatusBadge.js';
 import { HeroIcon, InfoBox, InfoRow, MemberPage, PageCard, mText, useIsDesk } from '../../../shared/ui/member/member-shell.js';
 import { NameChip } from '../../../shared/ui/member/MemberLayout.js';
 import { ResultView } from '../../../shared/ui/member/ResultView.js';
-import { selectScreen } from '../application/member-home-controller.js';
+import { selectRoom, selectScreen } from '../application/member-home-controller.js';
 import { useMemberHome } from '../application/member-home-context.js';
 import { ConnLost } from './ConnLost.js';
 import { JoinForm } from './JoinForm.js';
+import { RejoinWait, Replaced } from './RejoinPanels.js';
 
-// "/" — decides what a member sees from three facts: is there an active session, do I hold a token, what does /api/me say.
+// "/" — decides what a member sees from three facts: which room code was found, do I hold a token, what does /api/me say.
 /** The exam screen is another feature's: the app composes it in (features never import each other). */
 export type ExamScreen = (props: { me: MeResponse; onChanged: () => Promise<void>; leaderboard: ReactNode }) => ReactNode;
 
 export function MemberHomePage({ examScreen }: { examScreen: ExamScreen }) {
-  const { state, ctrl, activeId } = useMemberHome();
-  const { active, me, activeError, autoSubmitted } = state;
+  const { state, ctrl, followedId } = useMemberHome();
+  const { me, autoSubmitted } = state;
   const [linkRoom] = useState(() => roomFromSearch(window.location.search)); // from a join link: /?room=482913
   const screen = selectScreen(state);
-  const title = me?.session.title ?? active?.title;
+  const title = me?.session.title ?? selectRoom(state)?.title;
   const name = me && (screen === 'pending' || screen === 'lobby') ? me.participant.displayName : undefined;
   const desk = useIsDesk();
 
@@ -30,7 +31,7 @@ export function MemberHomePage({ examScreen }: { examScreen: ExamScreen }) {
     return examScreen({ me: me!, onChanged: ctrl.refreshMe, leaderboard: <Leaderboard sessionId={me!.session.id} highlightName={me!.participant.displayName} /> });
   }
   if (screen === 'ended') {
-    return <ResultView me={me!} ended autoSubmitted={autoSubmitted}><Leaderboard sessionId={me!.session.id} highlightName={me!.participant.displayName} /></ResultView>;
+    return <ResultView me={me!} ended autoSubmitted={autoSubmitted} onAnotherRoom={() => ctrl.leaveEnded()}><Leaderboard sessionId={me!.session.id} highlightName={me!.participant.displayName} /></ResultView>;
   }
 
   const page = (body: ReactNode, opts: { maxW?: number; status?: ReactNode } = {}) => (
@@ -38,21 +39,17 @@ export function MemberHomePage({ examScreen }: { examScreen: ExamScreen }) {
   );
   switch (screen) {
     case 'loading':
-      if (activeError) return page(<ConnLost onRetry={() => void ctrl.fetchActive()} desk={desk} />);
       return page(<PageCard desk={desk} center><Spinner block label="Đang kết nối tới máy mentor…" /><span style={{ ...mText.meta, ...mText.mono }}>{window.location.host}</span></PageCard>);
     case 'error':
-      return page(<ConnLost onRetry={() => activeId !== null && void ctrl.fetchMe(activeId)} desk={desk} />);
-    case 'none':
-      return page(
-        <PageCard desk={desk} center>
-          <HeroIcon name="clock" tone="ink" />
-          <h1 style={mText.h1}>Chưa có phiên nào đang mở</h1>
-          <p style={mText.meta}>Khi mentor mở phiên, trang này tự chuyển sang ô nhập mã phòng. Bạn không cần tải lại.</p>
-          <Button variant="secondary" size="lg" icon="refresh-cw" block={!desk} onClick={() => void ctrl.fetchActive()}>Kiểm tra lại</Button>
-        </PageCard>,
-      );
+      return page(<ConnLost onRetry={() => followedId !== null && void ctrl.fetchMe(followedId)} desk={desk} />);
+    case 'rejoin':
+      return page(<RejoinWait desk={desk} state={state.rejoin ?? 'pending'} offline={state.rejoinOffline} title={title}
+        onCancel={() => void ctrl.cancelRejoin()} onBack={() => ctrl.backFromRejoin()} />);
+    case 'replaced':
+      return page(<Replaced desk={desk} onLeave={() => ctrl.leave()} />);
+    case 'code':
     case 'join':
-      return page(<JoinForm desk={desk} session={active!} linkRoom={linkRoom} ctrl={ctrl} />);
+      return page(<JoinForm desk={desk} state={state} linkRoom={linkRoom} ctrl={ctrl} />);
     case 'pending':
     case 'lobby': {
       const pending = screen === 'pending';

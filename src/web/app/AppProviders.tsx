@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { AdminAuthGatewayContext } from '../features/admin-auth/application/admin-auth-context.js';
 import { DiscussionGatewayContext } from '../features/discussion/application/use-discussion.js';
+import { GroupsGatewayContext } from '../features/groups/application/groups-context.js';
 import { ExamLibraryGatewayContext } from '../features/exam-import/application/exam-context.js';
 import { GradingGatewayContext } from '../features/grading/application/grading-context.js';
 import { ExamGatewayProvider } from '../features/member-exam/application/exam-gateway-context.js';
@@ -25,6 +26,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
               <SessionAdminGatewayContext.Provider value={c.sessionAdminGateway}>
                 <GradingGatewayContext.Provider value={c.gradingGateway}>
                   <ExamLibraryGatewayContext.Provider value={c.examLibraryGateway}>
+                    <GroupsGatewayContext.Provider value={c.groupsGateway}>
                     <AdminAuthGatewayContext.Provider value={c.adminAuthGateway}>
                       <MemberServicesContext.Provider value={{ gateway: c.memberGateway, rooms: c.roomCodeMemory }}>
                         <ReviewGatewayContext.Provider value={c.reviewGateway}>
@@ -34,6 +36,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
                         </ReviewGatewayContext.Provider>
                       </MemberServicesContext.Provider>
                     </AdminAuthGatewayContext.Provider>
+                    </GroupsGatewayContext.Provider>
                   </ExamLibraryGatewayContext.Provider>
                 </GradingGatewayContext.Provider>
               </SessionAdminGatewayContext.Provider>

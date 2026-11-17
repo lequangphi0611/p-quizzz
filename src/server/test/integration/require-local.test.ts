@@ -77,7 +77,8 @@ describe('/api/admin is reachable only from the mentor machine', () => {
 
   it('member endpoints stay open to the LAN', async () => {
     const { app } = await createTestApp();
-    expect((await from(app, LAN, { url: '/api/sessions/active' })).statusCode).toBe(200);
+    expect((await from(app, LAN, { url: '/api/network' })).statusCode).toBe(200);
+    expect((await from(app, LAN, { url: '/api/sessions/1/public' })).statusCode).toBe(404); // reachable, just unknown
     expect((await from(app, LAN, { url: '/api/health' })).statusCode).toBe(200);
     // /api/me needs a token, but the refusal must come from auth (401), not from the local-only rule (403)
     expect((await from(app, LAN, { url: '/api/me' })).statusCode).toBe(401);

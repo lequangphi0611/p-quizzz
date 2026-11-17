@@ -29,11 +29,45 @@ describe.each(stores)('%s', (_name, make) => {
     expect(s.getToken(2)).toBe('b');
   });
 
-  it('remembers the current session as a string', () => {
+  it('remembers the current session as a string, and can forget it', () => {
     const s = make();
     expect(s.getCurrentSessionId()).toBeNull();
     s.setCurrentSessionId(7);
     expect(s.getCurrentSessionId()).toBe('7');
+    s.clearCurrentSessionId();
+    expect(s.getCurrentSessionId()).toBeNull();
+  });
+});
+
+describe('LocalStorageTokenStore: the current session belongs to the tab', () => {
+  function tabStorage() {
+    const m = new Map<string, string>();
+    return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) };
+  }
+
+  it('two tabs following two parallel sessions do not swap each other\'s pointer', () => {
+    const shared = tabStorage(); // localStorage: shared by the tabs
+    vi.stubGlobal('localStorage', shared);
+    const tabA = tabStorage(), tabB = tabStorage();
+    const store = new LocalStorageTokenStore();
+
+    vi.stubGlobal('sessionStorage', tabA);
+    store.setCurrentSessionId(1);
+    vi.stubGlobal('sessionStorage', tabB);
+    store.setCurrentSessionId(2);
+
+    vi.stubGlobal('sessionStorage', tabA);
+    expect(store.getCurrentSessionId()).toBe('1'); // not 2
+    vi.stubGlobal('sessionStorage', tabB);
+    expect(store.getCurrentSessionId()).toBe('2');
+  });
+
+  it('a brand-new tab resumes the last session any tab followed', () => {
+    vi.stubGlobal('localStorage', tabStorage());
+    vi.stubGlobal('sessionStorage', tabStorage());
+    new LocalStorageTokenStore().setCurrentSessionId(5);
+    vi.stubGlobal('sessionStorage', tabStorage()); // new tab: empty sessionStorage
+    expect(new LocalStorageTokenStore().getCurrentSessionId()).toBe('5');
   });
 });
 

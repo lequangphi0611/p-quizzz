@@ -1,5 +1,5 @@
 import type { SessionAction } from '../../../../shared/session-state.js';
-import { AnotherSessionActiveError, SessionNotFoundError } from '../../../domain/session/errors.js';
+import { SessionNotFoundError } from '../../../domain/session/errors.js';
 import { assertTransition, planClose, planFinalize, planOpen, planStart } from '../../../domain/session/lifecycle.js';
 import type { SessionModeRegistry } from '../../../domain/session/mode.js';
 import type { SessionPatch } from '../../../domain/session/session.js';
@@ -36,10 +36,8 @@ export async function transitionSession(deps: TransitionDeps, id: number, action
     let patch: SessionPatch;
 
     if (action === 'open') {
-      // At most one session in lobby/running (PRODUCT.md §7.5).
-      if (await ctx.sessions.hasActiveOtherThan(id)) throw new AnotherSessionActiveError();
-      // A fresh code every time a session opens.
-      patch = planOpen(now, await newRoomCode(deps.random, code => ctx.sessions.roomCodeInUse(code)));
+      // Sessions may run side by side (PRODUCT.md §7.5): each gets its own code and the lowest free slot.
+      patch = planOpen(now, await newRoomCode(deps.random, code => ctx.sessions.roomCodeInUse(code)), await ctx.sessions.lowestFreeSlot());
     } else if (action === 'start') {
       patch = planStart(now);
     } else if (action === 'close') {

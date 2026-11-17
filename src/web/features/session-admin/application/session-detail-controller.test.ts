@@ -27,10 +27,10 @@ describe('SessionDetailController', () => {
   });
 
   it('shows the server message on a refused action (e.g. wrong state) and closes the dialog', async () => {
-    const { ctrl } = make({ runAction: async () => { throw new ApiError(409, 'Đã có phiên khác đang chạy') } });
+    const { ctrl } = make({ runAction: async () => { throw new ApiError(409, 'Không thể bắt đầu thi khi phiên đang ở trạng thái "Nháp"') } });
     ctrl.openDialog({ kind: 'action' });
     await ctrl.doAction();
-    expect(ctrl.getState()).toMatchObject({ error: 'Đã có phiên khác đang chạy', dialog: null, working: false });
+    expect(ctrl.getState()).toMatchObject({ error: 'Không thể bắt đầu thi khi phiên đang ở trạng thái "Nháp"', dialog: null, working: false });
   });
 
   it('uses a generic message when the failure is not an ApiError', async () => {
@@ -79,5 +79,37 @@ describe('SessionDetailController', () => {
     const b = make({ renameParticipant: async () => { throw new ApiError(409, 'Tên đã được dùng'); } });
     expect(await b.ctrl.rename(1, 'N')).toBe(false);
     expect(b.ctrl.getState().error).toBe('Tên đã được dùng');
+  });
+
+  it('adds emails to this session, adopts the returned detail and closes the dialog; a refusal keeps the dialog with the message', async () => {
+    const { ctrl, gateway } = make({ addRoster: vi.fn(async () => detail({ status: 'lobby', roster: { size: 3, joined: 0, notJoined: [] } } as Partial<SessionDetail>)) });
+    ctrl.openDialog({ kind: 'addRoster' });
+    expect(await ctrl.addRoster(['linh@company.vn'])).toBe(true);
+    expect(gateway.addRoster).toHaveBeenCalledWith(5, ['linh@company.vn']);
+    expect(ctrl.getState()).toMatchObject({ dialog: null, working: false });
+    expect(ctrl.getState().detail.roster?.size).toBe(3);
+
+    const bad = make({ addRoster: async () => { throw new ApiError(409, 'Phiên đã kết thúc, không thêm email được nữa'); } });
+    bad.ctrl.openDialog({ kind: 'addRoster' });
+    expect(await bad.ctrl.addRoster(['a@x.com'])).toBe(false);
+    expect(bad.ctrl.getState()).toMatchObject({ error: 'Phiên đã kết thúc, không thêm email được nữa', dialog: { kind: 'addRoster' } });
+  });
+
+  it('saves the typed list as a group: closes the dialog, refetches and shows a confirmation that can be dismissed', async () => {
+    const { ctrl, gateway } = make({ saveGroup: vi.fn(async () => ({ id: 2, name: '#docker-1511', emailCount: 12 })) });
+    ctrl.openDialog({ kind: 'saveGroup' });
+    expect(await ctrl.saveGroup('#docker-1511')).toBe(true);
+    expect(gateway.saveGroup).toHaveBeenCalledWith(5, '#docker-1511');
+    expect(gateway.getSession).toHaveBeenCalled(); // the session now points at the group
+    expect(ctrl.getState()).toMatchObject({ dialog: null, notice: 'Đã lưu thành nhóm “#docker-1511” · 12 email' });
+    ctrl.dismissNotice();
+    expect(ctrl.getState().notice).toBe('');
+  });
+
+  it('a name that is taken keeps the dialog open with the server message', async () => {
+    const { ctrl } = make({ saveGroup: async () => { throw new ApiError(409, 'Đã có một nhóm tên này'); } });
+    ctrl.openDialog({ kind: 'saveGroup' });
+    expect(await ctrl.saveGroup('Lớp')).toBe(false);
+    expect(ctrl.getState()).toMatchObject({ error: 'Đã có một nhóm tên này', dialog: { kind: 'saveGroup' }, notice: '' });
   });
 });

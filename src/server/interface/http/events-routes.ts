@@ -38,3 +38,34 @@ export const eventsRoutes = (events: EventSubscriber): FastifyPluginAsync<{ hear
       });
     });
   };
+
+// GET /api/admin/events: ONE stream with every session's change signals, for the mentor's bell and session bar.
+// Browsers allow only ~6 HTTP/1.1 connections per address, so the bell cannot open one stream per open session.
+// Registered inside the requireMentor scope of /api/admin. Payload is `{"sessionId":N}`: still only a signal, clients refetch.
+export const adminEventsRoutes = (events: EventSubscriber): FastifyPluginAsync<{ heartbeatMs?: number }> =>
+  async (app, opts) => {
+    const heartbeatMs = opts.heartbeatMs ?? HEARTBEAT_MS;
+    const open = new Set<ServerResponse>();
+    app.addHook('onClose', async () => { for (const res of open) res.end(); });
+
+    app.get('/events', (req, reply) => {
+      reply.hijack();
+      const res = reply.raw;
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache, no-transform',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      });
+      res.write(': connected\n\n');
+      open.add(res);
+
+      const unsubscribe = events.subscribeAll((sessionId, type) => res.write(`event: ${type}\ndata: ${JSON.stringify({ sessionId })}\n\n`));
+      const ping = setInterval(() => res.write(': ping\n\n'), heartbeatMs);
+      req.raw.on('close', () => {
+        clearInterval(ping);
+        unsubscribe();
+        open.delete(res);
+      });
+    });
+  };

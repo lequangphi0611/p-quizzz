@@ -47,6 +47,9 @@ Mỗi story là một file tự đủ ngữ cảnh để một model/người im
 | [S17](S17-discussion-mode.md) | Chế độ thảo luận sau phiên | S13, S15, S16 | ✅ |
 | [S18](S18-member-responsive-ui.md) | Giao diện học viên cho máy tính + điện thoại | S10, S12, S16 | ✅ |
 | [S19](S19-edit-request.md) | Xin sửa bài tự luận sau khi nộp | S11, S12, S09 | ✅ |
+| [S20](S20-parallel-sessions.md) | Nhiều phiên chạy song song | S06, S08, S09, S10, S14 | ✅ |
+| [S21](S21-groups-email.md) | Nhóm học viên và phiên giới hạn theo email | S20 | ✅ |
+| [S22](S22-rejoin-request.md) | Xin vào lại khi email/tên đã có người vào | S21 | ✅ |
 
 ## Thứ tự & song song
 
@@ -59,6 +62,8 @@ Mỗi story là một file tự đủ ngữ cảnh để một model/người im
 Đợt 6:  S12 ─┬─ S13 ─┬─ S15    (song song)
 Đợt 7:  S14 ─┬─ S16            (song song)
 ```
+
+Đợt 8 (sau MVP, theo bản thiết kế UI của đợt này): S20 → S21 → S22 làm **tuần tự** (S21 dựa vào tra phiên theo mã của S20; S22 dựa vào danh tính email của S21). Phần API/domain của mỗi story làm được trước, UI chờ bản thiết kế.
 
 Các story trong cùng đợt chạm file khác nhau là chính; nếu cùng sửa `src/server/app.ts` (đăng ký route) hoặc router web thì merge tay phần đăng ký — đó là xung đột dự kiến, không phải lỗi.
 

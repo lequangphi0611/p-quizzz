@@ -1,11 +1,12 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { DisplayNameBody, JoinBody, type JoinResponse, type PublicParticipant } from '../../../shared/api/index.js';
+import { DisplayNameBody, JoinBody, type JoinResponse, type PublicParticipant, type RosterCounts } from '../../../shared/api/index.js';
 import type { ApproveParticipant } from '../../application/use-cases/participants/approve-participant.js';
 import type { JoinSession } from '../../application/use-cases/participants/join-session.js';
+import type { GetRosterCounts } from '../../application/use-cases/participants/get-roster-counts.js';
 import type { KickParticipant } from '../../application/use-cases/participants/kick-participant.js';
 import type { ListPublicParticipants } from '../../application/use-cases/participants/list-public-participants.js';
 import type { RenameParticipant } from '../../application/use-cases/participants/rename-participant.js';
-import { ParticipantNotFoundError, WrongRoomCodeError } from '../../domain/participant/errors.js';
+import { NotInRosterError, ParticipantNotFoundError, WrongRoomCodeError } from '../../domain/participant/errors.js';
 import { SessionNotFoundError } from '../../domain/session/errors.js';
 import { sendDomainError } from './domain-errors.js';
 import { createJoinLimiter, type JoinLimiter } from './join-limiter.js';
@@ -18,6 +19,7 @@ export interface ParticipantUseCases {
   kick: KickParticipant;
   approve: ApproveParticipant;
   listPublic: ListPublicParticipants;
+  rosterCounts: GetRosterCounts;
 }
 
 const badBody = (issue: { message: string } | undefined) => ({ error: issue?.message ?? 'Dữ liệu không hợp lệ' });
@@ -40,7 +42,8 @@ export const joinRoutes = (uc: Pick<ParticipantUseCases, 'join'>): FastifyPlugin
         const res: JoinResponse = { token, participant: toParticipantInfoDto(participant) };
         return reply.code(201).send(res);
       } catch (err) {
-        if (err instanceof WrongRoomCodeError) limiter.fail(req.ip);
+        // A wrong room code and an email that is not on the list both count: neither may be guessed at speed.
+        if (err instanceof WrongRoomCodeError || err instanceof NotInRosterError) limiter.fail(req.ip);
         return sendDomainError(reply, err);
       }
     });
@@ -54,6 +57,20 @@ export const publicParticipantsRoutes = (uc: Pick<ParticipantUseCases, 'listPubl
         const id = parseId(req.params.id);
         if (!id) throw new SessionNotFoundError();
         return await uc.listPublic.execute(id);
+      } catch (err) {
+        return sendDomainError(reply, err);
+      }
+    });
+  };
+
+// Public numbers for the projector: how many of the session's list have joined. Never who (PRODUCT.md §7.24).
+export const rosterCountsRoutes = (uc: Pick<ParticipantUseCases, 'rosterCounts'>): FastifyPluginAsync =>
+  async app => {
+    app.get<{ Params: { id: string } }>('/api/sessions/:id/roster-counts', async (req, reply): Promise<RosterCounts | null | undefined> => {
+      try {
+        const id = parseId(req.params.id);
+        if (!id) throw new SessionNotFoundError();
+        return await uc.rosterCounts.execute(id);
       } catch (err) {
         return sendDomainError(reply, err);
       }

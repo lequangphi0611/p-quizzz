@@ -13,6 +13,8 @@ import { GetGradingView } from './application/use-cases/grading/get-grading-view
 import { GradeAnswer } from './application/use-cases/grading/grade-answer.js';
 import { GetLeaderboard } from './application/use-cases/leaderboard/get-leaderboard.js';
 import { GetProjectorRoom } from './application/use-cases/sessions/get-projector-room.js';
+import { ListScreenSessions } from './application/use-cases/sessions/list-screen-sessions.js';
+import { ResolveRoom } from './application/use-cases/sessions/resolve-room.js';
 import { AutoSubmitOpenAttempts } from './application/use-cases/attempts/auto-submit-open-attempts.js';
 import { FinishEdit, RequestEdit, ResolveEditRequest } from './application/use-cases/attempts/edit-request.js';
 import { GetAttemptReview, GetAttemptView, GetMemberState, GetParticipantReview } from './application/use-cases/attempts/queries.js';
@@ -35,7 +37,18 @@ import { CloseSession } from './application/use-cases/sessions/close-session.js'
 import { CreateSession } from './application/use-cases/sessions/create-session.js';
 import { FinalizeSession } from './application/use-cases/sessions/finalize-session.js';
 import { OpenSession } from './application/use-cases/sessions/open-session.js';
-import { GetActiveSession, GetLatestSession, GetSessionDetail, ListSessions } from './application/use-cases/sessions/queries.js';
+import { GetPublicSession, GetSessionDetail, ListSessions } from './application/use-cases/sessions/queries.js';
+import { CreateGroup, DeleteGroup, GetGroup, ListGroups, UpdateGroup } from './application/use-cases/groups/groups.js';
+import { AddRosterEmails, SaveSessionGroup } from './application/use-cases/sessions/roster.js';
+import { GetRosterCounts } from './application/use-cases/participants/get-roster-counts.js';
+import { DrizzleGroupRepository } from './infrastructure/db/drizzle-group-repository.js';
+import { DrizzleRejoinRepository } from './infrastructure/db/drizzle-rejoin-repository.js';
+import { InMemoryPresenceTracker } from './infrastructure/system/in-memory-presence-tracker.js';
+import { AllowRejoin, ApproveRejoinKeep, ApproveRejoinTakeover, CancelRejoin, GetRejoinStatus, RejectRejoin, RequestRejoin } from './application/use-cases/rejoin/rejoin-requests.js';
+import type { RejoinUseCases } from './interface/http/rejoin-routes.js';
+import type { PresenceTracker } from './application/ports/presence-tracker.js';
+import type { RejoinUnitContext } from './application/ports/participant-repository.js';
+import type { GroupUnitContext } from './application/ports/group-repository.js';
 import { StartSession } from './application/use-cases/sessions/start-session.js';
 import { defaultSessionModes } from './domain/session/mode.js';
 import type { Db } from './infrastructure/db/client.js';
@@ -58,6 +71,7 @@ import type { ExamUseCases } from './interface/http/exams-routes.js';
 import type { AdminUseCases } from './interface/http/admin-routes.js';
 import type { ParticipantUseCases } from './interface/http/participants-routes.js';
 import type { SessionUseCases } from './interface/http/sessions-routes.js';
+import type { GroupUseCases } from './interface/http/groups-routes.js';
 
 /** Ports every module shares. Tests pass fakes for any of them (see `application/testing`). */
 export interface SharedPorts {
@@ -73,11 +87,17 @@ export interface Composition {
   eventSource: EventSubscriber;
   exams: ExamUseCases;
   sessions: SessionUseCases;
+  groups: GroupUseCases;
+  rejoin: RejoinUseCases;
+  /** Who is still talking to the server (the mentor's connection column). */
+  presence: PresenceTracker;
   participants: ParticipantUseCases;
   attempts: AttemptUseCases;
   grading: GradingUseCases;
   leaderboard: { leaderboard: GetLeaderboard };
-  screen: { projectorRoom: GetProjectorRoom };
+  screen: { projectorRoom: GetProjectorRoom; screenSessions: ListScreenSessions };
+  /** Members find their session by room code. */
+  rooms: { resolve: ResolveRoom };
   /** Resolves a member from a token: backs the `/api/me` hook. */
   resumeParticipant: ResumeParticipant;
   admin: AdminUseCases;
@@ -101,11 +121,14 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
   }));
 
   const sessionReader = new DrizzleSessionReader(fn => database.read(fn));
+  const groupReader = new DrizzleGroupRepository(fn => database.read(fn));
+  const groupUnitOfWork = new SqliteUnitOfWork<GroupUnitContext>(database, tx => ({ groups: new DrizzleGroupRepository(async fn => fn(tx)) }));
   const sessionUnitOfWork = new SqliteUnitOfWork<SessionUnitContext>(database, tx => {
     const access = async <T>(fn: (db: Db) => T) => fn(tx);
     return {
       sessions: new DrizzleSessionRepository(access),
       exams: new DrizzleExamRepository(access),
+      groups: new DrizzleGroupRepository(access),
       attempts: new AutoSubmitOpenAttempts({
         attempts: new DrizzleAttemptRepository(access),
         sessions: new DrizzleSessionRepository(access),
@@ -135,6 +158,13 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
     const access = async <T>(fn: (db: Db) => T) => fn(tx);
     return { sessions: new DrizzleSessionRepository(access), participants: new DrizzleParticipantRepository(access) };
   });
+  const presence = new InMemoryPresenceTracker(ports.clock);
+  const rejoinReader = new DrizzleRejoinRepository(fn => database.read(fn));
+  const rejoinUnitOfWork = new SqliteUnitOfWork<RejoinUnitContext>(database, tx => {
+    const access = async <T>(fn: (db: Db) => T) => fn(tx);
+    return { sessions: new DrizzleSessionRepository(access), participants: new DrizzleParticipantRepository(access), rejoin: new DrizzleRejoinRepository(access) };
+  });
+  const rejoinDeps = { unitOfWork: rejoinUnitOfWork, clock: ports.clock, events: ports.events };
   const adminDeps = {
     credentials: new DrizzleAdminCredentialStore(fn => database.read(fn), () => ports.clock.now()),
     sessions: new InMemoryAdminSessionStore(),
@@ -157,7 +187,8 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
       gradeAnswer: new GradeAnswer({ unitOfWork: attemptUnitOfWork, clock: ports.clock, events: ports.events }),
     },
     leaderboard: { leaderboard: new GetLeaderboard(gradingReads) },
-    screen: { projectorRoom: new GetProjectorRoom(sessionReader) },
+    screen: { projectorRoom: new GetProjectorRoom(sessionReader), screenSessions: new ListScreenSessions(sessionReader) },
+    rooms: { resolve: new ResolveRoom(sessionReader) },
     attempts: {
       start: new StartAttempt({ unitOfWork: attemptUnitOfWork, clock: ports.clock, random: ports.random, events: ports.events }),
       view: new GetAttemptView(attemptReads),
@@ -176,8 +207,19 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
       kick: new KickParticipant({ unitOfWork: participantUnitOfWork, events: ports.events }),
       approve: new ApproveParticipant({ unitOfWork: participantUnitOfWork, events: ports.events }),
       listPublic: new ListPublicParticipants({ sessions: sessionReader, participants: participantReader }),
+      rosterCounts: new GetRosterCounts(sessionReader),
     },
-    resumeParticipant: new ResumeParticipant(participantReader),
+    resumeParticipant: new ResumeParticipant(participantReader, presence),
+    presence,
+    rejoin: {
+      request: new RequestRejoin({ ...rejoinDeps, tokens: ports.tokens }),
+      status: new GetRejoinStatus({ rejoin: rejoinReader, participants: participantReader, sessions: sessionReader }),
+      cancel: new CancelRejoin({ ...rejoinDeps, rejoin: rejoinReader }),
+      keep: new ApproveRejoinKeep(rejoinDeps),
+      takeover: new ApproveRejoinTakeover(rejoinDeps),
+      reject: new RejectRejoin(rejoinDeps),
+      allow: new AllowRejoin(rejoinDeps),
+    },
     admin: {
       status: new GetAdminStatus(adminDeps),
       setup: new SetupAdmin(adminDeps),
@@ -185,7 +227,15 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
       logout: new LogoutAdmin(adminDeps.sessions),
       authenticate: new AuthenticateAdmin(adminDeps.sessions),
     },
+    groups: {
+      list: new ListGroups(groupReader),
+      get: new GetGroup(groupReader),
+      create: new CreateGroup({ unitOfWork: groupUnitOfWork, groups: groupReader, clock: ports.clock }),
+      update: new UpdateGroup({ unitOfWork: groupUnitOfWork, groups: groupReader, clock: ports.clock }),
+      remove: new DeleteGroup(groupUnitOfWork),
+    },
     sessions: {
+      presence,
       create: new CreateSession({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, clock: ports.clock, modes: lifecycle.modes }),
       list: new ListSessions(sessionReader),
       get: new GetSessionDetail(sessionReader),
@@ -193,8 +243,9 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
       start: new StartSession(lifecycle),
       close: new CloseSession(lifecycle),
       finalize: new FinalizeSession(lifecycle),
-      active: new GetActiveSession(sessionReader),
-      latest: new GetLatestSession(sessionReader),
+      publicSession: new GetPublicSession(sessionReader),
+      addRoster: new AddRosterEmails({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, events: ports.events }),
+      saveGroup: new SaveSessionGroup({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, events: ports.events, groups: groupReader, clock: ports.clock }),
     },
     exams: {
       preview: new PreviewExam(),

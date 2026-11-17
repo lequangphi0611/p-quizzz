@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ActiveSession, LeaderboardResponse, MeResponse, NetworkInfo, PublicParticipant, SessionDetail, SessionSummary } from '../../../shared/api/index.js';
+import type { ActiveSession, LeaderboardResponse, MeResponse, NetworkInfo, PublicParticipant, ScreenSessions, SessionDetail, SessionSummary } from '../../../shared/api/index.js';
 import { createJoinLimiter } from '../../interface/http/join-limiter.js';
 import { createTestApp, loginAsMentor, roomCodeOf, seedExam } from '../helpers.js';
 
@@ -175,7 +175,7 @@ describe('guessing the code is throttled per address', () => {
 });
 
 describe('the code never leaks through public endpoints', () => {
-  it('is absent from active, latest, participants, leaderboard, network, /api/me and the join response', async () => {
+  it('is absent from public, resolve, participants, leaderboard, network, /api/me and the join response', async () => {
     const s = await setup({ lanIps: () => ['192.168.1.24'] });
     const sess = await s.create();
     await s.admin(`/sessions/${sess.id}/open`);
@@ -185,8 +185,8 @@ describe('the code never leaks through public endpoints', () => {
 
     const bodies = [
       joined.body,
-      (await s.app.inject({ url: '/api/sessions/active' })).body,
-      (await s.app.inject({ url: '/api/sessions/latest' })).body,
+      (await s.app.inject({ url: `/api/sessions/${sess.id}/public` })).body,
+      (await s.app.inject({ method: 'POST', url: '/api/rooms/resolve', payload: { roomCode: code } })).body,
       (await s.app.inject({ url: `/api/sessions/${sess.id}/participants` })).body,
       (await s.app.inject({ url: `/api/sessions/${sess.id}/leaderboard` })).body,
       (await s.app.inject({ url: '/api/network' })).body,
@@ -194,6 +194,7 @@ describe('the code never leaks through public endpoints', () => {
     ];
     for (const b of bodies) expect(b).not.toContain(code);
     expect(JSON.stringify(JSON.parse(bodies[1]!) as ActiveSession)).not.toMatch(/roomCode/);
+    expect(JSON.parse(bodies[2]!) as ActiveSession).toMatchObject({ id: sess.id }); // resolve works, and still leaks no code
     expect(JSON.parse(bodies[6]!) as MeResponse).not.toHaveProperty('session.roomCode');
     void ({} as NetworkInfo | PublicParticipant | LeaderboardResponse);
   });
@@ -208,28 +209,123 @@ describe('the code never leaks through public endpoints', () => {
   });
 });
 
-describe('GET /api/screen/room (the projector)', () => {
-  it('returns the active session\'s code on the mentor machine; null with nothing open', async () => {
+describe('POST /api/rooms/resolve (members find their session by code)', () => {
+  const resolve = (s: Awaited<ReturnType<typeof setup>>, roomCode: unknown, remoteAddress = '192.168.1.50') =>
+    s.app.inject({ method: 'POST', url: '/api/rooms/resolve', payload: { roomCode } as object, remoteAddress });
+
+  it('finds the open session by its code, with spaces or dashes; the answer is the exam title only', async () => {
     const s = await setup();
-    expect((await s.app.inject({ url: '/api/screen/room' })).json()).toEqual({ roomCode: null });
-    const sess = await s.create();
-    expect((await s.app.inject({ url: '/api/screen/room' })).json()).toEqual({ roomCode: null }); // draft
+    const sess = (await s.admin('/sessions', { examId: s.exam.id, name: '#member-0908' })).json<SessionDetail>();
     await s.admin(`/sessions/${sess.id}/open`);
-    expect((await s.app.inject({ url: '/api/screen/room' })).json()).toEqual({ roomCode: roomCodeOf(s.app, sess.id) });
-    await s.admin(`/sessions/${sess.id}/start`);
-    expect((await s.app.inject({ url: '/api/screen/room' })).json()).toEqual({ roomCode: roomCodeOf(s.app, sess.id) });
-    await s.admin(`/sessions/${sess.id}/close`);
-    expect((await s.app.inject({ url: '/api/screen/room' })).json()).toEqual({ roomCode: null }); // the code is dead once it closes
+    const code = roomCodeOf(s.app, sess.id);
+    for (const typed of [code, `${code.slice(0, 3)} ${code.slice(3)}`, `${code.slice(0, 3)}-${code.slice(3)}`]) {
+      const res = await resolve(s, typed);
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ id: sess.id, title: s.exam.title, status: 'lobby', access: 'free' });
+      expect(res.body).not.toMatch(/member-0908|roomCode|slot/);
+    }
   });
 
-  it('refuses every other machine — and --allow-remote-admin must not change that', async () => {
+  it('two open sessions: each code finds its own session', async () => {
+    const s = await setup();
+    const [a, b] = [await s.create(), await s.create()];
+    await s.admin(`/sessions/${a.id}/open`);
+    await s.admin(`/sessions/${b.id}/open`);
+    expect((await resolve(s, roomCodeOf(s.app, a.id))).json<ActiveSession>().id).toBe(a.id);
+    expect((await resolve(s, roomCodeOf(s.app, b.id))).json<ActiveSession>().id).toBe(b.id);
+  });
+
+  it('a wrong code and a session that has closed both answer 403 "Mã phòng không đúng"; a bad format is 400', async () => {
+    const s = await setup();
+    const sess = await s.create();
+    await s.admin(`/sessions/${sess.id}/open`);
+    const code = roomCodeOf(s.app, sess.id);
+    const wrong = code === '000000' ? '111111' : '000000';
+    expect((await resolve(s, wrong)).json()).toEqual({ error: 'Mã phòng không đúng' });
+    await s.admin(`/sessions/${sess.id}/start`);
+    await s.admin(`/sessions/${sess.id}/close`);
+    const closed = await resolve(s, code);
+    expect(closed.statusCode).toBe(403);
+    expect(closed.json()).toEqual({ error: 'Mã phòng không đúng' }); // identical: closed sessions are not discoverable
+    expect((await resolve(s, 'abc')).statusCode).toBe(400);
+    expect((await resolve(s, undefined)).statusCode).toBe(400);
+  });
+
+  it('shares the join limiter: wrong codes at resolve and at join add up, then both answer 429', async () => {
+    const s = await setup();
+    const sess = await s.create();
+    await s.admin(`/sessions/${sess.id}/open`);
+    const real = roomCodeOf(s.app, sess.id);
+    const wrong = real === '000000' ? '111111' : '000000';
+    for (let i = 0; i < 3; i++) expect((await resolve(s, wrong, '192.168.1.70')).statusCode).toBe(403);
+    for (let i = 0; i < 2; i++) expect((await s.join(sess.id, { displayName: 'X', roomCode: wrong }, '192.168.1.70')).statusCode).toBe(403);
+    const blocked = await resolve(s, real, '192.168.1.70'); // right code, but the address is spent
+    expect(blocked.statusCode).toBe(429);
+    expect(Number(blocked.headers['retry-after'])).toBeGreaterThan(0);
+    expect((await s.join(sess.id, { displayName: 'An', roomCode: real }, '192.168.1.70')).statusCode).toBe(429);
+    expect((await resolve(s, real, '192.168.1.71')).statusCode).toBe(200); // another address is fine
+  });
+
+  it('is open to LAN machines', async () => {
+    const s = await setup();
+    expect((await resolve(s, '000000', '192.168.1.50')).statusCode).toBe(403); // answered by the app, not the local-only rule…
+    expect((await resolve(s, '000000', '192.168.1.50')).json()).toEqual({ error: 'Mã phòng không đúng' });
+  });
+});
+
+describe('the projector routes (mentor machine only)', () => {
+  const room = (s: Awaited<ReturnType<typeof setup>>, id: number, opts: { remoteAddress?: string; headers?: Record<string, string> } = {}) =>
+    s.app.inject({ url: `/api/screen/sessions/${id}/room`, ...opts });
+
+  it('/room returns the code of that open session; null for a draft, a closed or an unknown one', async () => {
+    const s = await setup();
+    const sess = await s.create();
+    expect((await room(s, sess.id)).json()).toEqual({ roomCode: null }); // draft
+    await s.admin(`/sessions/${sess.id}/open`);
+    expect((await room(s, sess.id)).json()).toEqual({ roomCode: roomCodeOf(s.app, sess.id) });
+    await s.admin(`/sessions/${sess.id}/start`);
+    expect((await room(s, sess.id)).json()).toEqual({ roomCode: roomCodeOf(s.app, sess.id) });
+    await s.admin(`/sessions/${sess.id}/close`);
+    expect((await room(s, sess.id)).json()).toEqual({ roomCode: null }); // the code is dead once it closes
+    expect((await room(s, 999)).json()).toEqual({ roomCode: null });
+    expect((await s.app.inject({ url: '/api/screen/sessions/abc/room' })).statusCode).toBe(404);
+  });
+
+  it('each open session shows its own code', async () => {
+    const s = await setup();
+    const [a, b] = [await s.create(), await s.create()];
+    await s.admin(`/sessions/${a.id}/open`);
+    await s.admin(`/sessions/${b.id}/open`);
+    const [ca, cb] = [(await room(s, a.id)).json<{ roomCode: string }>().roomCode, (await room(s, b.id)).json<{ roomCode: string }>().roomCode];
+    expect(ca).toBe(roomCodeOf(s.app, a.id));
+    expect(cb).toBe(roomCodeOf(s.app, b.id));
+    expect(ca).not.toBe(cb);
+  });
+
+  it('/sessions lists the open sessions with the mentor\'s names, or the latest ended one when none is open', async () => {
+    const s = await setup();
+    const sess = (await s.admin('/sessions', { examId: s.exam.id, name: '#member-0908' })).json<SessionDetail>();
+    expect((await s.app.inject({ url: '/api/screen/sessions' })).json()).toEqual({ open: [], latestEnded: null });
+    await s.admin(`/sessions/${sess.id}/open`);
+    const open = (await s.app.inject({ url: '/api/screen/sessions' })).json<ScreenSessions>();
+    expect(open.open).toEqual([{ id: sess.id, name: '#member-0908', slot: 1, title: s.exam.title, status: 'lobby' }]);
+    expect(open.latestEnded).toBeNull();
+    await s.admin(`/sessions/${sess.id}/start`);
+    await s.admin(`/sessions/${sess.id}/close`);
+    expect((await s.app.inject({ url: '/api/screen/sessions' })).json<ScreenSessions>()).toMatchObject({ open: [], latestEnded: { id: sess.id, name: '#member-0908', slot: null } });
+  });
+
+  it('refuses every other machine, and --allow-remote-admin must not change that (codes and session names stay off the LAN)', async () => {
     for (const allowRemoteAdmin of [false, true]) {
       const s = await setup({ allowRemoteAdmin });
-      const sess = await s.create();
+      const sess = (await s.admin('/sessions', { examId: s.exam.id, name: '#member-0908' })).json<SessionDetail>();
       await s.admin(`/sessions/${sess.id}/open`);
-      const res = await s.app.inject({ url: '/api/screen/room', remoteAddress: '192.168.1.50' });
-      expect(res.statusCode, `allowRemoteAdmin=${allowRemoteAdmin}`).toBe(403);
-      expect(res.body).not.toContain(roomCodeOf(s.app, sess.id));
+      for (const url of [`/api/screen/sessions/${sess.id}/room`, '/api/screen/sessions']) {
+        const res = await s.app.inject({ url, remoteAddress: '192.168.1.50' });
+        expect(res.statusCode, `${url} allowRemoteAdmin=${allowRemoteAdmin}`).toBe(403);
+        expect(res.body).not.toContain(roomCodeOf(s.app, sess.id));
+        expect(res.body).not.toContain('member-0908');
+      }
     }
   });
 
@@ -237,7 +333,7 @@ describe('GET /api/screen/room (the projector)', () => {
     const s = await setup();
     const sess = await s.create();
     await s.admin(`/sessions/${sess.id}/open`);
-    const res = await s.app.inject({ url: '/api/screen/room', remoteAddress: '192.168.1.50', headers: { 'x-forwarded-for': '127.0.0.1' } });
+    const res = await room(s, sess.id, { remoteAddress: '192.168.1.50', headers: { 'x-forwarded-for': '127.0.0.1' } });
     expect(res.statusCode).toBe(403);
   });
 });

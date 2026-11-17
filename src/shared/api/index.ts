@@ -9,3 +9,4 @@ export * from './leaderboard.js';
 export * from './network.js';
 export * from './grading.js';
 export * from './discussion.js';
+export * from './groups.js';

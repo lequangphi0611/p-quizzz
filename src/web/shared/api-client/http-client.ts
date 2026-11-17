@@ -4,10 +4,13 @@
 /** Errors become ApiError carrying the `{ error }` message from the server (status 0 = network failure). */
 export class ApiError extends Error {
   readonly status: number;
-  constructor(status: number, message: string) {
+  /** Machine-readable reason the server may add (e.g. `identity_in_use`); the web acts on it, the user reads `message`. */
+  readonly code: string | undefined;
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -54,7 +57,8 @@ export function createHttpClient(options: HttpClientOptions = {}): HttpClient {
     try { data = text ? JSON.parse(text) : undefined; } catch { data = undefined; }
     if (!res.ok) {
       const msg = data && typeof data === 'object' && 'error' in data && typeof data.error === 'string' ? data.error : `Lỗi ${res.status}`;
-      throw new ApiError(res.status, msg);
+      const code = data && typeof data === 'object' && 'code' in data && typeof data.code === 'string' ? data.code : undefined;
+      throw new ApiError(res.status, msg, code);
     }
     return data as T;
   }

@@ -11,6 +11,6 @@ const STATUS: Record<DomainErrorKind, 400 | 401 | 403 | 404 | 409> = {
 
 /** Sends a business failure as `{ error }` with its status. Anything else is a real bug and is rethrown. */
 export function sendDomainError(reply: FastifyReply, err: unknown) {
-  if (err instanceof DomainError) return reply.code(STATUS[err.kind]).send({ error: err.message });
+  if (err instanceof DomainError) return reply.code(STATUS[err.kind]).send(err.code ? { error: err.message, code: err.code } : { error: err.message });
   throw err;
 }

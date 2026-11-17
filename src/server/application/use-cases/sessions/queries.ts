@@ -4,8 +4,9 @@ import type { ActiveSessionView, SessionDetailView, SessionReader, SessionSummar
 export class ListSessions {
   constructor(private readonly sessions: SessionReader) {}
 
-  execute(): Promise<SessionSummaryView[]> {
-    return this.sessions.list();
+  /** `activeOnly`: just the sessions in lobby/running (what the bell and the overview follow). */
+  execute(activeOnly = false): Promise<SessionSummaryView[]> {
+    return activeOnly ? this.sessions.listActive() : this.sessions.list();
   }
 }
 
@@ -19,20 +20,16 @@ export class GetSessionDetail {
   }
 }
 
-/** Public: lets members find the room from the root URL. */
-export class GetActiveSession {
+/**
+ * Public: the exam title and status of one session (the projector page). A DRAFT is not public: its exam title may be the
+ * upcoming test, and ids are guessable, so it reads as "not found" until the mentor opens the room.
+ */
+export class GetPublicSession {
   constructor(private readonly sessions: SessionReader) {}
 
-  execute(): Promise<ActiveSessionView | null> {
-    return this.sessions.findActive();
-  }
-}
-
-/** Public: the projector follows the active session, or else the one that just ended. */
-export class GetLatestSession {
-  constructor(private readonly sessions: SessionReader) {}
-
-  execute(): Promise<ActiveSessionView | null> {
-    return this.sessions.findLatest();
+  async execute(id: number): Promise<ActiveSessionView> {
+    const found = await this.sessions.findPublic(id);
+    if (!found || found.status === 'draft') throw new SessionNotFoundError();
+    return found;
   }
 }

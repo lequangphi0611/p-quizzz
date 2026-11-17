@@ -31,6 +31,11 @@ describe('createHttpClient', () => {
     await expect(mk(down).get('/a')).rejects.toMatchObject({ status: 0, message: 'Không kết nối được tới máy chủ' });
   });
 
+  it('keeps the machine-readable code the server adds next to the message', async () => {
+    await expect(createHttpClient({ fetch: respond(409, { error: 'Email này đã có người vào phòng', code: 'identity_in_use' }) as unknown as typeof fetch }).post('/a')).rejects.toMatchObject({ status: 409, code: 'identity_in_use' });
+    await expect(createHttpClient({ fetch: respond(409, { error: 'x' }) as unknown as typeof fetch }).post('/a')).rejects.toMatchObject({ code: undefined });
+  });
+
   it('returns undefined for an empty success body', async () => {
     expect(await createHttpClient({ fetch: respond(204, undefined) as unknown as typeof fetch }).delete('/a')).toBeUndefined();
   });

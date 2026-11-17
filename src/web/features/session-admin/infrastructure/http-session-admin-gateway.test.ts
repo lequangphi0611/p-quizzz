@@ -12,6 +12,8 @@ describe('HttpSessionAdminGateway', () => {
     await g.getSession(5); await g.runAction(5, 'start');
     await g.approveParticipant(8); await g.kickParticipant(9); await g.renameParticipant(8, 'An B');
     await g.getParticipantReview(8); await g.getLeaderboard(5); await g.getJoinHosts();
+    await g.listGroups(); await g.addRoster(5, ['a@x.com']); await g.saveGroup(5, '#docker');
+    await g.answerRejoin(3, 'keep'); await g.answerRejoin(3, 'takeover'); await g.answerRejoin(3, 'reject'); await g.allowRejoin(8);
     expect(calls).toEqual([
       ['GET', '/api/admin/sessions'], ['GET', '/api/admin/exams'],
       ['POST', '/api/admin/sessions', { examId: 2, shuffle: true, autoApprove: false }],
@@ -19,6 +21,8 @@ describe('HttpSessionAdminGateway', () => {
       ['POST', '/api/admin/participants/8/approve'], ['POST', '/api/admin/participants/9/kick'],
       ['PATCH', '/api/admin/participants/8', { displayName: 'An B' }],
       ['GET', '/api/admin/participants/8/review'], ['GET', '/api/sessions/5/leaderboard'], ['GET', '/api/network'],
+      ['GET', '/api/admin/groups'], ['POST', '/api/admin/sessions/5/roster', { emails: ['a@x.com'] }], ['POST', '/api/admin/sessions/5/save-group', { name: '#docker' }],
+      ['POST', '/api/admin/rejoin-requests/3/approve-keep'], ['POST', '/api/admin/rejoin-requests/3/approve-takeover'], ['POST', '/api/admin/rejoin-requests/3/reject'], ['POST', '/api/admin/participants/8/allow-rejoin'],
     ]);
   });
 });

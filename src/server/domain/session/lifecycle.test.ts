@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AnotherSessionActiveError, InvalidSessionTransitionError, UngradedEssaysError } from './errors.js';
+import { InvalidSessionTransitionError, UngradedEssaysError } from './errors.js';
 import { assertTransition, planClose, planFinalize, planOpen, planStart } from './lifecycle.js';
 import { SelfPacedMode } from './mode.js';
 
@@ -18,19 +18,19 @@ describe('session lifecycle policy', () => {
   });
 
   it('open stamps openedAt and the room code; start stamps startedAt', () => {
-    expect(planOpen(now, '123456')).toEqual({ status: 'lobby', openedAt: now, roomCode: '123456' });
+    expect(planOpen(now, '123456', 2)).toEqual({ status: 'lobby', openedAt: now, roomCode: '123456', slot: 2 });
     expect(planStart(now)).toEqual({ status: 'running', startedAt: now });
   });
 
   it('self-paced close finalizes at once only when the exam has no essay', () => {
-    expect(planClose(SelfPacedMode, { hasEssay: true }, now)).toEqual({ status: 'closed', closedAt: now });
-    expect(planClose(SelfPacedMode, { hasEssay: false }, now)).toEqual({ status: 'finalized', closedAt: now, finalizedAt: now });
+    // Closing frees the slot either way.
+    expect(planClose(SelfPacedMode, { hasEssay: true }, now)).toEqual({ status: 'closed', closedAt: now, slot: null });
+    expect(planClose(SelfPacedMode, { hasEssay: false }, now)).toEqual({ status: 'finalized', closedAt: now, finalizedAt: now, slot: null });
   });
 
   it('finalize needs every essay graded', () => {
     expect(planFinalize(now, 0)).toEqual({ status: 'finalized', finalizedAt: now });
     expect(() => planFinalize(now, 2)).toThrow(UngradedEssaysError);
     expect(() => planFinalize(now, 2)).toThrow('Còn 2 bài tự luận chưa chấm điểm');
-    expect(new AnotherSessionActiveError().message).toBe('Đang có phiên thi khác hoạt động');
   });
 });

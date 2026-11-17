@@ -28,6 +28,7 @@ npm run typecheck  # tsc --noEmit (no separate lint step yet)
 npm run arch:check # layer dependency rules (docs/architecture.md §9.2); also runs inside npm test
 npm run db:generate  # drizzle-kit: generate migration after editing src/server/infrastructure/db/schema.ts
 npm run exam:check -- exams/<file>.md   # validate exam Markdown; exit 1 on errors
+npm run e2e        # Playwright against the real app (vite build + Fastify on :3100, in-memory DB); screenshots go to docs/design/<story>-assets/
 ```
 
 The server runs TypeScript directly via `tsx` in both dev and `start`; there is no server compile step. Env overrides: `PORT`, `HOST`, `DB_FILE` (see `src/server/config.ts`).
