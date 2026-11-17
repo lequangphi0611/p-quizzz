@@ -52,7 +52,7 @@ Mỗi story là một file tự đủ ngữ cảnh để một model/người im
 | [S22](S22-rejoin-request.md) | Xin vào lại khi email/tên đã có người vào | S21 | ✅ |
 | [S23](S23-score-visibility.md) | Ẩn/hiện điểm theo phiên + giờ nộp cho mentor | S09, S13, S14, S18 | ✅ |
 | [S24](S24-answered-progress.md) | Tiến độ làm bài (số câu đã trả lời) cho mentor | S09, S11 | ✅ |
-| [S25](S25-discussion-hide-work.md) | Thảo luận: đọc đề trước, ẩn bài làm của lớp | S17 | ⬜ |
+| [S25](S25-discussion-hide-work.md) | Thảo luận: đọc đề trước, ẩn bài làm của lớp | S17 | ✅ |
 
 ## Thứ tự & song song
 

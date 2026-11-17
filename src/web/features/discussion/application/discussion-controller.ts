@@ -12,6 +12,8 @@ export interface DiscussionState {
   loadError: string | undefined;
   /** Question ids whose answer the mentor has revealed (session-local, never sent anywhere). */
   revealed: ReadonlySet<number>;
+  /** Question ids whose class work (tallies, essay papers) the mentor has shown (S25). Same lifetime as `revealed`. */
+  work: ReadonlySet<number>;
   mode: 'list' | 'paper';
   paperIdx: number;
   lastOpened: number | null;
@@ -23,7 +25,7 @@ export interface DiscussionState {
 }
 
 export const initialDiscussionState = (): DiscussionState => ({
-  view: null, load: 'loading', loadError: undefined, revealed: new Set(), mode: 'list', paperIdx: 0, lastOpened: null, drafts: {},
+  view: null, load: 'loading', loadError: undefined, revealed: new Set(), work: new Set(), mode: 'list', paperIdx: 0, lastOpened: null, drafts: {},
   dialog: false, finalizing: false, finalizeError: undefined, zeroing: false,
 });
 
@@ -59,6 +61,13 @@ export class DiscussionController {
     const r = new Set(this.state.revealed);
     if (!r.delete(questionId)) r.add(questionId);
     this.set({ revealed: r });
+  }
+  /** B: show or hide the class's work. Hiding it while a paper is open goes back to the (now hidden) list. */
+  toggleWork(questionId: number): void {
+    const w = new Set(this.state.work);
+    const hide = w.delete(questionId);
+    if (!hide) w.add(questionId);
+    this.set(hide ? { work: w, mode: 'list' } : { work: w });
   }
   openPaper(index: number): void { this.set({ mode: 'paper', paperIdx: index, lastOpened: index }); }
   backToList(): void { this.set({ mode: 'list' }); }

@@ -29,6 +29,7 @@ test('discussion: a long essay prompt and a code rubric never overlap the papers
   await page.keyboard.press('ArrowRight');
   const prompt = page.getByRole('heading', { name: 'Refactor code kiểu Java bằng scope functions' });
   await expect(prompt).toBeVisible();
+  await page.keyboard.press('b'); // the class's work is hidden until the mentor shows it (S25)
   const papers = page.getByRole('list', { name: 'Bài tự luận ẩn danh' });
   await expect(papers).toContainText('bài bỏ trống');
 

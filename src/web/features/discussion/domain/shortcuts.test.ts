@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { discussionKeyAction, type KeyContext } from './shortcuts.js';
 
-const ctx = (o: Partial<KeyContext> = {}): KeyContext => ({ dialog: false, finalizing: false, ready: true, hasPapers: true, mode: 'list', fullscreen: false, ...o });
+const ctx = (o: Partial<KeyContext> = {}): KeyContext => ({ dialog: false, finalizing: false, ready: true, hasPapers: true, workShown: true, mode: 'list', fullscreen: false, ...o });
 const k = (key: string, c: Partial<KeyContext> = {}, extra: object = {}) => discussionKeyAction({ key, tag: 'BODY', ...extra }, ctx(c));
 
 describe('discussionKeyAction', () => {
@@ -12,6 +12,13 @@ describe('discussionKeyAction', () => {
     expect(k('j')).toEqual({ kind: 'paper', dir: 1 });
     expect(k('K')).toEqual({ kind: 'paper', dir: -1 });
     expect(k('j', { hasPapers: false })).toBeNull();
+  });
+  it('B toggles the class work; J/K are ignored while the work is hidden (S25)', () => {
+    expect(k('b')).toEqual({ kind: 'toggleWork' });
+    expect(k('B', { workShown: false })).toEqual({ kind: 'toggleWork' });
+    expect(k('j', { workShown: false })).toBeNull();
+    expect(k('k', { workShown: false })).toBeNull();
+    expect(discussionKeyAction({ key: 'b', tag: 'INPUT' }, ctx())).toBeNull();
   });
   it('is off while typing or with a modifier', () => {
     expect(discussionKeyAction({ key: 'j', tag: 'TEXTAREA' }, ctx())).toBeNull();
