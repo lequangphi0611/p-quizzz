@@ -57,4 +57,4 @@ AI chỉ gợi ý, mentor xác nhận từng bài, không có duyệt tất cả
 - `args` của mentor (ví dụ `--settings`) vẫn có thể thêm hook hoặc quyền; app chỉ chặn các cờ đã liệt kê. File mẫu ghi cảnh báo.
 
 ## Ngoài phạm vi
-Gợi ý khi phiên đang chạy, chấm cả phiên một lần, gợi ý trong chế độ thảo luận, thống kê độ lệch AI/mentor (dữ liệu đã lưu, chưa làm màn hình), designer (đề xuất soạn prompt designer riêng trước khi làm phần web).
+Gợi ý khi phiên đang chạy, chấm cả phiên một lần, gợi ý trong chế độ thảo luận, thống kê độ lệch AI/mentor (dữ liệu đã lưu, chưa làm màn hình), thống kê màn hình. Thiết kế UI: [S25-ai-grading-ui-prompt.md](../design/S25-ai-grading-ui-prompt.md); phần web chờ bản thiết kế.
