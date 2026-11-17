@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useLoaderData, useNavigate } from 'react-router';
+import { formatClock } from '../../../shared/format/date.js';
 import { LeaderboardView } from '../../../shared/leaderboard/LeaderboardView.js';
 import { Button } from '../../../shared/ui/Button.js';
 import { Card } from '../../../shared/ui/Card.js';
@@ -61,14 +62,14 @@ export function SessionReviewPage() {
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' }}>
         <div style={{ display: 'grid', gap: 20, flex: '1 1 480px', minWidth: 0 }}>
-          <LeaderboardView entries={board.entries} provisional={board.provisional} />
+          <LeaderboardView entries={board.entries} provisional={board.provisional} hidden={board.hidden} submitted={board.submitted} />
           <Card padding={0} style={{ overflowX: 'auto' }}>
             <div style={{ padding: '16px 16px 6px', font: 'var(--type-h2)', fontSize: 16, color: 'var(--text-title)' }}>Ai đã tham gia · {session.participants.length}</div>
             {session.participants.length === 0 ? (
               <p style={{ margin: 0, padding: '8px 16px 20px', font: 'var(--type-meta)', color: 'var(--text-meta)' }}>Không có ai vào phiên này.</p>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead><tr><th style={{ ...th, ...cell }}>Tên</th><th style={{ ...th, ...cell }}>Tham gia</th><th style={{ ...th, ...cell }}>Bài làm</th><th style={{ ...th, ...cell }}>Điểm</th></tr></thead>
+                <thead><tr><th style={{ ...th, ...cell }}>Tên</th><th style={{ ...th, ...cell }}>Tham gia</th><th style={{ ...th, ...cell }}>Bài làm</th><th style={{ ...th, ...cell }}>Nộp lúc</th><th style={{ ...th, ...cell }}>Điểm</th></tr></thead>
                 <tbody>
                   {session.participants.map(p => {
                     const on = p.id === selected;
@@ -80,6 +81,7 @@ export function SessionReviewPage() {
                         <td style={{ ...td, ...cell, fontWeight: 600, color: 'var(--text-title)', overflowWrap: 'anywhere' }}>{p.displayName}</td>
                         <td style={{ ...td, ...cell, color: m.color }}>{m.label}</td>
                         <td style={{ ...td, ...cell, color: pr.color }}>{pr.label}</td>
+                        <td className="pq-tabular" style={{ ...td, ...cell, whiteSpace: 'nowrap', fontFamily: 'var(--font-mono)' }}>{p.progress.submittedAt === null ? '—' : formatClock(p.progress.submittedAt)}</td>
                         <td className="pq-tabular" style={{ ...td, ...cell, whiteSpace: 'nowrap', fontFamily: 'var(--font-mono)' }}>{p.progress.countedScore === null ? '—' : `${formatPoints(p.progress.countedScore)}/${formatPoints(p.progress.maxScore)}`}</td>
                       </tr>
                     );

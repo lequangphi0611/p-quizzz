@@ -30,6 +30,8 @@ const summaryColumns = {
   status: sessions.status,
   shuffle: sessions.shuffle,
   autoApprove: sessions.autoApprove,
+  scoreVisibility: sessions.scoreVisibility,
+  scoresReleasedAt: sessions.scoresReleasedAt,
   roomCode: sessions.roomCode,
   createdAt: sessions.createdAt,
   openedAt: sessions.openedAt,
@@ -51,7 +53,7 @@ export class DrizzleSessionRepository implements SessionRepository {
       db =>
         db
           .insert(sessions)
-          .values({ examId: s.examId, name: s.name, mode: s.mode, shuffle: s.shuffle, autoApprove: s.autoApprove, access: s.access, outsiderPolicy: s.outsiderPolicy, sourceGroupId: s.sourceGroupId, createdAt: s.createdAt })
+          .values({ examId: s.examId, name: s.name, mode: s.mode, shuffle: s.shuffle, autoApprove: s.autoApprove, access: s.access, outsiderPolicy: s.outsiderPolicy, sourceGroupId: s.sourceGroupId, scoreVisibility: s.scoreVisibility, createdAt: s.createdAt })
           .returning({ id: sessions.id })
           .get().id,
     );

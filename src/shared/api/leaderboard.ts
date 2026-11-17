@@ -7,7 +7,16 @@ export interface LeaderboardEntry {
   submittedAt: number; // epoch ms of the counted attempt
 }
 
+// Who has submitted, without score or rank: what members and the projector see while scores are held back.
+export interface SubmittedEntry {
+  displayName: string;
+  submittedAt: number; // epoch ms
+}
+
 export interface LeaderboardResponse {
   provisional: boolean; // true until the session is finalized
+  // The mentor holds scores back (PRODUCT.md §7.25): `entries` is empty and `submitted` lists who has handed in, by time.
+  hidden: boolean;
   entries: LeaderboardEntry[];
+  submitted: SubmittedEntry[]; // empty unless hidden
 }

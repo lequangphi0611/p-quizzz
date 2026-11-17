@@ -49,7 +49,8 @@ export interface MeResponse {
   participant: SessionParticipantInfo;
   // participantCount = members with status 'active' (the lobby shows "N người đã vào").
   // questionCount / totalPoints / hasEssay describe the exam for the start screen (counts only, no content).
-  session: { id: number; title: string; status: SessionStatus; participantCount: number; questionCount: number; totalPoints: number; hasEssay: boolean };
+  // scoresHidden: the mentor is holding scores and the leaderboard back until they publish them (PRODUCT.md §7.25).
+  session: { id: number; title: string; status: SessionStatus; participantCount: number; questionCount: number; totalPoints: number; hasEssay: boolean; scoresHidden: boolean };
   attempt: MeAttemptState;
 }
 

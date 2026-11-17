@@ -47,7 +47,7 @@ async function setup() {
   );
   const exam = (await exams.findById(examId))!;
   ids = { single: exam.questions[0]!.id, correct: exam.questions[0]!.options[0]!.id, wrong: exam.questions[0]!.options[1]!.id, essay: exam.questions[1]!.id };
-  sessionId = await sessions.create({ examId, name: 'Phiên', access: 'free', outsiderPolicy: 'block', sourceGroupId: null, mode: 'self_paced', shuffle: false, autoApprove: true, createdAt: new Date() });
+  sessionId = await sessions.create({ examId, name: 'Phiên', access: 'free', outsiderPolicy: 'block', sourceGroupId: null, scoreVisibility: 'on_submit', mode: 'self_paced', shuffle: false, autoApprove: true, createdAt: new Date() });
   await sessions.update(sessionId, { status: 'running', roomCode: '123456' });
 
   const clock = new FakeClock(1000);

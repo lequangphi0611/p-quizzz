@@ -29,3 +29,20 @@ export class UnsupportedSessionModeError extends DomainError {
     super('invalid', `Chế độ "${mode}" chưa được hỗ trợ`);
   }
 }
+
+export class ScoreVisibilityLockedError extends DomainError {
+  constructor(reason: 'submitted' | 'ended' | 'released') {
+    const why = {
+      submitted: 'Đã có người nộp bài, không đổi cách hiện điểm được nữa',
+      ended: 'Phiên đã kết thúc, điểm đã được công bố',
+      released: 'Điểm đã được công bố, không ẩn lại được',
+    }[reason];
+    super('conflict', why);
+  }
+}
+
+export class ScoresNotHeldError extends DomainError {
+  constructor() {
+    super('conflict', 'Phiên này không giữ điểm, không có gì để công bố');
+  }
+}

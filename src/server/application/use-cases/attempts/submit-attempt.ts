@@ -4,6 +4,7 @@ import type { Attempt } from '../../../domain/attempt/attempt.js';
 import { ExamNotFoundError } from '../../../domain/exam/errors.js';
 import { ParticipantNotFoundError } from '../../../domain/participant/errors.js';
 import { SessionNotFoundError } from '../../../domain/session/errors.js';
+import { areScoresHidden } from '../../../domain/session/score-visibility.js';
 import type { AttemptUnitContext } from '../../ports/attempt-repository.js';
 import type { Clock } from '../../ports/clock.js';
 import type { EventPublisher } from '../../ports/event-publisher.js';
@@ -16,6 +17,8 @@ export interface SubmitResult {
   maxScore: number;
   /** The exam has essays still waiting for the mentor. */
   essayPending: boolean;
+  /** The mentor holds scores back (PRODUCT.md §7.25): the response must not carry the score. */
+  scoresHidden: boolean;
 }
 
 export class SubmitAttempt {
@@ -34,7 +37,7 @@ export class SubmitAttempt {
       const exam = await ctx.exams.findById(session.examId);
       if (!exam) throw new ExamNotFoundError();
       const done = await gradeAndSubmit(ctx.attempts, attempt, exam, this.deps.clock.now());
-      return { sessionId: session.id, result: { attempt: done, maxScore: maxAutoScore(exam), essayPending: exam.questions.some(q => q.type === 'essay') } };
+      return { sessionId: session.id, result: { attempt: done, maxScore: maxAutoScore(exam), essayPending: exam.questions.some(q => q.type === 'essay'), scoresHidden: areScoresHidden(session) } };
     });
     await this.deps.events.publish(sessionId, 'leaderboard');
     await this.deps.events.publish(sessionId, 'participants');

@@ -12,6 +12,12 @@ export type SessionAccess = 'free' | 'roster';
 export type OutsiderPolicy = 'block' | 'pending';
 /** `group` = list copied from a saved group; `temp` = typed for this session (can be saved as a group later). */
 export type RosterSource = 'group' | 'temp';
+/**
+ * When members see scores and the leaderboard (PRODUCT.md §7.25): right after they submit (`on_submit`, the default), or
+ * only once the mentor publishes them (`on_release`). Closing the session publishes them anyway.
+ */
+export type ScoreVisibility = 'on_submit' | 'on_release';
+export const ScoreVisibilityBody = z.object({ scoreVisibility: z.enum(['on_submit', 'on_release']) });
 
 export const CreateSessionBody = z.object({
   examId: z.number().int().positive('Chọn một đề'),
@@ -28,6 +34,7 @@ export const CreateSessionBody = z.object({
     ])
     .optional(),
   outsiderPolicy: z.enum(['block', 'pending']).optional(), // roster sessions only (default block)
+  scoreVisibility: z.enum(['on_submit', 'on_release']).optional(), // default on_submit (PRODUCT.md §7.25)
 });
 
 export interface SessionSummary {
@@ -43,6 +50,9 @@ export interface SessionSummary {
   access: SessionAccess;
   outsiderPolicy: OutsiderPolicy;
   rosterSource: RosterSource | null; // null for free sessions
+  scoreVisibility: ScoreVisibility;
+  scoresReleasedAt: number | null; // epoch ms the mentor pressed "Công bố điểm"; null otherwise (closing publishes without setting it)
+  scoresHidden: boolean; // members and the projector cannot see scores or ranks right now
   roomCode: string | null; // mentor-only; null until the session is opened
   createdAt: number; // epoch ms
   openedAt: number | null;

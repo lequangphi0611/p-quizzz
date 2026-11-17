@@ -147,7 +147,7 @@ describe('GET /api/me', () => {
     expect(res.statusCode).toBe(200);
     expect(res.json<MeResponse>()).toEqual({
       participant: { id: expect.any(Number), displayName: 'An', status: 'active', joinedAt: expect.any(Number) },
-      session: { id: sid, title: 'Đề Git', status: 'lobby', participantCount: 1, questionCount: 3, totalPoints: 7, hasEssay: false },
+      session: { id: sid, title: 'Đề Git', status: 'lobby', participantCount: 1, questionCount: 3, totalPoints: 7, hasEssay: false, scoresHidden: false },
       attempt: { current: null, submitted: [], canStartNew: false }, // lobby: nothing to start yet
     });
   });

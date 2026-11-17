@@ -4,6 +4,7 @@ import { ExamNotFoundError } from '../../../domain/exam/errors.js';
 import { ParticipantNotFoundError } from '../../../domain/participant/errors.js';
 import type { Participant } from '../../../domain/participant/participant.js';
 import { SessionNotFoundError } from '../../../domain/session/errors.js';
+import { areScoresHidden } from '../../../domain/session/score-visibility.js';
 import type { AttemptReader, MemberRoom, MemberRoomReader } from '../../ports/attempt-repository.js';
 import type { ExamReader } from '../../ports/exam-repository.js';
 import type { ParticipantReader } from '../../ports/participant-repository.js';
@@ -89,6 +90,8 @@ export interface MemberState {
   canStartNew: boolean;
   /** Most the automatic part can give: the `maxScore` of every submitted attempt. */
   maxScore: number;
+  /** The mentor holds scores back (PRODUCT.md §7.25): the member sees that they submitted and when, not their score. */
+  scoresHidden: boolean;
 }
 
 /** `GET /api/me`: every member polls it, so it keeps to a few small queries (an aggregate for the max score, not the exam content). */
@@ -102,6 +105,6 @@ export class GetMemberState {
     const maxScore = await this.deps.exams.maxAutoScoreOf(session.examId);
     const attempts = await this.deps.attempts.listByParticipant(participant.id);
     const { current, submitted, canStartNew } = memberAttemptState({ attempts, sessionStatus: session.status, participantStatus: participant.status });
-    return { participant, room, current, submitted, canStartNew, maxScore };
+    return { participant, room, current, submitted, canStartNew, maxScore, scoresHidden: areScoresHidden(session) };
   }
 }

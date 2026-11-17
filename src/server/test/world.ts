@@ -11,7 +11,7 @@ export function allKeys(v: unknown, out = new Set<string>()): Set<string> {
   return out;
 }
 
-export async function world(opts: { essay?: boolean; shuffle?: boolean; state?: 'lobby' | 'running' } = {}) {
+export async function world(opts: { essay?: boolean; shuffle?: boolean; state?: 'lobby' | 'running'; scoreVisibility?: 'on_submit' | 'on_release' } = {}) {
   const { app, db } = await createTestApp();
   const headers = await loginAsMentor(app);
   const essay = opts.essay ?? false;
@@ -28,7 +28,7 @@ export async function world(opts: { essay?: boolean; shuffle?: boolean; state?: 
   const essayQ = essay ? qs[2]! : null; // 4 points
 
   const admin = (url: string, payload?: object) => app.inject({ method: 'POST', url: `/api/admin${url}`, headers, payload });
-  const session = (await admin('/sessions', { examId: exam.id, shuffle: opts.shuffle ?? true })).json<SessionDetail>();
+  const session = (await admin('/sessions', { examId: exam.id, shuffle: opts.shuffle ?? true, scoreVisibility: opts.scoreVisibility })).json<SessionDetail>();
   await admin(`/sessions/${session.id}/open`);
   const running = (opts.state ?? 'running') === 'running';
 

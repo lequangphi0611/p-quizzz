@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import type { ExamSummary, GroupSummary, OutsiderPolicy } from '../../../../shared/api/index.js';
+import type { ExamSummary, GroupSummary, OutsiderPolicy, ScoreVisibility } from '../../../../shared/api/index.js';
 import { parseEmailList } from '../../../../shared/email-list.js';
 import { PREF_KEYS, readPref, writePref } from '../../../shared/storage/prefs.js';
 import { Button } from '../../../shared/ui/Button.js';
@@ -13,6 +13,7 @@ import { saveNote } from '../../../shared/ui/email-preview-rows.js';
 import { useCreateSession } from '../application/session-admin-context.js';
 import { ACCESS_CHOICES, accessBlocker, buildAccess, isAccessChoice, OUTSIDER_CHOICES, type AccessChoice } from '../domain/access-ui.js';
 import { suggestSessionName } from '../domain/session-ui.js';
+import { SCORE_VISIBILITY_CHOICES } from '../domain/score-visibility-ui.js';
 
 const selectStyle = { width: '100%', height: 44, padding: '0 12px', font: 'var(--type-body)', fontSize: 16, color: 'var(--text-title)', background: 'var(--paper)', border: '1.5px solid var(--border-strong)', borderRadius: 'var(--radius-md)' } as const;
 const hintStyle = { margin: 0, font: 'var(--type-meta)', color: 'var(--text-meta)' } as const;
@@ -30,6 +31,7 @@ export function CreateSessionForm({ exams, groups, initialExamId, onCancel }: { 
   const [tempDomain, setTempDomain] = useState('');
   const [outsiders, setOutsiders] = useState<OutsiderPolicy>('block');
   const [remind, setRemind] = useState(true);
+  const [scoreVisibility, setScoreVisibility] = useState<ScoreVisibility>('on_submit');
   const { create: createSession, busy, error } = useCreateSession();
   const tempParse = useMemo(() => parseEmailList(tempText, tempDomain), [tempText, tempDomain]);
   const blocker = accessBlocker(choice, groupId, tempParse);
@@ -44,6 +46,7 @@ export function CreateSessionForm({ exams, groups, initialExamId, onCancel }: { 
       autoApprove: choice === 'free' ? autoApprove : false,
       access: buildAccess(choice, groupId, tempParse),
       ...(choice === 'free' ? {} : { outsiderPolicy: outsiders }),
+      scoreVisibility,
     });
     if (!s) return;
     if (choice === 'temp' && !remind) writePref(PREF_KEYS.saveReminderOff(s.id), '1');
@@ -115,6 +118,12 @@ export function CreateSessionForm({ exams, groups, initialExamId, onCancel }: { 
             </div>
           )}
         </fieldset>
+
+        <div style={{ display: 'grid', gap: 6 }}>
+          <span style={{ font: 'var(--type-label)', fontSize: 13, color: 'var(--text-title)' }}>Điểm và bảng xếp hạng</span>
+          <SegmentedControl ariaLabel="Điểm và bảng xếp hạng" size="sm" value={scoreVisibility} onChange={setScoreVisibility} items={SCORE_VISIBILITY_CHOICES.map(c => ({ value: c.value, label: c.label }))} />
+          <p style={hintStyle}>{SCORE_VISIBILITY_CHOICES.find(c => c.value === scoreVisibility)!.hint}</p>
+        </div>
 
         <label style={{ display: 'flex', alignItems: 'center', gap: 10, font: 'var(--type-ui)', color: 'var(--text-title)', cursor: 'pointer' }}>
           <input type="checkbox" checked={shuffle} onChange={e => setShuffle(e.target.checked)} style={{ width: 18, height: 18, accentColor: 'var(--brand-600)' }} />

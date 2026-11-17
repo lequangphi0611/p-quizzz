@@ -22,7 +22,7 @@ async function build(opts: { roster?: string[]; status?: 'lobby' | 'running' | '
   const tokens = new FakeTokenGenerator();
   const presence = new FakePresenceTracker(clock);
   const examId = await exams.add({ title: 'T', description: null, sourceMarkdown: '#', totalPoints: 1, hasEssay: false, createdAt: new Date(), questions: [] });
-  const sessionId = await sessions.create({ examId, name: 'Phiên', access: opts.roster ? 'roster' : 'free', outsiderPolicy: 'block', sourceGroupId: null, mode: 'self_paced', shuffle: true, autoApprove: true, createdAt: new Date() });
+  const sessionId = await sessions.create({ examId, name: 'Phiên', access: opts.roster ? 'roster' : 'free', outsiderPolicy: 'block', sourceGroupId: null, scoreVisibility: 'on_submit', mode: 'self_paced', shuffle: true, autoApprove: true, createdAt: new Date() });
   if (opts.roster) await sessions.addRoster(sessionId, opts.roster);
   await sessions.update(sessionId, { status: opts.status ?? 'running', roomCode: '123456' });
   const unitOfWork = new InMemoryUnitOfWork({ sessions, participants: people, rejoin }, [people, rejoin]);

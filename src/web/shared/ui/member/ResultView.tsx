@@ -12,7 +12,8 @@ const timeOf = (ms: number) => new Date(ms).toLocaleTimeString('vi-VN', { hour: 
 /**
  * After submitting. While the session runs: "Đã nộp bài" with the automatic score only. Once it is over: the score
  * (official after finalize), the multiple-choice / essay split and "Xem lại bài". `autoSubmitted`: the mentor closed
- * the session while this member was still working, so the attempt was submitted for them.
+ * the session while this member was still working, so the attempt was submitted for them. While the mentor holds
+ * scores back (PRODUCT.md §7.25) the running card says so instead of showing a score; closing always publishes them.
  */
 export function ResultView({ me, ended, autoSubmitted = false, onAnotherRoom, children }: { me: MeResponse; ended: boolean; autoSubmitted?: boolean; onAnotherRoom?: () => void; children?: ReactNode }) {
   const desk = useIsDesk();
@@ -23,7 +24,9 @@ export function ResultView({ me, ended, autoSubmitted = false, onAnotherRoom, ch
   const reviewable = session.status === 'closed' || session.status === 'finalized';
   const essayMax = done ? Math.max(0, session.totalPoints - done.maxScore) : 0;
   const essayShown = official && done?.essayScore != null;
-  const total = done ? done.score + (official ? done.essayScore ?? 0 : 0) : 0;
+  const autoScore = done?.score ?? 0; // null only while held back, which never happens once the session has ended
+  const held = !ended && (session.scoresHidden || done?.score === null);
+  const total = done ? autoScore + (official ? done.essayScore ?? 0 : 0) : 0;
   const reviewBtn = done && reviewable ? <Button size="lg" block icon="eye" onClick={() => nav(`/review/${done.id}`)}>Xem lại bài</Button> : undefined;
 
   let card: ReactNode;
@@ -35,14 +38,29 @@ export function ResultView({ me, ended, autoSubmitted = false, onAnotherRoom, ch
         <p style={mText.meta}>Bạn chưa làm bài trong phiên này.</p>
       </PageCard>
     );
+  } else if (held) {
+    card = (
+      <PageCard desk={desk}>
+        <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}><HeroIcon name="circle-check" /><div style={{ display: 'grid', gap: 2 }}><h1 style={mText.h1}>Đã nộp bài</h1><p style={mText.meta}>Lúc {timeOf(done.submittedAt)}</p></div></div>
+        <div role="status" style={{ display: 'flex', gap: 12, padding: 20, background: 'var(--surface-sunken)', borderRadius: 'var(--radius-md)' }}>
+          <Icon name="eye-off" size={20} style={{ marginTop: 2, color: 'var(--text-meta)' }} />
+          <div style={{ display: 'grid', gap: 4 }}>
+            <span style={{ ...mText.label, color: 'var(--text-title)' }}>Điểm sẽ được công bố sau</span>
+            <span style={mText.meta}>Mentor đang giữ điểm và bảng xếp hạng cho tới khi cả lớp làm xong. Bài của bạn đã được lưu, không cần làm gì thêm.</span>
+          </div>
+        </div>
+        <p style={{ ...mText.meta, display: 'flex', gap: 8 }}><Icon name="lock" size={15} style={{ marginTop: 2 }} /><span>Điểm hiện khi mentor bấm công bố hoặc khi đóng phiên. Đáp án và lời giải mở khi mentor đóng phiên.</span></p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 16, borderTop: '1px solid var(--border-hairline)', flexWrap: 'wrap', ...mText.meta }}><StatusBadge status="running" label="Phiên đang diễn ra" /><span>Trang tự cập nhật khi có điểm.</span></div>
+      </PageCard>
+    );
   } else if (!ended) {
     card = (
       <PageCard desk={desk}>
         <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}><HeroIcon name="circle-check" /><div style={{ display: 'grid', gap: 2 }}><h1 style={mText.h1}>Đã nộp bài</h1><p style={mText.meta}>Lúc {timeOf(done.submittedAt)}</p></div></div>
         <div style={{ display: 'grid', gap: 10, padding: 20, background: 'var(--surface-sunken)', borderRadius: 'var(--radius-md)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}><span style={mText.label}>{essayMax > 0 ? 'Điểm phần trắc nghiệm' : 'Điểm bài làm'}</span><Chip icon="hourglass">Tạm tính</Chip></div>
-          <span className="pq-tabular" style={{ font: '700 48px/1 var(--font-mono)', color: 'var(--text-title)' }}>{formatPoints(done.score)}<span style={{ fontSize: 24, color: 'var(--text-meta)' }}> / {formatPoints(done.maxScore)} điểm</span></span>
-          {essayMax > 0 && <p style={{ ...mText.meta, display: 'flex', gap: 8 }}><Icon name="pencil" size={15} style={{ marginTop: 2 }} /><span>Còn câu tự luận ({formatPoints(essayMax)} điểm) chờ mentor chấm. Tổng tạm tính <b style={mText.mono}>{formatPoints(done.score)}/{formatPoints(session.totalPoints)}</b>.</span></p>}
+          <span className="pq-tabular" style={{ font: '700 48px/1 var(--font-mono)', color: 'var(--text-title)' }}>{formatPoints(autoScore)}<span style={{ fontSize: 24, color: 'var(--text-meta)' }}> / {formatPoints(done.maxScore)} điểm</span></span>
+          {essayMax > 0 && <p style={{ ...mText.meta, display: 'flex', gap: 8 }}><Icon name="pencil" size={15} style={{ marginTop: 2 }} /><span>Còn câu tự luận ({formatPoints(essayMax)} điểm) chờ mentor chấm. Tổng tạm tính <b style={mText.mono}>{formatPoints(autoScore)}/{formatPoints(session.totalPoints)}</b>.</span></p>}
         </div>
         <p style={{ ...mText.meta, display: 'flex', gap: 8 }}><Icon name="lock" size={15} style={{ marginTop: 2 }} /><span>Đáp án, lời giải và điểm từng câu sẽ mở khi mentor đóng phiên. Muốn làm lại, nhờ mentor mở phiên mới.</span></p>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 16, borderTop: '1px solid var(--border-hairline)', flexWrap: 'wrap', ...mText.meta }}><StatusBadge status="running" label="Phiên đang diễn ra" /><span>Trang tự cập nhật khi có kết quả.</span></div>
@@ -58,7 +76,7 @@ export function ResultView({ me, ended, autoSubmitted = false, onAnotherRoom, ch
         </div>
         {essayMax > 0 && (
           <InfoBox>
-            <InfoRow icon="list-checks" k="Trắc nghiệm" v={<span style={mText.mono}>{formatPoints(done.score)} / {formatPoints(done.maxScore)}</span>} />
+            <InfoRow icon="list-checks" k="Trắc nghiệm" v={<span style={mText.mono}>{formatPoints(autoScore)} / {formatPoints(done.maxScore)}</span>} />
             <InfoRow icon="pencil" k="Tự luận" v={essayShown ? <span style={mText.mono}>{formatPoints(done.essayScore!)} / {formatPoints(essayMax)}</span> : <Chip tone="ink" icon="hourglass">Chờ chấm</Chip>} />
           </InfoBox>
         )}
