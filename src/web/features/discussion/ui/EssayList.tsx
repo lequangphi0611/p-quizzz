@@ -17,8 +17,11 @@ export function EssayList({ q, index, revealed, onToggle, papers, blanks, lastOp
   const blanksUngraded = blanks.filter(b => b.manualScore === null).length;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 28, height: '100%', minHeight: 0 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,720px)', gap: 48, alignItems: 'start', maxHeight: '48%', minHeight: 0 }}>
-        <div style={{ display: 'grid', gap: 20, minWidth: 0 }}>
+      {/* The top row takes what it needs and shrinks (each column then scrolls inside it) so the papers keep at least
+          one row of cards; a long prompt or rubric never spills over the papers or the key hints. Revealing the rubric
+          widens it: the class is reading the model answer then, and model answers are often code. */}
+      <div style={{ flex: '0 1 auto', display: 'grid', gridTemplateColumns: revealed ? 'minmax(0,1fr) minmax(0,2.2fr)' : 'minmax(0,1fr) minmax(0,720px)', gridTemplateRows: 'minmax(0,1fr)', gap: 48, alignItems: 'start', minHeight: 0 }}>
+        <div className="pq-scroll" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr)', gap: 20, alignContent: 'start', minWidth: 0, minHeight: 0, maxHeight: '100%', overflow: 'auto' }}>
           <QHeader q={q} index={index} />
           <h1 style={st.prompt}><Markdown inlineOnly size="screen" source={q.prompt} /></h1>
           {q.body && <Markdown size="screen" source={q.body} />}
@@ -31,7 +34,7 @@ export function EssayList({ q, index, revealed, onToggle, papers, blanks, lastOp
         </div>
         <RubricPanel q={q} revealed={revealed} onToggle={onToggle} />
       </div>
-      <div role="list" aria-label="Bài tự luận ẩn danh" className="pq-scroll" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0,1fr))', gap: 16, overflow: 'auto', minHeight: 0, padding: 8, margin: -8, alignContent: 'start' }}>
+      <div role="list" aria-label="Bài tự luận ẩn danh" className="pq-scroll" style={{ flex: '1 1 0', minHeight: 210, display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0,1fr))', gap: 16, overflow: 'auto', padding: 8, margin: -8, alignContent: 'start' }}>
         {papers.map((p, i) => (
           <div role="listitem" key={p.answerId} style={{ display: 'grid' }}>
             <EssayCard number={i + 1} excerpt={p.textAnswer ?? ''} status={p.manualScore !== null ? 'graded' : 'ungraded'} score={p.manualScore} maxScore={q.points} current={lastOpened === i} onClick={() => onOpen(i)} />

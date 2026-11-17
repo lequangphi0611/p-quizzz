@@ -29,6 +29,8 @@ code, kbd, pre { font-family: var(--font-mono); }
 .pq-md-screen code { background: var(--screen-panel-hover); color: #fff; border: 1.5px solid var(--screen-line-strong); padding: 1px 8px; border-radius: var(--radius-xs); font-size: 0.88em; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 .pq-md-screen pre { margin: 0 0 14px; background: var(--screen-bg); border: 2px solid var(--screen-line-strong); border-radius: var(--radius-md); font-size: 26px; line-height: 1.45; }
 .pq-md-screen pre code { background: transparent; border: 0; padding: 20px 24px; font-size: inherit; }
+/* Model answers in the discussion rubric are often whole functions: a slightly smaller size fits ~80 columns in the revealed panel. */
+.pq-md-screen.pq-md-rubric pre { font-size: 22px; }
 .pq-md-screen blockquote { color: var(--screen-meta); border-color: var(--screen-line-strong); }
 .pq-md-screen th, .pq-md-screen td { border-color: var(--screen-line-strong); font-size: 24px; }
 .pq-md-screen th { background: var(--screen-panel); }
