@@ -22,6 +22,10 @@ export interface CreateSessionInput {
   outsiderPolicy?: OutsiderPolicy;
   /** When members see scores (PRODUCT.md §7.25); default right after submitting. */
   scoreVisibility?: ScoreVisibility;
+  /**
+   * Time limit in minutes (PRODUCT.md §7.27). Omitted = the exam's `duration` (none if the exam has none); null = no limit.
+   */
+  timeLimitMinutes?: number | null;
   /** Only `self_paced` exists today; the API does not expose this yet. */
   mode?: SessionModeId;
 }
@@ -58,6 +62,7 @@ export class CreateSession {
         outsiderPolicy: isRoster ? input.outsiderPolicy ?? 'block' : 'block',
         sourceGroupId,
         scoreVisibility: input.scoreVisibility ?? 'on_submit',
+        timeLimitMinutes: input.timeLimitMinutes === undefined ? exam.durationMinutes : input.timeLimitMinutes,
         createdAt: now,
       });
       if (isRoster) await ctx.sessions.addRoster(sessionId, roster);

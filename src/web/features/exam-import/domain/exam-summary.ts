@@ -17,6 +17,11 @@ export function attemptRuleLabel(hasEssay: boolean): string {
   return hasEssay ? 'Mỗi người làm 1 lượt · có tự luận → mentor chấm tay sau khi đóng phiên' : 'Mỗi người làm 1 lượt · chấm tự động';
 }
 
+/** PRODUCT.md §7.27: the file's `duration` is the default limit for new sessions. */
+export function durationLabel(minutes: number | null): string {
+  return minutes === null ? 'Không giới hạn thời gian' : `Thời gian mặc định ${minutes} phút (sửa được khi tạo phiên)`;
+}
+
 export function typeCountsLabel(c: ExamTypeCounts): string {
   const parts = [
     c.single > 0 && `${c.single} một đáp án`,

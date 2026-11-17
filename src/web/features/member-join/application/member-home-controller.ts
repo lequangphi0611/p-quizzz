@@ -26,6 +26,8 @@ export interface MemberHomeState {
   rejoinOffline: boolean;
   /** This browser saw the member working, then the session closed under them (the attempt was submitted for them). */
   autoSubmitted: boolean;
+  /** That close came from the session clock running out (PRODUCT.md §7.27), not from the mentor. */
+  endedByTimer: boolean;
 }
 
 export const POLL_MS = 5000;
@@ -49,12 +51,14 @@ export class MemberHomeController {
   /** The token this browser held for a session before it asked to be let back in; restored if the request ends without a seat. */
   private priorToken: { sessionId: number; token: string | null } | null = null;
   private wasTaking = false;
+  /** Local (Date.now) moment the session clock runs out, from the last `/api/me`; null without a running clock. */
+  private localDeadline: number | null = null;
 
   constructor(private gateway: MemberGateway, private tokens: TokenStore, private rooms: RoomCodeMemory, private pollMs = POLL_MS) {
     // Resume the session this tab (or, for a new tab, the last tab) was in, if a token for it is still here.
     const id = Number(tokens.getCurrentSessionId());
     const followId = id > 0 && tokens.getToken(id) ? id : null;
-    this.state = { followId, lookup: null, me: null, meState: 'idle', rejoin: null, rejoinOffline: false, autoSubmitted: false };
+    this.state = { followId, lookup: null, me: null, meState: 'idle', rejoin: null, rejoinOffline: false, autoSubmitted: false, endedByTimer: false };
     this.lastFollowId = null; // so the first react() fetches `me` for a resumed session
     this.react();
   }
@@ -78,7 +82,12 @@ export class MemberHomeController {
     }
     const screen = selectScreen(this.state);
     if (screen === 'running' && this.state.me?.attempt.current) this.wasTaking = true;
-    else if (screen === 'ended' && this.wasTaking) { this.wasTaking = false; this.state = { ...this.state, autoSubmitted: true }; }
+    else if (screen === 'ended' && this.wasTaking) {
+      this.wasTaking = false;
+      // A couple of seconds of slack: polling and the server's grace period make the close land just after 00:00.
+      const byTimer = this.localDeadline !== null && Date.now() >= this.localDeadline - 2000;
+      this.state = { ...this.state, autoSubmitted: true, endedByTimer: byTimer };
+    }
     else if (screen === 'running') this.wasTaking = false;
   }
 
@@ -97,6 +106,8 @@ export class MemberHomeController {
     try {
       const me = await this.gateway.getMe();
       if (n !== this.meSeq) return;
+      if (me.session.timer?.remainingMs != null) this.localDeadline = Date.now() + me.session.timer.remainingMs;
+      else if (me.session.status !== 'closed' && me.session.status !== 'finalized') this.localDeadline = null;
       this.set({ me, meState: 'ok' });
     } catch (err) {
       if (n !== this.meSeq) return;

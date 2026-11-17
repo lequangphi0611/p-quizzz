@@ -8,6 +8,7 @@ import type { EventPublisher } from '../../ports/event-publisher.js';
 import type { Random } from '../../ports/random.js';
 import type { UnitOfWork } from '../../ports/unit-of-work.js';
 import type { AttemptViewData } from './attempt-data.js';
+import { assertNotTimeUp } from '../../../domain/session/time-limit.js';
 
 export class StartAttempt {
   constructor(private readonly deps: { unitOfWork: UnitOfWork<AttemptUnitContext>; clock: Clock; random: Random; events: EventPublisher }) {}
@@ -19,6 +20,7 @@ export class StartAttempt {
       const session = await ctx.sessions.findById(participant.sessionId);
       if (!session) throw new SessionNotFoundError();
       assertCanStart({ sessionStatus: session.status, participantStatus: participant.status, existing: await ctx.attempts.listByParticipant(participantId) });
+      assertNotTimeUp(session, this.deps.clock.now());
 
       const exam = await ctx.exams.findById(session.examId);
       if (!exam) throw new ExamNotFoundError();

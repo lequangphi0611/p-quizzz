@@ -13,6 +13,7 @@ export interface ExamSummary {
   id: number;
   title: string;
   description: string | null;
+  durationMinutes: number | null; // default session time limit from the file's `duration`; null = no limit (PRODUCT.md §7.27)
   questionCount: number;
   totalPoints: number;
   hasEssay: boolean;

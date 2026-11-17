@@ -12,8 +12,8 @@ import { SideNav } from '../../../shared/ui/member/question-nav.js';
 import { OfflineBanner, Progress, ShortcutHelp } from './ExamParts.js';
 
 /** Exam-taking frame for desktop (S18): header with save state, sidebar with progress and navigation, sticky prev/next bar. */
-export function TakingDesktop({ title, name, online, saveEl, questions, cur, answered, content, dialog, showKeys, help, mainRef, onGo, onSubmit, onHelp, onCloseHelp }: {
-  title: string; name: string; online: boolean; saveEl: ReactNode; questions: MemberQuestion[]; cur: number; answered: number[]; content: ReactNode; dialog: ReactNode;
+export function TakingDesktop({ title, name, online, saveEl, clock, questions, cur, answered, content, dialog, showKeys, help, mainRef, onGo, onSubmit, onHelp, onCloseHelp }: {
+  title: string; name: string; online: boolean; saveEl: ReactNode; clock: ReactNode; questions: MemberQuestion[]; cur: number; answered: number[]; content: ReactNode; dialog: ReactNode;
   showKeys: boolean; help: boolean; mainRef: Ref<HTMLElement>; onGo: (i: number) => void; onSubmit: () => void; onHelp: () => void; onCloseHelp: () => void;
 }) {
   const wide = useMediaQuery(`(min-width: ${WIDE_MIN}px)`);
@@ -30,7 +30,7 @@ export function TakingDesktop({ title, name, online, saveEl, questions, cur, ans
   );
   const pad = wide ? '0 48px' : '0 24px';
   return (
-    <MemberLayout variant="wide" sessionTitle={title} displayName={name} status={<StatusBadge status="running" label="Đang làm bài" />} headerEnd={saveEl} banner={!online && <OfflineBanner />} sidebar={sidebar} compact={!wide} mainRef={mainRef}>
+    <MemberLayout variant="wide" sessionTitle={title} displayName={name} status={<StatusBadge status="running" label="Đang làm bài" />} headerEnd={<>{clock}{saveEl}</>} banner={!online && <OfflineBanner />} sidebar={sidebar} compact={!wide} mainRef={mainRef}>
       <div style={{ flex: 1, padding: wide ? '40px 48px' : '28px 24px 32px' }}><div style={{ maxWidth: 960, margin: '0 auto' }}>{content}</div></div>
       <div style={{ position: 'sticky', bottom: 0, background: 'var(--paper)', borderTop: '1px solid var(--border-hairline)', padding: '12px 0' }}>
         <div style={{ maxWidth: 960, margin: '0 auto', padding: pad, boxSizing: 'content-box', display: 'flex', alignItems: 'center', gap: 12 }}>

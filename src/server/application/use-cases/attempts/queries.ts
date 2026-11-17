@@ -5,6 +5,9 @@ import { ParticipantNotFoundError } from '../../../domain/participant/errors.js'
 import type { Participant } from '../../../domain/participant/participant.js';
 import { SessionNotFoundError } from '../../../domain/session/errors.js';
 import { areScoresHidden } from '../../../domain/session/score-visibility.js';
+import { sessionTimer } from '../../../domain/session/time-limit.js';
+import type { SessionTimer } from '../../../../shared/session-timer.js';
+import type { Clock } from '../../ports/clock.js';
 import type { AttemptReader, MemberRoom, MemberRoomReader } from '../../ports/attempt-repository.js';
 import type { ExamReader } from '../../ports/exam-repository.js';
 import type { ParticipantReader } from '../../ports/participant-repository.js';
@@ -92,11 +95,13 @@ export interface MemberState {
   maxScore: number;
   /** The mentor holds scores back (PRODUCT.md §7.25): the member sees that they submitted and when, not their score. */
   scoresHidden: boolean;
+  /** The session's clock (PRODUCT.md §7.27); null without a time limit or once the session ended. */
+  timer: SessionTimer | null;
 }
 
 /** `GET /api/me`: every member polls it, so it keeps to a few small queries (an aggregate for the max score, not the exam content). */
 export class GetMemberState {
-  constructor(private readonly deps: { attempts: AttemptReader; sessions: Pick<SessionRepository, 'findById'>; exams: Pick<ExamReader, 'maxAutoScoreOf'>; rooms: MemberRoomReader }) {}
+  constructor(private readonly deps: { attempts: AttemptReader; sessions: Pick<SessionRepository, 'findById'>; exams: Pick<ExamReader, 'maxAutoScoreOf'>; rooms: MemberRoomReader; clock: Clock }) {}
 
   async execute(participant: Participant): Promise<MemberState> {
     const room = await this.deps.rooms.find(participant.sessionId);
@@ -105,6 +110,6 @@ export class GetMemberState {
     const maxScore = await this.deps.exams.maxAutoScoreOf(session.examId);
     const attempts = await this.deps.attempts.listByParticipant(participant.id);
     const { current, submitted, canStartNew } = memberAttemptState({ attempts, sessionStatus: session.status, participantStatus: participant.status });
-    return { participant, room, current, submitted, canStartNew, maxScore, scoresHidden: areScoresHidden(session) };
+    return { participant, room, current, submitted, canStartNew, maxScore, scoresHidden: areScoresHidden(session), timer: sessionTimer(session, this.deps.clock.now()) };
   }
 }

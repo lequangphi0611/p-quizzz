@@ -39,6 +39,8 @@ export interface SessionSummaryView {
   autoApprove: boolean;
   scoreVisibility: ScoreVisibility;
   scoresReleasedAt: Date | null;
+  timeLimitMinutes: number | null;
+  endsAt: Date | null;
   roomCode: string | null;
   createdAt: Date;
   openedAt: Date | null;
@@ -73,6 +75,8 @@ export interface ActiveSessionView {
   title: string;
   status: SessionStatus;
   access: SessionAccess;
+  timeLimitMinutes: number | null;
+  endsAt: Date | null;
 }
 
 /** The projector chooser (mentor machine only), so it may carry the session name. */

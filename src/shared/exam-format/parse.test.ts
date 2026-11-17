@@ -117,6 +117,36 @@ describe('parseExam — errors (with line numbers)', () => {
   });
 });
 
+describe('parseExam — duration (time limit, PRODUCT.md §7.27)', () => {
+  const withDuration = (value: string) => `---\ntitle: Đề\nduration: ${value}\n---\n\n## Q1\n- [x] a\n- [ ] b\n> ok`;
+
+  it('reads whole minutes', () => {
+    const { exam, errors, warnings } = parseExam(withDuration('45'));
+    expect(errors).toEqual([]);
+    expect(warnings).toEqual([]);
+    expect(exam?.durationMinutes).toBe(45);
+  });
+
+  it('treats a missing or blank duration as no time limit', () => {
+    expect(parseExam(fm('## Q1\n- [x] a\n- [ ] b\n> ok')).exam?.durationMinutes).toBeNull();
+    expect(parseExam(withDuration('')).exam?.durationMinutes).toBeNull();
+    expect(parseExam(withDuration('""')).exam?.durationMinutes).toBeNull();
+  });
+
+  it.each(['0', '301', '1.5', '30 phút', '-5', 'abc'])('rejects "%s" on the duration line', value => {
+    const { exam, errors } = parseExam(withDuration(value));
+    expect(exam).toBeNull();
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.line).toBe(3);
+    expect(errors[0]!.message).toContain('duration');
+  });
+
+  it('accepts the bounds 1 and 300', () => {
+    expect(parseExam(withDuration('1')).exam?.durationMinutes).toBe(1);
+    expect(parseExam(withDuration('300')).exam?.durationMinutes).toBe(300);
+  });
+});
+
 describe('parseExam — warnings (exam still valid)', () => {
   it('warns on missing explanation and positional options', () => {
     const src = fm('## Q\n- [x] Tất cả các đáp án trên\n- [ ] b\n- [ ] A và B');

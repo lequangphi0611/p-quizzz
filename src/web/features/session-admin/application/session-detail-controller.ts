@@ -113,5 +113,17 @@ export class SessionDetailController {
     return ok;
   }
 
+  /** Change, add or remove the time limit before the start (PRODUCT.md §7.27c). */
+  setTimeLimit(minutes: number | null): Promise<boolean> {
+    return this.run(async () => { const d = await this.gateway.setTimeLimit(this.state.detail.id, minutes); this.seq++; this.set({ detail: d }); }, 'Không đổi được thời gian làm bài');
+  }
+
+  /** "+N phút" for the whole room while running. */
+  async extendTime(minutes: number): Promise<boolean> {
+    const ok = await this.run(async () => { const d = await this.gateway.extendTime(this.state.detail.id, minutes); this.seq++; this.set({ detail: d }); }, 'Không cộng thêm giờ được');
+    if (ok) this.set({ notice: `Đã cộng thêm ${minutes} phút cho cả phòng.` });
+    return ok;
+  }
+
   rename(id: number, name: string): Promise<boolean> { return this.run(async () => { await this.gateway.renameParticipant(id, name); await this.refetch(); }, 'Không đổi được tên'); }
 }

@@ -111,7 +111,7 @@ export const toParticipantReviewDto = (r: ParticipantReviewResult): ParticipantR
 
 export const toMeResponseDto = (m: MemberState): MeResponse => ({
   participant: toParticipantInfoDto(m.participant),
-  session: { ...m.room, scoresHidden: m.scoresHidden },
+  session: { ...m.room, scoresHidden: m.scoresHidden, timer: m.timer },
   attempt: {
     current: m.current ? { id: m.current.id, attemptNo: m.current.attemptNo, startedAt: m.current.startedAt.getTime() } : null,
     submitted: m.submitted.map(a => toSummary(a, m.maxScore, { sessionStatus: m.room.status, participantStatus: m.participant.status, scoresHidden: m.scoresHidden })),

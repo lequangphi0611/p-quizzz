@@ -33,6 +33,8 @@ const summaryColumns = {
   autoApprove: sessions.autoApprove,
   scoreVisibility: sessions.scoreVisibility,
   scoresReleasedAt: sessions.scoresReleasedAt,
+  timeLimitMinutes: sessions.timeLimitMinutes,
+  endsAt: sessions.endsAt,
   roomCode: sessions.roomCode,
   createdAt: sessions.createdAt,
   openedAt: sessions.openedAt,
@@ -54,7 +56,7 @@ export class DrizzleSessionRepository implements SessionRepository {
       db =>
         db
           .insert(sessions)
-          .values({ examId: s.examId, name: s.name, mode: s.mode, shuffle: s.shuffle, autoApprove: s.autoApprove, access: s.access, outsiderPolicy: s.outsiderPolicy, sourceGroupId: s.sourceGroupId, scoreVisibility: s.scoreVisibility, createdAt: s.createdAt })
+          .values({ examId: s.examId, name: s.name, mode: s.mode, shuffle: s.shuffle, autoApprove: s.autoApprove, access: s.access, outsiderPolicy: s.outsiderPolicy, sourceGroupId: s.sourceGroupId, scoreVisibility: s.scoreVisibility, timeLimitMinutes: s.timeLimitMinutes, createdAt: s.createdAt })
           .returning({ id: sessions.id })
           .get().id,
     );
@@ -181,7 +183,7 @@ export class DrizzleSessionReader implements SessionReader {
   }
 
   private publicRows(db: Parameters<Parameters<DbAccess>[0]>[0]) {
-    return db.select({ id: sessions.id, title: exams.title, status: sessions.status, access: sessions.access }).from(sessions).innerJoin(exams, eq(sessions.examId, exams.id));
+    return db.select({ id: sessions.id, title: exams.title, status: sessions.status, access: sessions.access, timeLimitMinutes: sessions.timeLimitMinutes, endsAt: sessions.endsAt }).from(sessions).innerJoin(exams, eq(sessions.examId, exams.id));
   }
 
   private screenRows(db: Parameters<Parameters<DbAccess>[0]>[0]) {

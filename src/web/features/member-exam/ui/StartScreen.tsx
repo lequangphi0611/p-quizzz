@@ -7,6 +7,8 @@ import { Kbd } from '../../../shared/ui/Kbd.js';
 import { formatPoints } from '../../../shared/format/points.js';
 import { MemberPage, PageCard, mText, useIsDesk, useShowKeys } from '../../../shared/ui/member/member-shell.js';
 import { errorText } from '../application/taking-controller.js';
+import { useCountdown } from '../../../shared/hooks/useCountdown.js';
+import { formatCountdown, formatMinutes } from '../../../shared/format/countdown.js';
 
 export function StartScreen({ me, onStart }: { me: MeResponse; onStart: () => Promise<void> }) {
   const desk = useIsDesk();
@@ -14,6 +16,7 @@ export function StartScreen({ me, onStart }: { me: MeResponse; onStart: () => Pr
   const { session } = me;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const timeLeft = useCountdown(session.timer);
   async function start() {
     if (busy) return;
     setBusy(true); setError('');
@@ -26,9 +29,10 @@ export function StartScreen({ me, onStart }: { me: MeResponse; onStart: () => Pr
     <MemberPage desk={desk} title={session.title} name={me.participant.displayName} maxW={520} footer={desk ? undefined : btn}>
       <PageCard desk={desk}>
         <div style={{ display: 'grid', gap: 6 }}><span style={{ ...mText.label, color: 'var(--correct-600)' }}>Phiên đã bắt đầu</span><h1 style={mText.h1}>{session.title}</h1></div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 8 }}>{stat(session.questionCount, 'câu')}{stat(formatPoints(session.totalPoints), 'điểm')}{stat(1, 'lượt làm')}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 8 }}>{stat(session.questionCount, 'câu')}{stat(formatPoints(session.totalPoints), 'điểm')}{timeLeft !== null ? stat(formatCountdown(timeLeft), 'còn lại') : stat(1, 'lượt làm')}</div>
         <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 10, font: 'var(--type-ui)', fontSize: 15, color: 'var(--text-body)' }}>
           {rule('lock', 'Mỗi người làm 1 lần — nộp rồi không làm lại, không sửa được.')}
+          {session.timer && rule('hourglass', <>Bài giới hạn <b>{formatMinutes(session.timer.limitMinutes)}</b> cho cả phòng, tính từ lúc mentor bắt đầu{timeLeft !== null ? <>: còn <b style={mText.mono}>{formatCountdown(timeLeft)}</b></> : null}. Đồng hồ không dừng khi rớt mạng hay tải lại trang. Hết giờ bài tự nộp với các câu đã lưu.</>)}
           {rule('save', 'Bài được lưu liên tục. Tải lại trang hay rớt mạng cũng không mất bài.')}
           {session.hasEssay && rule('pencil', 'Có câu tự luận — mentor chấm sau khi đóng phiên.')}
           {rule('eye-off', 'Đáp án và điểm từng câu chỉ hiện sau khi mentor đóng phiên.')}

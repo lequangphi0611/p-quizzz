@@ -10,6 +10,7 @@ import type { Clock } from '../../ports/clock.js';
 import type { EventPublisher } from '../../ports/event-publisher.js';
 import type { UnitOfWork } from '../../ports/unit-of-work.js';
 import { gradeAndSubmit } from './grade-and-submit.js';
+import { assertNotTimeUp } from '../../../domain/session/time-limit.js';
 
 export interface SubmitResult {
   attempt: Attempt;
@@ -33,6 +34,7 @@ export class SubmitAttempt {
       const session = await ctx.sessions.findById(participant.sessionId);
       if (!session) throw new SessionNotFoundError();
       assertCanWork(attempt, session.status);
+      assertNotTimeUp(session, this.deps.clock.now());
 
       const exam = await ctx.exams.findById(session.examId);
       if (!exam) throw new ExamNotFoundError();

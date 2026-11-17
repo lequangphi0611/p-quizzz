@@ -41,6 +41,24 @@ export class ScoreVisibilityLockedError extends DomainError {
   }
 }
 
+export class TimeLimitLockedError extends DomainError {
+  constructor() {
+    super('conflict', 'Phiên đã bắt đầu: chỉ cộng thêm giờ được, không đổi hay tắt giới hạn thời gian');
+  }
+}
+
+export class CannotExtendTimeError extends DomainError {
+  constructor(reason: 'not_running' | 'no_limit') {
+    super('conflict', reason === 'no_limit' ? 'Phiên này không giới hạn thời gian' : 'Chỉ cộng thêm giờ được khi phiên đang chạy');
+  }
+}
+
+export class TimeUpError extends DomainError {
+  constructor() {
+    super('conflict', 'Đã hết giờ làm bài');
+  }
+}
+
 export class ScoresNotHeldError extends DomainError {
   constructor() {
     super('conflict', 'Phiên này không giữ điểm, không có gì để công bố');

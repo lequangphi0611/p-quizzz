@@ -5,6 +5,7 @@ import {
   type SessionAction,
   type SessionStatus,
 } from '../../../shared/session-state.js';
+import { deadlineFrom } from '../../../shared/session-timer.js';
 import { InvalidSessionTransitionError, UngradedEssaysError } from './errors.js';
 import type { SessionMode } from './mode.js';
 import type { Session, SessionPatch } from './session.js';
@@ -22,7 +23,9 @@ export function assertTransition(session: Pick<Session, 'status'>, action: Sessi
 
 export const planOpen = (now: Date, roomCode: string, slot: number): SessionPatch => ({ status: 'lobby', openedAt: now, roomCode, slot });
 
-export const planStart = (now: Date): SessionPatch => ({ status: 'running', startedAt: now });
+/** Starting also starts the shared clock when the session has a time limit (PRODUCT.md §7.27d). */
+export const planStart = (now: Date, timeLimitMinutes: number | null = null): SessionPatch =>
+  timeLimitMinutes === null ? { status: 'running', startedAt: now } : { status: 'running', startedAt: now, endsAt: deadlineFrom(now, timeLimitMinutes) };
 
 export function planClose(mode: SessionMode, exam: { hasEssay: boolean }, now: Date): SessionPatch {
   const status = mode.statusAfterClose(exam);
