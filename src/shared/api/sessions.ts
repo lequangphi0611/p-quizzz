@@ -79,6 +79,8 @@ export interface ParticipantProgress {
   maxScore: number; // exam total points
   submittedAt: number | null; // epoch ms the counted attempt was submitted (drives mentor notifications)
   editRequest: EditRequestInfo | null; // the counted attempt's request to edit the essays (PRODUCT.md §7.21)
+  /** Questions answered in the attempt still in progress, out of `SessionDetail.exam.questionCount`; null without one or outside RUNNING. Never how many are correct (PRODUCT.md §7.26). */
+  answered: number | null;
 }
 
 export interface SessionParticipantDetail extends SessionParticipantInfo {
@@ -98,7 +100,7 @@ export interface SessionRoster {
 }
 
 export interface SessionDetail extends SessionSummary {
-  exam: { id: number; title: string; hasEssay: boolean; totalPoints: number };
+  exam: { id: number; title: string; hasEssay: boolean; totalPoints: number; questionCount: number };
   participants: SessionParticipantDetail[];
   roster: SessionRoster | null; // null for free sessions
   /** Someone claiming a seat that already has a person behind it, waiting for the mentor (PRODUCT.md §7.23). Open sessions only. */

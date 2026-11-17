@@ -326,7 +326,7 @@ describe('mentor progress (GET /api/admin/sessions/:id)', () => {
   it('none → doing → submitted, with the counted score', async () => {
     const { an, single, multi, detail } = await world({ essay: false });
     const progress = async () => (await detail()).participants[0]!.progress;
-    expect(await progress()).toEqual({ state: 'none', attempts: 0, countedScore: null, maxScore: 3, submittedAt: null, editRequest: null });
+    expect(await progress()).toEqual({ state: 'none', attempts: 0, countedScore: null, maxScore: 3, submittedAt: null, editRequest: null, answered: null });
 
     const v = (await an.start()).json<AttemptView>();
     expect(await progress()).toMatchObject({ state: 'doing', attempts: 1, countedScore: null, submittedAt: null });
@@ -338,6 +338,28 @@ describe('mentor progress (GET /api/admin/sessions/:id)', () => {
     expect(done).toMatchObject({ state: 'submitted', attempts: 1, countedScore: 3 });
     expect(done.submittedAt).toBeGreaterThanOrEqual(before);
     expect(done.submittedAt).toBeLessThanOrEqual(Date.now());
+    expect(done.answered).toBeNull(); // only an attempt in progress reports it
+  });
+
+  it('counts answered questions while doing, right or wrong; a cleared choice or a blank essay does not count (PRODUCT.md §7.26)', async () => {
+    const { an, admin, session, single, multi, essayQ, detail } = await world({ essay: true });
+    const progress = async () => (await detail()).participants[0]!.progress;
+    const v = (await an.start()).json<AttemptView>();
+    expect(await progress()).toMatchObject({ state: 'doing', answered: 0 });
+    expect((await detail()).exam.questionCount).toBe(3); // the total the count is read against
+
+    await an.put(v.id, single.q.id, { selectedOptionIds: [single.opts[1]!.id] }); // wrong answer still counts
+    await an.put(v.id, essayQ!.id, { textAnswer: '   ' });
+    expect((await progress()).answered).toBe(1);
+
+    await an.put(v.id, essayQ!.id, { textAnswer: 'rebase viết lại lịch sử' });
+    await an.put(v.id, multi.q.id, { selectedOptionIds: [multi.opts[0]!.id] });
+    expect((await progress()).answered).toBe(3);
+    await an.put(v.id, multi.q.id, { selectedOptionIds: [] });
+    expect((await progress()).answered).toBe(2);
+
+    await admin(`/sessions/${session.id}/close`); // auto-submits the open attempt
+    expect(await progress()).toMatchObject({ state: 'submitted', answered: null });
   });
 });
 

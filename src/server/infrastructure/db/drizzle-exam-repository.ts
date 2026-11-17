@@ -2,6 +2,7 @@ import { and, desc, eq, ne, sql } from 'drizzle-orm';
 import type { Exam, NewExam } from '../../domain/exam/exam.js';
 import type { ExamRepository, ExamSummary } from '../../application/ports/exam-repository.js';
 import type { Db } from './client.js';
+import { examQuestionCount } from './question-count.js';
 import { exams, options, questions } from './schema.js';
 
 /**
@@ -17,7 +18,7 @@ const summaryColumns = {
   totalPoints: exams.totalPoints,
   hasEssay: exams.hasEssay,
   createdAt: exams.createdAt,
-  questionCount: sql<number>`(select count(*) from questions where questions.exam_id = exams.id)`,
+  questionCount: examQuestionCount,
   sessionCount: sql<number>`(select count(*) from sessions where sessions.exam_id = exams.id)`,
 };
 

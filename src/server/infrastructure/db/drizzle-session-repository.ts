@@ -12,6 +12,7 @@ import type { NewSession, Session, SessionPatch } from '../../domain/session/ses
 import { exams, participants, rejoinRequests, sessionRoster, sessions } from './schema.js';
 import type { RosterSource } from '../../../shared/api/index.js';
 import { NO_PROGRESS } from '../../domain/attempt/attempt.js';
+import { examQuestionCount } from './question-count.js';
 import { loadSessionProgress } from './session-progress.js';
 import type { DbAccess } from './drizzle-exam-repository.js';
 
@@ -121,14 +122,14 @@ export class DrizzleSessionReader implements SessionReader {
     return this.access(db => {
       const row = db.select(summaryColumns).from(sessions).innerJoin(exams, eq(sessions.examId, exams.id)).where(eq(sessions.id, id)).get();
       if (!row) return null;
-      const exam = db.select({ id: exams.id, title: exams.title, hasEssay: exams.hasEssay, totalPoints: exams.totalPoints }).from(exams).where(eq(exams.id, row.examId)).get()!;
+      const exam = db.select({ id: exams.id, title: exams.title, hasEssay: exams.hasEssay, totalPoints: exams.totalPoints, questionCount: examQuestionCount }).from(exams).where(eq(exams.id, row.examId)).get()!;
       const people = db
         .select({ id: participants.id, displayName: participants.displayName, status: participants.status, joinedAt: participants.joinedAt, email: participants.email, rejoinAllowedUntil: participants.rejoinAllowedUntil })
         .from(participants)
         .where(eq(participants.sessionId, id))
         .orderBy(participants.id)
         .all();
-      const progress = loadSessionProgress(db, id, exam.totalPoints);
+      const progress = loadSessionProgress(db, id, exam);
       return { ...row, exam, participants: people.map(p => ({ ...p, progress: progress.get(p.id) ?? NO_PROGRESS(exam.totalPoints) })), roster: row.access === 'roster' ? rosterOf(db, id) : null, rejoinRequests: rejoinRequestsOf(db, id, row.status) };
     });
   }

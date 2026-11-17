@@ -86,7 +86,7 @@ function SessionDetailView({ initial }: { initial: SessionDetail }) {
       )}
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' }}>
-        <ParticipantsCard status={detail.status} active={active} working={working} finalized={finalized} showEmail={detail.access === 'roster'} onAllow={p => void ctrl.allowRejoin(p.id, p.displayName)} onRename={(id, name) => ctrl.rename(id, name)} onResolveEdit={(id, decision) => void ctrl.resolveEdit(id, decision)} onKick={p => ctrl.openDialog({ kind: 'kick', p })} />
+        <ParticipantsCard status={detail.status} questionCount={detail.exam.questionCount} active={active} working={working} finalized={finalized} showEmail={detail.access === 'roster'} onAllow={p => void ctrl.allowRejoin(p.id, p.displayName)} onRename={(id, name) => ctrl.rename(id, name)} onResolveEdit={(id, decision) => void ctrl.resolveEdit(id, decision)} onKick={p => ctrl.openDialog({ kind: 'kick', p })} />
         <div style={{ display: 'grid', gap: 20, flex: '1 1 300px', maxWidth: 420 }}>
           <JoinCard status={detail.status} roomCode={detail.roomCode} />
           <ScoresCard detail={detail} working={working} onChange={v => void ctrl.setScoreVisibility(v)} onRelease={() => ctrl.openDialog({ kind: 'releaseScores' })} />

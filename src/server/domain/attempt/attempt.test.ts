@@ -5,7 +5,7 @@ import {
   AwaitingApprovalError, InvalidAnswerError, SessionNotRunningError,
 } from './errors.js';
 import {
-  assertCanStart, assertCanWork, assertReviewable, computeProgress, gradeAttempt, maxAutoScore, memberAttemptState, planOrder, reviewState, validateAnswer,
+  assertCanStart, assertCanWork, assertReviewable, computeProgress, countAnswered, gradeAttempt, maxAutoScore, memberAttemptState, planOrder, reviewState, validateAnswer,
   type Attempt,
 } from './attempt.js';
 
@@ -88,10 +88,36 @@ describe('review and state', () => {
 
   it('computeProgress counts manual points only once finalized', () => {
     const done = att({ submittedAt: new Date(5), autoScore: 2, manualScore: 3 });
-    const facts = { kickedIds: new Set<number>(), totalPoints: 7 };
+    const facts = { kickedIds: new Set<number>(), totalPoints: 7, answeredByAttempt: new Map<number, number>() };
     expect(computeProgress([done], { ...facts, sessionStatus: 'closed' }).get(1)).toMatchObject({ state: 'submitted', countedScore: 2, maxScore: 7, submittedAt: 5 });
     expect(computeProgress([done], { ...facts, sessionStatus: 'finalized' }).get(1)!.countedScore).toBe(5);
     expect(computeProgress([att()], { ...facts, sessionStatus: 'running' }).get(1)!.state).toBe('doing');
-    expect(computeProgress([att()], { kickedIds: new Set([1]), totalPoints: 7, sessionStatus: 'closed' }).get(1)!.state).toBe('none');
+    expect(computeProgress([att()], { ...facts, kickedIds: new Set([1]), sessionStatus: 'closed' }).get(1)!.state).toBe('none');
+  });
+
+  it('computeProgress reports answered questions only for the attempt in progress (PRODUCT.md §7.26)', () => {
+    const facts = { kickedIds: new Set<number>(), totalPoints: 7, sessionStatus: 'running' as const, answeredByAttempt: new Map([[1, 2]]) };
+    expect(computeProgress([att()], facts).get(1)).toMatchObject({ state: 'doing', answered: 2 });
+    expect(computeProgress([att()], { ...facts, answeredByAttempt: new Map() }).get(1)!.answered).toBe(0);
+    expect(computeProgress([att({ submittedAt: new Date(5) })], facts).get(1)).toMatchObject({ state: 'submitted', answered: null });
+    expect(computeProgress([att()], { ...facts, kickedIds: new Set([1]), sessionStatus: 'closed' }).get(1)!.answered).toBeNull();
+  });
+
+  it('computeProgress shows the answered count only while running, even for an attempt left open (PRODUCT.md §7.26e)', () => {
+    const facts = { kickedIds: new Set<number>(), totalPoints: 7, answeredByAttempt: new Map([[1, 2]]) };
+    for (const sessionStatus of ['closed', 'finalized'] as const) {
+      expect(computeProgress([att()], { ...facts, sessionStatus }).get(1)).toMatchObject({ state: 'doing', answered: null });
+    }
+  });
+
+  it('countAnswered counts picked choices and non-blank essays per attempt', () => {
+    const counts = countAnswered([
+      { attemptId: 1, selectedOptionIds: [3], textAnswer: null },
+      { attemptId: 1, selectedOptionIds: [], textAnswer: null },
+      { attemptId: 1, selectedOptionIds: null, textAnswer: '  \n ' },
+      { attemptId: 1, selectedOptionIds: null, textAnswer: 'git rebase' },
+      { attemptId: 2, selectedOptionIds: null, textAnswer: null },
+    ]);
+    expect(counts).toEqual(new Map([[1, 2]]));
   });
 });

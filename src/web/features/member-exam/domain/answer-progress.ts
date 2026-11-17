@@ -1,14 +1,9 @@
 import type { MemberAnswer } from '../../../../shared/api/index.js';
+import { isAnswered } from '../../../../shared/answered.js';
 
 /** What the member has typed or picked for one question. */
 export interface Draft { selected: number[]; text: string }
 export type Drafts = Record<number, Draft>;
-
-/** A question counts as answered when a choice is picked or the essay has non-blank text. */
-export function isAnswered(a: { selectedOptionIds?: MemberAnswer['selectedOptionIds']; textAnswer?: MemberAnswer['textAnswer'] } | undefined): boolean {
-  if (!a) return false;
-  return (a.selectedOptionIds?.length ?? 0) > 0 || (a.textAnswer ?? '').trim().length > 0;
-}
 
 const draftOf = (drafts: Drafts, questionId: number): Draft => drafts[questionId] ?? { selected: [], text: '' };
 
