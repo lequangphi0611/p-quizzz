@@ -20,13 +20,16 @@ export class GetSessionDetail {
   }
 }
 
-/** Public: the exam title and status of one session (the projector page and the member's follow-up). */
+/**
+ * Public: the exam title and status of one session (the projector page). A DRAFT is not public: its exam title may be the
+ * upcoming test, and ids are guessable, so it reads as "not found" until the mentor opens the room.
+ */
 export class GetPublicSession {
   constructor(private readonly sessions: SessionReader) {}
 
   async execute(id: number): Promise<ActiveSessionView> {
     const found = await this.sessions.findPublic(id);
-    if (!found) throw new SessionNotFoundError();
+    if (!found || found.status === 'draft') throw new SessionNotFoundError();
     return found;
   }
 }

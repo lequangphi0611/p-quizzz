@@ -17,6 +17,14 @@ describe('classifyJoinError', () => {
     expect(classifyJoinError(403, 'x')).toEqual({ kind: 'room' });
     expect(classifyJoinError(400, 'Sai Mã phòng')).toEqual({ kind: 'room' });
   });
+  it('sends the member back to the room step when the session is not open', () => {
+    expect(classifyJoinError(409, 'Phiên thi không mở')).toEqual({ kind: 'room' });
+  });
+
+  it('shows other 409 messages as they are, without the "more distinct name" hint', () => {
+    expect(classifyJoinError(409, 'Có lỗi khác')).toEqual({ kind: 'name', message: 'Có lỗi khác' });
+  });
+
   it('asks for a more distinct name on 409; shows other messages as they are', () => {
     expect(classifyJoinError(409, 'Tên đã được dùng')).toEqual({ kind: 'name', message: 'Tên đã được dùng. Thêm họ hoặc một chữ để phân biệt.' });
     expect(classifyJoinError(500, 'Lỗi 500')).toEqual({ kind: 'name', message: 'Lỗi 500' });

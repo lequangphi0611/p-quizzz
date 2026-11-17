@@ -46,6 +46,12 @@ describe('parseEmailList', () => {
     expect(r.invalid.map(i => [i.line, i.raw, i.reason])).toEqual([[2, 'minh', 'missing_at'], [3, 'phi89@', 'format']]);
   });
 
+  it('a name next to an email is refused, even with a default domain: its pieces never become emails', () => {
+    const r = parseEmailList('Nguyễn Văn A <a@x.vn>', 'company.vn');
+    expect(r.valid.map(v => v.email)).toEqual(['a@x.vn']);
+    expect(r.invalid.map(i => [i.line, i.raw, i.reason])).toEqual([[1, 'Nguyễn', 'missing_at'], [1, 'Văn', 'missing_at'], [1, 'A', 'missing_at']]);
+  });
+
   it('ignores blank lines and wrapping like "Name <a@x.com>" brackets and quotes', () => {
     const r = parseEmailList('\n<a@x.com>\n"b@x.com"\n\n');
     expect(r.valid.map(v => v.email)).toEqual(['a@x.com', 'b@x.com']);

@@ -1,6 +1,5 @@
 import { cleanEmails } from '../../../domain/group/emails.js';
-import { NotRosterSessionError, RosterAlreadySavedError } from '../../../domain/group/errors.js';
-import { GroupNameTakenError } from '../../../domain/group/errors.js';
+import { GroupNameTakenError, NotRosterSessionError, RosterAlreadySavedError } from '../../../domain/group/errors.js';
 import { SessionEndedError, SessionNotFoundError } from '../../../domain/session/errors.js';
 import type { Clock } from '../../ports/clock.js';
 import type { EventPublisher } from '../../ports/event-publisher.js';

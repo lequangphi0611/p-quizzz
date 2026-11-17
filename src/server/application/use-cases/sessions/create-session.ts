@@ -6,8 +6,7 @@ import type { SessionDetailView, SessionReader, SessionUnitContext } from '../..
 import type { UnitOfWork } from '../../ports/unit-of-work.js';
 import { SessionNotFoundError } from '../../../domain/session/errors.js';
 import { cleanEmails } from '../../../domain/group/emails.js';
-import { EmptyEmailListError, } from '../../../domain/group/errors.js';
-import { GroupNotFoundError } from '../../../domain/group/errors.js';
+import { EmptyEmailListError, GroupNotFoundError } from '../../../domain/group/errors.js';
 import type { OutsiderPolicy } from '../../../../shared/api/sessions.js';
 import { resolveSessionName } from '../../../domain/session/session-name.js';
 

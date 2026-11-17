@@ -138,3 +138,12 @@ describe('repository', () => {
     expect(r.staleAllowlist).toEqual([]);
   });
 });
+
+describe('production code must not use test fakes', () => {
+  it('flags an import of a testing/ folder from production code but not from tests', () => {
+    const prod = f('src/server/composition.ts', "import { X } from './application/testing/fakes.js';");
+    const test = f('src/server/application/use-cases/a.test.ts', "import { X } from '../testing/fakes.js';");
+    expect(msgs([prod])).toEqual([expect.stringContaining('test fakes')]);
+    expect(msgs([test])).toEqual([]);
+  });
+});

@@ -2,8 +2,8 @@ import { connectionOf } from '../../domain/participant/presence.js';
 import type { Clock } from '../ports/clock.js';
 import type { PresenceTracker } from '../ports/presence-tracker.js';
 
-/** Remembers when each participant was last heard from. Also the production implementation: presence is a few seconds of state. */
-export class InMemoryPresenceTracker implements PresenceTracker {
+/** Test double: remembers when each participant was last touched. The real one is infrastructure/system. */
+export class FakePresenceTracker implements PresenceTracker {
   private seen = new Map<number, Date>();
 
   constructor(private readonly clock: Clock) {}

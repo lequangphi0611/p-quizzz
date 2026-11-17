@@ -60,13 +60,16 @@ export function parseEmailList(text: string, defaultDomain?: string): EmailListP
 
   text.split(/\r\n|\r|\n/).forEach((lineText, index) => {
     const line = index + 1;
-    for (const rawToken of lineText.split(TOKEN_SEPARATORS)) {
-      const raw = stripWrapping(rawToken);
-      if (!raw) continue;
+    const tokens = lineText.split(TOKEN_SEPARATORS).map(stripWrapping).filter(Boolean);
+    // "Nguyễn Văn A <a@x.vn>": a name next to an email. The default domain is for lines that hold no email at all, so the
+    // pieces of the name are refused instead of being turned into emails nobody meant to add.
+    const mixedLine = tokens.some(t => t.includes('@'));
+    for (const raw of tokens) {
       const hasAt = raw.includes('@');
+      if (!hasAt && mixedLine) { invalid.push({ line, raw, reason: 'missing_at', message: 'Dòng này đã có email, phần chữ còn lại không phải email — để mỗi email một dòng' }); continue; }
       if (!hasAt && !domain) { invalid.push({ line, raw, reason: 'missing_at', message: 'Thiếu @ — gõ đủ email hoặc điền domain mặc định' }); continue; }
       const email = normalizeEmail(hasAt ? raw : `${raw}@${domain}`);
-      if (!isValidEmail(email)) { invalid.push({ line, raw, reason: hasAt ? 'format' : 'format', message: 'Email chưa đúng định dạng' }); continue; }
+      if (!isValidEmail(email)) { invalid.push({ line, raw, reason: 'format', message: 'Email chưa đúng định dạng' }); continue; }
       const first = firstSeen.get(email);
       if (first !== undefined) { duplicates.push({ email, line, raw, firstLine: first }); continue; }
       firstSeen.set(email, line);

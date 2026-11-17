@@ -102,10 +102,13 @@ export function useMentorNotices(recheckKey: string): MentorNoticesState {
     },
     onResync: () => { void loadOpen(); for (const s of openRef.current) void loadDetail(s.id); },
   });
-  // Who is connected changes without any signal (silence is not an event), so the holder's status in a request is refreshed on a timer.
+  // Who is connected changes without any signal (silence is not an event), so the holder's status in a request is refreshed on a
+  // timer. Nobody is looking while the tab is hidden, so it rests then and catches up the moment the tab is shown again.
   useEffect(() => {
-    const t = setInterval(() => { for (const s of openRef.current) void loadDetail(s.id); }, 15_000);
-    return () => clearInterval(t);
+    const refresh = () => { if (!document.hidden) for (const s of openRef.current) void loadDetail(s.id); };
+    const t = setInterval(refresh, 15_000);
+    document.addEventListener('visibilitychange', refresh);
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', refresh); };
   }, [loadDetail]);
 
   const loaded = open.every(s => details[s.id]?.id === s.id);

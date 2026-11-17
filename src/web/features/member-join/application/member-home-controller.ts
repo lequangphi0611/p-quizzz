@@ -46,6 +46,8 @@ export class MemberHomeController {
   private meSeq = 0;
   private lookupSeq = 0;
   private lastFollowId: number | null;
+  /** The token this browser held for a session before it asked to be let back in; restored if the request ends without a seat. */
+  private priorToken: { sessionId: number; token: string | null } | null = null;
   private wasTaking = false;
 
   constructor(private gateway: MemberGateway, private tokens: TokenStore, private rooms: RoomCodeMemory, private pollMs = POLL_MS) {
@@ -154,7 +156,17 @@ export class MemberHomeController {
     this.rooms.remember(sessionId, roomCode);
   }
   /** After a successful `join`: follow that session and load the member's state. */
-  async joined(sessionId: number): Promise<void> { this.set({ followId: sessionId }); await this.fetchMe(sessionId); }
+  async joined(sessionId: number): Promise<void> {
+    this.priorToken = null; // a new token was accepted: the old one is not coming back
+    this.follow(sessionId, {});
+    await this.fetchMe(sessionId);
+  }
+
+  /** Follow a session and reset what we knew about it. `react()` is told, so it does not also fetch: the caller does, once. */
+  private follow(sessionId: number, patch: Partial<MemberHomeState>): void {
+    this.lastFollowId = sessionId;
+    this.set({ followId: sessionId, me: null, meState: 'idle', ...patch });
+  }
 
   recallRoom(sessionId: number): string { return this.rooms.recall(sessionId); }
 
@@ -164,11 +176,13 @@ export class MemberHomeController {
    */
   async requestRejoin(sessionId: number, displayName: string, roomCode: string, email?: string): Promise<void> {
     const res = await this.gateway.requestRejoin(sessionId, { displayName, roomCode, ...(email ? { email } : {}) });
+    // This browser may already hold a token for the session: keep it, so cancelling or being turned down does not lose it.
+    this.priorToken = { sessionId, token: this.tokens.getToken(sessionId) };
     this.tokens.setToken(sessionId, res.token); // reads only the request's status until approved, then it is the participant token
     this.tokens.setCurrentSessionId(sessionId);
     this.rooms.remember(sessionId, roomCode);
     if (res.status === 'approved') { await this.joined(sessionId); return; }
-    this.set({ followId: sessionId, rejoin: 'pending', rejoinOffline: false });
+    this.follow(sessionId, { rejoin: 'pending', rejoinOffline: false });
     await this.fetchRejoin();
   }
 
@@ -178,7 +192,7 @@ export class MemberHomeController {
     try {
       const { status } = await this.gateway.getRejoinStatus();
       if (this.state.rejoin !== 'pending') return;
-      if (status === 'approved') { this.set({ rejoin: null, rejoinOffline: false }); await this.fetchMe(this.state.followId!); }
+      if (status === 'approved') { this.priorToken = null; this.set({ rejoin: null, rejoinOffline: false }); await this.fetchMe(this.state.followId!); }
       else if (status === 'rejected') this.set({ rejoin: 'rejected', rejoinOffline: false });
       else if (status === 'expired') this.set({ rejoin: 'expired', rejoinOffline: false });
       else if (status === 'cancelled') this.backFromRejoin();
@@ -198,7 +212,11 @@ export class MemberHomeController {
   /** Leave the request screen for the form (the looked-up room stays, so the typed code is not asked again). */
   backFromRejoin(): void {
     const id = this.state.followId;
-    if (id !== null) this.tokens.clearToken(id);
+    if (id !== null) {
+      const prior = this.priorToken?.sessionId === id ? this.priorToken.token : null;
+      if (prior) this.tokens.setToken(id, prior); else this.tokens.clearToken(id);
+    }
+    this.priorToken = null;
     this.tokens.clearCurrentSessionId();
     this.set({ followId: null, rejoin: null, rejoinOffline: false, me: null, meState: 'idle' });
   }
@@ -207,6 +225,7 @@ export class MemberHomeController {
   leave(): void {
     const id = this.state.followId;
     if (id !== null) this.tokens.clearToken(id);
+    this.priorToken = null;
     this.tokens.clearCurrentSessionId();
     this.lookupSeq++;
     this.set({ followId: null, lookup: null, me: null, meState: 'idle', rejoin: null, rejoinOffline: false });

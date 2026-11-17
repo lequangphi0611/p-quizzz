@@ -189,7 +189,7 @@ describe('GET /api/sessions/:id/public', () => {
     const { id } = (await create(exam.id, { name: '#member-0908' })).json<SessionDetail>();
     const pub = async () => app.inject({ url: `/api/sessions/${id}/public` });
 
-    expect((await pub()).json<ActiveSession>()).toEqual({ id, title: 'Đề Git', status: 'draft', access: 'free' });
+    expect((await pub()).statusCode).toBe(404); // a draft is not public: its exam title may be the upcoming test
     await act(id, 'open');
     const res = await pub();
     expect(res.json<ActiveSession>()).toEqual({ id, title: 'Đề Git', status: 'lobby', access: 'free' });

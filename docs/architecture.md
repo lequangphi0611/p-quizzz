@@ -100,13 +100,13 @@ Mọi body/response là JSON. Lỗi: `{ error: string, code?: string }` (tiếng
 | Method | Path | Auth | Mô tả |
 |---|---|---|---|
 | POST | `/api/rooms/resolve` | — | `{ roomCode }` → `{ id, title, status, access }` của phiên `lobby`/`running` có mã đó (title = tên đề, không bao giờ trả tên phiên hay mã). Mã sai **hoặc** phiên không còn mở → cùng một lỗi 403 "Mã phòng không đúng"; dùng **chung bộ giới hạn** (5 lần sai/phút/IP → 429) với `join` |
-| GET | `/api/sessions/:id/public` | — | `{ id, title, status }` của một phiên (trang chiếu theo dõi); 404 nếu không có |
+| GET | `/api/sessions/:id/public` | — | `{ id, title, status }` của một phiên (trang chiếu theo dõi); 404 nếu không có **hoặc đang `draft`** (tên đề có thể là bài sắp thi; id đoán được) |
 | GET | `/api/network` | — | `{ joinHosts: string[] }` — địa chỉ LAN `ip:cổng` để member gõ vào trình duyệt (cổng lấy từ Host của request) |
 | POST | `/api/sessions/:id/join` | — | `{ displayName, roomCode, email? }` → `{ token, participant }`. Mã sai → 403, sai quá 5 lần/phút từ một IP → 429 (tính chung với `resolve` và với email không có trong danh sách). Phiên tự do: mặc định → `pending`, `autoApprove` → `active` ngay, trùng tên → 409 `{ error, code: 'identity_in_use' }`, `email` bị bỏ qua. Phiên `roster`: `email` bắt buộc (thiếu/sai định dạng → 400); email **trong** danh sách → `active` ngay; **ngoài** danh sách → 403 với **một** thông báo chung (hoặc `pending` nếu `outsider_policy = pending`); email đã có người → 409 `code: 'identity_in_use'` |
 | POST | `/api/sessions/:id/rejoin-requests` | — | Body như `join` → `{ requestId, token, status: 'pending' \| 'approved' }`. Kiểm mã phòng và danh sách như `join` (sai → 403 và tính vào giới hạn chung); người giữ chỗ tìm theo email (phiên `roster`) hoặc tên (phiên tự do), không có → 409; tối đa 5 yêu cầu chờ cho một chỗ; thêm giới hạn 8 yêu cầu/phút/IP riêng. `approved` ngay chỉ khi mentor đã `allow-rejoin` cho người đó |
 | GET | `/api/rejoin/status` | token của yêu cầu | `{ status: 'pending' \| 'approved' \| 'rejected' \| 'cancelled' \| 'expired', sessionId }`. Token yêu cầu **chỉ đọc được cái này** và huỷ; `/api/me` với nó vẫn 401 cho tới khi được duyệt |
 | POST | `/api/rejoin/cancel` | token của yêu cầu | Người xin huỷ (204) |
-| GET | `/api/sessions/:id/roster-counts` | — | `{ joinedCount, rosterSize }` của phiên `roster` (chỉ số đếm, không tên); `null` cho phiên tự do; 404 nếu không có |
+| GET | `/api/sessions/:id/roster-counts` | — | `{ joinedCount, rosterSize }` của phiên `roster` (chỉ số đếm, không tên); `null` cho phiên tự do; 404 nếu không có hoặc đang `draft` |
 | GET | `/api/screen/sessions` | chỉ máy mentor (không tính `--allow-remote-admin`) | `{ open: { id, name, slot, title, status }[], latestEnded }` — các phiên `/screen` theo dõi được (có tên phiên nên không ra LAN); `latestEnded` chỉ khi không có phiên nào mở |
 | GET | `/api/screen/sessions/:id/room` | chỉ máy mentor (không tính `--allow-remote-admin`) | `{ roomCode: string \| null }` của phiên `lobby`/`running` đó — cho màn hình chiếu. Không bao giờ trả mã qua endpoint công khai |
 | GET | `/api/sessions/:id/participants` | — | Chỉ `{ displayName }[]` của participant `active` (cho màn hình chiếu) |
@@ -244,7 +244,7 @@ Hệ quả: `db.transaction()` của Drizzle chỉ nhận callback đồng bộ 
 
 ### 9.7 Kiểm tra tự động: `npm run arch:check`
 
-- Script tự viết (không thêm thư viện, nên §1 không đổi): `scripts/arch-check.ts` + `scripts/arch/{rules,check,allowlist}.ts`. Quét import (tĩnh, re-export, `import()`) của mọi `.ts/.tsx` trong `src/` và đối chiếu với bảng ở §9.2. Chạy được trên mọi OS; `scripts/arch/check.test.ts` chạy trong `npm test` nên vi phạm làm test đỏ.
+- Script tự viết (không thêm thư viện, nên §1 không đổi): `scripts/arch-check.ts` + `scripts/arch/{rules,check,allowlist}.ts`. Quét import (tĩnh, re-export, `import()`) của mọi `.ts/.tsx` trong `src/` và đối chiếu với bảng ở §9.2. Thêm một luật chung cho mọi layer (cả `composition.ts`): code không phải test không được import từ thư mục `testing/` (fake chỉ dành cho test; adapter thật nằm ở `infrastructure/`). Chạy được trên mọi OS; `scripts/arch/check.test.ts` chạy trong `npm test` nên vi phạm làm test đỏ.
 - Mọi file dưới `src/` phải nằm trong một layer (đường dẫn theo §9.1) **hoặc** trong allowlist legacy. File mới ngoài layer mà không có trong allowlist sẽ fail: không viết thêm code kiểu cũ.
 - **Allowlist** nằm ở một file duy nhất `scripts/arch/allowlist.ts` (entry kết thúc bằng `/` là cả thư mục). Khi chuyển xong một module, xóa phần của nó khỏi allowlist trong cùng PR. Entry không còn khớp file nào cũng làm `arch:check` fail, nên danh sách chỉ co lại. Mục tiêu cuối: rỗng.
 - Thêm/sửa luật: sửa `scripts/arch/rules.ts` và thêm test fixture tương ứng.

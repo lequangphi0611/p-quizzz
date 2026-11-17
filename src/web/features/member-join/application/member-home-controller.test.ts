@@ -253,6 +253,22 @@ describe('MemberHomeController: asking the mentor to let this person back in (PR
     expect(selectScreen(ctrl.getState())).toBe('lobby');
   });
 
+  it('a token this browser already held comes back when the request is cancelled or turned down', async () => {
+    const tokens = new InMemoryTokenStore();
+    tokens.setToken(1, 'old-tok');
+    const { ctrl } = make({ getRejoinStatus: async () => ({ status: 'rejected' as const, sessionId: 1 }) }, tokens);
+    await ctrl.requestRejoin(1, 'Phi', '123456', 'phi78@gmail.com');
+    expect(tokens.getToken(1)).toBe('req-tok');
+    ctrl.backFromRejoin();
+    expect(tokens.getToken(1)).toBe('old-tok');
+  });
+
+  it('asking asks the server about the request once, not twice', async () => {
+    const { ctrl, gateway } = make();
+    await ctrl.requestRejoin(1, 'Phi', '123456', 'phi78@gmail.com');
+    expect(gateway.getRejoinStatus).toHaveBeenCalledTimes(1);
+  });
+
   it('rejected and expired are shown as such; going back to the form drops the request token but keeps the looked-up room', async () => {
     for (const answer of ['rejected', 'expired'] as const) {
       const { ctrl, tokens } = make({ getRejoinStatus: async () => ({ status: answer, sessionId: 1 }) });

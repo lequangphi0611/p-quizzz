@@ -1,10 +1,9 @@
 import { isValidEmail } from '../../../../shared/email-list.js';
 import { InvalidEmailError, ParticipantNotFoundError } from '../../../domain/participant/errors.js';
-import { assertCanJoin, rosterDecision } from '../../../domain/participant/participant.js';
+import { assertCanJoin, assertNameFree, rosterDecision } from '../../../domain/participant/participant.js';
 import { ALLOW_REJOIN_MS, findHolder, MAX_PENDING_PER_HOLDER, NoHolderError, NotRejoinableError, RejoinNotPendingError, RejoinRequestNotFoundError, TooManyRequestsError, viewOf, type RejoinView } from '../../../domain/rejoin/rejoin.js';
 import { SessionNotFoundError } from '../../../domain/session/errors.js';
 import { ACTIVE_STATUSES } from '../../../../shared/session-state.js';
-import { assertNameFree } from '../../../domain/participant/participant.js';
 import type { Clock } from '../../ports/clock.js';
 import type { EventPublisher } from '../../ports/event-publisher.js';
 import type { ParticipantReader, RejoinUnitContext } from '../../ports/participant-repository.js';
@@ -43,6 +42,9 @@ export class RequestRejoin {
         await participants.setRejoinAllowedUntil(holder.id, null);
         return { requestId: null, status: 'approved' as const };
       }
+      // Refuse a name somebody else already uses now, not later when the mentor clicks "impostor" and meets an error about a
+      // name they never saw. The holder's own name is fine: the claimant may type the same one.
+      assertNameFree((await participants.listNotKicked(input.sessionId)).filter(p => p.id !== holder.id), input.displayName);
       if ((await rejoin.pendingOf(holder.id)).length >= MAX_PENDING_PER_HOLDER) throw new TooManyRequestsError();
       const request = await rejoin.create({ participantId: holder.id, claimantName: input.displayName, token, now });
       return { requestId: request.id, status: 'pending' as const };

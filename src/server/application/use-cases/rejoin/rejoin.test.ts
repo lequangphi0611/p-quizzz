@@ -4,7 +4,7 @@ import { ALLOW_REJOIN_MS, NoHolderError, NotRejoinableError, RejoinNotPendingErr
 import { FakeClock, FakeTokenGenerator, RecordingEventPublisher } from '../../testing/fakes.js';
 import { InMemoryExamRepository } from '../../testing/in-memory-exam-repository.js';
 import { InMemoryParticipantRepository } from '../../testing/in-memory-participant-repository.js';
-import { InMemoryPresenceTracker } from '../../testing/in-memory-presence-tracker.js';
+import { FakePresenceTracker } from '../../testing/fake-presence-tracker.js';
 import { InMemoryRejoinRepository } from '../../testing/in-memory-rejoin-repository.js';
 import { InMemorySessionRepository } from '../../testing/in-memory-session-repository.js';
 import { InMemoryUnitOfWork } from '../../testing/in-memory-unit-of-work.js';
@@ -20,7 +20,7 @@ async function build(opts: { roster?: string[]; status?: 'lobby' | 'running' | '
   const clock = new FakeClock(1_000_000);
   const events = new RecordingEventPublisher();
   const tokens = new FakeTokenGenerator();
-  const presence = new InMemoryPresenceTracker(clock);
+  const presence = new FakePresenceTracker(clock);
   const examId = await exams.add({ title: 'T', description: null, sourceMarkdown: '#', totalPoints: 1, hasEssay: false, createdAt: new Date(), questions: [] });
   const sessionId = await sessions.create({ examId, name: 'Phiên', access: opts.roster ? 'roster' : 'free', outsiderPolicy: 'block', sourceGroupId: null, mode: 'self_paced', shuffle: true, autoApprove: true, createdAt: new Date() });
   if (opts.roster) await sessions.addRoster(sessionId, opts.roster);
@@ -148,14 +148,28 @@ describe('the mentor answers', () => {
     expect(w.events.events.map(e => e.type)).toEqual(['participants', 'leaderboard']);
   });
 
-  it('a takeover whose name is taken by somebody else is refused and changes nothing', async () => {
+  it('a request whose name is taken by somebody else is refused at once, so the mentor never sees it', async () => {
     const w = await build({ roster: LIST });
     const phi = await holder(w);
     await holder(w, 'Bình', 'phi89@gmail.com');
-    const r = await ask(w, { displayName: 'bình' });
+    await expect(ask(w, { displayName: 'bình' })).rejects.toMatchObject({ message: 'Tên đã có người dùng', code: undefined });
+    expect(await w.rejoin.pendingOf(phi.id)).toEqual([]);
+  });
+
+  it('a takeover whose name got taken after the request is still refused and changes nothing', async () => {
+    const w = await build({ roster: LIST });
+    const phi = await holder(w);
+    const r = await ask(w, { displayName: 'Bình' });
+    await holder(w, 'bình', 'phi89@gmail.com'); // somebody joins with that name while the request waits
     await expect(w.takeover.execute(r.requestId!)).rejects.toBeInstanceOf(NameTakenError);
     expect((await w.people.findById(phi.id))!.status).toBe('active'); // rolled back: the holder was not kicked
     expect((await w.status.execute(r.token)).status).toBe('pending');
+  });
+
+  it('the claimant may type the same name as the person holding the seat', async () => {
+    const w = await build({ roster: LIST });
+    await holder(w);
+    expect(await ask(w, { displayName: 'phi' })).toMatchObject({ status: 'pending' });
   });
 
   it('"Từ chối" closes the request; it cannot be answered twice; a closed session cannot be answered', async () => {

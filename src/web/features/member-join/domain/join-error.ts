@@ -21,7 +21,10 @@ export function classifyJoinError(status: number | null, message: string, code?:
   if (status === 403 || /mã phòng/i.test(message)) return { kind: 'room' };
   if (status === 400 && /email/i.test(message)) return { kind: 'email', message };
   if (status === 409 && code === 'identity_in_use') return { kind: 'taken', message };
-  if (status === 409) return { kind: 'name', message: `${message}. Thêm họ hoặc một chữ để phân biệt.` };
+  // The session closed (or was never open) under the member: back to the room-code step, not a name problem.
+  if (status === 409 && /không mở/i.test(message)) return { kind: 'room' };
+  // Only a name clash is fixed by a more distinct name; any other conflict is shown as it is.
+  if (status === 409 && /tên/i.test(message) && /dùng/i.test(message)) return { kind: 'name', message: `${message}. Thêm họ hoặc một chữ để phân biệt.` };
   return { kind: 'name', message };
 }
 

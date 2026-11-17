@@ -43,7 +43,7 @@ import { AddRosterEmails, SaveSessionGroup } from './application/use-cases/sessi
 import { GetRosterCounts } from './application/use-cases/participants/get-roster-counts.js';
 import { DrizzleGroupRepository } from './infrastructure/db/drizzle-group-repository.js';
 import { DrizzleRejoinRepository } from './infrastructure/db/drizzle-rejoin-repository.js';
-import { InMemoryPresenceTracker } from './application/testing/in-memory-presence-tracker.js';
+import { InMemoryPresenceTracker } from './infrastructure/system/in-memory-presence-tracker.js';
 import { AllowRejoin, ApproveRejoinKeep, ApproveRejoinTakeover, CancelRejoin, GetRejoinStatus, RejectRejoin, RequestRejoin } from './application/use-cases/rejoin/rejoin-requests.js';
 import type { RejoinUseCases } from './interface/http/rejoin-routes.js';
 import type { PresenceTracker } from './application/ports/presence-tracker.js';
