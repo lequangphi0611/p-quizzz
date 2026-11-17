@@ -11,7 +11,10 @@ export class InMemoryAiSuggestionRepository implements AiSuggestionRepository, S
   rows = new Map<number, AiSuggestion>();
   private nextId = 1;
 
-  constructor(private readonly sessionOfAnswer: (answerId: number) => number | undefined = () => undefined) {}
+  constructor(
+    private readonly sessionOfAnswer: (answerId: number) => number | undefined = () => undefined,
+    private readonly questionOfAnswer: (answerId: number) => number | undefined = () => undefined,
+  ) {}
 
   snapshot() {
     return { rows: new Map(this.rows), nextId: this.nextId };
@@ -35,8 +38,9 @@ export class InMemoryAiSuggestionRepository implements AiSuggestionRepository, S
     return [...this.rows.values()].filter(r => answerIds.includes(r.answerId));
   }
 
-  async anyDoneInSession(sessionId: number) {
-    return [...this.rows.values()].some(r => r.status === 'done' && this.sessionOfAnswer(r.answerId) === sessionId);
+  async questionsWithDoneInSession(sessionId: number) {
+    const ids = [...this.rows.values()].filter(r => r.status === 'done' && this.sessionOfAnswer(r.answerId) === sessionId).map(r => this.questionOfAnswer(r.answerId));
+    return [...new Set(ids.filter((id): id is number => id !== undefined))];
   }
 
   async queue(answerIds: number[], requestedAt: Date) {

@@ -1,6 +1,6 @@
 # S26 — Gợi ý chấm tự luận bằng AI (Claude CLI trên máy mentor)
 
-**Phụ thuộc:** S15, S16, S17 · **Trạng thái:** chưa làm
+**Phụ thuộc:** S15, S16, S17 · **Trạng thái:** ✅ xong (2026-11-17)
 
 ## Bối cảnh
 Lớp đông, bài tự luận dài thì mentor chấm mỏi tay. App gọi Claude CLI cài sẵn trên máy mentor để chấm nháp; mentor xác nhận từng bài. Business: [PRODUCT.md §7.28](../PRODUCT.md), §4.5. Contract: [architecture.md §2](../architecture.md) (`ai_suggestions`), §5 (`grading`, `answers/:id/grade` PUT/DELETE, `ai-suggest`, `ai-suggest/stop`, `review`), §11.6 (module `ai-grading`).
@@ -11,7 +11,7 @@ Lớp đông, bài tự luận dài thì mentor chấm mỏi tay. App gọi Clau
 - Bảng `ai_suggestions` + migration (`npm run db:generate`).
 - `src/shared/rubric.ts` (`parseRubric`). Port `EssayGrader`, `AiSuggestionRepository`, `SuggestionQueue`; domain `ai-suggestion.ts`; use case `RequestAiSuggestions`/`StopAiSuggestions`/`RunAiSuggestion`/`ClearGrade`, `GradeAnswer` thêm `aiUse`; hàng đợi trong process, adapter `claude-cli-grader.ts`, prompt trong `prompts.ts` (đúng §11.6).
 - `config.ts`: đọc đường dẫn file cấu hình (`--ai-grader-config`, `AI_GRADER_CONFIG`, mặc định `config/ai-grader.local.json`). Commit `config/ai-grader.example.json`; `.gitignore` thêm `config/*.local.json`.
-- Endpoint `POST …/questions/:questionId/ai-suggest`, `POST …/ai-suggest/stop`, `DELETE /answers/:id/grade`; `PUT /answers/:id/grade` nhận `aiUse`; mở rộng grading view (`aiGrader`, `hasRubric`, `rubric`, `ai`, `aiSuggestion`), review member (`aiAssisted`).
+- Endpoint `POST …/questions/:questionId/ai-suggest`, `POST …/ai-suggest/stop`, `DELETE /answers/:id/grade`; `PUT /answers/:id/grade` nhận `aiUse`; mở rộng grading view (`aiGrader`, `hasRubric`, `rubric`, `ai`, `aiSuggestion`), review member (`aiAssisted` theo từng câu).
 - Lúc khởi động: dòng `queued`/`running` còn sót → `failed` ("Server đã khởi động lại").
 - Leak-guard: chặn key `aiSuggestion` ngoài `/api/admin/*`.
 
@@ -26,19 +26,19 @@ Lớp đông, bài tự luận dài thì mentor chấm mỏi tay. App gọi Clau
 AI chỉ gợi ý, mentor xác nhận từng bài, không có duyệt tất cả; member được biết có AI, chỉ thấy bản đã xác nhận; chấp nhận gửi bài ẩn danh tới Anthropic; tích hợp thẳng vào màn chấm; chỉ khi `CLOSED`; không hiện trong thảo luận; theo từng câu, mỗi bài một lần gọi độc lập; câu không có rubric thì không chạy; system prompt và prompt do app viết, mentor chỉ sửa lệnh chạy.
 
 ## Acceptance criteria
-- [ ] Không có file cấu hình → `aiGrader.available = false`, app chạy bình thường, chấm tay không đổi.
-- [ ] `ai-suggest` khi phiên không `closed` / câu không có rubric / AI không khả dụng → 409; câu không phải essay → 409.
-- [ ] Chỉ xếp hàng bài chưa chấm tay và chưa có gợi ý sống; gọi lại không tạo việc trùng; `answerIds` thử lại đúng các bài `failed`.
-- [ ] Input gửi cho AI chỉ gồm đề, điểm tối đa, rubric, câu trả lời: test khẳng định **không** có tên hiển thị, email, id.
-- [ ] Bài làm đi qua stdin, không nằm trong `args`; tiến trình chạy với `shell: false` và `cwd` là thư mục tạm rỗng; các cờ bắt buộc của §11.6 luôn có mặt ở cuối `args`.
-- [ ] Cấu hình có cờ bị cấm (danh sách §11.6) → không khả dụng.
-- [ ] "Dừng" xoá các bài `queued`; chấm tay một bài `queued` gỡ nó khỏi hàng đợi; `DELETE /answers/:id/grade` đưa bài về chưa chấm.
-- [ ] Quá thời gian → kill tiến trình, `failed` (`timeout`); bài quá dài → `failed` (`too_long`) không gọi CLI; output sai dạng hoặc điểm ngoài khoảng → `failed` (`bad_output`).
-- [ ] Gợi ý **không** đổi `manual_score`, tổng điểm, bảng xếp hạng, `canFinalize`; chỉ `PUT /answers/:id/grade` mới thành điểm.
-- [ ] `GET /sessions/:id/discussion`, mọi `/api/me/*`, leaderboard, màn chiếu không chứa `aiSuggestion`.
-- [ ] Nội dung cấu hình không xuất hiện trong response hay log.
-- [ ] Server khởi động lại giữa chừng → các việc dở thành `failed`, thử lại được.
-- [ ] Lệnh dạng `.cmd`/`.bat` bị từ chối với hướng dẫn rõ (Windows), không dùng `shell: true`.
+- [x] Không có file cấu hình → `aiGrader.available = false`, app chạy bình thường, chấm tay không đổi.
+- [x] `ai-suggest` khi phiên không `closed` / câu không có rubric / AI không khả dụng → 409; câu không phải essay → 409.
+- [x] Chỉ xếp hàng bài chưa chấm tay và chưa có gợi ý sống; gọi lại không tạo việc trùng; `answerIds` thử lại đúng các bài `failed`.
+- [x] Input gửi cho AI chỉ gồm đề, điểm tối đa, rubric, câu trả lời: test khẳng định **không** có tên hiển thị, email, id.
+- [x] Bài làm đi qua stdin, không nằm trong `args`; tiến trình chạy với `shell: false` và `cwd` là thư mục tạm rỗng; các cờ bắt buộc của §11.6 luôn có mặt ở cuối `args`.
+- [x] Cấu hình có cờ bị cấm (danh sách §11.6) → không khả dụng.
+- [x] "Dừng" xoá các bài `queued`; chấm tay một bài `queued` gỡ nó khỏi hàng đợi; `DELETE /answers/:id/grade` đưa bài về chưa chấm.
+- [x] Quá thời gian → kill tiến trình, `failed` (`timeout`); bài quá dài → `failed` (`too_long`) không gọi CLI; output sai dạng hoặc điểm ngoài khoảng → `failed` (`bad_output`).
+- [x] Gợi ý **không** đổi `manual_score`, tổng điểm, bảng xếp hạng, `canFinalize`; chỉ `PUT /answers/:id/grade` mới thành điểm.
+- [x] `GET /sessions/:id/discussion`, mọi `/api/me/*`, leaderboard, màn chiếu không chứa `aiSuggestion`.
+- [x] Nội dung cấu hình không xuất hiện trong response hay log.
+- [x] Server khởi động lại giữa chừng → các việc dở thành `failed`, thử lại được.
+- [x] Lệnh dạng `.cmd`/`.bat` bị từ chối với hướng dẫn rõ (Windows), không dùng `shell: true`.
 
 ## Test bắt buộc
 - Domain: `domain/grading/ai-suggestion.test.ts` (`assertCanSuggest`, `pickAnswersToSuggest`, `normalizeSuggestion`).

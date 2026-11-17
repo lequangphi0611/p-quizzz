@@ -18,19 +18,18 @@ export class DrizzleAiSuggestionRepository implements AiSuggestionRepository {
     return this.access(db => db.select().from(aiSuggestions).where(inArray(aiSuggestions.answerId, answerIds)).all());
   }
 
-  async anyDoneInSession(sessionId: number): Promise<boolean> {
-    const row = await this.access(db =>
+  async questionsWithDoneInSession(sessionId: number): Promise<number[]> {
+    const rows = await this.access(db =>
       db
-        .select({ id: aiSuggestions.id })
+        .selectDistinct({ questionId: answers.questionId })
         .from(aiSuggestions)
         .innerJoin(answers, eq(aiSuggestions.answerId, answers.id))
         .innerJoin(attempts, eq(answers.attemptId, attempts.id))
         .innerJoin(participants, eq(attempts.participantId, participants.id))
         .where(and(eq(participants.sessionId, sessionId), eq(aiSuggestions.status, 'done')))
-        .limit(1)
-        .get(),
+        .all(),
     );
-    return !!row;
+    return rows.map(r => r.questionId);
   }
 
   queue(answerIds: number[], requestedAt: Date): Promise<number[]> {

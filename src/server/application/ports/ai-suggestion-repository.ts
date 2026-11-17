@@ -5,8 +5,8 @@ import type { AttemptUnitContext } from './attempt-repository.js';
 export interface AiSuggestionReader {
   findById(id: number): Promise<AiSuggestion | null>;
   listByAnswerIds(answerIds: number[]): Promise<AiSuggestion[]>;
-  /** Whether any essay of this session got a finished suggestion (the member review mentions it, §7.28f). */
-  anyDoneInSession(sessionId: number): Promise<boolean>;
+  /** Essay questions of this session with at least one finished suggestion (the member review mentions it, §7.28f). */
+  questionsWithDoneInSession(sessionId: number): Promise<number[]>;
 }
 
 /** Write side, inside a unit of work. */

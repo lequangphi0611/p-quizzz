@@ -12,6 +12,6 @@ export interface AttemptViewData {
 
 /** Everything a review is built from. Only produced after the access rules were checked (member: from CLOSED; mentor: any time). */
 export type ReviewData = AttemptViewData & {
-  /** The session used AI grading suggestions (the member review says so, PRODUCT.md §7.28f). */
-  aiAssisted?: boolean;
+  /** Essay questions of the session that got AI grading suggestions (the member review says so, PRODUCT.md §7.28f). */
+  aiAssistedQuestionIds?: number[];
 };

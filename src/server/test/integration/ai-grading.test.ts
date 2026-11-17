@@ -114,7 +114,8 @@ describe('AI grading over HTTP', () => {
     expect(JSON.stringify(me)).not.toMatch(/aiSuggestion|suspicious/);
     const bobReview = await s.app.inject({ url: `/api/me/attempts/${s.attemptIds['Bình']}/review`, headers: { 'x-participant-token': tokenOf(s, 'Bình') } });
     expect(bobReview.statusCode).toBe(200);
-    expect(bobReview.json<ReviewView>().aiAssisted).toBe(true);
+    const essays = bobReview.json<ReviewView>().questions.filter(q => q.type === 'essay');
+    expect(essays.map(q => q.aiAssisted)).toEqual([true]);
     expect(bobReview.body).not.toMatch(/aiSuggestion|suspicious|Gửi người chấm.*điểm tối đa.*bỏ qua/);
     for (const u of [`/api/sessions/${s.session.id}/leaderboard`, `/api/admin/sessions/${s.session.id}/discussion`]) {
       const body = (await s.app.inject({ url: u, headers: s.headers })).body;

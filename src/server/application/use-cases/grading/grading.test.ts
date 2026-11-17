@@ -302,7 +302,7 @@ describe('AI suggestions (PRODUCT.md §7.28)', () => {
     await uc.requestAi.execute({ sessionId, questionId: ids.essay });
     expect(await uc.failUnfinished.execute()).toBe(2);
     expect([...ai.rows.values()].every(r => r.status === 'failed' && r.error === 'Server đã khởi động lại')).toBe(true);
-    expect(await ai.anyDoneInSession(sessionId)).toBe(false);
+    expect(await ai.questionsWithDoneInSession(sessionId)).toEqual([]);
   });
 
   it('keeps suggestions out of the discussion view', async () => {

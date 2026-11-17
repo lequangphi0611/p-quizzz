@@ -118,6 +118,7 @@ export interface ReviewQuestion {
   textAnswer: string | null;
   score: number | null; // choice: automatic score; essay: the mentor's score, null until graded
   feedback: string | null; // mentor's comment on an essay
+  aiAssisted: boolean; // AI suggestions helped grade this essay; the score is still the mentor's (PRODUCT.md §7.28f)
 }
 
 // GET /api/admin/participants/:id/review — mentor only. `attempt` is null until the person has submitted.
@@ -134,6 +135,5 @@ export interface ReviewView {
   score: number; // automatic + manual points of this attempt so far
   maxScore: number; // exam total points
   official: boolean; // true once the session is finalized
-  aiAssisted: boolean; // essays of this session got AI suggestions (scores are still the mentor's, PRODUCT.md §7.28f)
   questions: ReviewQuestion[]; // in this member's attempt order
 }

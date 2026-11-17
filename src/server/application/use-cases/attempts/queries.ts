@@ -48,7 +48,7 @@ export class GetAttemptView {
 
 /** ⚠️ Carries the answer key. Refused until the session has closed, so nobody reads it while others are still working. */
 export class GetAttemptReview {
-  constructor(private readonly deps: ReadDeps & { aiSuggestions?: Pick<AiSuggestionReader, 'anyDoneInSession'> }) {}
+  constructor(private readonly deps: ReadDeps & { aiSuggestions?: Pick<AiSuggestionReader, 'questionsWithDoneInSession'> }) {}
 
   async execute(participant: Participant, attemptId: number): Promise<ReviewData> {
     const attempt = await this.deps.attempts.findOwned(participant.id, attemptId);
@@ -56,8 +56,8 @@ export class GetAttemptReview {
     const session = await loadSession(this.deps, participant.sessionId);
     assertReviewable(attempt, session.status);
     const exam = await loadExam(this.deps, session.examId);
-    const aiAssisted = exam.questions.some(q => q.type === 'essay') && (await this.deps.aiSuggestions?.anyDoneInSession(session.id)) === true;
-    return { attempt, answers: await this.deps.attempts.answersOf(attempt.id), exam, sessionStatus: session.status, aiAssisted };
+    const aiAssistedQuestionIds = exam.questions.some(q => q.type === 'essay') ? ((await this.deps.aiSuggestions?.questionsWithDoneInSession(session.id)) ?? []) : [];
+    return { attempt, answers: await this.deps.attempts.answersOf(attempt.id), exam, sessionStatus: session.status, aiAssistedQuestionIds };
   }
 }
 

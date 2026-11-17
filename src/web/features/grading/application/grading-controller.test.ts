@@ -12,6 +12,9 @@ function make(over: Partial<GradingGateway> = {}, v = view()) {
     getGrading: vi.fn(), getSession: vi.fn(),
     grade: vi.fn(async (answerId, g) => ({ answer: { ...ans(answerId, 'x'), manualScore: g.score }, graded: 1, total: 3 }) as unknown as GradeResponse),
     finalize: vi.fn(async () => {}),
+    clearGrade: vi.fn(async answerId => ({ answer: ans(answerId, 'x'), graded: 0, total: 3 }) as unknown as GradeResponse),
+    requestAi: vi.fn(async () => ({ queued: 1 })),
+    stopAi: vi.fn(async () => ({ stopped: 1 })),
     ...over,
   };
   return { gateway, ctrl: new GradingController(gateway, 9, v) };
@@ -69,5 +72,59 @@ describe('GradingController', () => {
   it('is locked once finalized', () => {
     const v = view(); (v as { status: string }).status = 'finalized';
     expect(make({}, v).ctrl.locked).toBe(true);
+  });
+});
+
+describe('GradingController · AI suggestions', () => {
+  const suggested = (suspicious = false) => {
+    const v = view();
+    const a = v.questions[0]!.answers[0]! as unknown as Record<string, unknown>;
+    a.aiSuggestion = { status: 'done', score: 4, feedback: 'Tốt', criteria: [], suspicious, suspiciousReason: null, suspiciousLines: [], error: null, used: null };
+    return v;
+  };
+
+  it('"Dùng gợi ý" saves the suggestion as the grade, marked accepted', async () => {
+    const { ctrl, gateway } = make({}, suggested());
+    await ctrl.accept(1);
+    expect(gateway.grade).toHaveBeenCalledWith(1, { score: 4, feedback: 'Tốt', aiUse: 'accepted' });
+  });
+
+  it('a suspicious answer needs "Đã đọc toàn bộ bài" first', async () => {
+    const { ctrl, gateway } = make({}, suggested(true));
+    await ctrl.accept(1);
+    expect(gateway.grade).not.toHaveBeenCalled();
+    ctrl.setAck(1, true);
+    await ctrl.accept(1);
+    expect(gateway.grade).toHaveBeenCalledTimes(1);
+  });
+
+  it('"Hoàn tác" clears the grade', async () => {
+    const { ctrl, gateway } = make();
+    await ctrl.grade(1, 3, '');
+    await ctrl.undo(1);
+    expect(gateway.clearGrade).toHaveBeenCalledWith(1);
+    expect(ctrl.question!.answers[0]!.manualScore).toBeNull();
+  });
+
+  it('starts the AI for the question on screen, refreshes and announces it', async () => {
+    const { ctrl, gateway } = make({ getGrading: vi.fn(async () => view()) });
+    await ctrl.runAi();
+    expect(gateway.requestAi).toHaveBeenCalledWith(9, 1);
+    expect(gateway.getGrading).toHaveBeenCalledWith(9);
+    expect(ctrl.getState()).toMatchObject({ aiBusy: false, error: '' });
+    expect(ctrl.getState().live).toMatch(/AI bắt đầu chấm nháp/);
+  });
+
+  it('shows the server error when the AI cannot start', async () => {
+    const { ctrl } = make({ requestAi: async () => { throw new ApiError(409, 'Câu này chưa có rubric'); } });
+    await ctrl.runAi();
+    expect(ctrl.getState()).toMatchObject({ aiBusy: false, error: 'Câu này chưa có rubric' });
+  });
+
+  it('changing question resets the filter', () => {
+    const { ctrl } = make();
+    ctrl.setFilter('flag');
+    ctrl.select(0);
+    expect(ctrl.getState().filter).toBe('all');
   });
 });
