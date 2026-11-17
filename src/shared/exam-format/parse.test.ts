@@ -65,6 +65,13 @@ console.log(1 + '1');
     expect(errors).toEqual([]);
     expect(exam!.questions[0]!.explanation).toBe('đoạn 1\n\nđoạn 2');
   });
+
+  it('keeps a fenced code block inside the explanation (each line prefixed with `>`)', () => {
+    const src = fm('## Viết hàm {essay, points=2}\n> Đáp án mẫu:\n>\n> ```kotlin\n> fun f() {\n>\n>     println(1)\n> }\n> ```\n> Rubric: 2đ.');
+    const { exam, errors } = parseExam(src);
+    expect(errors).toEqual([]);
+    expect(exam!.questions[0]!.explanation).toBe('Đáp án mẫu:\n\n```kotlin\nfun f() {\n\n    println(1)\n}\n```\nRubric: 2đ.');
+  });
 });
 
 describe('parseExam — errors (with line numbers)', () => {

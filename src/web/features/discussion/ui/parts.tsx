@@ -26,14 +26,14 @@ export function RubricPanel({ q, revealed, onToggle }: { q: DiscussionQuestion; 
     );
   }
   return (
-    <div style={{ ...st.panel, ...st.reveal, display: 'flex', flexDirection: 'column', gap: 14, minHeight: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+    <section aria-label="Đáp án mẫu và rubric" style={{ ...st.panel, ...st.reveal, display: 'flex', flexDirection: 'column', gap: 14, minHeight: 0, maxHeight: '100%', boxSizing: 'border-box' }}>
+      <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 12 }}>
         <span style={st.panelLabel}><Icon name="list-checks" size={24} />Đáp án mẫu &amp; rubric</span>
         <Button tone="screen" variant="ghost" size="xl" icon="eye-off" ariaLabel="Ẩn đáp án (Space)" onClick={onToggle} style={{ marginLeft: 'auto' }} />
       </div>
-      <div className="pq-scroll" style={{ overflow: 'auto', minHeight: 0 }}>
-        {q.explanation ? <Markdown size="screen" source={q.explanation} /> : <span style={{ ...st.body28, color: 'var(--screen-meta)' }}>Đề không có đáp án mẫu cho câu này.</span>}
+      <div className="pq-scroll" style={{ overflow: 'auto', minHeight: 0, flex: '0 1 auto' }}>
+        {q.explanation ? <Markdown size="screen" className="pq-md-rubric" source={q.explanation} /> : <span style={{ ...st.body28, color: 'var(--screen-meta)' }}>Đề không có đáp án mẫu cho câu này.</span>}
       </div>
-    </div>
+    </section>
   );
 }

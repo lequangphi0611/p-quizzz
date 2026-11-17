@@ -26,9 +26,9 @@ Mỗi câu hỏi gồm các phần **theo đúng thứ tự**: tiêu đề → n
 |---|---|---|
 | Tiêu đề | `## ...` | Bắt đầu một câu hỏi. Chỉ dùng `##` — không dùng `#`, `###`. |
 | Thuộc tính | `{essay}`, `{points=3}`, `{essay, points=5}` | Ở **cuối** dòng tiêu đề. Chỉ có 2 key: `essay`, `points` (số nguyên 1–100, mặc định 1). Key lạ là lỗi. |
-| Nội dung | Markdown bất kỳ | Code block (```` ``` ````) chỉ được đặt ở đây. Không dùng `>` trong phần này. |
+| Nội dung | Markdown bất kỳ | Code block (```` ``` ````) viết bình thường ở đây (không có `>`). Không dùng `>` trong phần này. |
 | Đáp án | `- [ ] ...` / `- [x] ...` | **Mỗi đáp án 1 dòng**, hỗ trợ Markdown inline (`code`, **đậm**). |
-| Giải thích | Các dòng `> ...` | Luôn ở cuối câu. Nhiều đoạn: ngăn cách bằng dòng `>` trống hoặc dòng trống. |
+| Giải thích | Các dòng `> ...` | Luôn ở cuối câu. Nhiều đoạn: ngăn cách bằng dòng `>` trống hoặc dòng trống. Được dùng code block (vd: code đáp án mẫu của câu tự luận) nếu **mọi dòng** của block, kể cả dòng ```` ``` ```` và dòng trống bên trong, đều bắt đầu bằng `>`. |
 
 ## Loại câu hỏi (suy ra tự động)
 

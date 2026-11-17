@@ -27,9 +27,9 @@ export async function mentorContext(browser: Browser, baseURL: string, viewport 
   return { context, page };
 }
 
-/** Imports the bundled example exam and returns its id (an exam can be imported many times, see PRODUCT §7.10). */
-export async function importExam(api: APIRequestContext): Promise<number> {
-  const markdown = readFileSync(EXAM_FILE, 'utf-8');
+/** Imports an exam (the bundled example by default) and returns its id (an exam can be imported many times, see PRODUCT §7.10). */
+export async function importExam(api: APIRequestContext, file = EXAM_FILE): Promise<number> {
+  const markdown = readFileSync(file, 'utf-8');
   const res = await api.post('/api/admin/exams', { data: { markdown } });
   expect(res.ok(), 'exam import').toBeTruthy();
   return ((await res.json()) as { exam: { id: number } }).exam.id;
