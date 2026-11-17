@@ -1,5 +1,5 @@
 import type { SessionStatus } from '../../../shared/session-state.js';
-import type { OutsiderPolicy, SessionAccess } from '../../../shared/api/sessions.js';
+import type { OutsiderPolicy, ScoreVisibility, SessionAccess } from '../../../shared/api/sessions.js';
 import type { SessionModeId } from './mode.js';
 
 export interface Session {
@@ -17,6 +17,10 @@ export interface Session {
   outsiderPolicy: OutsiderPolicy;
   /** The saved group this session's list was copied from (or saved as later); null for free sessions and unsaved temp lists. */
   sourceGroupId: number | null;
+  /** When members see scores and the leaderboard (PRODUCT.md §7.25). */
+  scoreVisibility: ScoreVisibility;
+  /** When the mentor published held-back scores; null until then (closing publishes them without setting this). */
+  scoresReleasedAt: Date | null;
   /** Lowest number not used by another open session; set when the room opens, cleared when it closes. */
   slot: number | null;
   /** Null until the session is opened; a fresh code each time it opens. */
@@ -37,8 +41,11 @@ export interface NewSession {
   access: SessionAccess;
   outsiderPolicy: OutsiderPolicy;
   sourceGroupId: number | null;
+  scoreVisibility: ScoreVisibility;
   createdAt: Date;
 }
 
-/** The fields a lifecycle transition may change. */
-export type SessionPatch = Partial<Pick<Session, 'status' | 'roomCode' | 'slot' | 'openedAt' | 'startedAt' | 'closedAt' | 'finalizedAt'>>;
+/** The fields a lifecycle transition (or the score-visibility setting) may change. */
+export type SessionPatch = Partial<
+  Pick<Session, 'status' | 'roomCode' | 'slot' | 'openedAt' | 'startedAt' | 'closedAt' | 'finalizedAt' | 'scoreVisibility' | 'scoresReleasedAt'>
+>;

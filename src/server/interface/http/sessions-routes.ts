@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { AddRosterBody, CreateSessionBody, SaveGroupBody } from '../../../shared/api/index.js';
+import { AddRosterBody, CreateSessionBody, SaveGroupBody, ScoreVisibilityBody } from '../../../shared/api/index.js';
 import { SESSION_ACTIONS, type SessionAction } from '../../../shared/session-state.js';
 import { SessionNotFoundError } from '../../domain/session/errors.js';
 import type { CreateSession } from '../../application/use-cases/sessions/create-session.js';
@@ -9,6 +9,7 @@ import type { OpenSession } from '../../application/use-cases/sessions/open-sess
 import type { StartSession } from '../../application/use-cases/sessions/start-session.js';
 import type { PresenceTracker } from '../../application/ports/presence-tracker.js';
 import type { AddRosterEmails, SaveSessionGroup } from '../../application/use-cases/sessions/roster.js';
+import type { ReleaseScores, SetScoreVisibility } from '../../application/use-cases/sessions/score-visibility.js';
 import type { GetPublicSession, GetSessionDetail, ListSessions } from '../../application/use-cases/sessions/queries.js';
 import { sendDomainError } from './domain-errors.js';
 import { parseId } from './params.js';
@@ -27,6 +28,8 @@ export interface SessionUseCases {
   publicSession: GetPublicSession;
   addRoster: AddRosterEmails;
   saveGroup: SaveSessionGroup;
+  setScoreVisibility: SetScoreVisibility;
+  releaseScores: ReleaseScores;
 }
 
 // Mentor session routes. Registered inside the requireMentor scope of /api/admin (see buildApp).
@@ -84,6 +87,30 @@ export const sessionsRoutes = (uc: SessionUseCases): FastifyPluginAsync =>
       try {
         const g = await uc.saveGroup.execute(id, body.data.name);
         return reply.code(201).send({ id: g.id, name: g.name, emailCount: g.emailCount });
+      } catch (err) {
+        return sendDomainError(reply, err);
+      }
+    });
+
+    // Show scores on submit, or hold them until the mentor publishes (PRODUCT.md §7.25). Only while nobody has submitted.
+    app.put<{ Params: { id: string } }>('/sessions/:id/score-visibility', async (req, reply) => {
+      const id = parseId(req.params.id);
+      if (!id) return reply.code(404).send({ error: new SessionNotFoundError().message });
+      const body = ScoreVisibilityBody.safeParse(req.body);
+      if (!body.success) return reply.code(400).send({ error: 'Cách hiện điểm không hợp lệ' });
+      try {
+        return toSessionDetailDto(await uc.setScoreVisibility.execute(id, body.data.scoreVisibility), uc.presence);
+      } catch (err) {
+        return sendDomainError(reply, err);
+      }
+    });
+
+    // "Công bố điểm": held-back scores and ranks appear for members and the projector. Static path wins over /:action.
+    app.post<{ Params: { id: string } }>('/sessions/:id/release-scores', async (req, reply) => {
+      const id = parseId(req.params.id);
+      if (!id) return reply.code(404).send({ error: new SessionNotFoundError().message });
+      try {
+        return toSessionDetailDto(await uc.releaseScores.execute(id), uc.presence);
       } catch (err) {
         return sendDomainError(reply, err);
       }

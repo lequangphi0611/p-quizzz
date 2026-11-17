@@ -26,7 +26,7 @@ export class InMemorySessionRepository implements SessionRepository, SessionRead
 
   async create(s: NewSession) {
     const id = this.nextId++;
-    this.sessions.set(id, { ...s, id, status: 'draft', slot: null, roomCode: null, openedAt: null, startedAt: null, closedAt: null, finalizedAt: null });
+    this.sessions.set(id, { ...s, id, status: 'draft', scoresReleasedAt: null, slot: null, roomCode: null, openedAt: null, startedAt: null, closedAt: null, finalizedAt: null });
     return id;
   }
 

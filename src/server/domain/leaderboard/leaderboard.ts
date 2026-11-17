@@ -19,12 +19,21 @@ export function buildLeaderboard(f: {
   totalPoints: number;
   counted: Map<number, Attempt>;
   names: Map<number, string>;
-}): { provisional: boolean; entries: LeaderboardRow[] } {
+  /** PRODUCT.md §7.25: the mentor holds scores back. Only who has submitted (by time) goes out, no score or rank. */
+  hidden?: boolean;
+}): { provisional: boolean; hidden: boolean; entries: LeaderboardRow[]; submitted: { displayName: string; submittedAt: number }[] } {
+  const provisional = f.status !== 'finalized';
+  if (f.hidden) {
+    const submitted = [...f.counted]
+      .map(([pid, a]) => ({ displayName: f.names.get(pid) ?? '', submittedAt: a.submittedAt!.getTime() }))
+      .sort((a, b) => a.submittedAt - b.submittedAt);
+    return { provisional, hidden: true, entries: [], submitted };
+  }
   const entries = [...f.counted].map(([pid, a]) => ({
     displayName: f.names.get(pid) ?? '',
     score: f.status === 'finalized' ? totalScore(a) : a.autoScore ?? 0,
     maxScore: f.totalPoints,
     submittedAt: a.submittedAt!.getTime(),
   }));
-  return { provisional: f.status !== 'finalized', entries: rankLeaderboard(entries) };
+  return { provisional, hidden: false, entries: rankLeaderboard(entries), submitted: [] };
 }

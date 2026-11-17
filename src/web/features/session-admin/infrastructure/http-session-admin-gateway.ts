@@ -1,4 +1,4 @@
-import type { ExamSummary, GroupSummary, NetworkInfo, LeaderboardResponse, ParticipantReview, SessionDetail, SessionSummary } from '../../../../shared/api/index.js';
+import type { ExamSummary, GroupSummary, NetworkInfo, LeaderboardResponse, ParticipantReview, ScoreVisibility, SessionDetail, SessionSummary } from '../../../../shared/api/index.js';
 import type { SessionAction } from '../../../../shared/session-state.js';
 import type { HttpClient } from '../../../shared/api-client/http-client.js';
 import type { NewSession, SessionAdminGateway } from '../application/session-admin-gateway.js';
@@ -14,6 +14,8 @@ export class HttpSessionAdminGateway implements SessionAdminGateway {
   saveGroup(sessionId: number, name: string): Promise<{ id: number; name: string; emailCount: number }> { return this.http.post(`/api/admin/sessions/${sessionId}/save-group`, { name }); }
   getSession(id: number): Promise<SessionDetail> { return this.http.get<SessionDetail>(`/api/admin/sessions/${id}`); }
   runAction(id: number, action: SessionAction): Promise<SessionDetail> { return this.http.post<SessionDetail>(`/api/admin/sessions/${id}/${action}`); }
+  setScoreVisibility(id: number, scoreVisibility: ScoreVisibility): Promise<SessionDetail> { return this.http.put<SessionDetail>(`/api/admin/sessions/${id}/score-visibility`, { scoreVisibility }); }
+  releaseScores(id: number): Promise<SessionDetail> { return this.http.post<SessionDetail>(`/api/admin/sessions/${id}/release-scores`); }
   async approveParticipant(id: number): Promise<void> { await this.http.post(`/api/admin/participants/${id}/approve`); }
   async kickParticipant(id: number): Promise<void> { await this.http.post(`/api/admin/participants/${id}/kick`); }
   async resolveEditRequest(id: number, decision: 'approve' | 'reject'): Promise<void> { await this.http.post(`/api/admin/participants/${id}/edit-request/${decision}`); }

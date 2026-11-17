@@ -29,5 +29,5 @@ export function Leaderboard({ sessionId, highlightName, size, limit, title }: { 
   useSessionEvents(sessionId, { leaderboard: refetch, session: refetch });
 
   if (!data) return null;
-  return <LeaderboardView entries={data.entries} provisional={data.provisional} highlightName={highlightName} size={size} limit={limit} title={title} />;
+  return <LeaderboardView entries={data.entries} provisional={data.provisional} hidden={data.hidden} submitted={data.submitted} highlightName={highlightName} size={size} limit={limit} title={title} />;
 }

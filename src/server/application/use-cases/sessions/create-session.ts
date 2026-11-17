@@ -7,7 +7,7 @@ import type { UnitOfWork } from '../../ports/unit-of-work.js';
 import { SessionNotFoundError } from '../../../domain/session/errors.js';
 import { cleanEmails } from '../../../domain/group/emails.js';
 import { EmptyEmailListError, GroupNotFoundError } from '../../../domain/group/errors.js';
-import type { OutsiderPolicy } from '../../../../shared/api/sessions.js';
+import type { OutsiderPolicy, ScoreVisibility } from '../../../../shared/api/sessions.js';
 import { resolveSessionName } from '../../../domain/session/session-name.js';
 
 export interface CreateSessionInput {
@@ -20,6 +20,8 @@ export interface CreateSessionInput {
   access?: { kind: 'free' } | { kind: 'group'; groupId: number } | { kind: 'emails'; emails: readonly string[] };
   /** Roster sessions: what happens to someone not on the list (default: turned away). */
   outsiderPolicy?: OutsiderPolicy;
+  /** When members see scores (PRODUCT.md §7.25); default right after submitting. */
+  scoreVisibility?: ScoreVisibility;
   /** Only `self_paced` exists today; the API does not expose this yet. */
   mode?: SessionModeId;
 }
@@ -55,6 +57,7 @@ export class CreateSession {
         access: isRoster ? 'roster' : 'free',
         outsiderPolicy: isRoster ? input.outsiderPolicy ?? 'block' : 'block',
         sourceGroupId,
+        scoreVisibility: input.scoreVisibility ?? 'on_submit',
         createdAt: now,
       });
       if (isRoster) await ctx.sessions.addRoster(sessionId, roster);

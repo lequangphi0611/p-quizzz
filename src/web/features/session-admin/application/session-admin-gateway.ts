@@ -1,4 +1,4 @@
-import type { ExamSummary, GroupSummary, LeaderboardResponse, OutsiderPolicy, ParticipantReview, SessionDetail, SessionSummary } from '../../../../shared/api/index.js';
+import type { ExamSummary, GroupSummary, LeaderboardResponse, OutsiderPolicy, ParticipantReview, ScoreVisibility, SessionDetail, SessionSummary } from '../../../../shared/api/index.js';
 import type { SessionAction } from '../../../../shared/session-state.js';
 
 import type { NewSessionAccess } from '../domain/access-ui.js';
@@ -12,6 +12,8 @@ export interface NewSession {
   access?: NewSessionAccess;
   /** Roster sessions: turn outsiders away (default) or let them wait for the mentor. */
   outsiderPolicy?: OutsiderPolicy;
+  /** Show scores on submit (default) or hold them until the mentor publishes (PRODUCT.md §7.25). */
+  scoreVisibility?: ScoreVisibility;
 }
 
 /** Port: everything the mentor's session pages need from the server. Failures reject with `ApiError`. */
@@ -28,6 +30,10 @@ export interface SessionAdminGateway {
   getSession(id: number): Promise<SessionDetail>;
   /** open / start / close / finalize; returns the updated session. */
   runAction(id: number, action: SessionAction): Promise<SessionDetail>;
+  /** Switches between showing scores on submit and holding them (only while nobody has submitted). */
+  setScoreVisibility(sessionId: number, scoreVisibility: ScoreVisibility): Promise<SessionDetail>;
+  /** "Công bố điểm": held-back scores appear for members and the projector. */
+  releaseScores(sessionId: number): Promise<SessionDetail>;
   approveParticipant(participantId: number): Promise<void>;
   kickParticipant(participantId: number): Promise<void>;
   /** Approve or reject a member's request to edit their essays (PRODUCT.md §7.21). */

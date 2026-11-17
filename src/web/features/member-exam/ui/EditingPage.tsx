@@ -22,8 +22,9 @@ function ScoreMini({ me }: { me: MeResponse }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: 'var(--paper)', border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-lg)', flexWrap: 'wrap', ...mText.meta }}>
       <Icon name="circle-check" size={16} color="var(--brand-600)" />
       <span style={{ color: 'var(--text-title)', fontWeight: 600 }}>Đã nộp lúc {formatClock(done.submittedAt)}</span><span>·</span>
-      <span>Trắc nghiệm <b style={mText.mono}>{formatPoints(done.score)}/{formatPoints(done.maxScore)}</b></span>
-      <span style={{ marginLeft: 'auto' }}><Chip icon="hourglass">Tạm tính</Chip></span>
+      {done.score === null
+        ? <span>Điểm sẽ được công bố sau</span> /* the mentor holds scores back (PRODUCT.md §7.25) */
+        : <><span>Trắc nghiệm <b style={mText.mono}>{formatPoints(done.score)}/{formatPoints(done.maxScore)}</b></span><span style={{ marginLeft: 'auto' }}><Chip icon="hourglass">Tạm tính</Chip></span></>}
     </div>
   );
 }

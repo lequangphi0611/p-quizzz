@@ -1,11 +1,11 @@
-import type { RejoinRequestInfo, SessionDetail, SessionParticipantInfo } from '../../../../shared/api/index.js';
+import type { RejoinRequestInfo, ScoreVisibility, SessionDetail, SessionParticipantInfo } from '../../../../shared/api/index.js';
 import { ApiError } from '../../../shared/api-client/http-client.js';
 import { ACTION_FOR_STATUS } from '../domain/session-ui.js';
 import type { SessionAdminGateway } from './session-admin-gateway.js';
 
 const errorText = (err: unknown, fallback: string) => (err instanceof ApiError ? err.message : fallback);
 
-export type Dialog = { kind: 'action' } | { kind: 'kick'; p: SessionParticipantInfo } | { kind: 'addRoster' } | { kind: 'saveGroup' } | { kind: 'impostor'; request: RejoinRequestInfo } | null;
+export type Dialog = { kind: 'action' } | { kind: 'kick'; p: SessionParticipantInfo } | { kind: 'addRoster' } | { kind: 'saveGroup' } | { kind: 'impostor'; request: RejoinRequestInfo } | { kind: 'releaseScores' } | null;
 
 export interface SessionDetailState { detail: SessionDetail; error: string; working: boolean; dialog: Dialog; /** A confirmation to show after saving a group, until dismissed. */ notice: string }
 
@@ -99,6 +99,19 @@ export class SessionDetailController {
     return ok;
   }
   dismissNotice(): void { this.set({ notice: '' }); }
+
+  /** Show scores on submit / hold them until published (PRODUCT.md §7.25). Refused by the server once someone submitted. */
+  setScoreVisibility(value: ScoreVisibility): Promise<boolean> {
+    return this.run(async () => { const d = await this.gateway.setScoreVisibility(this.state.detail.id, value); this.seq++; this.set({ detail: d }); }, 'Không đổi được cách hiện điểm');
+  }
+
+  /** "Công bố điểm" (after the confirmation): scores and ranks appear for everyone at once. */
+  async releaseScores(): Promise<boolean> {
+    const ok = await this.run(async () => { const d = await this.gateway.releaseScores(this.state.detail.id); this.seq++; this.set({ detail: d }); }, 'Không công bố được điểm');
+    this.closeDialog();
+    if (ok) this.set({ notice: 'Đã công bố điểm: học viên và màn chiếu thấy điểm và bảng xếp hạng.' });
+    return ok;
+  }
 
   rename(id: number, name: string): Promise<boolean> { return this.run(async () => { await this.gateway.renameParticipant(id, name); await this.refetch(); }, 'Không đổi được tên'); }
 }

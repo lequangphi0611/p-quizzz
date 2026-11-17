@@ -58,14 +58,15 @@ export interface AttemptView {
 }
 
 // A submitted attempt. `score` is the automatic part only; `maxScore` is the most the automatic part can give
-// (essay points are excluded until the mentor grades them).
+// (essay points are excluded until the mentor grades them). While the mentor holds scores back (PRODUCT.md §7.25),
+// `score` and `essayScore` are null.
 export interface AttemptSummary {
   id: number;
   attemptNo: number;
   submittedAt: number;
-  score: number;
+  score: number | null; // null = held back by the mentor
   maxScore: number;
-  essayScore: number | null; // essay points graded so far (attempt total, not per question) (null = none graded yet); official once the session is finalized
+  essayScore: number | null; // essay points graded so far (attempt total, not per question) (null = none graded yet, or held back); official once the session is finalized
   editRequest: EditRequestInfo | null;
   canRequestEdit: boolean; // session running, no pending/approved/finished request yet
 }

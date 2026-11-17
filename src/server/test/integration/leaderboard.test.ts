@@ -29,7 +29,7 @@ describe('GET /api/sessions/:id/leaderboard', () => {
     const r = await room({ names: ['An'] });
     const res = await r.app.inject({ url: `/api/sessions/${r.session.id}/leaderboard` }); // no cookie, no token
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ provisional: true, entries: [] });
+    expect(res.json()).toEqual({ provisional: true, hidden: false, entries: [], submitted: [] });
     expect((await r.app.inject({ url: '/api/sessions/999/leaderboard' })).statusCode).toBe(404);
     expect((await r.app.inject({ url: '/api/sessions/abc/leaderboard' })).statusCode).toBe(404);
   });
@@ -112,6 +112,6 @@ describe('GET /api/sessions/:id/leaderboard', () => {
     const res = await r.app.inject({ url: `/api/sessions/${r.session.id}/leaderboard` });
     const b = res.json<LeaderboardResponse>();
     expect(Object.keys(b.entries[0]!).sort()).toEqual(['displayName', 'maxScore', 'rank', 'score', 'submittedAt']);
-    expect(Object.keys(b).sort()).toEqual(['entries', 'provisional']);
+    expect(Object.keys(b).sort()).toEqual(['entries', 'hidden', 'provisional', 'submitted']);
   });
 });

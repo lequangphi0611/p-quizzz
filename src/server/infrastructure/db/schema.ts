@@ -87,6 +87,10 @@ export const sessions = sqliteTable(
     outsiderPolicy: text('outsider_policy', { enum: ['block', 'pending'] }).notNull().default('block'),
     // The saved group this session's list came from (or was saved as). Deleting the group only forgets the link.
     sourceGroupId: integer('source_group_id').references((): AnySQLiteColumn => groups.id, { onDelete: 'set null' }),
+    // When members see scores and the leaderboard (PRODUCT.md §7.25): right after submitting, or once the mentor publishes them.
+    scoreVisibility: text('score_visibility', { enum: ['on_submit', 'on_release'] }).notNull().default('on_submit'),
+    // Set when the mentor presses "Công bố điểm". Closing the session publishes held scores too, without setting this.
+    scoresReleasedAt: ts('scores_released_at'),
     // 6 random digits, generated when the session is opened (null while draft). Members need it to join.
     roomCode: text('room_code'),
     // Lowest number free among open sessions, set on open and cleared on close (for the mentor's "Đang mở" bar).

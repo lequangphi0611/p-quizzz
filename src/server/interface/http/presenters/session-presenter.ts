@@ -1,6 +1,7 @@
 import type { ActiveSession, ScreenSessionItem, SessionDetail, SessionSummary } from '../../../../shared/api/index.js';
 import type { ActiveSessionView, ScreenSessionView, SessionDetailView, SessionSummaryView } from '../../../application/ports/session-repository.js';
 import type { PresenceTracker } from '../../../application/ports/presence-tracker.js';
+import { areScoresHidden } from '../../../domain/session/score-visibility.js';
 
 const ms = (d: Date | null) => (d ? d.getTime() : null);
 
@@ -17,6 +18,9 @@ export const toSessionSummaryDto = (s: SessionSummaryView): SessionSummary => ({
   status: s.status,
   shuffle: s.shuffle,
   autoApprove: s.autoApprove,
+  scoreVisibility: s.scoreVisibility,
+  scoresReleasedAt: ms(s.scoresReleasedAt),
+  scoresHidden: areScoresHidden(s),
   roomCode: s.roomCode,
   createdAt: s.createdAt.getTime(),
   openedAt: ms(s.openedAt),

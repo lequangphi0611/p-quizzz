@@ -33,14 +33,14 @@ export function Lobby({ names, host, roomCode, roomHidden, roster }: { names: st
 }
 
 export function Running({ board, total }: { board: LeaderboardResponse | null; total: number }) {
-  const submitted = board?.entries.length ?? 0;
+  const submitted = board?.hidden ? board.submitted.length : board?.entries.length ?? 0;
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '460px 1fr', gap: 56, height: '100%' }}>
       <div style={{ display: 'grid', gap: 12, alignContent: 'start' }}>
         <span style={label}>Đã nộp</span>
         <span className="pq-tabular" style={{ font: '700 var(--fs-screen-hero)/1 var(--font-mono)', color: '#fff' }}>{submitted}<span style={{ color: 'var(--screen-meta)', fontSize: 56 }}>/{total}</span></span>
       </div>
-      <LeaderboardView size="screen" limit={10} entries={board?.entries ?? []} provisional={board?.provisional ?? true} />
+      <LeaderboardView size="screen" limit={10} entries={board?.entries ?? []} provisional={board?.provisional ?? true} hidden={board?.hidden} submitted={board?.submitted} />
     </div>
   );
 }

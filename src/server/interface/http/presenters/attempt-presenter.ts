@@ -50,19 +50,20 @@ export function toAttemptViewDto({ attempt, answers, exam, sessionStatus }: Atte
   };
 }
 
-const toSummary = (a: Attempt, maxScore: number, ctx: { sessionStatus: SessionStatus; participantStatus: ParticipantStatus }): AttemptSummary => ({
+// `scoresHidden`: the mentor holds scores back (PRODUCT.md §7.25), so neither part of the score goes out.
+const toSummary = (a: Attempt, maxScore: number, ctx: { sessionStatus: SessionStatus; participantStatus: ParticipantStatus; scoresHidden: boolean }): AttemptSummary => ({
   id: a.id,
   attemptNo: a.attemptNo,
   submittedAt: a.submittedAt!.getTime(),
-  score: a.autoScore ?? 0,
+  score: ctx.scoresHidden ? null : a.autoScore ?? 0,
   maxScore,
-  essayScore: a.manualScore ?? null,
+  essayScore: ctx.scoresHidden ? null : a.manualScore ?? null,
   editRequest: toEditRequestInfo(a, ctx.sessionStatus),
   canRequestEdit: canRequestEdit(a, ctx.sessionStatus, ctx.participantStatus),
 });
 
 export const toSubmitResponseDto = (r: SubmitResult): SubmitResponse => ({
-  attempt: toSummary(r.attempt, r.maxScore, { sessionStatus: 'running', participantStatus: 'active' }), // just submitted, so the session runs and the member is active
+  attempt: toSummary(r.attempt, r.maxScore, { sessionStatus: 'running', participantStatus: 'active', scoresHidden: r.scoresHidden }), // just submitted, so the session runs and the member is active
   essayPending: r.essayPending,
 });
 
@@ -110,10 +111,10 @@ export const toParticipantReviewDto = (r: ParticipantReviewResult): ParticipantR
 
 export const toMeResponseDto = (m: MemberState): MeResponse => ({
   participant: toParticipantInfoDto(m.participant),
-  session: m.room,
+  session: { ...m.room, scoresHidden: m.scoresHidden },
   attempt: {
     current: m.current ? { id: m.current.id, attemptNo: m.current.attemptNo, startedAt: m.current.startedAt.getTime() } : null,
-    submitted: m.submitted.map(a => toSummary(a, m.maxScore, { sessionStatus: m.room.status, participantStatus: m.participant.status })),
+    submitted: m.submitted.map(a => toSummary(a, m.maxScore, { sessionStatus: m.room.status, participantStatus: m.participant.status, scoresHidden: m.scoresHidden })),
     canStartNew: m.canStartNew,
   },
 });

@@ -20,6 +20,7 @@ import { ParticipantsCard } from './ParticipantsCard.js';
 import { PendingCard } from './PendingCard.js';
 import { AddEmailsDialog, SaveGroupDialog } from './RosterDialogs.js';
 import { SaveGroupBanner } from './SaveGroupBanner.js';
+import { ScoresCard } from './ScoresCard.js';
 
 // "/admin/sessions/:id" — the mentor's control page: lifecycle step, who is in, who waits, how to join.
 function SessionDetailView({ initial }: { initial: SessionDetail }) {
@@ -88,6 +89,7 @@ function SessionDetailView({ initial }: { initial: SessionDetail }) {
         <ParticipantsCard status={detail.status} active={active} working={working} finalized={finalized} showEmail={detail.access === 'roster'} onAllow={p => void ctrl.allowRejoin(p.id, p.displayName)} onRename={(id, name) => ctrl.rename(id, name)} onResolveEdit={(id, decision) => void ctrl.resolveEdit(id, decision)} onKick={p => ctrl.openDialog({ kind: 'kick', p })} />
         <div style={{ display: 'grid', gap: 20, flex: '1 1 300px', maxWidth: 420 }}>
           <JoinCard status={detail.status} roomCode={detail.roomCode} />
+          <ScoresCard detail={detail} working={working} onChange={v => void ctrl.setScoreVisibility(v)} onRelease={() => ctrl.openDialog({ kind: 'releaseScores' })} />
           <AccessCard detail={detail} working={working} onAdd={() => ctrl.openDialog({ kind: 'addRoster' })} onSave={() => ctrl.openDialog({ kind: 'saveGroup' })} />
           {pending.length > 0 && <PendingCard status={detail.status} pending={pending} working={working} onApprove={id => void ctrl.approve(id)} onApproveAll={() => void ctrl.approveAll(pending)} onReject={p => ctrl.openDialog({ kind: 'kick', p })} />}
         </div>
@@ -98,6 +100,12 @@ function SessionDetailView({ initial }: { initial: SessionDetail }) {
 
       <ConfirmDialog open={dialog?.kind === 'action' && !!spec?.confirm} tone={spec?.variant ?? 'primary'} title={spec?.confirm?.title ?? ''} confirmLabel={spec?.confirm?.confirmLabel} busy={working} onCancel={() => ctrl.closeDialog()} onConfirm={() => ctrl.doAction()}>
         {spec?.confirm?.body(active.length)}
+      </ConfirmDialog>
+
+      <ConfirmDialog open={dialog?.kind === 'releaseScores'} title="Công bố điểm?" confirmLabel="Công bố điểm" busy={working} onCancel={() => ctrl.closeDialog()} onConfirm={() => void ctrl.releaseScores()}>
+        {detail.status === 'running' && active.some(p => p.progress.state !== 'submitted')
+          ? `Còn ${active.filter(p => p.progress.state !== 'submitted').length} người chưa nộp. Họ sẽ thấy bảng xếp hạng trong lúc đang làm. Công bố rồi không ẩn lại được.`
+          : 'Học viên và màn chiếu sẽ thấy điểm và bảng xếp hạng ngay. Công bố rồi không ẩn lại được.'}
       </ConfirmDialog>
 
       <ConfirmDialog open={impostor !== null} tone="danger" title="Mời người đang giữ chỗ ra?" confirmLabel={impostor ? `Mời ra, cho “${impostor.claimantName}” vào` : 'Xác nhận'} cancelLabel="Quay lại" busy={working}

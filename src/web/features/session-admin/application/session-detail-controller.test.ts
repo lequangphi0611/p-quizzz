@@ -112,4 +112,26 @@ describe('SessionDetailController', () => {
     expect(await ctrl.saveGroup('Lớp')).toBe(false);
     expect(ctrl.getState()).toMatchObject({ error: 'Đã có một nhóm tên này', dialog: { kind: 'saveGroup' }, notice: '' });
   });
+
+  it('changes the score visibility and adopts the response; a refusal shows the server message', async () => {
+    const setScoreVisibility = vi.fn(async () => detail({ scoreVisibility: 'on_release' }));
+    const { ctrl } = make({ setScoreVisibility });
+    expect(await ctrl.setScoreVisibility('on_release')).toBe(true);
+    expect(setScoreVisibility).toHaveBeenCalledWith(5, 'on_release');
+    expect(ctrl.getState().detail.scoreVisibility).toBe('on_release');
+    const refused = make({ setScoreVisibility: async () => { throw new ApiError(409, 'Đã có người nộp bài, không đổi cách hiện điểm được nữa'); } });
+    expect(await refused.ctrl.setScoreVisibility('on_submit')).toBe(false);
+    expect(refused.ctrl.getState().error).toMatch(/nộp bài/);
+  });
+
+  it('publishes scores after the confirmation, closes the dialog and says so', async () => {
+    const releaseScores = vi.fn(async () => detail({ scoresHidden: false, scoresReleasedAt: 1 }));
+    const { ctrl } = make({ releaseScores });
+    ctrl.openDialog({ kind: 'releaseScores' });
+    expect(await ctrl.releaseScores()).toBe(true);
+    expect(releaseScores).toHaveBeenCalledWith(5);
+    expect(ctrl.getState()).toMatchObject({ dialog: null, working: false });
+    expect(ctrl.getState().detail.scoresHidden).toBe(false);
+    expect(ctrl.getState().notice).toMatch(/công bố/);
+  });
 });

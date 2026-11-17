@@ -40,6 +40,7 @@ import { OpenSession } from './application/use-cases/sessions/open-session.js';
 import { GetPublicSession, GetSessionDetail, ListSessions } from './application/use-cases/sessions/queries.js';
 import { CreateGroup, DeleteGroup, GetGroup, ListGroups, UpdateGroup } from './application/use-cases/groups/groups.js';
 import { AddRosterEmails, SaveSessionGroup } from './application/use-cases/sessions/roster.js';
+import { ReleaseScores, SetScoreVisibility } from './application/use-cases/sessions/score-visibility.js';
 import { GetRosterCounts } from './application/use-cases/participants/get-roster-counts.js';
 import { DrizzleGroupRepository } from './infrastructure/db/drizzle-group-repository.js';
 import { DrizzleRejoinRepository } from './infrastructure/db/drizzle-rejoin-repository.js';
@@ -245,6 +246,8 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
       finalize: new FinalizeSession(lifecycle),
       publicSession: new GetPublicSession(sessionReader),
       addRoster: new AddRosterEmails({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, events: ports.events }),
+      setScoreVisibility: new SetScoreVisibility({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, events: ports.events }),
+      releaseScores: new ReleaseScores({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, events: ports.events, clock: ports.clock }),
       saveGroup: new SaveSessionGroup({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, events: ports.events, groups: groupReader, clock: ports.clock }),
     },
     exams: {

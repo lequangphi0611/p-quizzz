@@ -1,4 +1,4 @@
-import type { OutsiderPolicy, ParticipantProgress, RosterSource, SessionAccess } from '../../../shared/api/index.js';
+import type { OutsiderPolicy, ParticipantProgress, RosterSource, ScoreVisibility, SessionAccess } from '../../../shared/api/index.js';
 import type { SessionStatus } from '../../../shared/session-state.js';
 import type { NewSession, Session, SessionPatch } from '../../domain/session/session.js';
 import type { ExamReader } from './exam-repository.js';
@@ -37,6 +37,8 @@ export interface SessionSummaryView {
   status: SessionStatus;
   shuffle: boolean;
   autoApprove: boolean;
+  scoreVisibility: ScoreVisibility;
+  scoresReleasedAt: Date | null;
   roomCode: string | null;
   createdAt: Date;
   openedAt: Date | null;
