@@ -180,3 +180,25 @@ describe('TakingController: store', () => {
     expect(seen.length).toBe(n);
   });
 });
+
+describe('TakingController: time up (PRODUCT.md §7.27)', () => {
+  it('sends the typed text at once, closes the submit dialog and asks the parent to refetch, only once', async () => {
+    const { ctrl, saved, onChanged } = make();
+    await ctrl.load();
+    ctrl.setText(3, 'last words'); // still on the debounce
+    ctrl.requestSubmit();
+    ctrl.timeUp();
+    ctrl.timeUp();
+    expect(ctrl.getState()).toMatchObject({ timeUp: true, confirming: false });
+    await vi.waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+    expect(saved).toContainEqual([9, 3, { textAnswer: 'last words' }]);
+  });
+
+  it('lifts the time-up overlay when the mentor adds time before the session closes', async () => {
+    const { ctrl } = make();
+    await ctrl.load();
+    ctrl.timeUp();
+    ctrl.timeResumed();
+    expect(ctrl.getState().timeUp).toBe(false);
+  });
+});

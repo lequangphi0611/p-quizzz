@@ -139,7 +139,7 @@ describe('lifecycle', () => {
   it('resolves a member\'s room code to the open session, exam title only; anything else looks like a wrong code', async () => {
     const { uc, id } = await draft();
     const opened = await uc.open.execute(id);
-    expect(await uc.resolve.execute(opened.roomCode!)).toEqual({ id, title: opened.examTitle, status: 'lobby', access: 'free' });
+    expect(await uc.resolve.execute(opened.roomCode!)).toEqual({ id, title: opened.examTitle, status: 'lobby', access: 'free', timeLimitMinutes: null, endsAt: null });
     await expect(uc.resolve.execute('000000')).rejects.toBeInstanceOf(WrongRoomCodeError);
     await uc.start.execute(id);
     await uc.close.execute(id);

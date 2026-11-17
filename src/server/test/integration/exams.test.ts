@@ -112,7 +112,7 @@ describe('GET /exams', () => {
     const list = (await app.inject({ url: '/api/admin/exams', headers })).json<ExamSummary[]>();
     expect(list.map(e => e.title)).toEqual(['Newer', 'Older']);
     expect(list[0]).toEqual({
-      id: newer.id, title: 'Newer', description: null, questionCount: 3, totalPoints: 7, hasEssay: true, createdAt: 2000, sessionCount: 0,
+      id: newer.id, title: 'Newer', description: null, durationMinutes: null, questionCount: 3, totalPoints: 7, hasEssay: true, createdAt: 2000, sessionCount: 0,
     });
     expect(list[1]!.sessionCount).toBe(1);
     expect(Object.keys(list[0]!)).not.toContain('questions');

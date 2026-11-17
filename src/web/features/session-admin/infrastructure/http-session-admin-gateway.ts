@@ -15,6 +15,8 @@ export class HttpSessionAdminGateway implements SessionAdminGateway {
   getSession(id: number): Promise<SessionDetail> { return this.http.get<SessionDetail>(`/api/admin/sessions/${id}`); }
   runAction(id: number, action: SessionAction): Promise<SessionDetail> { return this.http.post<SessionDetail>(`/api/admin/sessions/${id}/${action}`); }
   setScoreVisibility(id: number, scoreVisibility: ScoreVisibility): Promise<SessionDetail> { return this.http.put<SessionDetail>(`/api/admin/sessions/${id}/score-visibility`, { scoreVisibility }); }
+  setTimeLimit(id: number, timeLimitMinutes: number | null): Promise<SessionDetail> { return this.http.put<SessionDetail>(`/api/admin/sessions/${id}/time-limit`, { timeLimitMinutes }); }
+  extendTime(id: number, minutes: number): Promise<SessionDetail> { return this.http.post<SessionDetail>(`/api/admin/sessions/${id}/extend-time`, { minutes }); }
   releaseScores(id: number): Promise<SessionDetail> { return this.http.post<SessionDetail>(`/api/admin/sessions/${id}/release-scores`); }
   async approveParticipant(id: number): Promise<void> { await this.http.post(`/api/admin/participants/${id}/approve`); }
   async kickParticipant(id: number): Promise<void> { await this.http.post(`/api/admin/participants/${id}/kick`); }

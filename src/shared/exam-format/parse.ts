@@ -5,7 +5,24 @@ import type { ExamIssue, ParsedExam, ParsedOption, ParsedQuestion, ParseResult }
 // Pure function, no Node/DOM APIs — used by the CLI, the server import endpoint and the web preview.
 
 const KNOWN_META = new Set(['essay', 'points']);
-const KNOWN_FRONTMATTER = new Set(['title', 'description']);
+const KNOWN_FRONTMATTER = new Set(['title', 'description', 'duration']);
+/** Allowed `duration` (minutes) in the frontmatter (PRODUCT.md §7.27). */
+export const MIN_DURATION_MINUTES = 1;
+export const MAX_DURATION_MINUTES = 300;
+
+/**
+ * The one rule for a time limit in minutes, wherever it comes from (exam frontmatter, the mentor's form, the API):
+ * a whole number from MIN_DURATION_MINUTES to MAX_DURATION_MINUTES.
+ */
+export const isDurationMinutes = (n: number): boolean => Number.isInteger(n) && n >= MIN_DURATION_MINUTES && n <= MAX_DURATION_MINUTES;
+
+/** Typed text (digits only, surrounding spaces ignored) to minutes, or null when it breaks the rule above. */
+export function parseDurationMinutes(text: string): number | null {
+  const t = text.trim();
+  if (!/^\d+$/.test(t)) return null;
+  const n = Number(t);
+  return isDurationMinutes(n) ? n : null;
+}
 const MAX_POINTS = 100;
 
 const RE_QUESTION = /^##\s+(.*)$/;
@@ -43,6 +60,7 @@ export function parseExam(source: string): ParseResult {
 
   // --- Frontmatter ---
   const front = new Map<string, string>();
+  const frontLine = new Map<string, number>();
   let i = 0;
   if (lines[0]?.trim() !== '---') {
     err(1, 'Thiếu frontmatter. File phải bắt đầu bằng dòng `---`, sau đó `title: ...`, rồi `---`.');
@@ -64,12 +82,25 @@ export function parseExam(source: string): ParseResult {
         const value = m[2]!.trim().replace(/^(["'])(.*)\1$/, '$2');
         if (!KNOWN_FRONTMATTER.has(key)) warn(k + 1, `Frontmatter có key không dùng tới: "${key}" (bị bỏ qua).`);
         front.set(key, value);
+        frontLine.set(key, k + 1);
       }
       i = end + 1;
     }
   }
   const title = front.get('title')?.trim() ?? '';
   if (lines[0]?.trim() === '---' && !title) err(1, 'Frontmatter thiếu `title`.');
+
+  // Blank or missing = no time limit. Anything else must be a whole number of minutes in range.
+  const durationRaw = front.get('duration')?.trim() ?? '';
+  let durationMinutes: number | null = null;
+  if (durationRaw) {
+    durationMinutes = parseDurationMinutes(durationRaw);
+    if (durationMinutes === null)
+      err(
+        frontLine.get('duration') ?? 1,
+        `\`duration\` phải là số phút nguyên từ ${MIN_DURATION_MINUTES} đến ${MAX_DURATION_MINUTES} (ví dụ \`duration: 30\`), hoặc bỏ trống nếu không giới hạn thời gian. Đang là: "${durationRaw}".`,
+      );
+  }
 
   // --- Questions ---
   const questions: ParsedQuestion[] = [];
@@ -184,6 +215,7 @@ export function parseExam(source: string): ParseResult {
       : {
           title,
           description: front.get('description')?.trim() || null,
+          durationMinutes,
           questions,
           totalPoints: questions.reduce((s, x) => s + x.points, 0),
           hasEssay: questions.some((x) => x.type === 'essay'),

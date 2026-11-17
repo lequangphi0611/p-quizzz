@@ -15,7 +15,7 @@ const timeOf = (ms: number) => new Date(ms).toLocaleTimeString('vi-VN', { hour: 
  * the session while this member was still working, so the attempt was submitted for them. While the mentor holds
  * scores back (PRODUCT.md §7.25) the running card says so instead of showing a score; closing always publishes them.
  */
-export function ResultView({ me, ended, autoSubmitted = false, onAnotherRoom, children }: { me: MeResponse; ended: boolean; autoSubmitted?: boolean; onAnotherRoom?: () => void; children?: ReactNode }) {
+export function ResultView({ me, ended, autoSubmitted = false, endedByTimer = false, onAnotherRoom, children }: { me: MeResponse; ended: boolean; autoSubmitted?: boolean; endedByTimer?: boolean; onAnotherRoom?: () => void; children?: ReactNode }) {
   const desk = useIsDesk();
   const nav = useNavigate();
   const { session, attempt, participant } = me;
@@ -90,7 +90,7 @@ export function ResultView({ me, ended, autoSubmitted = false, onAnotherRoom, ch
     <MemberPage desk={desk} title={session.title} name={participant.displayName} maxW={520} footer={desk ? undefined : reviewBtn}>
       {ended && autoSubmitted && done && (
         <div role="status" style={{ display: 'flex', gap: 10, padding: '12px 14px', borderRadius: 'var(--radius-md)', background: 'var(--brand-050)', border: '1px solid var(--brand-200)', color: 'var(--brand-800)', font: 'var(--type-ui)', fontSize: 14 }}>
-          <Icon name="info" size={18} style={{ marginTop: 1 }} /><span>Mentor đã đóng phiên khi bạn đang làm. Bài đã được <b>nộp tự động</b> với các câu đã lưu.</span>
+          <Icon name="info" size={18} style={{ marginTop: 1 }} /><span>{endedByTimer ? 'Đã hết giờ làm bài.' : 'Mentor đã đóng phiên khi bạn đang làm.'} Bài đã được <b>nộp tự động</b> với các câu đã lưu.</span>
         </div>
       )}
       {card}

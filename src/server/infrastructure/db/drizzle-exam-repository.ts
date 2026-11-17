@@ -15,6 +15,7 @@ const summaryColumns = {
   id: exams.id,
   title: exams.title,
   description: exams.description,
+  durationMinutes: exams.durationMinutes,
   totalPoints: exams.totalPoints,
   hasEssay: exams.hasEssay,
   createdAt: exams.createdAt,
@@ -79,6 +80,7 @@ export class DrizzleExamRepository implements ExamRepository {
         .values({
           title: exam.title,
           description: exam.description,
+          durationMinutes: exam.durationMinutes,
           sourceMarkdown: exam.sourceMarkdown,
           totalPoints: exam.totalPoints,
           hasEssay: exam.hasEssay,

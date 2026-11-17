@@ -16,6 +16,7 @@ Spec cú pháp: `docs/exam-format.md` (đọc trước khi soạn). Ví dụ chu
 - **Số câu và tỉ lệ loại câu** (một đáp án / nhiều đáp án / tự luận). Nếu đề có tự luận thì nhắc mentor rằng mentor phải chấm tay các câu đó sau khi đóng phiên. (Mọi đề đều chỉ làm 1 lượt mỗi phiên; muốn làm lại thì mentor mở phiên mới.)
 - **Trình độ member** và độ khó mong muốn.
 - **Thang điểm**: mặc định mỗi câu 1 điểm, tự luận thường 3–5 điểm.
+- **Thời gian làm bài** (tuỳ chọn): mentor muốn giới hạn thì ghi `duration: <số phút>` (1–300) vào frontmatter; không nói thì bỏ key (đề không giới hạn). Đây chỉ là mặc định khi tạo phiên, mentor đổi được. Nếu mentor không nêu, có thể gợi ý một con số theo số câu và độ khó, nhưng không tự thêm khi chưa hỏi.
 
 Mentor đã nói rõ thì không hỏi lại. Thiếu chi tiết nhỏ thì tự chọn mặc định hợp lý và ghi lại ở bước 4.
 

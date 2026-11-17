@@ -192,7 +192,7 @@ describe('GET /api/sessions/:id/public', () => {
     expect((await pub()).statusCode).toBe(404); // a draft is not public: its exam title may be the upcoming test
     await act(id, 'open');
     const res = await pub();
-    expect(res.json<ActiveSession>()).toEqual({ id, title: 'Đề Git', status: 'lobby', access: 'free' });
+    expect(res.json<ActiveSession>()).toEqual({ id, title: 'Đề Git', status: 'lobby', access: 'free', timer: null });
     expect(res.body).not.toMatch(/member-0908|roomCode|slot|name/);
     for (const x of ['start', 'close']) await act(id, x);
     expect((await pub()).json<ActiveSession>().status).toBe('finalized');

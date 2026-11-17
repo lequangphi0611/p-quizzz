@@ -39,6 +39,8 @@ export interface SessionSummaryView {
   autoApprove: boolean;
   scoreVisibility: ScoreVisibility;
   scoresReleasedAt: Date | null;
+  timeLimitMinutes: number | null;
+  endsAt: Date | null;
   roomCode: string | null;
   createdAt: Date;
   openedAt: Date | null;
@@ -73,6 +75,8 @@ export interface ActiveSessionView {
   title: string;
   status: SessionStatus;
   access: SessionAccess;
+  timeLimitMinutes: number | null;
+  endsAt: Date | null;
 }
 
 /** The projector chooser (mentor machine only), so it may carry the session name. */
@@ -91,6 +95,8 @@ export interface SessionReader {
   findDetail(id: number): Promise<SessionDetailView | null>;
   /** Sessions in lobby/running, lowest slot first. */
   listActive(): Promise<SessionSummaryView[]>;
+  /** Ids of running sessions whose deadline is at or before `cutoff`: the deadline watcher asks every second, so ids only. */
+  listRunningIdsEndedBy(cutoff: Date): Promise<number[]>;
   /** Public view of one session (exam title only). */
   findPublic(id: number): Promise<ActiveSessionView | null>;
   /** The session in lobby/running with this room code, if any. */

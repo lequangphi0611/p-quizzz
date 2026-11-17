@@ -10,6 +10,7 @@ import { ScreenStage } from '../../../shared/ui/screen/ScreenStage.js';
 import { useScreen, useScreenGateway } from '../application/use-screen.js';
 import { decideScreenTarget } from '../domain/screen-target.js';
 import { Ended, Lobby, Running, Waiting } from './ScreenParts.js';
+import { useCountdown } from '../../../shared/hooks/useCountdown.js';
 
 // "/screen/:sessionId" — public, read-only, needs no interaction: it follows that one session (several may be open at
 // once). It shows the exam title only, never the mentor's session name.
@@ -22,12 +23,13 @@ function SessionScreen({ sessionId }: { sessionId: number }) {
   const { state, gateway } = useScreen(sessionId);
   const { session, names, board, roster, roomCode, roomHidden } = state;
   const join = useJoinHost(() => gateway.getJoinHosts());
+  const timeLeft = useCountdown(session?.status === 'running' ? session.timer : null);
 
   const status = session?.status;
   let body: ReactNode = null;
   if (session === null) body = <Waiting host={join.host} />;
-  else if (status === 'lobby') body = <Lobby names={names} host={join.host} roomCode={roomCode} roomHidden={roomHidden} roster={roster} />;
-  else if (status === 'running') body = <Running board={board} total={names.length} />;
+  else if (status === 'lobby') body = <Lobby names={names} host={join.host} roomCode={roomCode} roomHidden={roomHidden} roster={roster} limitMinutes={session?.timer?.limitMinutes ?? null} />;
+  else if (status === 'running') body = <Running board={board} total={names.length} timeLeft={timeLeft} />;
   else if (status === 'closed' || status === 'finalized') body = <Ended board={board} />;
 
   return (

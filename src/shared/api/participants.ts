@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { SessionStatus } from '../session-state.js';
 import type { MeAttemptState } from './attempts.js';
 import type { SessionParticipantInfo } from './sessions.js';
+import type { SessionTimer } from '../session-timer.js';
 
 export const MAX_NAME_LENGTH = 30;
 
@@ -50,7 +51,9 @@ export interface MeResponse {
   // participantCount = members with status 'active' (the lobby shows "N người đã vào").
   // questionCount / totalPoints / hasEssay describe the exam for the start screen (counts only, no content).
   // scoresHidden: the mentor is holding scores and the leaderboard back until they publish them (PRODUCT.md §7.25).
-  session: { id: number; title: string; status: SessionStatus; participantCount: number; questionCount: number; totalPoints: number; hasEssay: boolean; scoresHidden: boolean };
+  // timer: the session's shared clock (PRODUCT.md §7.27); null without a time limit or once the session ended.
+  // closedByTimer: the session closed because its time ran out (not an early "Đóng" by the mentor); false while open.
+  session: { id: number; title: string; status: SessionStatus; participantCount: number; questionCount: number; totalPoints: number; hasEssay: boolean; scoresHidden: boolean; timer: SessionTimer | null; closedByTimer: boolean };
   attempt: MeAttemptState;
 }
 

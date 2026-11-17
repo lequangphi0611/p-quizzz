@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { SessionStatus } from '../session-state.js';
 import type { EditRequestInfo } from './attempts.js';
+import { MAX_EXTEND_MINUTES, MAX_TIME_LIMIT_MINUTES, MIN_TIME_LIMIT_MINUTES, isTimeLimitMinutes, type SessionTimer } from '../session-timer.js';
 
 export type SessionMode = 'self_paced' | 'live';
 
@@ -17,6 +18,15 @@ export type RosterSource = 'group' | 'temp';
  * only once the mentor publishes them (`on_release`). Closing the session publishes them anyway.
  */
 export type ScoreVisibility = 'on_submit' | 'on_release';
+const TIME_LIMIT_MESSAGE = `Thời gian làm bài là số phút nguyên từ ${MIN_TIME_LIMIT_MINUTES} đến ${MAX_TIME_LIMIT_MINUTES}`;
+const TimeLimitMinutes = z.number({ error: TIME_LIMIT_MESSAGE }).refine(isTimeLimitMinutes, TIME_LIMIT_MESSAGE);
+/** PUT /api/admin/sessions/:id/time-limit: change, add or remove the limit before the session starts. */
+export const TimeLimitBody = z.object({ timeLimitMinutes: TimeLimitMinutes.nullable() });
+/** POST /api/admin/sessions/:id/extend-time: "+N phút" for everyone while the session runs. */
+export const ExtendTimeBody = z.object({
+  minutes: z.number().int().min(1, 'Cộng ít nhất 1 phút').max(MAX_EXTEND_MINUTES, `Mỗi lần cộng tối đa ${MAX_EXTEND_MINUTES} phút`),
+});
+
 export const ScoreVisibilityBody = z.object({ scoreVisibility: z.enum(['on_submit', 'on_release']) });
 
 export const CreateSessionBody = z.object({
@@ -35,6 +45,8 @@ export const CreateSessionBody = z.object({
     .optional(),
   outsiderPolicy: z.enum(['block', 'pending']).optional(), // roster sessions only (default block)
   scoreVisibility: z.enum(['on_submit', 'on_release']).optional(), // default on_submit (PRODUCT.md §7.25)
+  // Minutes (PRODUCT.md §7.27). Omitted = the exam's `duration`; null = no time limit.
+  timeLimitMinutes: TimeLimitMinutes.nullable().optional(),
 });
 
 export interface SessionSummary {
@@ -53,6 +65,8 @@ export interface SessionSummary {
   scoreVisibility: ScoreVisibility;
   scoresReleasedAt: number | null; // epoch ms the mentor pressed "Công bố điểm"; null otherwise (closing publishes without setting it)
   scoresHidden: boolean; // members and the projector cannot see scores or ranks right now
+  timeLimitMinutes: number | null; // the setting (PRODUCT.md §7.27), kept after the session ends; null = no limit
+  timer: SessionTimer | null; // the running clock; null without a limit or once the session ended
   roomCode: string | null; // mentor-only; null until the session is opened
   createdAt: number; // epoch ms
   openedAt: number | null;
@@ -126,6 +140,7 @@ export interface ActiveSession {
   title: string;
   status: SessionStatus;
   access: SessionAccess; // tells the join form whether to ask for an email
+  timer: SessionTimer | null; // shared clock (PRODUCT.md §7.27): the lobby shows the minutes, the projector counts down
 }
 
 // POST /api/rooms/resolve: member types the room code, the server finds the open session.

@@ -26,7 +26,7 @@ export class InMemorySessionRepository implements SessionRepository, SessionRead
 
   async create(s: NewSession) {
     const id = this.nextId++;
-    this.sessions.set(id, { ...s, id, status: 'draft', scoresReleasedAt: null, slot: null, roomCode: null, openedAt: null, startedAt: null, closedAt: null, finalizedAt: null });
+    this.sessions.set(id, { ...s, id, status: 'draft', scoresReleasedAt: null, endsAt: null, slot: null, roomCode: null, openedAt: null, startedAt: null, closedAt: null, finalizedAt: null });
     return id;
   }
 
@@ -89,6 +89,10 @@ export class InMemorySessionRepository implements SessionRepository, SessionRead
     return all.filter((s): s is SessionSummaryView => !!s);
   }
 
+  async listRunningIdsEndedBy(cutoff: Date): Promise<number[]> {
+    return [...this.sessions.values()].filter(s => s.status === 'running' && s.endsAt !== null && s.endsAt <= cutoff).map(s => s.id);
+  }
+
   async findPublic(id: number): Promise<ActiveSessionView | null> {
     return this.view(s => s.id === id);
   }
@@ -141,7 +145,7 @@ export class InMemorySessionRepository implements SessionRepository, SessionRead
   private async view(match: (s: Session) => boolean): Promise<ActiveSessionView | null> {
     const found = [...this.sessions.values()].filter(match).sort((a, b) => b.id - a.id)[0];
     const exam = found && (await this.exams.findSummary(found.examId));
-    return found && exam ? { id: found.id, title: exam.title, status: found.status, access: found.access } : null;
+    return found && exam ? { id: found.id, title: exam.title, status: found.status, access: found.access, timeLimitMinutes: found.timeLimitMinutes, endsAt: found.endsAt } : null;
   }
 
   private async summary(id: number): Promise<SessionSummaryView | null> {

@@ -6,6 +6,7 @@ export const toExamSummaryDto = (s: ExamSummary): ExamSummaryDto => ({
   id: s.id,
   title: s.title,
   description: s.description,
+  durationMinutes: s.durationMinutes,
   questionCount: s.questionCount,
   totalPoints: s.totalPoints,
   hasEssay: s.hasEssay,

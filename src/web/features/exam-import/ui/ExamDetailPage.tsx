@@ -8,7 +8,7 @@ import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog.js';
 import { Icon } from '../../../shared/ui/Icon.js';
 import { ErrorMessage } from '../../../shared/ui/ErrorMessage.js';
 import { useDeleteExam } from '../application/exam-context.js';
-import { countByType, attemptRuleLabel, typeCountsLabel } from '../domain/exam-summary.js';
+import { countByType, attemptRuleLabel, durationLabel, typeCountsLabel } from '../domain/exam-summary.js';
 import { formatDate } from '../../../shared/format/date.js';
 
 export function ExamDetailPage() {
@@ -41,6 +41,7 @@ export function ExamDetailPage() {
       >
         <div style={{ display: 'grid', gap: 4, font: 'var(--type-meta)', color: 'var(--text-meta)' }}>
           <div><b className="pq-tabular">{exam.questionCount}</b> câu ({typeCountsLabel(countByType(exam.questions))}) · tổng <b className="pq-tabular">{exam.totalPoints}</b> điểm</div>
+          <div>{durationLabel(exam.durationMinutes)}</div>
           <div>{attemptRuleLabel(exam.hasEssay)}</div>
           <div>Tạo {formatDate(exam.createdAt)} · đã dùng cho {exam.sessionCount} phiên</div>
         </div>

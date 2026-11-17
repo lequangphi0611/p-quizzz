@@ -19,9 +19,11 @@ export interface TakingState {
   submitError: string;
   /** The server refused a save with 409: the session closed or the attempt is already submitted. */
   closed: boolean;
+  /** The session clock reached 00:00 (PRODUCT.md §7.27): work is being sent, the session is about to close itself. */
+  timeUp: boolean;
 }
 
-export const initialTakingState = (): TakingState => ({ view: null, loadError: '', drafts: {}, cur: 0, save: 'saved', confirming: false, submitting: false, submitError: '', closed: false });
+export const initialTakingState = (): TakingState => ({ view: null, loadError: '', drafts: {}, cur: 0, save: 'saved', confirming: false, submitting: false, submitError: '', closed: false, timeUp: false });
 
 export interface TakingDeps {
   gateway: ExamGateway;
@@ -92,6 +94,21 @@ export class TakingController {
   }
 
   retrySave(): Promise<boolean> { return this.saver.retry(); }
+
+  /**
+   * The clock reached 00:00: send what is still pending right away (the server accepts it for a few more seconds),
+   * then wait for the session to close itself; the parent refetches and shows the result.
+   */
+  timeUp(): void {
+    if (this.state.timeUp) return;
+    this.set({ timeUp: true, confirming: false });
+    void this.saver.flushAll().finally(() => { void this.deps.onChanged(); });
+  }
+
+  /** The mentor added time ("+N phút") after the clock hit 00:00 but before the session closed: back to work. */
+  timeResumed(): void {
+    if (this.state.timeUp) this.set({ timeUp: false });
+  }
 
   /** True when leaving the page would lose answers. After a 409 nothing more can be saved, so never trap the member. */
   hasUnsavedWork(): boolean { return !this.sessionEnded && this.saver.state !== 'saved'; }

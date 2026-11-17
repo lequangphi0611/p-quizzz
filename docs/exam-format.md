@@ -11,6 +11,7 @@ File bạn duyệt **chính là** file được import. Không có bước chuy�
 ---
 title: Tên đề (bắt buộc)
 description: Mô tả ngắn (tuỳ chọn)
+duration: 30
 ---
 
 ## Tiêu đề câu hỏi {thuộc tính tuỳ chọn}
@@ -19,6 +20,14 @@ Nội dung thêm (tuỳ chọn): đoạn văn, danh sách, code block...
 - [x] Đáp án đúng
 > Giải thích (trắc nghiệm) hoặc đáp án mẫu + rubric (tự luận)
 ```
+
+### Frontmatter
+
+| Key | Bắt buộc | Ghi chú |
+|---|---|---|
+| `title` | Có | Tên đề, member và màn hình chiếu thấy. |
+| `description` | Không | Mô tả ngắn. |
+| `duration` | Không | Thời gian làm bài, **số nguyên phút** từ 1 đến 300 (ví dụ `duration: 45`). Đây là giá trị **mặc định** khi mentor tạo phiên, mentor sửa hoặc tắt được. Bỏ trống (`duration:`) hoặc không có key = không giới hạn thời gian. |
 
 Mỗi câu hỏi gồm các phần **theo đúng thứ tự**: tiêu đề → nội dung (tuỳ chọn) → đáp án → giải thích (tuỳ chọn).
 
@@ -44,7 +53,7 @@ Mỗi câu hỏi gồm các phần **theo đúng thứ tự**: tiêu đề → n
 npm run exam:check -- exams/ten-de.md
 ```
 
-**Lỗi** (không import được): thiếu frontmatter/title · nội dung ngoài câu hỏi · câu trắc nghiệm < 2 đáp án hoặc không có `[x]` · câu không có đáp án mà không có `{essay}` · tự luận có đáp án · thuộc tính lạ / points sai · dòng lạ giữa/sau danh sách đáp án · nội dung sau phần giải thích · code block sau đáp án hoặc chưa đóng · sai cấp tiêu đề · đáp án trùng · câu hỏi trùng.
+**Lỗi** (không import được): thiếu frontmatter/title · `duration` không phải số nguyên phút từ 1 đến 300 · nội dung ngoài câu hỏi · câu trắc nghiệm < 2 đáp án hoặc không có `[x]` · câu không có đáp án mà không có `{essay}` · tự luận có đáp án · thuộc tính lạ / points sai · dòng lạ giữa/sau danh sách đáp án · nội dung sau phần giải thích · code block sau đáp án hoặc chưa đóng · sai cấp tiêu đề · đáp án trùng · câu hỏi trùng.
 
 **Cảnh báo** (vẫn import được, nên sửa): thiếu giải thích · tự luận thiếu rubric · tất cả đáp án đều đúng · đáp án kiểu "tất cả các đáp án trên" / "A và B" (sai nghĩa khi đáp án bị trộn) · key frontmatter không dùng · ảnh trỏ tới địa chỉ bên ngoài (`![](https://...)`; app chạy offline trong LAN nên ảnh ngoài luôn bị chặn và hiện chữ "Ảnh ngoài bị chặn").
 

@@ -16,6 +16,8 @@ export const exams = sqliteTable('exams', {
   id: id(),
   title: text('title').notNull(),
   description: text('description'),
+  // Default time limit (minutes) for sessions of this exam, from the `duration` frontmatter key; null = none (PRODUCT.md §7.27).
+  durationMinutes: integer('duration_minutes'),
   // Verbatim imported file. Exams are immutable after creation.
   sourceMarkdown: text('source_markdown').notNull(),
   totalPoints: integer('total_points').notNull(),
@@ -91,6 +93,10 @@ export const sessions = sqliteTable(
     scoreVisibility: text('score_visibility', { enum: ['on_submit', 'on_release'] }).notNull().default('on_submit'),
     // Set when the mentor presses "Công bố điểm". Closing the session publishes held scores too, without setting this.
     scoresReleasedAt: ts('scores_released_at'),
+    // Time limit in minutes (PRODUCT.md §7.27); null = none. Defaults from the exam's `duration`, editable until the start.
+    timeLimitMinutes: integer('time_limit_minutes'),
+    // The shared deadline: set on start (start + limit), pushed back by "+N phút". Past it (plus grace) the session closes itself.
+    endsAt: ts('ends_at'),
     // 6 random digits, generated when the session is opened (null while draft). Members need it to join.
     roomCode: text('room_code'),
     // Lowest number free among open sessions, set on open and cleared on close (for the mentor's "Đang mở" bar).

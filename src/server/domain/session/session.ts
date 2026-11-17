@@ -21,6 +21,10 @@ export interface Session {
   scoreVisibility: ScoreVisibility;
   /** When the mentor published held-back scores; null until then (closing publishes them without setting this). */
   scoresReleasedAt: Date | null;
+  /** Time limit in minutes; null = none (PRODUCT.md §7.27). Editable until the session starts. */
+  timeLimitMinutes: number | null;
+  /** The shared deadline: start + limit, pushed back by "+N phút". Null until the session starts or without a limit. */
+  endsAt: Date | null;
   /** Lowest number not used by another open session; set when the room opens, cleared when it closes. */
   slot: number | null;
   /** Null until the session is opened; a fresh code each time it opens. */
@@ -42,10 +46,11 @@ export interface NewSession {
   outsiderPolicy: OutsiderPolicy;
   sourceGroupId: number | null;
   scoreVisibility: ScoreVisibility;
+  timeLimitMinutes: number | null;
   createdAt: Date;
 }
 
 /** The fields a lifecycle transition (or the score-visibility setting) may change. */
 export type SessionPatch = Partial<
-  Pick<Session, 'status' | 'roomCode' | 'slot' | 'openedAt' | 'startedAt' | 'closedAt' | 'finalizedAt' | 'scoreVisibility' | 'scoresReleasedAt'>
+  Pick<Session, 'status' | 'roomCode' | 'slot' | 'openedAt' | 'startedAt' | 'closedAt' | 'finalizedAt' | 'scoreVisibility' | 'scoresReleasedAt' | 'timeLimitMinutes' | 'endsAt'>
 >;

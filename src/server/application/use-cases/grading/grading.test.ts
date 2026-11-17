@@ -38,7 +38,7 @@ async function setup() {
   events = new RecordingEventPublisher();
   examId = await exams.add(
     newExam({
-      title: 'Đề T', description: null, sourceMarkdown: '#', createdAt: new Date(),
+      title: 'Đề T', description: null, durationMinutes: null, sourceMarkdown: '#', createdAt: new Date(),
       questions: [
         { type: 'single', prompt: 'S', body: '', points: 2, explanation: 'why', options: [{ text: 'a', correct: true }, { text: 'b', correct: false }] },
         { type: 'essay', prompt: 'E', body: '', points: 4, explanation: 'rubric', options: [] },
@@ -47,13 +47,13 @@ async function setup() {
   );
   const exam = (await exams.findById(examId))!;
   ids = { single: exam.questions[0]!.id, correct: exam.questions[0]!.options[0]!.id, wrong: exam.questions[0]!.options[1]!.id, essay: exam.questions[1]!.id };
-  sessionId = await sessions.create({ examId, name: 'Phiên', access: 'free', outsiderPolicy: 'block', sourceGroupId: null, scoreVisibility: 'on_submit', mode: 'self_paced', shuffle: false, autoApprove: true, createdAt: new Date() });
+  sessionId = await sessions.create({ examId, name: 'Phiên', access: 'free', outsiderPolicy: 'block', sourceGroupId: null, scoreVisibility: 'on_submit', mode: 'self_paced', shuffle: false, autoApprove: true, timeLimitMinutes: null, createdAt: new Date() });
   await sessions.update(sessionId, { status: 'running', roomCode: '123456' });
 
   const clock = new FakeClock(1000);
   const unitOfWork = new InMemoryUnitOfWork({ attempts, sessions, participants: people, exams }, [attempts]);
   const start = new StartAttempt({ unitOfWork, clock, random: new FakeRandom(), events });
-  const save = new SaveAnswer(unitOfWork);
+  const save = new SaveAnswer(unitOfWork, clock);
   const submit = new SubmitAttempt({ unitOfWork, clock, events });
 
   members = [];

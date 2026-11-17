@@ -25,8 +25,8 @@ async function build(opts: { autoApprove?: boolean; status?: 'lobby' | 'running'
   sessions = new InMemorySessionRepository(exams);
   people = new InMemoryParticipantRepository();
   events = new RecordingEventPublisher();
-  const examId = await exams.add({ title: 'T', description: null, sourceMarkdown: '#', totalPoints: 1, hasEssay: false, createdAt: new Date(), questions: [] });
-  const sessionId = await sessions.create({ examId, name: 'Phiên', access: opts.roster ? 'roster' : 'free', outsiderPolicy: opts.outsiders ?? 'block', sourceGroupId: null, scoreVisibility: 'on_submit', mode: 'self_paced', shuffle: true, autoApprove: opts.autoApprove ?? false, createdAt: new Date() });
+  const examId = await exams.add({ title: 'T', description: null, durationMinutes: null, sourceMarkdown: '#', totalPoints: 1, hasEssay: false, createdAt: new Date(), questions: [] });
+  const sessionId = await sessions.create({ examId, name: 'Phiên', access: opts.roster ? 'roster' : 'free', outsiderPolicy: opts.outsiders ?? 'block', sourceGroupId: null, scoreVisibility: 'on_submit', mode: 'self_paced', shuffle: true, autoApprove: opts.autoApprove ?? false, timeLimitMinutes: null, createdAt: new Date() });
   if (opts.roster) await sessions.addRoster(sessionId, opts.roster);
   await sessions.update(sessionId, { status: opts.status ?? 'lobby', roomCode: '123456' });
   const unitOfWork = new InMemoryUnitOfWork({ sessions, participants: people }, [people]);

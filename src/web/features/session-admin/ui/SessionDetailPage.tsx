@@ -21,6 +21,9 @@ import { PendingCard } from './PendingCard.js';
 import { AddEmailsDialog, SaveGroupDialog } from './RosterDialogs.js';
 import { SaveGroupBanner } from './SaveGroupBanner.js';
 import { ScoresCard } from './ScoresCard.js';
+import { TimeLimitCard } from './TimeLimitCard.js';
+import { Countdown } from '../../../shared/ui/Countdown.js';
+import { useCountdown } from '../../../shared/hooks/useCountdown.js';
 
 // "/admin/sessions/:id" — the mentor's control page: lifecycle step, who is in, who waits, how to join.
 function SessionDetailView({ initial }: { initial: SessionDetail }) {
@@ -38,6 +41,7 @@ function SessionDetailView({ initial }: { initial: SessionDetail }) {
   const mass = open ? massDisconnect(detail.participants, Date.now()) : null;
   const impostor = dialog?.kind === 'impostor' ? dialog.request : null;
   const holderOf = (participantId: number) => detail.participants.find(p => p.id === participantId);
+  const left = useCountdown(detail.status === 'running' ? detail.timer : null);
 
   return (
     <div style={{ display: 'grid', gap: 20 }}>
@@ -52,6 +56,7 @@ function SessionDetailView({ initial }: { initial: SessionDetail }) {
           {detail.name !== detail.exam.title && <span style={{ font: 'var(--type-meta)', color: 'var(--text-meta)' }}>Đề: {detail.exam.title}</span>}
         </div>
         <StatusBadge status={detail.status} />
+        {left !== null && <Countdown ms={left} size="sm" announce={false} />}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Button variant="secondary" icon="presentation" onClick={() => window.open(`/screen/${detail.id}`, '_blank')}>Mở màn hình chiếu</Button>
           {finished && (
@@ -89,6 +94,7 @@ function SessionDetailView({ initial }: { initial: SessionDetail }) {
         <ParticipantsCard status={detail.status} questionCount={detail.exam.questionCount} active={active} working={working} finalized={finalized} showEmail={detail.access === 'roster'} onAllow={p => void ctrl.allowRejoin(p.id, p.displayName)} onRename={(id, name) => ctrl.rename(id, name)} onResolveEdit={(id, decision) => void ctrl.resolveEdit(id, decision)} onKick={p => ctrl.openDialog({ kind: 'kick', p })} />
         <div style={{ display: 'grid', gap: 20, flex: '1 1 300px', maxWidth: 420 }}>
           <JoinCard status={detail.status} roomCode={detail.roomCode} />
+          <TimeLimitCard detail={detail} left={left} working={working} onSave={m => void ctrl.setTimeLimit(m)} onExtend={m => void ctrl.extendTime(m)} />
           <ScoresCard detail={detail} working={working} onChange={v => void ctrl.setScoreVisibility(v)} onRelease={() => ctrl.openDialog({ kind: 'releaseScores' })} />
           <AccessCard detail={detail} working={working} onAdd={() => ctrl.openDialog({ kind: 'addRoster' })} onSave={() => ctrl.openDialog({ kind: 'saveGroup' })} />
           {pending.length > 0 && <PendingCard status={detail.status} pending={pending} working={working} onApprove={id => void ctrl.approve(id)} onApproveAll={() => void ctrl.approveAll(pending)} onReject={p => ctrl.openDialog({ kind: 'kick', p })} />}
