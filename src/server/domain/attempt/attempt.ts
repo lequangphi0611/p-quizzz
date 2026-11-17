@@ -183,12 +183,15 @@ export function memberAttemptState(facts: { attempts: Attempt[]; sessionStatus: 
   return { current, submitted, canStartNew };
 }
 
-export const NO_PROGRESS = (totalPoints: number): ParticipantProgress => ({ state: 'none', attempts: 0, countedScore: null, maxScore: totalPoints, submittedAt: null, editRequest: null });
+export const NO_PROGRESS = (totalPoints: number, questionCount: number): ParticipantProgress => ({ state: 'none', attempts: 0, countedScore: null, maxScore: totalPoints, submittedAt: null, editRequest: null, answered: null, questionCount });
 
-/** Progress of every participant who has an attempt, keyed by participant id. Official (manual) points count only once finalized. */
+/**
+ * Progress of every participant who has an attempt, keyed by participant id. Official (manual) points count only once finalized.
+ * `answeredByAttempt` holds how many questions each open attempt has answered (PRODUCT.md §7.26); it is reported only while "doing".
+ */
 export function computeProgress(
   attempts: Attempt[],
-  facts: { sessionStatus: SessionStatus | undefined; kickedIds: Set<number>; totalPoints: number },
+  facts: { sessionStatus: SessionStatus | undefined; kickedIds: Set<number>; totalPoints: number; questionCount: number; answeredByAttempt: ReadonlyMap<number, number> },
 ): Map<number, ParticipantProgress> {
   const byParticipant = new Map<number, Attempt[]>();
   for (const a of attempts) byParticipant.set(a.participantId, [...(byParticipant.get(a.participantId) ?? []), a]);
@@ -199,7 +202,8 @@ export function computeProgress(
     const counted = pickCountedAttempt(
       list.map(a => ({ id: a.id, submittedAt: a.submittedAt ? a.submittedAt.getTime() : null, score: facts.sessionStatus === 'finalized' ? totalScore(a) : a.autoScore ?? 0 })),
     );
-    const doing = list.some(a => !a.submittedAt) && !(over && facts.kickedIds.has(pid));
+    const open = list.find(a => !a.submittedAt);
+    const doing = open !== undefined && !(over && facts.kickedIds.has(pid));
     result.set(pid, {
       state: doing ? 'doing' : list.some(a => a.submittedAt) ? 'submitted' : 'none',
       attempts: list.length,
@@ -207,6 +211,8 @@ export function computeProgress(
       maxScore: facts.totalPoints,
       submittedAt: counted ? counted.submittedAt : null,
       editRequest: toEditRequestInfo(list.find(a => a.id === counted?.id) ?? { editStatus: null, editReason: null, editRequestedAt: null, editResolvedAt: null }, facts.sessionStatus),
+      answered: doing ? facts.answeredByAttempt.get(open.id) ?? 0 : null,
+      questionCount: facts.questionCount,
     });
   }
   return result;

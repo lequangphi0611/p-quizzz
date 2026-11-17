@@ -19,8 +19,10 @@ export function useSessionDetail(initial: SessionDetail): { state: SessionDetail
   const [ctrl] = useState(() => new SessionDetailController(gateway, initial));
   const state = useSyncExternalStore(ctrl.subscribe, ctrl.getState);
   useSessionEvents(initial.id, { session: ctrl.refetch, participants: ctrl.refetch });
-  // Who is still connected changes without any event (silence is not a signal), so look again every few seconds.
-  useEffect(() => { const t = setInterval(() => void ctrl.refetch(), 10_000); return () => clearInterval(t); }, [ctrl]);
+  // Who is still connected changes without any event (silence is not a signal), and saving an answer sends none either
+  // (PRODUCT.md §7.26: a busy class would reload this page on every click), so look again every few seconds; faster while running.
+  const running = state.detail.status === 'running';
+  useEffect(() => { const t = setInterval(() => void ctrl.refetch(), running ? 5_000 : 10_000); return () => clearInterval(t); }, [ctrl, running]);
   return { state, ctrl };
 }
 

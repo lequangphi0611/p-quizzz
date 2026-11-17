@@ -3,7 +3,7 @@ import type { SessionParticipantDetail } from '../../../../shared/api/index.js';
 import { defaultSelection, summarize } from './session-review.js';
 
 const p = (id: number, status: SessionParticipantDetail['status'], state: 'none' | 'doing' | 'submitted', score: number | null): SessionParticipantDetail => ({
-  id, displayName: `P${id}`, status, joinedAt: id, email: null, connection: { online: true, lastSeenAt: null }, rejoinAllowedUntil: null, progress: { state, attempts: state === 'none' ? 0 : 1, countedScore: score, maxScore: 10, submittedAt: null, editRequest: null },
+  id, displayName: `P${id}`, status, joinedAt: id, email: null, connection: { online: true, lastSeenAt: null }, rejoinAllowedUntil: null, progress: { state, attempts: state === 'none' ? 0 : 1, countedScore: score, maxScore: 10, submittedAt: null, editRequest: null, answered: null, questionCount: 3 },
 });
 
 describe('summarize', () => {

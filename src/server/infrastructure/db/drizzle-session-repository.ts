@@ -128,8 +128,8 @@ export class DrizzleSessionReader implements SessionReader {
         .where(eq(participants.sessionId, id))
         .orderBy(participants.id)
         .all();
-      const progress = loadSessionProgress(db, id, exam.totalPoints);
-      return { ...row, exam, participants: people.map(p => ({ ...p, progress: progress.get(p.id) ?? NO_PROGRESS(exam.totalPoints) })), roster: row.access === 'roster' ? rosterOf(db, id) : null, rejoinRequests: rejoinRequestsOf(db, id, row.status) };
+      const progress = loadSessionProgress(db, id, exam);
+      return { ...row, exam, participants: people.map(p => ({ ...p, progress: progress.byParticipant.get(p.id) ?? NO_PROGRESS(exam.totalPoints, progress.questionCount) })), roster: row.access === 'roster' ? rosterOf(db, id) : null, rejoinRequests: rejoinRequestsOf(db, id, row.status) };
     });
   }
 

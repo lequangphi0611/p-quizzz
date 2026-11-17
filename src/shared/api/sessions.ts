@@ -79,6 +79,9 @@ export interface ParticipantProgress {
   maxScore: number; // exam total points
   submittedAt: number | null; // epoch ms the counted attempt was submitted (drives mentor notifications)
   editRequest: EditRequestInfo | null; // the counted attempt's request to edit the essays (PRODUCT.md §7.21)
+  /** Questions answered in the attempt still in progress; null without one. Never how many are correct (PRODUCT.md §7.26). */
+  answered: number | null;
+  questionCount: number; // questions in the exam
 }
 
 export interface SessionParticipantDetail extends SessionParticipantInfo {
