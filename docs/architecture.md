@@ -84,7 +84,7 @@ Mọi body/response là JSON. Lỗi: `{ error: string, code?: string }` (tiếng
 | POST | `/groups/preview` | `{ text, defaultDomain? }` → `{ valid, duplicates, invalid }` có số dòng (không lưu gì) |
 | GET · POST | `/groups` | danh sách (`emailCount`, `lastUsedAt`) · tạo `{ name, emails[] }` |
 | GET · PUT · DELETE | `/groups/:id` | chi tiết kèm email · thay tên và danh sách · xoá (phiên đã tạo từ nhóm không bị ảnh hưởng) |
-| GET | `/sessions` · `/sessions/:id` | list (mới nhất trước; `?active=true` = chỉ `lobby`/`running`, slot thấp trước) · chi tiết kèm participants (summary/chi tiết có thêm `scoreVisibility`, `scoresReleasedAt`, `scoresHidden`), mỗi người có `progress { state: none\|doing\|submitted, attempts, countedScore, maxScore, submittedAt, editRequest, answered, questionCount }` (`answered` = số câu đã trả lời của lượt **đang làm dở**, `null` khi không có lượt dở; `questionCount` = số câu của đề; PRODUCT.md §7.26, không bao giờ có số câu đúng) (`editRequest: { status, reason, requestedAt } \| null`, cho chuông và trang điều khiển) (`submittedAt` = epoch ms lúc nộp lượt được tính, `null` khi chưa nộp; dùng cho chuông thông báo) |
+| GET | `/sessions` · `/sessions/:id` | list (mới nhất trước; `?active=true` = chỉ `lobby`/`running`, slot thấp trước) · chi tiết kèm participants (summary/chi tiết có thêm `scoreVisibility`, `scoresReleasedAt`, `scoresHidden`; chi tiết có `exam { id, title, hasEssay, totalPoints, questionCount }`), mỗi người có `progress { state: none\|doing\|submitted, attempts, countedScore, maxScore, submittedAt, editRequest, answered }` (`answered` = số câu đã trả lời của lượt **đang làm dở** trên tổng `exam.questionCount`, chỉ có khi phiên `running`, ngược lại `null`; PRODUCT.md §7.26, không bao giờ có số câu đúng) (`editRequest: { status, reason, requestedAt } \| null`, cho chuông và trang điều khiển) (`submittedAt` = epoch ms lúc nộp lượt được tính, `null` khi chưa nộp; dùng cho chuông thông báo) |
 | POST | `/sessions/:id/{open,start,close,finalize}` | Chuyển trạng thái theo §3; sai → 409 |
 | PUT | `/sessions/:id/score-visibility` | `{ scoreVisibility }` (§7.25). 409 khi đã có người nộp (kể cả bị kick), đã công bố hoặc phiên đã kết thúc. Phát `session` + `leaderboard` |
 | POST | `/sessions/:id/release-scores` | "Công bố điểm": ghi `scores_released_at`. 409 nếu phiên không đang giữ điểm. Phát `session` + `leaderboard` |
@@ -340,7 +340,7 @@ _(Lịch sử P2-1; đã xử lý hết ở P3-x, `services/` không còn.)_ Cod
 
 ### 11.4 Module `attempts` (P3-3, issue #15)
 
-- `domain/attempt/`: `Attempt`, `Answer`, và quy tắc thuần trong `attempt.ts`: `assertCanStart` (một attempt/member/phiên), `planOrder` (trộn câu và đáp án bằng `RandomInt` truyền vào), `assertCanWork`, `validateAnswer` (400), `gradeAttempt` (chấm mọi câu, kể cả bỏ trống; tự luận `null`), `assertReviewable` (đáp án từ `closed`), `reviewState`, `memberAttemptState`, `computeProgress`/`NO_PROGRESS`. Chấm điểm vẫn gọi `shared/scoring.ts` (web cũng dùng).
+- `domain/attempt/`: `Attempt`, `Answer`, và quy tắc thuần trong `attempt.ts`: `assertCanStart` (một attempt/member/phiên), `planOrder` (trộn câu và đáp án bằng `RandomInt` truyền vào), `assertCanWork`, `validateAnswer` (400), `gradeAttempt` (chấm mọi câu, kể cả bỏ trống; tự luận `null`), `assertReviewable` (đáp án từ `closed`), `reviewState`, `memberAttemptState`, `computeProgress`/`NO_PROGRESS`, `countAnswered`/`showsAnsweredCount` (§7.26, dùng `shared/answered.ts`). Chấm điểm vẫn gọi `shared/scoring.ts` (web cũng dùng).
 - Use case `attempts/`: `StartAttempt`, `SaveAnswer`, `SubmitAttempt` (mỗi cái một unit, sự kiện sau commit), `GetAttemptView`, `GetAttemptReview`, `GetParticipantReview` (mentor), `GetMemberState` (`GET /api/me`), `AutoSubmitOpenAttempts` (cài `AttemptAutoSubmitter` của P3-1, chạy trong unit của `CloseSession`: adapter tạm đã xóa).
 - Port: `AttemptReader`/`AttemptRepository`, `MemberRoomReader`; `ExamReader` thêm `findQuestion` (autosave không tải cả đề) và `maxAutoScoreOf` (truy vấn aggregate cho `/api/me`, giữ nguyên như trước).
 - **Không rò đáp án: chốt ở presenter.** Use case trả dữ liệu miền (có đáp án đúng); `interface/http/presenters/attempt-presenter.ts` là nơi duy nhất dựng DTO member, từng trường một. `toAttemptViewDto` không có `isCorrect`/`explanation`, `toReviewViewDto` chỉ được gọi với dữ liệu mà `GetAttemptReview` đã cho phép (test `attempt-presenter.test.ts` + `leak-guard` + route test).
@@ -375,7 +375,7 @@ Màn làm bài của member (`features/member-exam/`). Các feature sau bắt ch
 
 | Lớp | File | Vai trò |
 |---|---|---|
-| `domain` | `answer-progress.ts` | Thuần: `isAnswered`, bản nháp (`Drafts`), `nextSelection` (single thay, multi bật/tắt), `progressOf`. |
+| `domain` | `answer-progress.ts` | Thuần: bản nháp (`Drafts`), `nextSelection` (single thay, multi bật/tắt), `progressOf`. |
 | | `shortcuts.ts` | Thuần: `shortcutFor(key…)` trả hành động; luật tắt khi đang gõ / mở hộp thoại / có Ctrl-Alt-⌘. |
 | `application` | `exam-gateway.ts` | Port `ExamGateway` (`startAttempt/getAttempt/saveAnswer/submitAttempt`). |
 | | `answer-saver.ts` | Engine autosave (debounce, một request mỗi câu, retry 2s/5s/10s, `flushAll`). |

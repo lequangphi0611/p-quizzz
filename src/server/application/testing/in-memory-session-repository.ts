@@ -80,7 +80,7 @@ export class InMemorySessionRepository implements SessionRepository, SessionRead
     if (!summary || !exam) return null;
     const emails = this.rosters.get(id) ?? [];
     const roster = summary.access === 'roster' ? { size: emails.length, joined: 0, notJoined: [...emails] } : null; // participants are not modelled here
-    return { ...summary, exam: { id: exam.id, title: exam.title, hasEssay: exam.hasEssay, totalPoints: exam.totalPoints }, participants: [], roster, rejoinRequests: [] };
+    return { ...summary, exam: { id: exam.id, title: exam.title, hasEssay: exam.hasEssay, totalPoints: exam.totalPoints, questionCount: exam.questionCount }, participants: [], roster, rejoinRequests: [] };
   }
 
   async listActive() {

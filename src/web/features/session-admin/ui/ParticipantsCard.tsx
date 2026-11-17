@@ -11,8 +11,8 @@ import { formatClock } from '../../../shared/format/date.js';
 import { NameCell } from './NameCell.js';
 
 /** Admitted members with their progress (after start), rename and kick. */
-export function ParticipantsCard({ status, active, working, finalized, showEmail = false, onRename, onKick, onAllow, onResolveEdit }: {
-  status: SessionDetail['status']; active: SessionParticipantDetail[]; working: boolean; finalized: boolean;
+export function ParticipantsCard({ status, questionCount, active, working, finalized, showEmail = false, onRename, onKick, onAllow, onResolveEdit }: {
+  status: SessionDetail['status']; questionCount: number; active: SessionParticipantDetail[]; working: boolean; finalized: boolean;
   /** Roster sessions: a column with each person's email. Shown to the mentor only (PRODUCT.md §7.24). */
   showEmail?: boolean;
   onRename: (id: number, name: string) => Promise<boolean>; onKick: (p: SessionParticipantDetail) => void;
@@ -37,7 +37,7 @@ export function ParticipantsCard({ status, active, working, finalized, showEmail
           <tbody>
             {active.map(p => {
               const req = p.progress.editRequest?.status === 'pending' ? p.progress.editRequest : null;
-              const prog = progressLabelOf(p.progress);
+              const prog = progressLabelOf(p.progress, questionCount);
               // A pending request sticks to its person's row: same background, no rule between, a sun bar on the left.
               const bar = req ? { boxShadow: 'inset 3px 0 0 var(--sun-500)' } : {};
               const cell = req ? { ...td, borderBottom: 0 } : td;

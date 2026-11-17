@@ -326,7 +326,7 @@ describe('mentor progress (GET /api/admin/sessions/:id)', () => {
   it('none → doing → submitted, with the counted score', async () => {
     const { an, single, multi, detail } = await world({ essay: false });
     const progress = async () => (await detail()).participants[0]!.progress;
-    expect(await progress()).toEqual({ state: 'none', attempts: 0, countedScore: null, maxScore: 3, submittedAt: null, editRequest: null, answered: null, questionCount: 2 });
+    expect(await progress()).toEqual({ state: 'none', attempts: 0, countedScore: null, maxScore: 3, submittedAt: null, editRequest: null, answered: null });
 
     const v = (await an.start()).json<AttemptView>();
     expect(await progress()).toMatchObject({ state: 'doing', attempts: 1, countedScore: null, submittedAt: null });
@@ -345,7 +345,8 @@ describe('mentor progress (GET /api/admin/sessions/:id)', () => {
     const { an, admin, session, single, multi, essayQ, detail } = await world({ essay: true });
     const progress = async () => (await detail()).participants[0]!.progress;
     const v = (await an.start()).json<AttemptView>();
-    expect(await progress()).toMatchObject({ state: 'doing', answered: 0, questionCount: 3 });
+    expect(await progress()).toMatchObject({ state: 'doing', answered: 0 });
+    expect((await detail()).exam.questionCount).toBe(3); // the total the count is read against
 
     await an.put(v.id, single.q.id, { selectedOptionIds: [single.opts[1]!.id] }); // wrong answer still counts
     await an.put(v.id, essayQ!.id, { textAnswer: '   ' });

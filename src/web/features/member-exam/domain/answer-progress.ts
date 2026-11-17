@@ -5,8 +5,6 @@ import { isAnswered } from '../../../../shared/answered.js';
 export interface Draft { selected: number[]; text: string }
 export type Drafts = Record<number, Draft>;
 
-export { isAnswered };
-
 const draftOf = (drafts: Drafts, questionId: number): Draft => drafts[questionId] ?? { selected: [], text: '' };
 
 export function draftsFromAnswers(answers: readonly Pick<MemberAnswer, 'questionId' | 'selectedOptionIds' | 'textAnswer'>[]): Drafts {

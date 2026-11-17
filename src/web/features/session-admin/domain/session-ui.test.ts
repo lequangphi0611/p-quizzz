@@ -21,7 +21,7 @@ describe('ACTION_FOR_STATUS', () => {
 });
 
 describe('formatProgressScore', () => {
-  const p = (countedScore: number | null) => ({ state: 'submitted' as const, attempts: 1, countedScore, maxScore: 9, submittedAt: null, editRequest: null, answered: null, questionCount: 3 });
+  const p = (countedScore: number | null) => ({ state: 'submitted' as const, attempts: 1, countedScore, maxScore: 9, submittedAt: null, editRequest: null, answered: null });
   it('shows score/max with a decimal comma', () => {
     expect(formatProgressScore(p(7.5))).toBe('7,5/9');
     expect(formatProgressScore(p(0))).toBe('0/9');
@@ -30,21 +30,21 @@ describe('formatProgressScore', () => {
 });
 
 describe('progressLabelOf', () => {
-  const sub = (editStatus?: 'pending' | 'approved' | 'done' | 'rejected') => ({ state: 'submitted' as const, attempts: 1, countedScore: 1, maxScore: 9, submittedAt: 1, editRequest: editStatus ? { status: editStatus, reason: 'r', requestedAt: 1, resolvedAt: null } : null, answered: null, questionCount: 20 });
+  const sub = (editStatus?: 'pending' | 'approved' | 'done' | 'rejected') => ({ state: 'submitted' as const, attempts: 1, countedScore: 1, maxScore: 9, submittedAt: 1, editRequest: editStatus ? { status: editStatus, reason: 'r', requestedAt: 1, resolvedAt: null } : null, answered: null });
   it('refines "Đã nộp" by the state of the edit request', () => {
-    expect(progressLabelOf(sub()).label).toBe('Đã nộp');
-    expect(progressLabelOf(sub('pending')).label).toBe('Đã nộp · xin sửa');
-    expect(progressLabelOf(sub('approved')).label).toBe('Đang sửa tự luận');
-    expect(progressLabelOf(sub('done')).label).toBe('Đã sửa tự luận');
-    expect(progressLabelOf(sub('rejected')).label).toBe('Đã nộp');
+    expect(progressLabelOf(sub(), 20).label).toBe('Đã nộp');
+    expect(progressLabelOf(sub('pending'), 20).label).toBe('Đã nộp · xin sửa');
+    expect(progressLabelOf(sub('approved'), 20).label).toBe('Đang sửa tự luận');
+    expect(progressLabelOf(sub('done'), 20).label).toBe('Đã sửa tự luận');
+    expect(progressLabelOf(sub('rejected'), 20).label).toBe('Đã nộp');
   });
   it('ignores an edit request on someone who has not submitted', () => {
-    expect(progressLabelOf({ ...sub('pending'), state: 'doing' }).label).toBe('Đang làm');
+    expect(progressLabelOf({ ...sub('pending'), state: 'doing' }, 20).label).toBe('Đang làm');
   });
   it('shows answered/total while an attempt is in progress (PRODUCT.md §7.26)', () => {
-    expect(progressLabelOf({ ...sub(), state: 'doing', answered: 7 }).label).toBe('Đang làm · 7/20');
-    expect(progressLabelOf({ ...sub(), state: 'doing', answered: 0 }).label).toBe('Đang làm · 0/20');
-    expect(progressLabelOf({ ...sub(), answered: 7 }).label).toBe('Đã nộp');
+    expect(progressLabelOf({ ...sub(), state: 'doing', answered: 7 }, 20).label).toBe('Đang làm · 7/20');
+    expect(progressLabelOf({ ...sub(), state: 'doing', answered: 0 }, 20).label).toBe('Đang làm · 0/20');
+    expect(progressLabelOf({ ...sub(), answered: 7 }, 20).label).toBe('Đã nộp');
   });
 });
 

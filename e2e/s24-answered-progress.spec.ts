@@ -15,7 +15,7 @@ test('mentor sees "Đang làm · answered/total" update while a member works', a
   await member.page.getByRole('button', { name: 'Bắt đầu làm bài' }).click();
 
   await mentor.page.goto(`/admin/sessions/${id}`);
-  const total = ((await (await api.get(`/api/admin/sessions/${id}`)).json()) as { participants: { progress: { questionCount: number } }[] }).participants[0]!.progress.questionCount;
+  const total = ((await (await api.get(`/api/admin/sessions/${id}`)).json()) as { exam: { questionCount: number } }).exam.questionCount;
   await expect(mentor.page.getByText(`Đang làm · 0/${total}`)).toBeVisible();
 
   // The member picks an option (any, right or wrong); saving sends no event, the page's periodic refresh picks it up.

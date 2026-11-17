@@ -1,17 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { draftsFromAnswers, isAnswered, nextSelection, progressOf, withChoice, withText } from './answer-progress.js';
-
-describe('isAnswered', () => {
-  it('a picked option or non-blank text counts', () => {
-    expect(isAnswered({ selectedOptionIds: [1], textAnswer: null })).toBe(true);
-    expect(isAnswered({ selectedOptionIds: null, textAnswer: 'x' })).toBe(true);
-  });
-  it('empty selection, blank text, or nothing saved does not', () => {
-    expect(isAnswered({ selectedOptionIds: [], textAnswer: null })).toBe(false);
-    expect(isAnswered({ selectedOptionIds: null, textAnswer: '  \n ' })).toBe(false);
-    expect(isAnswered(undefined)).toBe(false);
-  });
-});
+import { draftsFromAnswers, nextSelection, progressOf, withChoice, withText } from './answer-progress.js';
 
 describe('drafts', () => {
   it('builds drafts from saved answers and edits one question without touching the rest', () => {

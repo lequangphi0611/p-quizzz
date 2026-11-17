@@ -1,7 +1,8 @@
 import { and, asc, count, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 import type { Answer, Attempt, EditStatus, NewAttempt } from '../../domain/attempt/attempt.js';
 import type { AttemptRepository, MemberRoom, MemberRoomReader } from '../../application/ports/attempt-repository.js';
-import { answers, attempts, exams, participants, questions, sessions } from './schema.js';
+import { examQuestionCount } from './question-count.js';
+import { answers, attempts, exams, participants, sessions } from './schema.js';
 import type { DbAccess } from './drizzle-exam-repository.js';
 
 export class DrizzleAttemptRepository implements AttemptRepository {
@@ -98,23 +99,21 @@ export class DrizzleAttemptRepository implements AttemptRepository {
   }
 }
 
-/** The three small queries behind the room block of `GET /api/me`. */
+/** The two small queries behind the room block of `GET /api/me`. */
 export class DrizzleMemberRoomReader implements MemberRoomReader {
   constructor(private readonly access: DbAccess) {}
 
   async find(sessionId: number): Promise<MemberRoom | null> {
     return this.access(db => {
       const s = db
-        .select({ id: sessions.id, title: exams.title, status: sessions.status, totalPoints: exams.totalPoints, hasEssay: exams.hasEssay, examId: exams.id })
+        .select({ id: sessions.id, title: exams.title, status: sessions.status, totalPoints: exams.totalPoints, hasEssay: exams.hasEssay, questionCount: examQuestionCount })
         .from(sessions)
         .innerJoin(exams, eq(sessions.examId, exams.id))
         .where(eq(sessions.id, sessionId))
         .get();
       if (!s) return null;
       const { n } = db.select({ n: count() }).from(participants).where(and(eq(participants.sessionId, sessionId), eq(participants.status, 'active'))).get()!;
-      const { q } = db.select({ q: count() }).from(questions).where(eq(questions.examId, s.examId)).get()!;
-      const { examId: _examId, ...room } = s;
-      return { ...room, participantCount: n, questionCount: q };
+      return { ...s, participantCount: n };
     });
   }
 }

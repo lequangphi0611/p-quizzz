@@ -36,13 +36,13 @@ export const PROGRESS_LABEL: Record<ParticipantProgress['state'], { label: strin
 };
 
 /** Progress column text. A submitted member's edit request (PRODUCT.md §7.21) refines "Đã nộp"; "Đang làm" carries answered/total (§7.26). */
-export function progressLabelOf(p: ParticipantProgress): { label: string; color: string; icon?: string } {
+export function progressLabelOf(p: ParticipantProgress, questionCount: number): { label: string; color: string; icon?: string } {
   const edit = p.state === 'submitted' ? p.editRequest?.status : undefined;
   if (edit === 'pending') return { label: 'Đã nộp · xin sửa', color: 'var(--sun-ink)', icon: 'hourglass' };
   if (edit === 'approved') return { label: 'Đang sửa tự luận', color: 'var(--brand-700)' };
   if (edit === 'done') return { label: 'Đã sửa tự luận', color: 'var(--correct-600)' };
   // How far an attempt in progress is: answered questions, never correct ones (PRODUCT.md §7.26).
-  if (p.state === 'doing' && p.answered !== null) return { ...PROGRESS_LABEL.doing, label: `Đang làm · ${p.answered}/${p.questionCount}` };
+  if (p.state === 'doing' && p.answered !== null) return { ...PROGRESS_LABEL.doing, label: `Đang làm · ${p.answered}/${questionCount}` };
   return PROGRESS_LABEL[p.state];
 }
 

@@ -21,8 +21,14 @@ export function useSessionDetail(initial: SessionDetail): { state: SessionDetail
   useSessionEvents(initial.id, { session: ctrl.refetch, participants: ctrl.refetch });
   // Who is still connected changes without any event (silence is not a signal), and saving an answer sends none either
   // (PRODUCT.md §7.26: a busy class would reload this page on every click), so look again every few seconds; faster while running.
+  // A hidden tab skips the poll and catches up as soon as it is shown again.
   const running = state.detail.status === 'running';
-  useEffect(() => { const t = setInterval(() => void ctrl.refetch(), running ? 5_000 : 10_000); return () => clearInterval(t); }, [ctrl, running]);
+  useEffect(() => {
+    const poll = () => { if (!document.hidden) void ctrl.refetch(); };
+    const t = setInterval(poll, running ? 5_000 : 10_000);
+    document.addEventListener('visibilitychange', poll);
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', poll); };
+  }, [ctrl, running]);
   return { state, ctrl };
 }
 

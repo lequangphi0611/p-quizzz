@@ -1,4 +1,5 @@
 import type { EditRequestInfo, ParticipantProgress } from '../../../shared/api/index.js';
+import { isAnswered } from '../../../shared/answered.js';
 import { pickCountedAttempt, scoreAnswer, totalScore } from '../../../shared/scoring.js';
 import type { SessionStatus } from '../../../shared/session-state.js';
 import type { Exam, Question } from '../exam/exam.js';
@@ -183,15 +184,26 @@ export function memberAttemptState(facts: { attempts: Attempt[]; sessionStatus: 
   return { current, submitted, canStartNew };
 }
 
-export const NO_PROGRESS = (totalPoints: number, questionCount: number): ParticipantProgress => ({ state: 'none', attempts: 0, countedScore: null, maxScore: totalPoints, submittedAt: null, editRequest: null, answered: null, questionCount });
+export const NO_PROGRESS = (totalPoints: number): ParticipantProgress => ({ state: 'none', attempts: 0, countedScore: null, maxScore: totalPoints, submittedAt: null, editRequest: null, answered: null });
+
+/** The answered count (PRODUCT.md §7.26) is worth reading only while the session runs: it is shown nowhere else. */
+export const showsAnsweredCount = (status: SessionStatus | undefined): boolean => status === 'running';
+
+/** How many questions each attempt has answered, from its saved answers (PRODUCT.md §7.26). Never looks at correctness. */
+export function countAnswered(saved: readonly Pick<Answer, 'attemptId' | 'selectedOptionIds' | 'textAnswer'>[]): Map<number, number> {
+  const result = new Map<number, number>();
+  for (const a of saved) if (isAnswered(a)) result.set(a.attemptId, (result.get(a.attemptId) ?? 0) + 1);
+  return result;
+}
 
 /**
  * Progress of every participant who has an attempt, keyed by participant id. Official (manual) points count only once finalized.
- * `answeredByAttempt` holds how many questions each open attempt has answered (PRODUCT.md §7.26); it is reported only while "doing".
+ * `answeredByAttempt` holds how many questions each open attempt has answered (PRODUCT.md §7.26); it is reported only while
+ * the session runs and the person is "doing".
  */
 export function computeProgress(
   attempts: Attempt[],
-  facts: { sessionStatus: SessionStatus | undefined; kickedIds: Set<number>; totalPoints: number; questionCount: number; answeredByAttempt: ReadonlyMap<number, number> },
+  facts: { sessionStatus: SessionStatus | undefined; kickedIds: Set<number>; totalPoints: number; answeredByAttempt: ReadonlyMap<number, number> },
 ): Map<number, ParticipantProgress> {
   const byParticipant = new Map<number, Attempt[]>();
   for (const a of attempts) byParticipant.set(a.participantId, [...(byParticipant.get(a.participantId) ?? []), a]);
@@ -211,8 +223,7 @@ export function computeProgress(
       maxScore: facts.totalPoints,
       submittedAt: counted ? counted.submittedAt : null,
       editRequest: toEditRequestInfo(list.find(a => a.id === counted?.id) ?? { editStatus: null, editReason: null, editRequestedAt: null, editResolvedAt: null }, facts.sessionStatus),
-      answered: doing ? facts.answeredByAttempt.get(open.id) ?? 0 : null,
-      questionCount: facts.questionCount,
+      answered: doing && showsAnsweredCount(facts.sessionStatus) ? facts.answeredByAttempt.get(open.id) ?? 0 : null,
     });
   }
   return result;

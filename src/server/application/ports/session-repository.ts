@@ -60,7 +60,7 @@ export interface SessionParticipantView {
 }
 
 export interface SessionDetailView extends SessionSummaryView {
-  exam: { id: number; title: string; hasEssay: boolean; totalPoints: number };
+  exam: { id: number; title: string; hasEssay: boolean; totalPoints: number; questionCount: number };
   participants: SessionParticipantView[];
   roster: { size: number; joined: number; notJoined: string[] } | null;
   /** Requests to take over a seat that are still waiting (open sessions only). Mentor only. */
