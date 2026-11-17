@@ -13,7 +13,8 @@ import { StateView } from './StateView.js';
 import { useDiscussionKeys } from './use-discussion-keys.js';
 
 // "/admin/sessions/:id/discuss" — S17. Shown on the projector from the mentor's laptop after the session closes:
-// one question at a time, class tallies, answer hidden until the mentor reveals it, anonymous essays graded together.
+// one question at a time, anonymous essays graded together. Each question opens with only the question on screen: the
+// class's work (B) and the answer (Space) are two separate covers the mentor lifts in either order (S25).
 // No names anywhere: the API sends none, and nothing here asks for them.
 export function DiscussionPage() {
   const sessionId = Number(useParams().id);
@@ -38,11 +39,14 @@ export function DiscussionPage() {
     ctrl?.questionChanged();
   }, [qs.length, setSearch, ctrl]);
 
-  useDiscussionKeys({ dialog: state.dialog, finalizing: state.finalizing, ready, hasPapers: q?.type === 'essay' && papers.length > 0, mode, fullscreen }, action => {
+  const revealed = q ? state.revealed.has(q.id) : false;
+  const work = q ? state.work.has(q.id) : false;
+  useDiscussionKeys({ dialog: state.dialog, finalizing: state.finalizing, ready, hasPapers: q?.type === 'essay' && papers.length > 0, workShown: work, mode, fullscreen }, action => {
     if (!ctrl || !q) { if (action.kind === 'closeDialog') ctrl?.closeFinalize(); return; }
     if (action.kind === 'closeDialog') ctrl.closeFinalize();
     else if (action.kind === 'question') goQ(qi + action.delta);
     else if (action.kind === 'toggleAnswer') ctrl.toggleReveal(q.id);
+    else if (action.kind === 'toggleWork') ctrl.toggleWork(q.id);
     else if (action.kind === 'paper') ctrl.stepPaper(papers, action.dir);
     else ctrl.backToList();
   });
@@ -55,11 +59,11 @@ export function DiscussionPage() {
   );
 
   let content: ReactNode;
-  const revealed = q ? state.revealed.has(q.id) : false;
   const toggle = () => { if (q) ctrl?.toggleReveal(q.id); };
+  const toggleWork = () => { if (q) ctrl?.toggleWork(q.id); };
   if (load !== 'ready' || !ready) content = <StateView kind={load === 'loading' ? 'loading' : load === 'error' ? 'error' : 'empty'} message={state.loadError} onRetry={() => void ctrl?.load()} onExit={exit} />;
-  else if (q!.type !== 'essay') content = <ChoiceView q={q!} index={qi} submitted={view!.submitted} revealed={revealed} onToggle={toggle} />;
-  else if (mode === 'list' || !papers[paperIdx]) content = <EssayList q={q!} index={qi} revealed={revealed} onToggle={toggle} papers={papers} blanks={blanks} lastOpened={state.lastOpened} locked={locked} zeroing={state.zeroing} onOpen={i => ctrl?.openPaper(i)} onZeroBlanks={() => void ctrl?.zeroBlanks(blanks)} />;
+  else if (q!.type !== 'essay') content = <ChoiceView q={q!} index={qi} submitted={view!.submitted} revealed={revealed} onToggle={toggle} work={work} onToggleWork={toggleWork} />;
+  else if (!work || mode === 'list' || !papers[paperIdx]) content = <EssayList q={q!} index={qi} revealed={revealed} onToggle={toggle} work={work} onToggleWork={toggleWork} papers={papers} blanks={blanks} lastOpened={state.lastOpened} locked={locked} zeroing={state.zeroing} onOpen={i => ctrl?.openPaper(i)} onZeroBlanks={() => void ctrl?.zeroBlanks(blanks)} />;
   else {
     const a = papers[paperIdx]!;
     content = (
@@ -70,10 +74,12 @@ export function DiscussionPage() {
     );
   }
 
-  const hints: [string, string][] = [['← →', 'câu'], ['Space', 'đáp án'], ...(q?.type === 'essay' ? [['J K', 'bài'] as [string, string]] : []), ['Esc', 'thoát toàn màn hình']];
+  // J K stays in the strip (dimmed when unusable) so the hints never jump between questions.
+  const hints: [string, string, boolean?][] = [['← →', 'câu'], ['B', 'bài làm'], ['Space', 'đáp án'], ['J K', 'bài', q?.type !== 'essay' || !work], ['Esc', 'thoát toàn màn hình']];
+  const navMarks = qs.map(x => ({ work: state.work.has(x.id), answer: state.revealed.has(x.id) }));
   return (
     <DiscussionScreen examTitle={view?.examTitle} status={view?.status} meta={meta} fullscreen={fullscreen} ready={ready} locked={locked} canFinalize={ready && !locked}
-      count={qs.length} current={qi} navMeta={essayProgress.map(p => (p ? `${p.graded}/${p.total}` : null))} navDone={essayProgress.flatMap((p, i) => (p && p.graded === p.total ? [i] : []))} hints={hints}
+      count={qs.length} current={qi} navMeta={essayProgress.map(p => (p ? `${p.graded}/${p.total}` : null))} navDone={essayProgress.flatMap((p, i) => (p && p.graded === p.total ? [i] : []))} navMarks={navMarks} revealStatus={{ work, answer: revealed }} hints={hints}
       remaining={remaining} dialog={state.dialog} finalizing={state.finalizing} finalizeError={state.finalizeError} contentKey={`${load}-${qi}-${mode}`}
       onGo={goQ} onToggleFullscreen={toggleFs} onFinalizeOpen={() => ctrl?.openFinalize()} onFinalizeCancel={() => ctrl?.closeFinalize()} onFinalizeConfirm={() => void ctrl?.finalize()} onExit={exit}>
       {content}

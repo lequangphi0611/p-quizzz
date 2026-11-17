@@ -12,7 +12,15 @@ export function QHeader({ q, index }: { q: DiscussionQuestion; index: number }) 
 export function RevealButton({ revealed, onToggle, size = 'xxl' }: { revealed: boolean; onToggle: () => void; size?: 'xl' | 'xxl' }) {
   return revealed
     ? <Button tone="screen" variant="secondary" size={size} icon="eye-off" shortcut="Space" onClick={onToggle}>Ẩn đáp án</Button>
-    : <Button tone="screen" variant="primary" size={size} icon="eye" shortcut="Space" onClick={onToggle}>Hiện đáp án</Button>;
+    : <Button tone="screen" variant="primary" size={size} icon="key-round" shortcut="Space" onClick={onToggle}>Hiện đáp án</Button>;
+}
+
+/** S25: shows / hides the class's work (tallies, essay papers). Secondary and placed in the area it opens, so it is
+ *  never mistaken for "Hiện đáp án" (different place, colour, icon and key). */
+export function WorkButton({ shown, onToggle, size = 'xxl' }: { shown: boolean; onToggle: () => void; size?: 'xl' | 'xxl' }) {
+  return shown
+    ? <Button tone="screen" variant="ghost" size={size} icon="eye-off" shortcut="B" onClick={onToggle} style={{ border: '2px solid var(--screen-line-strong)' }}>Ẩn bài làm</Button>
+    : <Button tone="screen" variant="secondary" size={size} icon="users" shortcut="B" onClick={onToggle}>Hiện bài làm</Button>;
 }
 
 // The exam format keeps "model answer + rubric" as one Markdown block (docs/exam-format.md), so it is shown as one panel.
@@ -28,7 +36,7 @@ export function RubricPanel({ q, revealed, onToggle }: { q: DiscussionQuestion; 
   return (
     <section aria-label="Đáp án mẫu và rubric" style={{ ...st.panel, ...st.reveal, display: 'flex', flexDirection: 'column', gap: 14, minHeight: 0, maxHeight: '100%', boxSizing: 'border-box' }}>
       <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <span style={st.panelLabel}><Icon name="list-checks" size={24} />Đáp án mẫu &amp; rubric</span>
+        <span style={st.panelLabel}><Icon name="key-round" size={24} />Đáp án mẫu &amp; rubric</span>
         <Button tone="screen" variant="ghost" size="xl" icon="eye-off" ariaLabel="Ẩn đáp án (Space)" onClick={onToggle} style={{ marginLeft: 'auto' }} />
       </div>
       <div className="pq-scroll" style={{ overflow: 'auto', minHeight: 0, flex: '0 1 auto' }}>

@@ -45,6 +45,28 @@ describe('DiscussionController: reveal and navigation', () => {
     expect(ctrl.getState().revealed.has(1)).toBe(false);
   });
 
+  it('shows the class work per question, independently of the answer (S25)', () => {
+    const { ctrl } = make();
+    ctrl.toggleWork(1);
+    expect(ctrl.getState().work.has(1)).toBe(true);
+    expect(ctrl.getState().revealed.has(1)).toBe(false);
+    ctrl.toggleReveal(2);
+    expect(ctrl.getState().work.has(2)).toBe(false);
+    ctrl.toggleWork(1);
+    expect(ctrl.getState().work.has(1)).toBe(false);
+  });
+
+  it('hiding the work while a paper is open goes back to the list', async () => {
+    const { ctrl } = make();
+    await ctrl.load();
+    ctrl.toggleWork(1);
+    ctrl.openPaper(1);
+    expect(ctrl.getState().mode).toBe('paper');
+    ctrl.toggleWork(1);
+    expect(ctrl.getState()).toMatchObject({ mode: 'list' });
+    expect(ctrl.getState().work.has(1)).toBe(false);
+  });
+
   it('J/K: from the list jump to the first ungraded / last paper; in a paper step and clamp', async () => {
     const { ctrl } = make();
     await ctrl.load();

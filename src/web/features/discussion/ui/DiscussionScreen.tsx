@@ -1,17 +1,20 @@
 import type { ReactNode } from 'react';
-import { QuestionNav } from '../../../shared/ui/QuestionNav.js';
+import { QuestionNav, type QuestionMark } from '../../../shared/ui/QuestionNav.js';
 import { ScreenLayout } from '../../../shared/ui/screen/ScreenLayout.js';
 import { ScreenStage } from '../../../shared/ui/screen/ScreenStage.js';
 import { Button } from '../../../shared/ui/Button.js';
 import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog.js';
 import { ErrorMessage } from '../../../shared/ui/ErrorMessage.js';
 import { Icon } from '../../../shared/ui/Icon.js';
+import { RevealStatus } from './RevealStatus.js';
 import { st } from './styles.js';
 
 /** Projector frame of the discussion: top bar, question strip, content area, key hints and the finalize dialog. */
-export function DiscussionScreen({ examTitle, status, meta, fullscreen, ready, locked, canFinalize, count, current, navMeta, navDone, hints, remaining, dialog, finalizing, finalizeError, contentKey, children, onGo, onToggleFullscreen, onFinalizeOpen, onFinalizeCancel, onFinalizeConfirm, onExit }: {
+export function DiscussionScreen({ examTitle, status, meta, fullscreen, ready, locked, canFinalize, count, current, navMeta, navDone, navMarks, revealStatus, hints, remaining, dialog, finalizing, finalizeError, contentKey, children, onGo, onToggleFullscreen, onFinalizeOpen, onFinalizeCancel, onFinalizeConfirm, onExit }: {
   examTitle?: string; status?: 'lobby' | 'running' | 'closed' | 'finalized'; meta: ReactNode; fullscreen: boolean; ready: boolean; locked: boolean; canFinalize: boolean;
-  count: number; current: number; navMeta: (string | null)[]; navDone: number[]; hints: [string, string][]; remaining: number;
+  count: number; current: number; navMeta: (string | null)[]; navDone: number[]; navMarks: QuestionMark[]; revealStatus: { work: boolean; answer: boolean };
+  /** [keys, label, off]: an `off` hint stays in place but dimmed, so the strip never jumps between questions. */
+  hints: [string, string, boolean?][]; remaining: number;
   dialog: boolean; finalizing: boolean; finalizeError?: string; contentKey: string; children: ReactNode;
   onGo: (i: number) => void; onToggleFullscreen: () => void; onFinalizeOpen: () => void; onFinalizeCancel: () => void; onFinalizeConfirm: () => void; onExit: () => void;
 }) {
@@ -30,16 +33,19 @@ export function DiscussionScreen({ examTitle, status, meta, fullscreen, ready, l
             <div style={{ flex: 'none', height: 112, padding: '0 40px', display: 'flex', alignItems: 'center', gap: 16, borderBottom: '2px solid var(--screen-line)' }}>
               <Button tone="screen" variant="secondary" size="xl" icon="chevron-left" ariaLabel="Câu trước (←)" disabled={current === 0} onClick={() => onGo(current - 1)} />
               <div className="pq-scroll" style={{ minWidth: 0, overflowX: 'auto', padding: '4px 2px' }}>
-                <QuestionNav size="screen" count={count} current={current} meta={navMeta} answered={navDone} onSelect={onGo} />
+                <QuestionNav size="screen" count={count} current={current} meta={navMeta} marks={navMarks} answered={navDone} onSelect={onGo} />
               </div>
               <Button tone="screen" variant="secondary" size="xl" icon="chevron-right" ariaLabel="Câu sau (→)" disabled={current === count - 1} onClick={() => onGo(current + 1)} />
-              {locked && <span style={{ marginLeft: 'auto', flex: 'none', display: 'inline-flex', alignItems: 'center', gap: 10, padding: '10px 18px', borderRadius: 'var(--radius-pill)', border: '2px solid var(--brand-200)', color: 'var(--brand-200)', font: '600 22px/1 var(--font-sans)' }}><Icon name="lock" size={22} />Đã chốt — chỉ xem</span>}
+              <span style={{ marginLeft: 'auto', flex: 'none', display: 'flex', alignItems: 'center', gap: 16 }}>
+                {locked && <span style={{ flex: 'none', display: 'inline-flex', alignItems: 'center', gap: 10, padding: '10px 18px', borderRadius: 'var(--radius-pill)', border: '2px solid var(--brand-200)', color: 'var(--brand-200)', font: '600 22px/1 var(--font-sans)', whiteSpace: 'nowrap' }}><Icon name="lock" size={22} />Đã chốt — chỉ xem</span>}
+                <RevealStatus work={revealStatus.work} answer={revealStatus.answer} />
+              </span>
             </div>
           )}
           <div key={contentKey} style={{ flex: 1, minHeight: 0, padding: '32px 40px 76px', animation: 'pq-fade var(--dur-base) var(--ease-standard)' }}>{children}</div>
           {ready && (
             <div aria-hidden="true" style={{ position: 'absolute', right: 40, bottom: 20, display: 'flex', gap: 22, alignItems: 'center', font: '400 20px/1 var(--font-sans)', color: 'var(--screen-meta)' }}>
-              {hints.map(([keys, text]) => <span key={keys} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>{keys.split(' ').map(x => <kbd key={x} style={st.kbd}>{x}</kbd>)}{text}</span>)}
+              {hints.map(([keys, text, off]) => <span key={keys} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, opacity: off ? 0.35 : 1, transition: 'opacity var(--dur-base) var(--ease-standard)' }}>{keys.split(' ').map(x => <kbd key={x} style={st.kbd}>{x}</kbd>)}{text}</span>)}
             </div>
           )}
         </div>
