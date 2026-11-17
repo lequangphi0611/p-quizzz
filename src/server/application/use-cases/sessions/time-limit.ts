@@ -1,5 +1,6 @@
 import { SessionNotFoundError } from '../../../domain/session/errors.js';
 import { isExpired, planExtendTime, planSetTimeLimit } from '../../../domain/session/time-limit.js';
+import { graceCutoff } from '../../../../shared/session-timer.js';
 import type { Clock } from '../../ports/clock.js';
 import type { EventPublisher } from '../../ports/event-publisher.js';
 import type { SessionDetailView, SessionReader, SessionUnitContext } from '../../ports/session-repository.js';
@@ -53,13 +54,12 @@ export class CloseExpiredSessions {
   constructor(private readonly deps: TransitionDeps) {}
 
   async execute(onError: (err: unknown) => void = () => {}): Promise<number[]> {
-    const now = this.deps.clock.now();
-    const due = (await this.deps.sessions.listActive()).filter(s => isExpired(s, now));
+    const due = await this.deps.sessions.listRunningIdsEndedBy(graceCutoff(this.deps.clock.now()));
     const closed: number[] = [];
-    for (const s of due) {
+    for (const id of due) {
       try {
         // Re-checked inside the unit: the mentor may have closed it or added time a moment ago.
-        if (await applyTransition(this.deps, s.id, 'close', isExpired)) closed.push(s.id);
+        if (await applyTransition(this.deps, id, 'close', isExpired)) closed.push(id);
       } catch (err) {
         onError(err);
       }

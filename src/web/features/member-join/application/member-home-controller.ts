@@ -51,8 +51,6 @@ export class MemberHomeController {
   /** The token this browser held for a session before it asked to be let back in; restored if the request ends without a seat. */
   private priorToken: { sessionId: number; token: string | null } | null = null;
   private wasTaking = false;
-  /** Local (Date.now) moment the session clock runs out, from the last `/api/me`; null without a running clock. */
-  private localDeadline: number | null = null;
 
   constructor(private gateway: MemberGateway, private tokens: TokenStore, private rooms: RoomCodeMemory, private pollMs = POLL_MS) {
     // Resume the session this tab (or, for a new tab, the last tab) was in, if a token for it is still here.
@@ -84,9 +82,8 @@ export class MemberHomeController {
     if (screen === 'running' && this.state.me?.attempt.current) this.wasTaking = true;
     else if (screen === 'ended' && this.wasTaking) {
       this.wasTaking = false;
-      // A couple of seconds of slack: polling and the server's grace period make the close land just after 00:00.
-      const byTimer = this.localDeadline !== null && Date.now() >= this.localDeadline - 2000;
-      this.state = { ...this.state, autoSubmitted: true, endedByTimer: byTimer };
+      // The server says why it closed (deadline vs the mentor's early "Đóng"); no guessing from this device's clock.
+      this.state = { ...this.state, autoSubmitted: true, endedByTimer: this.state.me?.session.closedByTimer ?? false };
     }
     else if (screen === 'running') this.wasTaking = false;
   }
@@ -106,8 +103,6 @@ export class MemberHomeController {
     try {
       const me = await this.gateway.getMe();
       if (n !== this.meSeq) return;
-      if (me.session.timer?.remainingMs != null) this.localDeadline = Date.now() + me.session.timer.remainingMs;
-      else if (me.session.status !== 'closed' && me.session.status !== 'finalized') this.localDeadline = null;
       this.set({ me, meState: 'ok' });
     } catch (err) {
       if (n !== this.meSeq) return;

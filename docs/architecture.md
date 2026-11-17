@@ -66,7 +66,7 @@ function nextStatus(current: SessionStatus, action: SessionAction): SessionStatu
 
 ## 5. API
 
-**Đồng hồ phiên** (PRODUCT.md §7.27): DTO mentor (`SessionSummary`: `timeLimitMinutes`, `timer`), `/api/me` (`session.timer`) và `ActiveSession` (`timer`) dùng chung `SessionTimer = { limitMinutes, endsAt, remainingMs }` (`src/shared/session-timer.ts`); `null` khi không giới hạn hoặc phiên đã kết thúc; `endsAt`/`remainingMs` là `null` trước khi bắt đầu. `remainingMs` do server tính lúc trả lời: client đếm ngược từ đó (không tin đồng hồ máy member) và neo lại mỗi lần tải lại.
+**Đồng hồ phiên** (PRODUCT.md §7.27): DTO mentor (`SessionSummary`: `timeLimitMinutes`, `timer`), `/api/me` (`session.timer`) và `ActiveSession` (`timer`) dùng chung `SessionTimer = { limitMinutes, endsAt, remainingMs }` (`src/shared/session-timer.ts`); `null` khi không giới hạn hoặc phiên đã kết thúc; `endsAt`/`remainingMs` là `null` trước khi bắt đầu. `remainingMs` do server tính lúc trả lời, **luôn bằng `Clock` được inject** (route nhận `clock` qua composition, presenter bắt buộc tham số `now`), cùng đồng hồ đặt và kiểm hạn: client đếm ngược từ đó (không tin đồng hồ máy member) và neo lại mỗi lần tải lại.
 
 Mọi body/response là JSON. Lỗi: `{ error: string, code?: string }` (tiếng Việt, hiển thị được cho người dùng) với status 400/401/403/404/409; `code` (tuỳ chọn, ví dụ `identity_in_use`) là lý do máy đọc được để web quyết định bước tiếp theo. Schema zod và type response đặt ở `src/shared/api/<nhóm>.ts`.
 
@@ -118,7 +118,7 @@ Mọi body/response là JSON. Lỗi: `{ error: string, code?: string }` (tiếng
 | GET | `/api/sessions/:id/participants` | — | Chỉ `{ displayName }[]` của participant `active` (cho màn hình chiếu) |
 | GET | `/api/sessions/:id/leaderboard` | — | Xem §6 |
 | GET | `/api/sessions/:id/events` | — | SSE, xem §7 |
-| GET | `/api/me` | participant | participant + session (id, title, status, `participantCount` = số người `active`, `questionCount`, `totalPoints`, `hasEssay`, `scoresHidden`, `timer`) + `attempt: { current, submitted[], canStartNew }` (lượt đang làm, lượt đã nộp với điểm tự động `score/maxScore` và `essayScore` = tổng điểm tự luận đã chấm hoặc `null`, `canStartNew` = chưa có lượt nào và phiên đang `running`). Khi `scoresHidden`: `score` và `essayScore` là `null` (cả trong response của `submit`) |
+| GET | `/api/me` | participant | participant + session (id, title, status, `participantCount` = số người `active`, `questionCount`, `totalPoints`, `hasEssay`, `scoresHidden`, `timer`, `closedByTimer` = phiên đóng lúc/sau mốc hết giờ chứ không phải mentor đóng sớm, so `closed_at` với `ends_at` trên server) + `attempt: { current, submitted[], canStartNew }` (lượt đang làm, lượt đã nộp với điểm tự động `score/maxScore` và `essayScore` = tổng điểm tự luận đã chấm hoặc `null`, `canStartNew` = chưa có lượt nào và phiên đang `running`). Khi `scoresHidden`: `score` và `essayScore` là `null` (cả trong response của `submit`) |
 | POST | `/api/me/attempts` | participant | Bắt đầu lượt. Cần session `running`, participant `active`; mỗi participant chỉ có 1 lượt/phiên (đã có lượt → 409) |
 | GET | `/api/me/attempts/:id` | participant | Câu hỏi theo thứ tự đã trộn + câu trả lời đã lưu |
 | PUT | `/api/me/attempts/:id/answers/:questionId` | participant | `{ selectedOptionIds }` hoặc `{ textAnswer }` — autosave. Lượt đã nộp chỉ lưu được **câu tự luận** khi yêu cầu sửa đang `approved` và phiên `running` (§7.21). Quá `ends_at` + 5 giây → 409 "Đã hết giờ làm bài" (cả `submit` và bắt đầu lượt) |

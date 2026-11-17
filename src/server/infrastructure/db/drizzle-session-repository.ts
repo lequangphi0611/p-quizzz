@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, lte, ne, sql } from 'drizzle-orm';
 import { ACTIVE_STATUSES } from '../../../shared/session-state.js';
 import type {
   ActiveSessionView,
@@ -146,6 +146,13 @@ export class DrizzleSessionReader implements SessionReader {
         .orderBy(asc(sessions.slot), asc(sessions.id))
         .all(),
     );
+  }
+
+  async listRunningIdsEndedBy(cutoff: Date): Promise<number[]> {
+    const rows = await this.access(db =>
+      db.select({ id: sessions.id }).from(sessions).where(and(eq(sessions.status, 'running'), lte(sessions.endsAt, cutoff))).all(),
+    );
+    return rows.map(r => r.id);
   }
 
   async findPublic(id: number): Promise<ActiveSessionView | null> {

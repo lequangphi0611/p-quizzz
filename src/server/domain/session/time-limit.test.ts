@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { TIME_UP_GRACE_MS } from '../../../shared/session-timer.js';
 import { CannotExtendTimeError, TimeLimitLockedError, TimeUpError } from './errors.js';
 import { planStart } from './lifecycle.js';
-import { assertNotTimeUp, isExpired, planExtendTime, planSetTimeLimit, sessionTimer } from './time-limit.js';
+import { assertNotTimeUp, closedByTimer, isExpired, planExtendTime, planSetTimeLimit, sessionTimer } from './time-limit.js';
 
 const MIN = 60_000;
 const at = (ms: number) => new Date(ms);
@@ -46,5 +46,13 @@ describe('time limit (PRODUCT.md §7.27)', () => {
     expect(sessionTimer({ status: 'running', timeLimitMinutes: 30, endsAt: at(30 * MIN) }, at(31 * MIN))?.remainingMs).toBe(0);
     expect(sessionTimer({ status: 'closed', timeLimitMinutes: 30, endsAt: at(30 * MIN) }, at(MIN))).toBeNull();
     expect(sessionTimer({ status: 'running', timeLimitMinutes: null, endsAt: null }, at(MIN))).toBeNull();
+  });
+
+  it('a session closed at or after its deadline ended by the timer; an earlier close was the mentor', () => {
+    expect(closedByTimer({ endsAt: at(30 * MIN), closedAt: at(30 * MIN + TIME_UP_GRACE_MS) })).toBe(true);
+    expect(closedByTimer({ endsAt: at(30 * MIN), closedAt: at(30 * MIN) })).toBe(true);
+    expect(closedByTimer({ endsAt: at(30 * MIN), closedAt: at(30 * MIN - 1500) })).toBe(false);
+    expect(closedByTimer({ endsAt: null, closedAt: at(MIN) })).toBe(false);
+    expect(closedByTimer({ endsAt: at(30 * MIN), closedAt: null })).toBe(false);
   });
 });

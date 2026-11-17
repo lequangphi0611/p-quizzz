@@ -1,11 +1,9 @@
-import { MAX_TIME_LIMIT_MINUTES, MIN_TIME_LIMIT_MINUTES } from '../../../../shared/session-timer.js';
+import { MAX_TIME_LIMIT_MINUTES, MIN_TIME_LIMIT_MINUTES, parseTimeLimitMinutes } from '../../../../shared/session-timer.js';
 
 /** What the mentor typed in the minutes box: a whole number in range, or why not. */
 export function parseMinutes(raw: string): { minutes: number } | { error: string } {
-  const text = raw.trim();
-  const n = /^\d+$/.test(text) ? Number(text) : NaN;
-  if (!Number.isInteger(n) || n < MIN_TIME_LIMIT_MINUTES || n > MAX_TIME_LIMIT_MINUTES) return { error: `Nhập số phút từ ${MIN_TIME_LIMIT_MINUTES} đến ${MAX_TIME_LIMIT_MINUTES}` };
-  return { minutes: n };
+  const minutes = parseTimeLimitMinutes(raw);
+  return minutes === null ? { error: `Nhập số phút từ ${MIN_TIME_LIMIT_MINUTES} đến ${MAX_TIME_LIMIT_MINUTES}` } : { minutes };
 }
 
 /** The value to send: null = no limit; undefined = the box is invalid (the form shows why and blocks). */

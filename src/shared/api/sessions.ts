@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { SessionStatus } from '../session-state.js';
 import type { EditRequestInfo } from './attempts.js';
-import { MAX_EXTEND_MINUTES, MAX_TIME_LIMIT_MINUTES, MIN_TIME_LIMIT_MINUTES, type SessionTimer } from '../session-timer.js';
+import { MAX_EXTEND_MINUTES, MAX_TIME_LIMIT_MINUTES, MIN_TIME_LIMIT_MINUTES, isTimeLimitMinutes, type SessionTimer } from '../session-timer.js';
 
 export type SessionMode = 'self_paced' | 'live';
 
@@ -19,7 +19,7 @@ export type RosterSource = 'group' | 'temp';
  */
 export type ScoreVisibility = 'on_submit' | 'on_release';
 const TIME_LIMIT_MESSAGE = `Thời gian làm bài là số phút nguyên từ ${MIN_TIME_LIMIT_MINUTES} đến ${MAX_TIME_LIMIT_MINUTES}`;
-const TimeLimitMinutes = z.number({ error: TIME_LIMIT_MESSAGE }).int(TIME_LIMIT_MESSAGE).min(MIN_TIME_LIMIT_MINUTES, TIME_LIMIT_MESSAGE).max(MAX_TIME_LIMIT_MINUTES, TIME_LIMIT_MESSAGE);
+const TimeLimitMinutes = z.number({ error: TIME_LIMIT_MESSAGE }).refine(isTimeLimitMinutes, TIME_LIMIT_MESSAGE);
 /** PUT /api/admin/sessions/:id/time-limit: change, add or remove the limit before the session starts. */
 export const TimeLimitBody = z.object({ timeLimitMinutes: TimeLimitMinutes.nullable() });
 /** POST /api/admin/sessions/:id/extend-time: "+N phút" for everyone while the session runs. */

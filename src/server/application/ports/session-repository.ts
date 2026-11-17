@@ -95,6 +95,8 @@ export interface SessionReader {
   findDetail(id: number): Promise<SessionDetailView | null>;
   /** Sessions in lobby/running, lowest slot first. */
   listActive(): Promise<SessionSummaryView[]>;
+  /** Ids of running sessions whose deadline is at or before `cutoff`: the deadline watcher asks every second, so ids only. */
+  listRunningIdsEndedBy(cutoff: Date): Promise<number[]>;
   /** Public view of one session (exam title only). */
   findPublic(id: number): Promise<ActiveSessionView | null>;
   /** The session in lobby/running with this room code, if any. */

@@ -6,8 +6,9 @@ import { sessionTimer } from '../../../domain/session/time-limit.js';
 
 const ms = (d: Date | null) => (d ? d.getTime() : null);
 
-// `now` fixes `timer.remainingMs` (the server's clock is the only one that counts, PRODUCT.md §7.27d).
-export const toSessionSummaryDto = (s: SessionSummaryView, now = new Date()): SessionSummary => ({
+// `now` fixes `timer.remainingMs`. It must come from the injected Clock, the same one that sets and enforces the
+// deadline (PRODUCT.md §7.27d), so callers pass it: no `new Date()` default.
+export const toSessionSummaryDto = (s: SessionSummaryView, now: Date): SessionSummary => ({
   id: s.id,
   examId: s.examId,
   examTitle: s.examTitle,
@@ -35,7 +36,7 @@ export const toSessionSummaryDto = (s: SessionSummaryView, now = new Date()): Se
 });
 
 // `presence` says who is still connected; without it (tests of the pure shape) everyone reads as not seen.
-export const toSessionDetailDto = (s: SessionDetailView, presence?: Pick<PresenceTracker, 'connectionOf'>, now = new Date()): SessionDetail => ({
+export const toSessionDetailDto = (s: SessionDetailView, now: Date, presence?: Pick<PresenceTracker, 'connectionOf'>): SessionDetail => ({
   ...toSessionSummaryDto(s, now),
   exam: s.exam,
   participants: s.participants.map(p => ({
@@ -47,6 +48,6 @@ export const toSessionDetailDto = (s: SessionDetailView, presence?: Pick<Presenc
   rejoinRequests: s.rejoinRequests.map(r => ({ id: r.id, participantId: r.participantId, claimantName: r.claimantName, requestedAt: r.requestedAt.getTime() })),
 });
 
-export const toActiveSessionDto = (s: ActiveSessionView, now = new Date()): ActiveSession => ({ id: s.id, title: s.title, status: s.status, access: s.access, timer: sessionTimer(s, now) });
+export const toActiveSessionDto = (s: ActiveSessionView, now: Date): ActiveSession => ({ id: s.id, title: s.title, status: s.status, access: s.access, timer: sessionTimer(s, now) });
 
 export const toScreenSessionDto = (s: ScreenSessionView): ScreenSessionItem => ({ id: s.id, name: s.name, slot: s.slot, title: s.title, status: s.status });

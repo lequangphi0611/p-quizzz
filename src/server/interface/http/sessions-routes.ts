@@ -7,6 +7,7 @@ import type { FinalizeSession } from '../../application/use-cases/sessions/final
 import type { CloseSession } from '../../application/use-cases/sessions/close-session.js';
 import type { OpenSession } from '../../application/use-cases/sessions/open-session.js';
 import type { StartSession } from '../../application/use-cases/sessions/start-session.js';
+import type { Clock } from '../../application/ports/clock.js';
 import type { PresenceTracker } from '../../application/ports/presence-tracker.js';
 import type { AddRosterEmails, SaveSessionGroup } from '../../application/use-cases/sessions/roster.js';
 import type { ReleaseScores, SetScoreVisibility } from '../../application/use-cases/sessions/score-visibility.js';
@@ -19,6 +20,8 @@ import { toActiveSessionDto, toSessionDetailDto, toSessionSummaryDto } from './p
 export interface SessionUseCases {
   /** Who is still connected, for the mentor's detail view. */
   presence: PresenceTracker;
+  /** The clock the deadlines are set and enforced with; the countdown sent to clients must use it too. */
+  clock: Clock;
   create: CreateSession;
   list: ListSessions;
   get: GetSessionDetail;
@@ -51,20 +54,20 @@ export const sessionsRoutes = (uc: SessionUseCases): FastifyPluginAsync =>
       const body = CreateSessionBody.safeParse(req.body);
       if (!body.success) return reply.code(400).send({ error: body.error.issues[0]?.message ?? 'Dữ liệu không hợp lệ' });
       try {
-        return reply.code(201).send(toSessionDetailDto(await uc.create.execute(body.data), uc.presence));
+        return reply.code(201).send(toSessionDetailDto(await uc.create.execute(body.data), uc.clock.now(), uc.presence));
       } catch (err) {
         return sendDomainError(reply, err);
       }
     });
 
     // ?active=true: only sessions in lobby/running, lowest slot first (the overview, the bell, the session bar).
-    app.get<{ Querystring: { active?: string } }>('/sessions', async req => (await uc.list.execute(req.query.active === 'true')).map(s => toSessionSummaryDto(s)));
+    app.get<{ Querystring: { active?: string } }>('/sessions', async req => (await uc.list.execute(req.query.active === 'true')).map(s => toSessionSummaryDto(s, uc.clock.now())));
 
     app.get<{ Params: { id: string } }>('/sessions/:id', async (req, reply) => {
       try {
         const id = parseId(req.params.id);
         if (!id) throw new SessionNotFoundError();
-        return toSessionDetailDto(await uc.get.execute(id), uc.presence);
+        return toSessionDetailDto(await uc.get.execute(id), uc.clock.now(), uc.presence);
       } catch (err) {
         return sendDomainError(reply, err);
       }
@@ -77,7 +80,7 @@ export const sessionsRoutes = (uc: SessionUseCases): FastifyPluginAsync =>
       const body = AddRosterBody.safeParse(req.body);
       if (!body.success) return reply.code(400).send({ error: body.error.issues[0]?.message ?? 'Dữ liệu không hợp lệ' });
       try {
-        return toSessionDetailDto(await uc.addRoster.execute(id, body.data.emails), uc.presence);
+        return toSessionDetailDto(await uc.addRoster.execute(id, body.data.emails), uc.clock.now(), uc.presence);
       } catch (err) {
         return sendDomainError(reply, err);
       }
@@ -104,7 +107,7 @@ export const sessionsRoutes = (uc: SessionUseCases): FastifyPluginAsync =>
       const body = ScoreVisibilityBody.safeParse(req.body);
       if (!body.success) return reply.code(400).send({ error: 'Cách hiện điểm không hợp lệ' });
       try {
-        return toSessionDetailDto(await uc.setScoreVisibility.execute(id, body.data.scoreVisibility), uc.presence);
+        return toSessionDetailDto(await uc.setScoreVisibility.execute(id, body.data.scoreVisibility), uc.clock.now(), uc.presence);
       } catch (err) {
         return sendDomainError(reply, err);
       }
@@ -115,7 +118,7 @@ export const sessionsRoutes = (uc: SessionUseCases): FastifyPluginAsync =>
       const id = parseId(req.params.id);
       if (!id) return reply.code(404).send({ error: new SessionNotFoundError().message });
       try {
-        return toSessionDetailDto(await uc.releaseScores.execute(id), uc.presence);
+        return toSessionDetailDto(await uc.releaseScores.execute(id), uc.clock.now(), uc.presence);
       } catch (err) {
         return sendDomainError(reply, err);
       }
@@ -128,7 +131,7 @@ export const sessionsRoutes = (uc: SessionUseCases): FastifyPluginAsync =>
       const body = TimeLimitBody.safeParse(req.body);
       if (!body.success) return reply.code(400).send({ error: body.error.issues[0]?.message ?? 'Thời gian làm bài không hợp lệ' });
       try {
-        return toSessionDetailDto(await uc.setTimeLimit.execute(id, body.data.timeLimitMinutes), uc.presence);
+        return toSessionDetailDto(await uc.setTimeLimit.execute(id, body.data.timeLimitMinutes), uc.clock.now(), uc.presence);
       } catch (err) {
         return sendDomainError(reply, err);
       }
@@ -140,7 +143,7 @@ export const sessionsRoutes = (uc: SessionUseCases): FastifyPluginAsync =>
       const body = ExtendTimeBody.safeParse(req.body);
       if (!body.success) return reply.code(400).send({ error: body.error.issues[0]?.message ?? 'Số phút không hợp lệ' });
       try {
-        return toSessionDetailDto(await uc.extendTime.execute(id, body.data.minutes), uc.presence);
+        return toSessionDetailDto(await uc.extendTime.execute(id, body.data.minutes), uc.clock.now(), uc.presence);
       } catch (err) {
         return sendDomainError(reply, err);
       }
@@ -151,7 +154,7 @@ export const sessionsRoutes = (uc: SessionUseCases): FastifyPluginAsync =>
       const action = req.params.action as SessionAction;
       if (!id || !SESSION_ACTIONS.includes(action)) return reply.code(404).send({ error: 'Không tìm thấy' });
       try {
-        return toSessionDetailDto(await lifecycle[action].execute(id), uc.presence);
+        return toSessionDetailDto(await lifecycle[action].execute(id), uc.clock.now(), uc.presence);
       } catch (err) {
         return sendDomainError(reply, err);
       }
@@ -159,13 +162,13 @@ export const sessionsRoutes = (uc: SessionUseCases): FastifyPluginAsync =>
   };
 
 // Public: the exam title and status of one session (the projector page follows it). Never the mentor's session name.
-export const publicSessionsRoutes = (uc: Pick<SessionUseCases, 'publicSession'>): FastifyPluginAsync =>
+export const publicSessionsRoutes = (uc: Pick<SessionUseCases, 'publicSession' | 'clock'>): FastifyPluginAsync =>
   async app => {
     app.get<{ Params: { id: string } }>('/api/sessions/:id/public', async (req, reply) => {
       try {
         const id = parseId(req.params.id);
         if (!id) throw new SessionNotFoundError();
-        return toActiveSessionDto(await uc.publicSession.execute(id));
+        return toActiveSessionDto(await uc.publicSession.execute(id), uc.clock.now());
       } catch (err) {
         return sendDomainError(reply, err);
       }

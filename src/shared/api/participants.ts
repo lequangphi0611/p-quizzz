@@ -52,7 +52,8 @@ export interface MeResponse {
   // questionCount / totalPoints / hasEssay describe the exam for the start screen (counts only, no content).
   // scoresHidden: the mentor is holding scores and the leaderboard back until they publish them (PRODUCT.md §7.25).
   // timer: the session's shared clock (PRODUCT.md §7.27); null without a time limit or once the session ended.
-  session: { id: number; title: string; status: SessionStatus; participantCount: number; questionCount: number; totalPoints: number; hasEssay: boolean; scoresHidden: boolean; timer: SessionTimer | null };
+  // closedByTimer: the session closed because its time ran out (not an early "Đóng" by the mentor); false while open.
+  session: { id: number; title: string; status: SessionStatus; participantCount: number; questionCount: number; totalPoints: number; hasEssay: boolean; scoresHidden: boolean; timer: SessionTimer | null; closedByTimer: boolean };
   attempt: MeAttemptState;
 }
 

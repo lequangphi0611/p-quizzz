@@ -89,6 +89,10 @@ export class InMemorySessionRepository implements SessionRepository, SessionRead
     return all.filter((s): s is SessionSummaryView => !!s);
   }
 
+  async listRunningIdsEndedBy(cutoff: Date): Promise<number[]> {
+    return [...this.sessions.values()].filter(s => s.status === 'running' && s.endsAt !== null && s.endsAt <= cutoff).map(s => s.id);
+  }
+
   async findPublic(id: number): Promise<ActiveSessionView | null> {
     return this.view(s => s.id === id);
   }

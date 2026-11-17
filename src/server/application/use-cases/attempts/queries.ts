@@ -5,7 +5,7 @@ import { ParticipantNotFoundError } from '../../../domain/participant/errors.js'
 import type { Participant } from '../../../domain/participant/participant.js';
 import { SessionNotFoundError } from '../../../domain/session/errors.js';
 import { areScoresHidden } from '../../../domain/session/score-visibility.js';
-import { sessionTimer } from '../../../domain/session/time-limit.js';
+import { closedByTimer, sessionTimer } from '../../../domain/session/time-limit.js';
 import type { SessionTimer } from '../../../../shared/session-timer.js';
 import type { Clock } from '../../ports/clock.js';
 import type { AttemptReader, MemberRoom, MemberRoomReader } from '../../ports/attempt-repository.js';
@@ -97,6 +97,8 @@ export interface MemberState {
   scoresHidden: boolean;
   /** The session's clock (PRODUCT.md §7.27); null without a time limit or once the session ended. */
   timer: SessionTimer | null;
+  /** The session closed because its time ran out, not because the mentor closed it early (PRODUCT.md §7.27f, g). */
+  closedByTimer: boolean;
 }
 
 /** `GET /api/me`: every member polls it, so it keeps to a few small queries (an aggregate for the max score, not the exam content). */
@@ -110,6 +112,6 @@ export class GetMemberState {
     const maxScore = await this.deps.exams.maxAutoScoreOf(session.examId);
     const attempts = await this.deps.attempts.listByParticipant(participant.id);
     const { current, submitted, canStartNew } = memberAttemptState({ attempts, sessionStatus: session.status, participantStatus: participant.status });
-    return { participant, room, current, submitted, canStartNew, maxScore, scoresHidden: areScoresHidden(session), timer: sessionTimer(session, this.deps.clock.now()) };
+    return { participant, room, current, submitted, canStartNew, maxScore, scoresHidden: areScoresHidden(session), timer: sessionTimer(session, this.deps.clock.now()), closedByTimer: closedByTimer(session) };
   }
 }

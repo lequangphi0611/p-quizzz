@@ -99,7 +99,7 @@ export interface Composition {
   leaderboard: { leaderboard: GetLeaderboard };
   screen: { projectorRoom: GetProjectorRoom; screenSessions: ListScreenSessions };
   /** Members find their session by room code. */
-  rooms: { resolve: ResolveRoom };
+  rooms: { resolve: ResolveRoom; clock: Clock };
   /** Resolves a member from a token: backs the `/api/me` hook. */
   resumeParticipant: ResumeParticipant;
   admin: AdminUseCases;
@@ -190,7 +190,7 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
     },
     leaderboard: { leaderboard: new GetLeaderboard(gradingReads) },
     screen: { projectorRoom: new GetProjectorRoom(sessionReader), screenSessions: new ListScreenSessions(sessionReader) },
-    rooms: { resolve: new ResolveRoom(sessionReader) },
+    rooms: { resolve: new ResolveRoom(sessionReader), clock: ports.clock },
     attempts: {
       start: new StartAttempt({ unitOfWork: attemptUnitOfWork, clock: ports.clock, random: ports.random, events: ports.events }),
       view: new GetAttemptView(attemptReads),
@@ -238,6 +238,7 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}): Compositi
     },
     sessions: {
       presence,
+      clock: ports.clock,
       create: new CreateSession({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, clock: ports.clock, modes: lifecycle.modes }),
       list: new ListSessions(sessionReader),
       get: new GetSessionDetail(sessionReader),
