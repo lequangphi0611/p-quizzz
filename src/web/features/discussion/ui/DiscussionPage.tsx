@@ -2,8 +2,9 @@ import { useCallback, useMemo, type ReactNode } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { Icon } from '../../../shared/ui/Icon.js';
 import { useFullscreen } from '../../../shared/hooks/useFullscreen.js';
+import type { DiscussionQuestion } from '../../../../shared/api/index.js';
 import { useDiscussion } from '../application/use-discussion.js';
-import { priorityFromSearch, priorityOrder, questionIndexFromSearch, questionProgress, splitPapers } from '../domain/discussion-ui.js';
+import { discussionSearch, priorityFromSearch, priorityOrder, questionIndexFromSearch, questionProgress, splitPapers } from '../domain/discussion-ui.js';
 import { draftOf } from '../domain/grade-draft.js';
 import { ChoiceView } from './ChoiceView.js';
 import { DiscussionScreen } from './DiscussionScreen.js';
@@ -15,6 +16,8 @@ import { useDiscussionKeys } from './use-discussion-keys.js';
 // "/admin/sessions/:id/discuss" — S17. Shown on the projector from the mentor's laptop after the session closes:
 // one question at a time, class tallies, answer hidden until the mentor reveals it, anonymous essays graded together.
 // No names anywhere: the API sends none, and nothing here asks for them.
+const NO_QUESTIONS: readonly DiscussionQuestion[] = [];
+
 export function DiscussionPage() {
   const sessionId = Number(useParams().id);
   const navigate = useNavigate();
@@ -23,7 +26,7 @@ export function DiscussionPage() {
   const { fullscreen, toggle: toggleFs, leave } = useFullscreen();
   const { view, load, mode, paperIdx, drafts } = state;
 
-  const qs = view?.questions ?? [];
+  const qs = view?.questions ?? NO_QUESTIONS; // stable while loading, so the memos below don't recompute every render
   // `qi` / `?q=` is always the exam position; `order` maps nav slots → exam positions (S28: "Cần bàn trước").
   const qi = questionIndexFromSearch(search.toString(), qs.length);
   const q = qs[qi];
@@ -37,15 +40,14 @@ export function DiscussionPage() {
   const empty = load === 'ready' && view !== null && (view.submitted === 0 || qs.length === 0);
   const ready = load === 'ready' && !empty && !!q;
   const exit = useCallback(() => { leave(); navigate(`/admin/sessions/${sessionId}`); }, [leave, navigate, sessionId]);
-  const params = useCallback((examIdx: number, prio: boolean) => ({ q: String(examIdx + 1), ...(prio ? { order: 'priority' } : {}) }), []);
   /** Go to nav slot `s` (clamped) in the current order. */
   const goSlot = useCallback((s: number) => {
     if (order.length === 0) return;
-    setSearch(params(order[Math.max(0, Math.min(order.length - 1, s))]!, priority), { replace: true });
+    setSearch(discussionSearch(order[Math.max(0, Math.min(order.length - 1, s))]!, priority), { replace: true });
     ctrl?.questionChanged();
-  }, [order, priority, params, setSearch, ctrl]);
+  }, [order, priority, setSearch, ctrl]);
   // Switching the order keeps the question on screen; the strip just regroups around it.
-  const togglePriority = useCallback(() => { if (qs.length > 0) setSearch(params(qi, !priority), { replace: true }); }, [qs.length, qi, priority, params, setSearch]);
+  const togglePriority = useCallback(() => { if (qs.length > 0) setSearch(discussionSearch(qi, !priority), { replace: true }); }, [qs.length, qi, priority, setSearch]);
 
   useDiscussionKeys({ dialog: state.dialog, finalizing: state.finalizing, ready, hasPapers: q?.type === 'essay' && papers.length > 0, mode, fullscreen }, action => {
     if (!ctrl || !q) { if (action.kind === 'closeDialog') ctrl?.closeFinalize(); return; }

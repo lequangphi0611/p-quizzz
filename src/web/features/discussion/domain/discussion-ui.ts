@@ -51,7 +51,8 @@ export const priorityFromSearch = (search: string): boolean => new URLSearchPara
 /**
  * "Cần bàn trước" (S28, PRODUCT.md §7.30): question indexes, multiple choice with the lowest share of full-mark
  * submissions first (blank = not correct; multi = exact set, as scored), ties in exam order; essays last in exam order.
- * With no counted submission there is no rate, so those questions go last among the multiple choice ones.
+ * Every question shares the same denominator (`submitted`), so comparing counts is comparing rates; with no counted
+ * submission there is no rate and the multiple choice questions keep exam order.
  */
 export function priorityOrder(questions: readonly Pick<DiscussionQuestion, 'type' | 'correctCount'>[], submitted: number): number[] {
   const idx = questions.map((_, i) => i);
@@ -60,3 +61,6 @@ export function priorityOrder(questions: readonly Pick<DiscussionQuestion, 'type
   if (submitted > 0) choice.sort((a, b) => questions[a]!.correctCount - questions[b]!.correctCount || a - b); // same denominator → compare counts; stable ties
   return [...choice, ...essays];
 }
+
+/** Search params of the discussion screen: `?q=` is the 1-based exam number; `order=priority` keeps the S28 order. */
+export const discussionSearch = (examIdx: number, priority: boolean): Record<string, string> => ({ q: String(examIdx + 1), ...(priority ? { order: 'priority' } : {}) });

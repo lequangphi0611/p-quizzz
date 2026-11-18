@@ -35,7 +35,7 @@ export function DiscussionScreen({ examTitle, status, meta, fullscreen, ready, l
               <Button tone="screen" variant="secondary" size="xl" icon="chevron-right" ariaLabel="Câu sau (→)" disabled={current === count - 1} onClick={() => onGo(current + 1)} />
               <div style={{ marginLeft: 'auto', flex: 'none', display: 'flex', alignItems: 'center', gap: 16 }}>
                 {/* Neutral wording on purpose: the projector must not say why a question comes first (PRODUCT.md §7.30c). */}
-                <Button tone="screen" variant={priority ? 'primary' : 'secondary'} size="xl" icon={priority ? 'check' : 'list'} shortcut="S" onClick={onTogglePriority}>Cần bàn trước</Button>
+                <Button tone="screen" variant={priority ? 'primary' : 'secondary'} size="xl" icon={priority ? 'check' : 'list'} pressed={priority} shortcut="S" onClick={onTogglePriority}>Cần bàn trước</Button>
                 {locked && <span style={{ flex: 'none', display: 'inline-flex', alignItems: 'center', gap: 10, padding: '10px 18px', borderRadius: 'var(--radius-pill)', border: '2px solid var(--brand-200)', color: 'var(--brand-200)', font: '600 22px/1 var(--font-sans)' }}><Icon name="lock" size={22} />Đã chốt — chỉ xem</span>}
               </div>
             </div>
