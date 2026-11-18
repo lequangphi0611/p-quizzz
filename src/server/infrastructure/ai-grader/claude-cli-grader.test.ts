@@ -100,6 +100,14 @@ describe('parseCliOutput', () => {
     expect(parseCliOutput(JSON.stringify({ structured_output: body })).score).toBe(2);
     expect(parseCliOutput(JSON.stringify({ result: 'Here:\n' + JSON.stringify(body) })).suspiciousReason).toBeNull();
   });
+  it('finds the result line among log lines a wrapper prints to stdout', () => {
+    const result = JSON.stringify({ type: 'result', structured_output: body });
+    expect(parseCliOutput(`[wrapper] starting\n{"level":"info"}\n${result}\n[wrapper] done\n`).score).toBe(2);
+    expect(parseCliOutput(`log line\r\n${result}\r\n`).score).toBe(2);
+  });
+  it('rejects output with no result envelope', () => {
+    expect(() => parseCliOutput('log only\n{"level":"info"}\n')).toThrow(expect.objectContaining({ reason: 'bad_output' }));
+  });
   it('treats a CLI error as a failed run', () => {
     expect(() => parseCliOutput(JSON.stringify({ is_error: true, result: 'auth' }))).toThrow(expect.objectContaining({ reason: 'process_failed' }));
   });

@@ -41,14 +41,38 @@ const Suggestion = z.object({
 
 const MAX_OUTPUT = 2_000_000;
 
+type Envelope = { type?: unknown; is_error?: boolean; structured_output?: unknown; result?: unknown; modelUsage?: Record<string, unknown> };
+
+function tryParseObject(text: string): Envelope | undefined {
+  try {
+    const v: unknown = JSON.parse(text);
+    return v !== null && typeof v === 'object' && !Array.isArray(v) ? (v as Envelope) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The result envelope in stdout. A wrapper script around the CLI may print its own log lines to stdout,
+ * so when the whole output is not JSON, take the last line that is the CLI's one-line `type: "result"` object.
+ */
+function findEnvelope(stdout: string): Envelope | undefined {
+  const whole = tryParseObject(stdout.trim());
+  if (whole) return whole;
+  const lines = stdout.split(/\r?\n/);
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i]!.trim();
+    if (!line.startsWith('{')) continue;
+    const obj = tryParseObject(line);
+    if (obj?.type === 'result') return obj;
+  }
+  return undefined;
+}
+
 /** The CLI's `--output-format json` result: the structured output, or JSON inside the text result. */
 export function parseCliOutput(stdout: string): RawSuggestion {
-  let envelope: { is_error?: boolean; structured_output?: unknown; result?: unknown; modelUsage?: Record<string, unknown> };
-  try {
-    envelope = JSON.parse(stdout.trim());
-  } catch {
-    throw new EssayGraderError('bad_output');
-  }
+  const envelope = findEnvelope(stdout);
+  if (!envelope) throw new EssayGraderError('bad_output');
   if (envelope.is_error) throw new EssayGraderError('process_failed');
   let body = envelope.structured_output;
   if (body === undefined && typeof envelope.result === 'string') {
