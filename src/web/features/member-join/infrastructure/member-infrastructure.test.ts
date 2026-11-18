@@ -30,3 +30,30 @@ describe('SessionStorageRoomCodeMemory', () => {
     expect(mem.recall(1)).toBe('');
   });
 });
+
+describe('LocalStorageMySessionsStore', () => {
+  it('round-trips the list, drops malformed data and survives broken storage', async () => {
+    const { LocalStorageMySessionsStore } = await import('./local-storage-my-sessions-store.js');
+    const m = new Map<string, string>();
+    vi.stubGlobal('localStorage', { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v) });
+    const store = new LocalStorageMySessionsStore();
+    expect(store.load()).toEqual([]);
+    const entry = { sessionId: 4, roomCode: '123456', title: 'Đề', joinedAt: 1, status: 'closed' as const };
+    store.save([entry]);
+    expect(store.load()).toEqual([entry]);
+    m.set('pq-my-sessions', '{not json');
+    expect(store.load()).toEqual([]);
+    const blocked = () => { throw new Error('blocked'); };
+    vi.stubGlobal('localStorage', { getItem: blocked, setItem: blocked });
+    expect(() => store.save([entry])).not.toThrow();
+    expect(store.load()).toEqual([]);
+  });
+});
+
+describe('HttpMemberGateway.getPublicSession', () => {
+  it('reads the public session endpoint', async () => {
+    const get = vi.fn(async () => ({}));
+    await new HttpMemberGateway({ get } as unknown as HttpClient).getPublicSession(7);
+    expect(get).toHaveBeenCalledWith('/api/sessions/7/public');
+  });
+});

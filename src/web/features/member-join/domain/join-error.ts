@@ -28,6 +28,8 @@ export function classifyJoinError(status: number | null, message: string, code?:
   return { kind: 'name', message };
 }
 
+export const ROOM_NOT_FOUND = 'Không tìm thấy phòng đang mở với mã này. Kiểm tra lại mã, hoặc phiên đã kết thúc.';
+
 /** How a failed room-code lookup is explained under the code field. `status` 0 = no connection. */
 export type RoomLookupFailure =
   | { kind: 'locked'; seconds: number } // too many wrong codes from this address (server 429)
@@ -37,7 +39,8 @@ export type RoomLookupFailure =
 
 export function classifyRoomLookupError(status: number, message: string): RoomLookupFailure {
   if (status === 429) return { kind: 'locked', seconds: retrySecondsFrom(message) || 30 };
-  if (status === 403) return { kind: 'wrong', message: 'Mã phòng không đúng. Kiểm tra lại 6 số trên màn chiếu.' };
+  // A wrong code and an ended session's code read the same (PRODUCT.md §7.16): never tell which, never blame the typing.
+  if (status === 403) return { kind: 'wrong', message: ROOM_NOT_FOUND };
   if (status === 0) return { kind: 'offline', message: 'Mất kết nối tới máy mentor. Những gì bạn đã gõ vẫn còn, thử lại sau ít giây.' };
   return { kind: 'other', message: message || 'Không tìm được phòng' };
 }

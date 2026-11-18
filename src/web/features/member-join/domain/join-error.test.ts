@@ -36,7 +36,7 @@ describe('classifyRoomLookupError', () => {
   it('429 → locked with the seconds from the message; 403 → wrong code; 0 → offline; else the message', () => {
     expect(classifyRoomLookupError(429, 'Nhập sai mã phòng quá nhiều lần. Thử lại sau 42 giây')).toEqual({ kind: 'locked', seconds: 42 });
     expect(classifyRoomLookupError(429, 'x')).toEqual({ kind: 'locked', seconds: 30 });
-    expect(classifyRoomLookupError(403, 'Mã phòng không đúng')).toMatchObject({ kind: 'wrong' });
+    expect(classifyRoomLookupError(403, 'Mã phòng không đúng')).toEqual({ kind: 'wrong', message: 'Không tìm thấy phòng đang mở với mã này. Kiểm tra lại mã, hoặc phiên đã kết thúc.' });
     expect(classifyRoomLookupError(0, '')).toMatchObject({ kind: 'offline' });
     expect(classifyRoomLookupError(500, 'Lỗi')).toEqual({ kind: 'other', message: 'Lỗi' });
   });

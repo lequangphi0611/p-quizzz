@@ -2,13 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ActiveSession, MeResponse } from '../../../../shared/api/index.js';
 import { ApiError } from '../../../shared/api-client/http-client.js';
 import { InMemoryTokenStore } from '../../../shared/token-store/in-memory-token-store.js';
-import type { MemberGateway, RoomCodeMemory } from './member-gateway.js';
-import { MemberHomeController, selectFollowedId, selectRoom, selectScreen } from './member-home-controller.js';
+import { InMemoryMySessionsStore, type MemberGateway, type RoomCodeMemory } from './member-gateway.js';
+import { MY_SESSIONS_KEPT } from '../domain/my-sessions.js';
+import { MemberHomeController, selectCanReopen, selectFollowedId, selectRoom, selectScreen } from './member-home-controller.js';
 
 const found = (id = 1, status: ActiveSession['status'] = 'lobby'): ActiveSession => ({ id, title: 'T', status } as ActiveSession);
 const me = (id = 1, status = 'lobby', participant = 'active', attemptCurrent: unknown = null): MeResponse => ({ session: { id, status, title: 'T' }, participant: { status: participant, displayName: 'An' }, attempt: { current: attemptCurrent, submitted: [] } } as unknown as MeResponse);
 
-function make(over: Partial<MemberGateway> = {}, tokens = new InMemoryTokenStore()) {
+function make(over: Partial<MemberGateway> = {}, tokens = new InMemoryTokenStore(), mine = new InMemoryMySessionsStore()) {
   const memory = new Map<number, string>();
   const rooms: RoomCodeMemory = { remember: (id, c) => void memory.set(id, c), recall: id => memory.get(id) ?? '' };
   const gateway: MemberGateway = {
@@ -16,9 +17,10 @@ function make(over: Partial<MemberGateway> = {}, tokens = new InMemoryTokenStore
     requestRejoin: vi.fn(async () => ({ requestId: 7, token: 'req-tok', status: 'pending' as const })),
     getRejoinStatus: vi.fn(async () => ({ status: 'pending' as const, sessionId: 1 })),
     cancelRejoin: vi.fn(async () => {}),
+    getPublicSession: vi.fn(async (id: number) => found(id, 'closed')),
     ...over,
   };
-  return { gateway, tokens, rooms, ctrl: new MemberHomeController(gateway, tokens, rooms, 1000) };
+  return { gateway, tokens, rooms, mine, ctrl: new MemberHomeController(gateway, tokens, rooms, mine, 1000) };
 }
 const settle = () => vi.advanceTimersByTimeAsync(0);
 const inSession = (id = 1) => { const t = new InMemoryTokenStore(); t.setToken(id, 'tok'); t.setCurrentSessionId(id); return t; };
@@ -311,5 +313,181 @@ describe('MemberHomeController: asking the mentor to let this person back in (PR
     expect(selectScreen(ctrl.getState())).toBe('replaced');
     ctrl.leave();
     expect(selectScreen(ctrl.getState())).toBe('code');
+  });
+});
+
+describe('MemberHomeController: my sessions on this browser (PRODUCT.md §7.29)', () => {
+  const ended = () => me(1, 'closed');
+
+  async function joinedAndEnded() {
+    let status = 'running';
+    const made = make({ resolveRoom: vi.fn(async () => found(1, 'running')), getMe: async () => me(1, status) });
+    await made.ctrl.lookUpRoom('482913');
+    await made.ctrl.join(1, 'An', '482913');
+    await made.ctrl.joined(1);
+    status = 'closed';
+    await made.ctrl.refreshMe();
+    return made;
+  }
+
+  it('joining remembers the session (exam title, code, status) and lists it once this browser leaves it', async () => {
+    const { ctrl, mine } = await joinedAndEnded();
+    expect(mine.load()).toEqual([expect.objectContaining({ sessionId: 1, roomCode: '482913', title: 'T', status: 'closed' })]);
+    expect(selectScreen(ctrl.getState())).toBe('ended');
+    ctrl.leaveEnded();
+    expect(selectScreen(ctrl.getState())).toBe('code');
+    expect(ctrl.getState().mine.map(s => s.sessionId)).toEqual([1]);
+  });
+
+  it('the remembered code (typed again, or the old link) reopens the ended session without asking the server', async () => {
+    const { ctrl, gateway } = await joinedAndEnded();
+    ctrl.leaveEnded();
+    vi.mocked(gateway.resolveRoom).mockClear();
+    await ctrl.lookUpRoom('482 913');
+    await settle();
+    expect(gateway.resolveRoom).not.toHaveBeenCalled();
+    expect(selectScreen(ctrl.getState())).toBe('ended');
+  });
+
+  it('opening from the list follows that session; a reload (new controller) still lists it', async () => {
+    const { ctrl, tokens, mine, gateway } = await joinedAndEnded();
+    ctrl.leaveEnded();
+    const again = new MemberHomeController(gateway, tokens, { remember: () => {}, recall: () => '' }, mine, 1000);
+    expect(again.getState().mine.map(s => s.sessionId)).toEqual([1]);
+    again.openMine(1);
+    await settle();
+    expect(selectScreen(again.getState())).toBe('ended');
+  });
+
+  it('"Xoá khỏi máy này" drops the seat and the entry; the code then goes to the server like any other', async () => {
+    const { ctrl, tokens, mine, gateway } = await joinedAndEnded();
+    ctrl.leaveEnded();
+    ctrl.forgetMine(1);
+    expect(tokens.getToken(1)).toBeNull();
+    expect(mine.load()).toEqual([]);
+    expect(ctrl.getState().mine).toEqual([]);
+    vi.mocked(gateway.resolveRoom).mockRejectedValueOnce(new ApiError(403, 'x'));
+    await ctrl.lookUpRoom('482913');
+    expect(gateway.resolveRoom).toHaveBeenCalled();
+    expect(selectScreen(ctrl.getState())).toBe('code');
+  });
+
+  it('a session without a seat in this browser is not listed and its code is not short-circuited', async () => {
+    const mine = new InMemoryMySessionsStore([{ sessionId: 5, roomCode: '555555', title: 'X', joinedAt: 1, status: 'closed' }]);
+    const { ctrl, gateway } = make({ resolveRoom: vi.fn(async () => { throw new ApiError(403, 'x'); }) }, new InMemoryTokenStore(), mine);
+    expect(ctrl.getState().mine).toEqual([]);
+    await ctrl.lookUpRoom('555555');
+    expect(gateway.resolveRoom).toHaveBeenCalledWith('555555');
+  });
+
+  it('kicked, replaced, or an unknown token: this browser forgets the session', async () => {
+    const kicked = await joinedAndEnded();
+    kicked.ctrl.leave(); // the kicked / replaced screens leave this way
+    expect(kicked.mine.load()).toEqual([]);
+
+    const mine = new InMemoryMySessionsStore([{ sessionId: 1, roomCode: '111111', title: 'T', joinedAt: 1, status: 'closed' }]);
+    const { ctrl } = make({ getMe: async () => { throw new ApiError(401, 'x'); } }, inSession(), mine);
+    await settle();
+    expect(mine.load()).toEqual([]);
+    expect(ctrl.getState().mine).toEqual([]);
+  });
+
+  it('refreshMine updates each listed status from the public endpoint and keeps what it knew on failure', async () => {
+    const t = new InMemoryTokenStore(); t.setToken(1, 'a'); t.setToken(2, 'b');
+    const mine = new InMemoryMySessionsStore([
+      { sessionId: 1, roomCode: '111111', title: 'A', joinedAt: 2, status: 'running' },
+      { sessionId: 2, roomCode: '222222', title: 'B', joinedAt: 1, status: 'lobby' },
+    ]);
+    const { ctrl } = make({ getPublicSession: vi.fn(async (id: number) => { if (id === 2) throw new ApiError(0, 'down'); return found(id, 'finalized'); }) }, t, mine);
+    await ctrl.refreshMine();
+    expect(ctrl.getState().mine.map(s => [s.sessionId, s.status])).toEqual([[1, 'finalized'], [2, 'lobby']]);
+  });
+
+  it('a 403 (kicked / replaced) drops the entry at once, before "leave" is pressed; the token stays for that screen', async () => {
+    const mine = new InMemoryMySessionsStore([{ sessionId: 1, roomCode: '111111', title: 'T', joinedAt: 1, status: 'running' }]);
+    const tokens = inSession();
+    const { ctrl } = make({ getMe: async () => { throw new ApiError(403, 'x'); } }, tokens, mine);
+    await settle();
+    expect(selectScreen(ctrl.getState())).toBe('kicked');
+    expect(mine.load()).toEqual([]);
+    expect(tokens.getToken(1)).toBe('tok');
+  });
+
+  it('a session forgotten while refreshMine is in flight does not come back in storage', async () => {
+    const t = new InMemoryTokenStore(); t.setToken(1, 'a');
+    const mine = new InMemoryMySessionsStore([{ sessionId: 1, roomCode: '111111', title: 'A', joinedAt: 2, status: 'running' }]);
+    let release!: () => void;
+    const gate = new Promise<void>(r => { release = r; });
+    const { ctrl } = make({ getPublicSession: vi.fn(async (id: number) => { await gate; return found(id, 'closed'); }) }, t, mine);
+    const refreshing = ctrl.refreshMine();
+    ctrl.forgetMine(1);
+    release();
+    await refreshing;
+    expect(mine.load()).toEqual([]);
+  });
+
+  it('"another room" clears the auto-submit flags, so the next session\'s result is not labelled with them', async () => {
+    let status = 'running';
+    const { ctrl } = make({ getMe: async () => me(1, status, 'active', status === 'running' ? { id: 9 } : null) }, inSession());
+    await settle();
+    status = 'closed';
+    await ctrl.refreshMe();
+    expect(ctrl.getState().autoSubmitted).toBe(true);
+    ctrl.leaveEnded();
+    expect(ctrl.getState().autoSubmitted).toBe(false);
+    expect(ctrl.getState().endedByTimer).toBe(false);
+  });
+
+  it('a remembered code whose token the server no longer knows (401) is looked up at the server after all', async () => {
+    let reset = false;
+    const tokens = new InMemoryTokenStore();
+    tokens.setToken(1, 'tok');
+    const store = new InMemoryMySessionsStore([{ sessionId: 1, roomCode: '482913', title: 'T', status: 'closed', joinedAt: 1 }]);
+    const { ctrl, gateway } = make({
+      resolveRoom: vi.fn(async () => found(9, 'lobby')),
+      getMe: vi.fn(async () => { if (reset) throw new ApiError(401, 'unknown token'); return ended(); }),
+    }, tokens, store);
+    reset = true;
+    await ctrl.lookUpRoom('482913');
+    await settle();
+    expect(gateway.resolveRoom).toHaveBeenCalledWith('482913');
+    expect(ctrl.getState().mine).toEqual([]);
+    expect(selectRoom(ctrl.getState())?.id).toBe(9);
+    expect(selectScreen(ctrl.getState())).toBe('join');
+  });
+
+  it('a 401 on a session resumed without its code (reload) does not look anything up', async () => {
+    const { ctrl, gateway } = make({ getMe: vi.fn(async () => { throw new ApiError(401, 'unknown token'); }) }, inSession(1));
+    await settle();
+    expect(selectFollowedId(ctrl.getState())).toBeNull();
+    expect(gateway.resolveRoom).not.toHaveBeenCalled();
+  });
+
+  it('canReopen: true once the ended session is in the list, false when this browser cannot keep the list', async () => {
+    const { ctrl } = await joinedAndEnded();
+    expect(selectCanReopen(ctrl.getState())).toBe(true);
+    const broken = { load: () => [], save: () => {} };
+    const { ctrl: noStore } = make({ getMe: async () => me(1, 'closed') }, inSession(1), broken as never);
+    await settle();
+    expect(selectScreen(noStore.getState())).toBe('ended');
+    expect(selectCanReopen(noStore.getState())).toBe(false);
+  });
+
+  it(`a session that falls off past ${MY_SESSIONS_KEPT} kept entries takes its token with it`, async () => {
+    const tokens = new InMemoryTokenStore();
+    const old = Array.from({ length: MY_SESSIONS_KEPT }, (_, i) => ({ sessionId: i + 1, roomCode: '', title: 'x', status: 'closed' as const, joinedAt: i + 1 }));
+    for (const s of old) tokens.setToken(s.sessionId, `tok-${s.sessionId}`);
+    const { ctrl } = make({}, tokens, new InMemoryMySessionsStore(old));
+    await ctrl.join(99, 'An', '482913');
+    expect(tokens.getToken(1)).toBeNull(); // the oldest entry fell off: nothing could reach or clear its token any more
+    expect(tokens.getToken(2)).toBe('tok-2');
+    expect(tokens.getToken(99)).toBe('tok');
+  });
+
+  it('the session that is open in this tab is never removed from the list by "forget"', async () => {
+    const { ctrl, mine } = make({ getMe: async () => ended() }, inSession(), new InMemoryMySessionsStore([{ sessionId: 1, roomCode: '111111', title: 'T', joinedAt: 1, status: 'closed' }]));
+    await settle();
+    ctrl.forgetMine(1);
+    expect(mine.load()).toHaveLength(1);
   });
 });

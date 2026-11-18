@@ -10,4 +10,5 @@ export class HttpMemberGateway implements MemberGateway {
   requestRejoin(sessionId: number, input: { displayName: string; roomCode: string; email?: string }): Promise<RejoinRequestResponse> { return this.http.post<RejoinRequestResponse>(`/api/sessions/${sessionId}/rejoin-requests`, input); }
   getRejoinStatus(): Promise<RejoinStatusResponse> { return this.http.get<RejoinStatusResponse>('/api/rejoin/status'); }
   async cancelRejoin(): Promise<void> { await this.http.post('/api/rejoin/cancel'); }
+  getPublicSession(sessionId: number): Promise<ActiveSession> { return this.http.get<ActiveSession>(`/api/sessions/${sessionId}/public`); }
 }
