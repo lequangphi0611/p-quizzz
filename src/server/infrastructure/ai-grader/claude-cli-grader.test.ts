@@ -105,6 +105,16 @@ describe('parseCliOutput', () => {
     expect(parseCliOutput(`[wrapper] starting\n{"level":"info"}\n${result}\n[wrapper] done\n`).score).toBe(2);
     expect(parseCliOutput(`log line\r\n${result}\r\n`).score).toBe(2);
   });
+  it('reads the --verbose event array, alone or among log lines', () => {
+    const events = JSON.stringify([
+      { type: 'system', subtype: 'init' },
+      { type: 'assistant', message: {} },
+      { type: 'result', structured_output: body, modelUsage: { m: {} } },
+    ]);
+    expect(parseCliOutput(events).model).toBe('m');
+    expect(parseCliOutput(`[wrapper] start\n${events}\n`).score).toBe(2);
+    expect(() => parseCliOutput(JSON.stringify([{ type: 'system' }]))).toThrow(expect.objectContaining({ reason: 'bad_output' }));
+  });
   it('rejects output with no result envelope', () => {
     expect(() => parseCliOutput('log only\n{"level":"info"}\n')).toThrow(expect.objectContaining({ reason: 'bad_output' }));
   });
