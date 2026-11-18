@@ -39,7 +39,7 @@ describe('start change notices', () => {
   it('says when the schedule is set or removed, and when the countdown is cancelled', () => {
     expect(step(info(), info({ scheduledAt: at(9, 0) }), [])[0]).toMatchObject({ kind: 'time', title: 'Mentor đã hẹn bắt đầu lúc 9:00' });
     expect(step(info({ scheduledAt: at(9, 0) }), info(), [])[0]).toMatchObject({ kind: 'cleared', title: 'Mentor đã bỏ giờ hẹn, chờ mentor bắt đầu', sub: 'Trước đó: 9:00.' });
-    expect(step(info({ countdownEndsAt: 5 }), info(), [])[0]).toMatchObject({ kind: 'cancel', title: 'Mentor đã huỷ đếm ngược' });
+    expect(step(info({ countdownEndsAt: 5 }), info(), [])[0]).toMatchObject({ kind: 'cancel', title: 'Đếm ngược đã dừng' });
   });
 
   it('says nothing when nothing changed or the session started', () => {

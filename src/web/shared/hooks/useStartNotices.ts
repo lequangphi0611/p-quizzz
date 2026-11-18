@@ -7,7 +7,7 @@ let ids = 0;
 
 /**
  * Change notices while the session waits to start (PRODUCT.md §7.31b, c): "Giờ bắt đầu đã đổi…", "Mentor đã bỏ giờ hẹn",
- * "Mentor đã huỷ đếm ngược". Built from what this page saw change between refetches; a reload starts with none.
+ * "Đếm ngược đã dừng". Built from what this page saw change between refetches; a reload starts with none.
  * `ttlMs` drops a notice after that long (the projector), otherwise it stays until dismissed.
  */
 export function useStartNotices(start: SessionStartInfo | null, sessionId: number | null, ttlMs?: number): { notices: StartNotice[]; dismiss: (id: number) => void; changedAt: number | null } {

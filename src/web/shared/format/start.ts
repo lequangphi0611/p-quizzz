@@ -69,8 +69,9 @@ export function nextStartNotices(prev: SessionStartInfo | null, next: SessionSta
       list = [notice, ...list.filter(n => n !== same)];
     }
   }
+  // Neutral wording: the server also clears a countdown that went overdue while it was down, which the mentor did not do.
   if (prev.countdownEndsAt !== null && next.countdownEndsAt === null) {
-    list = [{ id: newId(), kind: 'cancel', title: 'Mentor đã huỷ đếm ngược', sub: 'Phiên chưa bắt đầu.', count: 1, at: now, trail: [] }, ...list.filter(n => n.kind !== 'cancel')];
+    list = [{ id: newId(), kind: 'cancel', title: 'Đếm ngược đã dừng', sub: 'Phiên chưa bắt đầu.', count: 1, at: now, trail: [] }, ...list.filter(n => n.kind !== 'cancel')];
   }
   return list;
 }
