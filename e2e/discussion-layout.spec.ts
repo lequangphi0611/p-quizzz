@@ -17,7 +17,6 @@ test('discussion: a long essay prompt and a code rubric never overlap the papers
   await m.page.getByRole('button', { name: 'Vào phòng' }).click();
   await expect(m.page.getByText('An').first()).toBeVisible();
   await api.post(`/api/admin/sessions/${id}/start`);
-  await m.page.getByRole('button', { name: 'Bắt đầu làm bài' }).click();
   await m.page.getByRole('button', { name: 'Nộp bài' }).first().click();
   await m.page.getByRole('dialog').getByRole('button', { name: 'Nộp bài' }).click();
   await expect(m.page.getByText('Đã nộp').first()).toBeVisible();

@@ -12,7 +12,7 @@ test('mentor sees "Đang làm · answered/total" update while a member works', a
   await member.page.goto(`/?room=${roomCode}`);
   await member.page.getByLabel('Tên của bạn').fill('An');
   await member.page.getByRole('button', { name: 'Xin vào phiên' }).click(); // the session is already running
-  await member.page.getByRole('button', { name: 'Bắt đầu làm bài' }).click();
+  await member.page.getByRole('button', { name: 'Vào làm bài' }).click(); // joined late: the time left first (PRODUCT.md §7.31f)
 
   await mentor.page.goto(`/admin/sessions/${id}`);
   const total = ((await (await api.get(`/api/admin/sessions/${id}`)).json()) as { exam: { questionCount: number } }).exam.questionCount;

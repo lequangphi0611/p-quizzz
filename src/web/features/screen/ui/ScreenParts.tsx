@@ -51,7 +51,7 @@ export function Lobby({ names, host, roomCode, roomHidden, roster, limitMinutes 
           {start && (
             <div style={{ display: 'grid', gap: 20 }}>
               <ReadyMeter size="screen" ready={start.ready.count} total={start.ready.total} />
-              <WhoLine size="screen" rule={startRuleOf(start)} at={start.scheduledAt} leftMs={leftMs} min={start.readyMin} timeShown={start.scheduledAt !== null} />
+              <WhoLine size="screen" rule={startRuleOf(start)} at={start.scheduledAt} leftMs={leftMs} min={start.readyMin} timeShown />
             </div>
           )}
           {limitMinutes !== null && <span style={{ font: '500 30px/1.3 var(--font-sans)', color: 'var(--screen-meta)' }}>Thời gian làm bài: <b style={{ color: '#fff' }}>{formatMinutes(limitMinutes)}</b></span>}

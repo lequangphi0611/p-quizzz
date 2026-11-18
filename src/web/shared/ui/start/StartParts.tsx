@@ -108,8 +108,8 @@ export function JoinedStat({ joined, total, size = 'md' }: { joined: number; tot
 }
 
 /**
- * Who decides the start, always right under "Sẵn sàng X/Y" (PRODUCT.md §7.31d). When the big start card already shows
- * the time (`timeShown`), the scheduled line is not repeated.
+ * Who decides the start, always right under "Sẵn sàng X/Y" (PRODUCT.md §7.31d). When the big start card above already
+ * says it (`timeShown`: the scheduled time, or "Chờ mentor bắt đầu"), that line is not repeated.
  */
 export function WhoLine({ rule, at, leftMs, min, size = 'md', offline = false, timeShown = false }: { rule: StartRule; at: number | null; leftMs: number | null; min: number | null; size?: StartSize; offline?: boolean; timeShown?: boolean }) {
   const scr = size === 'screen';
@@ -118,13 +118,13 @@ export function WhoLine({ rule, at, leftMs, min, size = 'md', offline = false, t
   const scheduled = rule === 'scheduled' || rule === 'auto';
   const auto = rule === 'auto' || rule === 'manualAuto';
   let first: ReactNode = null;
-  if (!scheduled) first = <span style={st}>{ic('user')}<span>Chờ mentor bắt đầu</span></span>;
+  if (!scheduled && !timeShown) first = <span style={st}>{ic('user')}<span>Chờ mentor bắt đầu</span></span>;
   else if (!timeShown && at !== null) first = <span style={st}>{ic('calendar')}<span>Bắt đầu lúc <b>{formatClockTime(at)}</b> · còn <b style={mono}>{offline || leftMs === null ? '––:––' : formatCountdown(leftMs)}</b></span></span>;
   if (!first && !auto) return null;
   return (
     <div style={{ display: 'grid', gap: scr ? 8 : 4 }} aria-label="Cách bắt đầu">
       {first}
-      {auto && <span style={{ ...st, color: scr ? 'var(--screen-meta)' : 'var(--text-meta)' }}>{ic('users')}<span>{first || !scheduled ? '… hoặc khi tất cả sẵn sàng' : 'Hoặc sớm hơn, khi tất cả sẵn sàng'}{min ? ` (tối thiểu ${min} người)` : ''}</span></span>}
+      {auto && <span style={{ ...st, color: scr ? 'var(--screen-meta)' : 'var(--text-meta)' }}>{ic('users')}<span>{first ? '… hoặc khi tất cả sẵn sàng' : scheduled ? 'Hoặc sớm hơn, khi tất cả sẵn sàng' : 'Hoặc tự bắt đầu khi tất cả sẵn sàng'}{min ? ` (tối thiểu ${min} người)` : ''}</span></span>}
     </div>
   );
 }

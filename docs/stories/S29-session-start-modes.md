@@ -1,6 +1,6 @@
 # S29 — Bắt đầu phiên: thủ công, hẹn giờ hoặc khi mọi người sẵn sàng
 
-**Phụ thuộc:** S09, S10, S12, S14, S18, S20, S21, S25 · **Thiết kế:** p-quizzz Design System bản 7, `ui_kits/p-quizzz/s21` ("Phòng chờ mới & bắt đầu phiên", từ [prompt](../design/S29-session-start-ui-prompt.md)) · **Trạng thái:** ⬜ chưa làm
+**Phụ thuộc:** S09, S10, S12, S14, S18, S20, S21, S25 · **Thiết kế:** p-quizzz Design System bản 7, `ui_kits/p-quizzz/s21` ("Phòng chờ mới & bắt đầu phiên", từ [prompt](../design/S29-session-start-ui-prompt.md)) · **Trạng thái:** ✅ xong (2026-11-18)
 
 ## Bối cảnh
 Mentor không muốn canh đồng hồ để bấm Bắt đầu, nhất là khi chạy nhiều phòng song song. Member muốn biết khi nào bắt đầu và không bị mất giờ làm bài chỉ vì một bước bấm thừa ở màn "Bắt đầu làm bài". Business: [PRODUCT.md §7.31](../PRODUCT.md), §4.2, §7.27d/g, §7.20, §7.24. Contract hiện tại: [architecture.md](../architecture.md) §2 (`sessions`, `participants`), §3 (`lobby → running`), §5, §7.
@@ -34,7 +34,10 @@ Mentor không muốn canh đồng hồ để bấm Bắt đầu, nhất là khi 
 - Màn chiếu (phòng chờ): giờ bắt đầu + đếm ngược (nhìn khác đồng hồ làm bài), "Sẵn sàng X/Y", đếm ngược 10 s lớn, thông báo đổi giờ / bắt đầu sớm.
 - UI theo bản thiết kế từ [prompt designer](../design/S29-session-start-ui-prompt.md). Phần mentor dùng lại component sẵn có.
 
-## Contract đề xuất (chốt khi implement; sửa `architecture.md` cùng commit, §2, §3, §5, §7)
+## Contract (đã chốt, xem `architecture.md` §2, §3, §5)
+Khác đề xuất ban đầu: `POST /sessions/:id/start` **giữ nguyên** (chạy ngay, dùng cho test/API); nút "Bắt đầu ngay" gọi endpoint mới `POST /sessions/:id/start-countdown`. Lưu hai mốc riêng `scheduled_start_at` và `countdown_ends_at` (+ `countdown_source`) thay cho một `starts_at`: phiên chạy ở mốc sớm hơn, và "bắt đầu sớm" suy ra được. Người vào trễ xác định bằng `participants.present_at_start` (đánh dấu lúc chuyển `running`), không suy từ giờ vào.
+
+### Đề xuất ban đầu (lịch sử)
 - `sessions`: `starts_at?` (timestamp_ms), `start_source?` (`schedule`\|`now`\|`ready`), `auto_start_ready` (bool, mặc định false), `ready_min?` (int ≥ 1), `start_schedule_dropped_at?`.
 - `participants`: `ready_at?`.
 - Mentor: `PUT /api/admin/sessions/:id/start-schedule` `{ startsAt: number | null }`; `POST /sessions/:id/start` đổi nghĩa thành **đặt đếm ngược 10 s** (giữ endpoint, không thêm); `POST /sessions/:id/cancel-countdown`; `PUT /sessions/:id/auto-start` `{ enabled, minParticipants }`. Sai trạng thái → 409. Phát `session`.
@@ -43,16 +46,16 @@ Mentor không muốn canh đồng hồ để bấm Bắt đầu, nhất là khi 
 - Bản implement có thể chọn tên khác, miễn là ghi rõ trong `architecture.md`.
 
 ## Acceptance criteria
-- [ ] Không hẹn giờ và không bật sẵn sàng: mentor bấm "Bắt đầu ngay" → đếm ngược 10 s → `running`. Không còn bước "Bắt đầu làm bài" với người có mặt.
-- [ ] Hẹn giờ: đến giờ (đồng hồ server) thì `running`, không thêm 10 s. Đổi giờ / bỏ hẹn có hiệu lực ngay, member và màn chiếu thấy cập nhật kèm thông báo. Không đặt được giờ ở quá khứ.
-- [ ] Tự bắt đầu khi sẵn sàng: chỉ kích hoạt khi đã bật, Y ≥ N, cả Y sẵn sàng, không ai chờ duyệt. Y gồm người đã duyệt, đang trong phòng, kể cả rớt mạng. 1/1 khi chưa bật **không** chạy.
-- [ ] Mentor huỷ đếm ngược → công tắc tự bắt đầu khi sẵn sàng bị tắt, đếm ngược không tự chạy lại; sẵn sàng của member giữ nguyên.
-- [ ] Ba cách đua nhau: cách nào đến trước thì thắng, không bao giờ start hai lần. Đếm ngược đang chạy: huỷ sẵn sàng hay có người mới vào **không** dừng nó. Mentor huỷ thì quay về chờ.
-- [ ] `ends_at` = lúc thực sự `running` + giới hạn (§7.27d).
-- [ ] Server khởi động khi đã quá giờ hẹn: phiên vẫn `lobby`, giờ hẹn bị bỏ, chuông mentor báo.
-- [ ] Người vào trễ thấy màn "còn X phút"; người có mặt lúc bắt đầu vào thẳng câu 1. F5 trong lúc đếm ngược vẫn giữ đúng thời điểm.
-- [ ] Không lộ: API member/công khai không trả tên người chưa sẵn sàng, tên phiên, tên nhóm, ai chờ duyệt. Trước `running` không có câu hỏi nào được trả (giữ quy tắc §5 "không lộ đáp án").
-- [ ] Hẹn giờ và sẵn sàng của phiên này không ảnh hưởng phiên song song khác.
+- [x] Không hẹn giờ và không bật sẵn sàng: mentor bấm "Bắt đầu ngay" → đếm ngược 10 s → `running`. Không còn bước "Bắt đầu làm bài" với người có mặt.
+- [x] Hẹn giờ: đến giờ (đồng hồ server) thì `running`, không thêm 10 s. Đổi giờ / bỏ hẹn có hiệu lực ngay, member và màn chiếu thấy cập nhật kèm thông báo. Không đặt được giờ ở quá khứ.
+- [x] Tự bắt đầu khi sẵn sàng: chỉ kích hoạt khi đã bật, Y ≥ N, cả Y sẵn sàng, không ai chờ duyệt. Y gồm người đã duyệt, đang trong phòng, kể cả rớt mạng. 1/1 khi chưa bật **không** chạy.
+- [x] Mentor huỷ đếm ngược → công tắc tự bắt đầu khi sẵn sàng bị tắt, đếm ngược không tự chạy lại; sẵn sàng của member giữ nguyên.
+- [x] Ba cách đua nhau: cách nào đến trước thì thắng, không bao giờ start hai lần. Đếm ngược đang chạy: huỷ sẵn sàng hay có người mới vào **không** dừng nó. Mentor huỷ thì quay về chờ.
+- [x] `ends_at` = lúc thực sự `running` + giới hạn (§7.27d).
+- [x] Server khởi động khi đã quá giờ hẹn: phiên vẫn `lobby`, giờ hẹn bị bỏ, chuông mentor báo.
+- [x] Người vào trễ thấy màn "còn X phút"; người có mặt lúc bắt đầu vào thẳng câu 1. F5 trong lúc đếm ngược vẫn giữ đúng thời điểm.
+- [x] Không lộ: API member/công khai không trả tên người chưa sẵn sàng, tên phiên, tên nhóm, ai chờ duyệt. Trước `running` không có câu hỏi nào được trả (giữ quy tắc §5 "không lộ đáp án").
+- [x] Hẹn giờ và sẵn sàng của phiên này không ảnh hưởng phiên song song khác.
 
 ## Test
 - Domain: quy tắc điều kiện sẵn sàng, chọn nguồn thắng, đếm ngược khoá, bỏ giờ hẹn quá hạn lúc khởi động.
@@ -61,7 +64,16 @@ Mentor không muốn canh đồng hồ để bấm Bắt đầu, nhất là khi 
 - Web: controller phòng chờ (tự bắt đầu lượt khi hết đếm ngược, người vào trễ).
 - E2E: hẹn giờ vài giây tới và chờ thật; "Bắt đầu ngay" thấy đếm ngược 10 s trên member và màn chiếu. Ảnh ở `docs/design/S29-assets/`.
 
+## Test
+- Domain: `domain/session/start.test.ts`, `lifecycle.test.ts`.
+- Integration: `test/integration/session-start.test.ts` (hẹn/đổi/bỏ, đếm ngược + huỷ, mọi người sẵn sàng + tối thiểu + chờ duyệt, quá giờ lúc khởi động, vào trễ, không lộ tên).
+- Web: `shared/format/start.test.ts` (nhãn, gộp thông báo đổi giờ), `session-admin/domain/start-ui.test.ts`, `mentor-notices.test.ts` (chuông), `session-detail-controller.test.ts`.
+- E2E: `e2e/s29-session-start.spec.ts` (hẹn giờ thật vài chục giây; "Bắt đầu ngay" trên member + màn chiếu; người vào trễ). Ảnh ở `docs/design/S29-assets/` (gitignored). Các spec cũ bỏ bước bấm "Bắt đầu làm bài".
+
 ## Giới hạn đã biết / chưa làm
+- Thông báo chuông "sắp tự bắt đầu" không có nút "Duyệt cả N" như bản vẽ A15: duyệt từng người ngay trong chuông (đã có) hoặc mở phòng. Chuông làm mới mỗi 15 giây, nên thông báo hiện trong khoảng 45–60 giây trước giờ hẹn.
+- Form tạo phiên chưa có ô hẹn giờ: hẹn ở thẻ "Bắt đầu" (đặt được cả khi phiên còn nháp).
+- Mốc quá hạn tính bằng `START_LATE_TOLERANCE_MS` = 15 giây: server chạy lại trong vòng 15 giây sau giờ hẹn thì vẫn bắt đầu.
 - Đồng hồ máy member/tường có thể lệch với máy mentor; UI luôn hiện đếm ngược.
 - Laptop mentor ngủ thì không có gì tự chạy.
 - Chưa làm: tự mở phòng chờ theo giờ; âm thanh/rung khi bắt đầu; chỉnh độ dài đếm ngược.

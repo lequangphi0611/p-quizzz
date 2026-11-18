@@ -10,7 +10,7 @@ const shot = async (p: Page, name: string, fullPage = true) => { await p.waitFor
 async function join(page: Page, room: string, name: string) {
   await page.goto(`/?room=${room}`);
   await page.getByLabel('Tên của bạn').fill(name);
-  await page.getByRole('button', { name: 'Vào phòng' }).click();
+  await page.getByRole('button', { name: /Vào phòng|Xin vào phiên/ }).click();
 }
 
 /** Answers questions in order: options whose text matches `texts` (else the `pick`-th option), some text on the essay; `stopAfter` leaves the rest blank. */
@@ -50,11 +50,11 @@ test('member screens after the mentor closes the session', async ({ browser, bas
   const an = await memberContext(browser, baseURL!, DESKTOP);   // submits before the close
   const dung = await memberContext(browser, baseURL!, PHONE);   // submits before the close (phone)
   const binh = await memberContext(browser, baseURL!, PHONE);   // still working when the mentor closes
-  const chi = await memberContext(browser, baseURL!, DESKTOP);  // joined, never pressed "Bắt đầu làm bài"
-  for (const [m, n] of [[an, 'An'], [dung, 'Dũng'], [binh, 'Bình'], [chi, 'Chi']] as const) await join(m.page, room, n);
-  await api.post(`/api/admin/sessions/${id}/start`);
-
-  for (const m of [an, dung, binh]) await m.page.getByRole('button', { name: 'Bắt đầu làm bài' }).click();
+  const chi = await memberContext(browser, baseURL!, DESKTOP);  // joined late, never pressed "Vào làm bài"
+  for (const [m, n] of [[an, 'An'], [dung, 'Dũng'], [binh, 'Bình']] as const) await join(m.page, room, n);
+  await api.post(`/api/admin/sessions/${id}/start`); // whoever is in the room goes straight to question 1 (PRODUCT.md §7.31f)
+  await join(chi.page, room, 'Chi');
+  await expect(chi.page.getByRole('button', { name: 'Vào làm bài' })).toBeVisible({ timeout: 15_000 });
   await answerAll(an.page, false, { texts: ['checkout -b', 'cả hai mục', '--amend', 'rebase main'] });
   await submit(an.page);
   await answerAll(dung.page, true, { texts: ['checkout -b'], pick: 1 });

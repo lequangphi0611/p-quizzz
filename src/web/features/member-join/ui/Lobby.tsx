@@ -110,7 +110,7 @@ export function MemberLobby({ me, desk, onReady }: { me: MeResponse; desk: boole
     const clock = start?.scheduledAt != null
       ? <StartClock at={start.scheduledAt} leftMs={left} size={phone ? 'sm' : 'md'} changed={changedAt !== null && Date.now() - changedAt < 15_000} offline={offline} limitMinutes={limit} note={!pending} />
       : <NoSchedule limited={limit !== null} />;
-    const who = start && <WhoLine rule={rule} at={start.scheduledAt} leftMs={left} min={start.readyMin} offline={offline} timeShown={start.scheduledAt !== null} />;
+    const who = start && <WhoLine rule={rule} at={start.scheduledAt} leftMs={left} min={start.readyMin} offline={offline} timeShown />;
     panel = (
       <div style={{ display: 'grid', gap: phone ? 14 : 18 }}>
         <span><StateTag kind={pending ? 'pending' : 'lobby'} /></span>
