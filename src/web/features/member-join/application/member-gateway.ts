@@ -14,6 +14,8 @@ export interface MemberGateway {
   /** Status of the request whose token is TokenStore's current one. */
   getRejoinStatus(): Promise<RejoinStatusResponse>;
   cancelRejoin(): Promise<void>;
+  /** "Sẵn sàng" / "Huỷ sẵn sàng" in the lobby (PRODUCT.md §7.31d); 409 once the 10-second countdown runs. */
+  setReady(ready: boolean): Promise<void>;
   /** Exam title and status of one session (public, the projector uses it too); lists "my sessions" (PRODUCT.md §7.29). */
   getPublicSession(sessionId: number): Promise<ActiveSession>;
 }

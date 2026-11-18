@@ -13,6 +13,7 @@ import { useMemberHome } from '../application/member-home-context.js';
 import { ConnLost } from './ConnLost.js';
 import { formatMinutes } from '../../../shared/format/countdown.js';
 import { JoinForm } from './JoinForm.js';
+import { MemberLobby } from './Lobby.js';
 import { MySessionsList } from './MySessionsList.js';
 import { RejoinWait, Replaced } from './RejoinPanels.js';
 
@@ -60,6 +61,7 @@ export function MemberHomePage({ examScreen }: { examScreen: ExamScreen }) {
     case 'lobby': {
       const pending = screen === 'pending';
       const inLobby = me!.session.status === 'lobby'; // pending before the start: the mentor lets people into the room first
+      if (inLobby) return <MemberLobby me={me!} desk={desk} onReady={ctrl.setReady} />;
       return page(
         <PageCard desk={desk} center>
           <StatusBadge status={pending && !inLobby ? 'running' : 'lobby'} label={pending && !inLobby ? 'Phiên đang diễn ra' : 'Phòng chờ'} />

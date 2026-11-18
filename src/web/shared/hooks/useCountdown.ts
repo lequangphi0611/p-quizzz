@@ -6,7 +6,7 @@ import type { SessionTimer } from '../../../shared/session-timer.js';
  * arrives (not on `endsAt`), so a device whose clock is wrong still counts down correctly; every refetch re-anchors.
  * Null when there is no running clock.
  */
-export function useCountdown(timer: SessionTimer | null | undefined): number | null {
+export function useCountdown(timer: Pick<SessionTimer, 'remainingMs' | 'endsAt'> | null | undefined): number | null {
   const remaining = timer?.remainingMs ?? null;
   const endsAt = timer?.endsAt ?? null;
   const [left, setLeft] = useState<number | null>(remaining);

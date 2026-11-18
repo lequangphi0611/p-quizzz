@@ -22,6 +22,8 @@ import { AddEmailsDialog, SaveGroupDialog } from './RosterDialogs.js';
 import { SaveGroupBanner } from './SaveGroupBanner.js';
 import { ScoresCard } from './ScoresCard.js';
 import { TimeLimitCard } from './TimeLimitCard.js';
+import { StartCard } from './StartCard.js';
+import { earlyStartWarning } from '../domain/start-ui.js';
 import { Countdown } from '../../../shared/ui/Countdown.js';
 import { useCountdown } from '../../../shared/hooks/useCountdown.js';
 
@@ -66,7 +68,7 @@ function SessionDetailView({ initial }: { initial: SessionDetail }) {
             </>
           )}
           {detail.status === 'closed' && detail.exam.hasEssay && <Button variant="secondary" icon="pencil" onClick={() => nav(`/admin/sessions/${detail.id}/grading`)}>Chấm tự luận</Button>}
-          {spec && (
+          {spec && !detail.start?.countdownEndsAt && (
             <Button icon={spec.icon} variant={spec.variant} loading={working && !dialog} onClick={() => (spec.confirm ? ctrl.openDialog({ kind: 'action' }) : void ctrl.doAction())}>{spec.label}</Button>
           )}
         </div>
@@ -90,6 +92,11 @@ function SessionDetailView({ initial }: { initial: SessionDetail }) {
         <SaveGroupBanner count={detail.roster.size} onSave={() => ctrl.openDialog({ kind: 'saveGroup' })} onLater={() => { writePref(PREF_KEYS.saveReminderOff(detail.id), '1'); setReminderOff(true); }} />
       )}
 
+      {(detail.status === 'draft' || detail.status === 'lobby') && (
+        <StartCard detail={detail} working={working} onSchedule={at => void ctrl.setStartSchedule(at)} onAutoStart={(on, min) => void ctrl.setAutoStart(on, min)}
+          onStartNow={() => ctrl.openDialog({ kind: 'action' })} onCancel={() => void ctrl.cancelCountdown()} />
+      )}
+
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' }}>
         <ParticipantsCard status={detail.status} questionCount={detail.exam.questionCount} active={active} working={working} finalized={finalized} showEmail={detail.access === 'roster'} onAllow={p => void ctrl.allowRejoin(p.id, p.displayName)} onRename={(id, name) => ctrl.rename(id, name)} onResolveEdit={(id, decision) => void ctrl.resolveEdit(id, decision)} onKick={p => ctrl.openDialog({ kind: 'kick', p })} />
         <div style={{ display: 'grid', gap: 20, flex: '1 1 300px', maxWidth: 420 }}>
@@ -106,6 +113,7 @@ function SessionDetailView({ initial }: { initial: SessionDetail }) {
 
       <ConfirmDialog open={dialog?.kind === 'action' && !!spec?.confirm} tone={spec?.variant ?? 'primary'} title={spec?.confirm?.title ?? ''} confirmLabel={spec?.confirm?.confirmLabel} busy={working} onCancel={() => ctrl.closeDialog()} onConfirm={() => ctrl.doAction()}>
         {spec?.confirm?.body(active.length)}
+        {detail.status === 'lobby' && earlyStartWarning(detail, Date.now()) && <p style={{ margin: '8px 0 0', color: 'var(--warn-600)', fontWeight: 600 }}>{earlyStartWarning(detail, Date.now())}</p>}
       </ConfirmDialog>
 
       <ConfirmDialog open={dialog?.kind === 'releaseScores'} title="Công bố điểm?" confirmLabel="Công bố điểm" busy={working} onCancel={() => ctrl.closeDialog()} onConfirm={() => void ctrl.releaseScores()}>

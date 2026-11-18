@@ -149,3 +149,20 @@ describe('requests to take over a seat (PRODUCT.md §7.23)', () => {
     expect(unreadCount(all, {})).toBeGreaterThan(0);
   });
 });
+
+describe('start notices (PRODUCT.md §7.31g)', () => {
+  const s = { id: 9, name: 'Git – Tự do', slot: 1 };
+  const start = (startsInMs: number) => ({ scheduledAt: 600_000, countdownEndsAt: null, countdownSource: null, startsAt: 600_000, startsInMs, early: false, autoStartReady: false, readyMin: null, ready: { count: 1, total: 2 } });
+
+  it('warns in the last minute before an automatic start while people still wait for approval', () => {
+    expect(buildNotices([], s, [], { start: start(30_000), pendingCount: 2, startScheduleDroppedAt: null })).toMatchObject([{ kind: 'start-soon', waiting: 2, startAt: 600_000, key: 'start-soon:9:600000' }]);
+    expect(buildNotices([], s, [], { start: start(90_000), pendingCount: 2, startScheduleDroppedAt: null })).toEqual([]);
+    expect(buildNotices([], s, [], { start: start(30_000), pendingCount: 0, startScheduleDroppedAt: null })).toEqual([]);
+  });
+
+  it('says when a scheduled start was dropped', () => {
+    const [n] = buildNotices([], s, [], { start: null, pendingCount: 0, startScheduleDroppedAt: 5_000 });
+    expect(n).toMatchObject({ kind: 'start-dropped', at: 5_000 });
+    expect(needsAttention(n!)).toBe(true);
+  });
+});

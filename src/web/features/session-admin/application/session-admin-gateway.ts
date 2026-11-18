@@ -40,6 +40,14 @@ export interface SessionAdminGateway {
   setTimeLimit(sessionId: number, timeLimitMinutes: number | null): Promise<SessionDetail>;
   /** "+N phút" for the whole room while the session runs. */
   extendTime(sessionId: number, minutes: number): Promise<SessionDetail>;
+  /** Set, move or remove the scheduled start (PRODUCT.md §7.31b); `startsAt` is epoch ms. */
+  setStartSchedule(sessionId: number, startsAt: number | null): Promise<SessionDetail>;
+  /** "Bắt đầu ngay": a 10-second countdown for the room (§7.31c). */
+  startCountdown(sessionId: number): Promise<SessionDetail>;
+  /** Cancels the countdown; also turns "everyone ready" off. */
+  cancelCountdown(sessionId: number): Promise<SessionDetail>;
+  /** "Tự bắt đầu khi tất cả sẵn sàng" and its least number of people (§7.31e). */
+  setAutoStart(sessionId: number, enabled: boolean, minParticipants: number): Promise<SessionDetail>;
   approveParticipant(participantId: number): Promise<void>;
   kickParticipant(participantId: number): Promise<void>;
   /** Approve or reject a member's request to edit their essays (PRODUCT.md §7.21). */

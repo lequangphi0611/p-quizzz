@@ -16,6 +16,10 @@ export class HttpSessionAdminGateway implements SessionAdminGateway {
   runAction(id: number, action: SessionAction): Promise<SessionDetail> { return this.http.post<SessionDetail>(`/api/admin/sessions/${id}/${action}`); }
   setScoreVisibility(id: number, scoreVisibility: ScoreVisibility): Promise<SessionDetail> { return this.http.put<SessionDetail>(`/api/admin/sessions/${id}/score-visibility`, { scoreVisibility }); }
   setTimeLimit(id: number, timeLimitMinutes: number | null): Promise<SessionDetail> { return this.http.put<SessionDetail>(`/api/admin/sessions/${id}/time-limit`, { timeLimitMinutes }); }
+  setStartSchedule(id: number, startsAt: number | null): Promise<SessionDetail> { return this.http.put<SessionDetail>(`/api/admin/sessions/${id}/start-schedule`, { startsAt }); }
+  startCountdown(id: number): Promise<SessionDetail> { return this.http.post<SessionDetail>(`/api/admin/sessions/${id}/start-countdown`); }
+  cancelCountdown(id: number): Promise<SessionDetail> { return this.http.post<SessionDetail>(`/api/admin/sessions/${id}/cancel-countdown`); }
+  setAutoStart(id: number, enabled: boolean, minParticipants: number): Promise<SessionDetail> { return this.http.put<SessionDetail>(`/api/admin/sessions/${id}/auto-start`, { enabled, minParticipants }); }
   extendTime(id: number, minutes: number): Promise<SessionDetail> { return this.http.post<SessionDetail>(`/api/admin/sessions/${id}/extend-time`, { minutes }); }
   releaseScores(id: number): Promise<SessionDetail> { return this.http.post<SessionDetail>(`/api/admin/sessions/${id}/release-scores`); }
   async approveParticipant(id: number): Promise<void> { await this.http.post(`/api/admin/participants/${id}/approve`); }

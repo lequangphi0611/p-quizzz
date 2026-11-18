@@ -50,7 +50,8 @@ export class SessionDetailController {
     const spec = ACTION_FOR_STATUS[this.state.detail.status];
     if (!spec) return;
     await this.run(async () => {
-      const d = await this.gateway.runAction(this.state.detail.id, spec.action);
+      // In the lobby the button is "Bắt đầu ngay": the room counts down 10 seconds first (PRODUCT.md §7.31c).
+      const d = spec.action === 'start' ? await this.gateway.startCountdown(this.state.detail.id) : await this.gateway.runAction(this.state.detail.id, spec.action);
       this.seq++;
       this.set({ detail: d });
     }, `Không thể ${spec.label.toLowerCase()}`);
@@ -114,6 +115,17 @@ export class SessionDetailController {
   }
 
   /** Change, add or remove the time limit before the start (PRODUCT.md §7.27c). */
+  /** How the session starts (PRODUCT.md §7.31). */
+  setStartSchedule(startsAt: number | null): Promise<boolean> {
+    return this.run(async () => { const d = await this.gateway.setStartSchedule(this.state.detail.id, startsAt); this.seq++; this.set({ detail: d }); }, 'Không đặt được giờ bắt đầu');
+  }
+  cancelCountdown(): Promise<boolean> {
+    return this.run(async () => { const d = await this.gateway.cancelCountdown(this.state.detail.id); this.seq++; this.set({ detail: d }); }, 'Không huỷ được đếm ngược');
+  }
+  setAutoStart(enabled: boolean, minParticipants: number): Promise<boolean> {
+    return this.run(async () => { const d = await this.gateway.setAutoStart(this.state.detail.id, enabled, minParticipants); this.seq++; this.set({ detail: d }); }, 'Không đổi được cách tự bắt đầu');
+  }
+
   setTimeLimit(minutes: number | null): Promise<boolean> {
     return this.run(async () => { const d = await this.gateway.setTimeLimit(this.state.detail.id, minutes); this.seq++; this.set({ detail: d }); }, 'Không đổi được thời gian làm bài');
   }

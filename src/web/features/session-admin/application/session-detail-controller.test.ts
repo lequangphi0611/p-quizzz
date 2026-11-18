@@ -9,7 +9,8 @@ const detail = (over: Partial<SessionDetail> = {}): SessionDetail => ({ id: 5, s
 function make(over: Partial<SessionAdminGateway> = {}, initial = detail()) {
   const gateway = {
     getSession: vi.fn(async () => detail({ status: 'lobby' })),
-    runAction: vi.fn(async () => detail({ status: 'running' })),
+    runAction: vi.fn(async (_id: number, action: string) => detail({ status: action === 'close' ? 'closed' : 'running' })),
+    startCountdown: vi.fn(async () => detail({ status: 'lobby' })),
     approveParticipant: vi.fn(async () => {}), kickParticipant: vi.fn(async () => {}), renameParticipant: vi.fn(async () => {}),
     ...over,
   } as unknown as SessionAdminGateway;
@@ -18,25 +19,31 @@ function make(over: Partial<SessionAdminGateway> = {}, initial = detail()) {
 
 describe('SessionDetailController', () => {
   it('runs the one next lifecycle action for the status and adopts the response', async () => {
-    const { ctrl, gateway } = make();
+    const { ctrl, gateway } = make({}, detail({ status: 'running' }));
     ctrl.openDialog({ kind: 'action' });
     await ctrl.doAction();
-    expect(gateway.runAction).toHaveBeenCalledWith(5, 'start');
-    expect(ctrl.getState().detail.status).toBe('running');
+    expect(gateway.runAction).toHaveBeenCalledWith(5, 'close');
     expect(ctrl.getState()).toMatchObject({ dialog: null, working: false, error: '' });
   });
 
+  it('in the lobby "Bắt đầu ngay" starts the 10-second countdown instead of starting at once (PRODUCT.md §7.31c)', async () => {
+    const { ctrl, gateway } = make();
+    await ctrl.doAction();
+    expect(gateway.startCountdown).toHaveBeenCalledWith(5);
+    expect(gateway.runAction).not.toHaveBeenCalled();
+  });
+
   it('shows the server message on a refused action (e.g. wrong state) and closes the dialog', async () => {
-    const { ctrl } = make({ runAction: async () => { throw new ApiError(409, 'Không thể bắt đầu thi khi phiên đang ở trạng thái "Nháp"') } });
+    const { ctrl } = make({ startCountdown: async () => { throw new ApiError(409, 'Không thể bắt đầu thi khi phiên đang ở trạng thái "Nháp"') } });
     ctrl.openDialog({ kind: 'action' });
     await ctrl.doAction();
     expect(ctrl.getState()).toMatchObject({ error: 'Không thể bắt đầu thi khi phiên đang ở trạng thái "Nháp"', dialog: null, working: false });
   });
 
   it('uses a generic message when the failure is not an ApiError', async () => {
-    const { ctrl } = make({ runAction: async () => { throw new Error('x'); } });
+    const { ctrl } = make({ startCountdown: async () => { throw new Error('x'); } });
     await ctrl.doAction();
-    expect(ctrl.getState().error).toBe('Không thể bắt đầu');
+    expect(ctrl.getState().error).toBe('Không thể bắt đầu ngay');
   });
 
   it('does nothing when no action is left (finalized)', async () => {
@@ -47,12 +54,12 @@ describe('SessionDetailController', () => {
 
   it('a stale refetch never overwrites a newer action response', async () => {
     let release!: (d: SessionDetail) => void;
-    const { ctrl } = make({ getSession: () => new Promise(r => { release = r; }) });
+    const { ctrl } = make({ getSession: () => new Promise(r => { release = r; }) }, detail({ status: "running" }));
     const pending = ctrl.refetch();
-    await ctrl.doAction(); // action response arrives first (status running)
-    release(detail({ status: 'lobby' })); // the older refetch finishes later
+    await ctrl.doAction(); // action response arrives first (status closed)
+    release(detail({ status: "running" })); // the older refetch finishes later
     await pending;
-    expect(ctrl.getState().detail.status).toBe('running');
+    expect(ctrl.getState().detail.status).toBe("closed");
   });
 
   it('approves one or many and refetches', async () => {
