@@ -1,8 +1,19 @@
 import type { EditRequestStatus, RejoinRequestInfo, SessionParticipantDetail } from '../../../../shared/api/index.js';
+import type { SessionStartInfo } from '../../../../shared/session-start.js';
 
 // Mentor notifications are derived from the session detail (no extra storage on the server):
 // every non-kicked participant yields a "joined" notice, plus a "submitted" notice once they hand in.
-export type NoticeKind = 'pending' | 'joined' | 'submitted' | 'edit' | 'rejoin';
+export type NoticeKind = 'pending' | 'joined' | 'submitted' | 'edit' | 'rejoin' | 'start-soon' | 'start-dropped';
+
+/** The start of a session (PRODUCT.md §7.31g): it is about to start by itself while people still wait, or its time was dropped. */
+export interface StartNoticeFacts {
+  start: SessionStartInfo | null;
+  pendingCount: number;
+  startScheduleDroppedAt: number | null;
+}
+
+/** "Sắp tự bắt đầu" shows in the last minute before the scheduled time. */
+export const START_SOON_MS = 60_000;
 
 /** A request to take over a seat (PRODUCT.md §7.23): who holds it now and whether they are still connected. Mentor only. */
 export interface RejoinNoticeInfo {
@@ -36,14 +47,26 @@ export interface MentorNotice {
   resolvedAt?: number | null; // when the mentor answered; shown next to the outcome
   /** `rejoin` notices: the request and who holds the seat. */
   rejoin?: RejoinNoticeInfo;
+  /** `start-soon`: how many still wait for approval, and the scheduled time (epoch ms). */
+  waiting?: number;
+  startAt?: number;
 }
 
 const NO_SESSION: SessionLabel = { id: 0, name: '', slot: null };
 
 /** Newest first; at the same instant a submission sorts above a join. */
-export function buildNotices(participants: readonly SessionParticipantDetail[], session: SessionLabel = NO_SESSION, rejoinRequests: readonly RejoinRequestInfo[] = []): MentorNotice[] {
+export function buildNotices(participants: readonly SessionParticipantDetail[], session: SessionLabel = NO_SESSION, rejoinRequests: readonly RejoinRequestInfo[] = [], start?: StartNoticeFacts): MentorNotice[] {
   const out: MentorNotice[] = [];
   const base = { sessionId: session.id, sessionName: session.name, slot: session.slot };
+  // Session-level notices about the start (no participant: id 0). Times come from the server's own clock.
+  const s = start?.start;
+  if (s && s.scheduledAt !== null && s.startsAt === s.scheduledAt && s.startsInMs !== null && s.startsInMs > 0 && s.startsInMs <= START_SOON_MS && start!.pendingCount > 0) {
+    out.push({ ...base, key: `start-soon:${session.id}:${s.scheduledAt}`, kind: 'start-soon', participantId: 0, displayName: `Phòng “${session.name}”`, at: s.scheduledAt - START_SOON_MS, waiting: start!.pendingCount, startAt: s.scheduledAt });
+  }
+  // Only while the room still waits to start (`start` is null once it runs): starting by hand answers the notice.
+  if (s && start!.startScheduleDroppedAt) {
+    out.push({ ...base, key: `start-dropped:${session.id}:${start!.startScheduleDroppedAt}`, kind: 'start-dropped', participantId: 0, displayName: `Giờ hẹn của phòng “${session.name}”`, at: start!.startScheduleDroppedAt });
+  }
   for (const p of participants) {
     if (p.status === 'kicked') continue;
     out.push({ ...base, key: `join:${p.id}`, kind: p.status === 'pending' ? 'pending' : 'joined', participantId: p.id, displayName: p.displayName, at: p.joinedAt });
@@ -71,9 +94,9 @@ const seenFor = (seen: Seen, sessionId: number) => (typeof seen === 'number' ? s
 export const unreadCount = (notices: readonly MentorNotice[], seen: Seen) => notices.filter(n => n.at > seenFor(seen, n.sessionId)).length;
 
 /** All sessions' notices as one list, newest first. Each session is built with its own label. */
-export function buildAllNotices(entries: readonly { session: SessionLabel; participants: readonly SessionParticipantDetail[]; rejoinRequests?: readonly RejoinRequestInfo[] }[]): MentorNotice[] {
+export function buildAllNotices(entries: readonly { session: SessionLabel; participants: readonly SessionParticipantDetail[]; rejoinRequests?: readonly RejoinRequestInfo[]; start?: StartNoticeFacts }[]): MentorNotice[] {
   return entries
-    .flatMap(e => buildNotices(e.participants, e.session, e.rejoinRequests))
+    .flatMap(e => buildNotices(e.participants, e.session, e.rejoinRequests, e.start))
     .sort((a, b) => b.at - a.at || rank(a) - rank(b) || b.participantId - a.participantId);
 }
 
@@ -102,10 +125,12 @@ export const NOTICE_TEXT: Record<NoticeKind, { text: string; icon: string; color
   submitted: { text: 'đã nộp bài', icon: 'send', color: 'var(--correct-600)' },
   edit: { text: 'xin sửa bài tự luận', icon: 'pencil', color: 'var(--sun-ink)' },
   rejoin: { text: 'xin vào lại', icon: 'door-open', color: 'var(--sun-ink)' },
+  'start-soon': { text: 'sắp tự bắt đầu', icon: 'play', color: 'var(--sun-ink)' },
+  'start-dropped': { text: 'đã bị bỏ vì máy khởi động lại sau giờ hẹn', icon: 'triangle-alert', color: 'var(--warn-600)' },
 };
 
 /** Something only the mentor can unblock: a person waiting at the door, or a request to edit essays. */
-export const needsAttention = (n: MentorNotice) => n.kind === 'pending' || n.kind === 'rejoin' || (n.kind === 'edit' && n.editStatus === 'pending');
+export const needsAttention = (n: MentorNotice) => n.kind === 'pending' || n.kind === 'rejoin' || n.kind === 'start-soon' || n.kind === 'start-dropped' || (n.kind === 'edit' && n.editStatus === 'pending');
 
 /** Items that need the mentor first (still newest first inside each group). */
 export const attentionFirst = (notices: readonly MentorNotice[]): MentorNotice[] => [...notices.filter(needsAttention), ...notices.filter(n => !needsAttention(n))];

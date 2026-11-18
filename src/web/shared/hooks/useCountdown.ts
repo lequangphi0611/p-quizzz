@@ -6,10 +6,11 @@ import type { SessionTimer } from '../../../shared/session-timer.js';
  * arrives (not on `endsAt`), so a device whose clock is wrong still counts down correctly; every refetch re-anchors.
  * Null when there is no running clock.
  */
-export function useCountdown(timer: SessionTimer | null | undefined): number | null {
+export function useCountdown(timer: Pick<SessionTimer, 'remainingMs' | 'endsAt'> | null | undefined): number | null {
   const remaining = timer?.remainingMs ?? null;
   const endsAt = timer?.endsAt ?? null;
-  const [left, setLeft] = useState<number | null>(remaining);
+  const [state, setState] = useState<{ left: number | null; from: number | null }>({ left: remaining, from: remaining });
+  const setLeft = (left: number | null) => setState({ left, from: remaining });
 
   useEffect(() => {
     if (remaining === null) { setLeft(null); return; }
@@ -21,5 +22,7 @@ export function useCountdown(timer: SessionTimer | null | undefined): number | n
     return () => clearInterval(t);
   }, [remaining, endsAt]);
 
-  return left;
+  // A new server answer shows at once, not one render late (a countdown appearing would start from the old value).
+  if (state.from !== remaining) return remaining === null ? null : Math.max(0, Math.ceil(remaining / 1000) * 1000);
+  return state.left;
 }

@@ -23,6 +23,7 @@ export function ParticipantsCard({ status, questionCount, active, working, final
 }) {
   const showProgress = status !== 'draft' && status !== 'lobby';
   const open = status === 'lobby' || status === 'running';
+  const lobby = status === 'lobby'; // who pressed "Sẵn sàng" (PRODUCT.md §7.31d): the mentor sees names, members only the count
   const now = Date.now();
   return (
     <Card padding={0} style={{ flex: '1 1 520px', minWidth: 0, overflowX: 'auto' }}>
@@ -33,7 +34,7 @@ export function ParticipantsCard({ status, questionCount, active, working, final
         </p>
       ) : (
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr><th style={th}>Tên</th>{showEmail && <th style={th}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Email<span title="Chỉ mentor thấy" style={{ display: 'inline-flex' }}><Icon name="eye-off" size={13} /></span></span></th>}{open && <th style={th}>Kết nối</th>}{showProgress && <><th style={th}>Tiến độ</th><th style={th}>Nộp lúc</th><th style={th}>Điểm tạm tính</th></>}<th style={th} /></tr></thead>
+          <thead><tr><th style={th}>Tên</th>{showEmail && <th style={th}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Email<span title="Chỉ mentor thấy" style={{ display: 'inline-flex' }}><Icon name="eye-off" size={13} /></span></span></th>}{open && <th style={th}>Kết nối</th>}{lobby && <th style={th}>Sẵn sàng</th>}{showProgress && <><th style={th}>Tiến độ</th><th style={th}>Nộp lúc</th><th style={th}>Điểm tạm tính</th></>}<th style={th} /></tr></thead>
           <tbody>
             {active.map(p => {
               const req = p.progress.editRequest?.status === 'pending' ? p.progress.editRequest : null;
@@ -52,6 +53,13 @@ export function ParticipantsCard({ status, questionCount, active, working, final
                         {allowRemainingMinutes(p.rejoinAllowedUntil, now) !== null && <div style={{ font: 'var(--type-meta)', color: 'var(--brand-700)' }}>Cho vào lại · còn {allowRemainingMinutes(p.rejoinAllowedUntil, now)} phút</div>}
                       </td>
                     )}
+                    {lobby && (
+                      <td style={cell}>
+                        {p.readyAt !== null
+                          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 'var(--radius-pill)', background: 'var(--correct-surface)', color: 'var(--correct-600)', border: '1px solid var(--correct-border)', font: 'var(--type-label)' }}><Icon name="check" size={12} />Sẵn sàng</span>
+                          : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, font: 'var(--type-meta)', color: 'var(--text-faint)' }}><Icon name="minus" size={12} />Chưa</span>}
+                      </td>
+                    )}
                     {showProgress && <>
                       <td style={{ ...cell, color: prog.color, fontWeight: req ? 600 : undefined }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{prog.icon && <Icon name={prog.icon} size={14} />}{prog.label}</span></td>
                       <td className="pq-tabular" style={{ ...cell, fontFamily: 'var(--font-mono)', color: 'var(--text-body)' }}>{p.progress.submittedAt === null ? '—' : formatClock(p.progress.submittedAt)}</td>
@@ -64,7 +72,7 @@ export function ParticipantsCard({ status, questionCount, active, working, final
                   </tr>
                   {req && (
                     <tr style={{ background: 'var(--sun-100)' }}>
-                      <td colSpan={(showProgress ? 5 : 2) + (showEmail ? 1 : 0) + (open ? 1 : 0)} style={{ ...td, ...bar, whiteSpace: 'normal', paddingTop: 0, color: 'var(--sun-ink)' }}>
+                      <td colSpan={(showProgress ? 5 : 2) + (showEmail ? 1 : 0) + (open ? 1 : 0) + (lobby ? 1 : 0)} style={{ ...td, ...bar, whiteSpace: 'normal', paddingTop: 0, color: 'var(--sun-ink)' }}>
                         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
                           <div style={{ flex: '1 1 300px', minWidth: 0, display: 'grid', gap: 4 }}>
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, font: 'var(--type-meta)', fontWeight: 700 }}><Icon name="pencil" size={14} />Xin sửa bài tự luận · {formatClock(req.requestedAt)}</span>

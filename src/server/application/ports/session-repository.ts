@@ -4,6 +4,8 @@ import type { NewSession, Session, SessionPatch } from '../../domain/session/ses
 import type { ExamReader } from './exam-repository.js';
 import type { GroupRepository } from './group-repository.js';
 import type { SessionModeId } from '../../domain/session/mode.js';
+import type { Headcount } from '../../domain/session/start.js';
+import type { CountdownSource } from '../../../shared/session-start.js';
 
 /** Write side: only reachable inside a unit of work (see `SessionUnitContext`). */
 export interface SessionRepository {
@@ -41,6 +43,12 @@ export interface SessionSummaryView {
   scoresReleasedAt: Date | null;
   timeLimitMinutes: number | null;
   endsAt: Date | null;
+  scheduledStartAt: Date | null;
+  countdownEndsAt: Date | null;
+  countdownSource: CountdownSource | null;
+  autoStartReady: boolean;
+  readyMin: number | null;
+  startScheduleDroppedAt: Date | null;
   roomCode: string | null;
   createdAt: Date;
   openedAt: Date | null;
@@ -49,6 +57,10 @@ export interface SessionSummaryView {
   finalizedAt: Date | null;
   /** Participants with status 'active'. */
   participantCount: number;
+  /** Active participants who pressed "Sẵn sàng" (PRODUCT.md §7.31d). */
+  readyCount: number;
+  /** Participants waiting for the mentor's approval. */
+  pendingCount: number;
 }
 
 export interface SessionParticipantView {
@@ -56,6 +68,7 @@ export interface SessionParticipantView {
   displayName: string;
   status: 'active' | 'pending' | 'kicked';
   joinedAt: Date;
+  readyAt: Date | null;
   progress: ParticipantProgress;
   email: string | null;
   rejoinAllowedUntil: Date | null;
@@ -77,6 +90,14 @@ export interface ActiveSessionView {
   access: SessionAccess;
   timeLimitMinutes: number | null;
   endsAt: Date | null;
+  scheduledStartAt: Date | null;
+  countdownEndsAt: Date | null;
+  countdownSource: CountdownSource | null;
+  autoStartReady: boolean;
+  readyMin: number | null;
+  /** Counts only (PRODUCT.md §7.31d): approved people in the room and how many of them are ready. */
+  participantCount: number;
+  readyCount: number;
 }
 
 /** The projector chooser (mentor machine only), so it may carry the session name. */
@@ -97,6 +118,8 @@ export interface SessionReader {
   listActive(): Promise<SessionSummaryView[]>;
   /** Ids of running sessions whose deadline is at or before `cutoff`: the deadline watcher asks every second, so ids only. */
   listRunningIdsEndedBy(cutoff: Date): Promise<number[]>;
+  /** Lobby sessions that have a scheduled start, a running countdown or "everyone ready" on: the start watcher asks every second. */
+  listLobbyIdsWithStartPlan(): Promise<number[]>;
   /** Public view of one session (exam title only). */
   findPublic(id: number): Promise<ActiveSessionView | null>;
   /** The session in lobby/running with this room code, if any. */
@@ -127,8 +150,16 @@ export interface UngradedEssayCounter {
   count(sessionId: number): Promise<number>;
 }
 
+/** Who is in a lobby, for "everyone ready" (PRODUCT.md §7.31e), and who was there when it started (§7.31f). */
+export interface LobbyHeadcount {
+  count(sessionId: number): Promise<Headcount>;
+  /** Marks every approved participant as present at the start: they go straight to question 1. */
+  markPresentAtStart(sessionId: number): Promise<void>;
+}
+
 export interface SessionUnitContext {
   sessions: SessionRepository;
+  lobby: LobbyHeadcount;
   exams: ExamReader;
   attempts: AttemptAutoSubmitter;
   grading: UngradedEssayCounter;

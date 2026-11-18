@@ -12,6 +12,8 @@ export interface ParticipantRepository {
   update(id: number, patch: { displayName?: string; status?: ParticipantStatus }): Promise<Participant>;
   /** A new device takes the seat: `token` becomes `newToken`, and the old one is remembered as replaced. */
   replaceToken(id: number, newToken: string): Promise<Participant>;
+  /** "Sẵn sàng" in the lobby (PRODUCT.md §7.31d); null = not ready. */
+  setReady(id: number, at: Date | null): Promise<void>;
   /** The mentor's "let them back in" window (null clears it; also used when it is spent). */
   setRejoinAllowedUntil(id: number, until: Date | null): Promise<void>;
 }

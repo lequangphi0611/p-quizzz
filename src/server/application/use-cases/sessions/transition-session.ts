@@ -9,6 +9,7 @@ import type { EventPublisher } from '../../ports/event-publisher.js';
 import type { Random } from '../../ports/random.js';
 import type { SessionDetailView, SessionReader, SessionUnitContext } from '../../ports/session-repository.js';
 import type { UnitOfWork } from '../../ports/unit-of-work.js';
+import { planOpenSchedule } from '../../../domain/session/start.js';
 import { newRoomCode } from './new-room-code.js';
 
 export interface TransitionDeps {
@@ -49,9 +50,13 @@ export async function applyTransition(deps: TransitionDeps, id: number, action: 
 
     if (action === 'open') {
       // Sessions may run side by side (PRODUCT.md §7.5): each gets its own code and the lowest free slot.
-      patch = planOpen(now, await newRoomCode(deps.random, code => ctx.sessions.roomCodeInUse(code)), await ctx.sessions.lowestFreeSlot());
+      patch = {
+        ...planOpen(now, await newRoomCode(deps.random, code => ctx.sessions.roomCodeInUse(code)), await ctx.sessions.lowestFreeSlot()),
+        ...planOpenSchedule(session, now), // a time that passed while draft must not start the empty room (§7.31b)
+      };
     } else if (action === 'start') {
       patch = planStart(now, session.timeLimitMinutes); // starts the shared clock (PRODUCT.md §7.27d)
+      await ctx.lobby.markPresentAtStart(id); // they go straight to question 1; later arrivals see "còn X phút" (§7.31f)
     } else if (action === 'close') {
       const mode = deps.modes.get(session.mode);
       if (mode.submitsOpenAttemptsOnClose) autoSubmitted = await ctx.attempts.submitOpenAttempts(id);

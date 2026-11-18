@@ -32,9 +32,10 @@ test('a timed session counts down for everyone and closes itself at the end', as
   await member.page.screenshot({ path: shotPath('S25', '2-member-lobby-minutes'), fullPage: true });
 
   // Start: the member, the mentor and the projector all count down from the same deadline.
-  await mentor.page.getByRole('button', { name: 'Bắt đầu' }).click();
-  await mentor.page.getByRole('dialog').getByRole('button', { name: 'Bắt đầu' }).click();
-  await member.page.getByRole('button', { name: 'Bắt đầu làm bài' }).click();
+  // "Bắt đầu ngay" counts down 10 seconds, then the member is on question 1 (PRODUCT.md §7.31c, f).
+  await mentor.page.getByRole('button', { name: 'Bắt đầu ngay' }).first().click();
+  await mentor.page.getByRole('dialog').getByRole('button', { name: 'Bắt đầu ngay' }).click();
+  await expect(member.page.getByRole('radio').first()).toBeVisible({ timeout: 20_000 });
   await expect(member.page.getByRole('timer')).toBeVisible();
   await member.page.getByRole('radio').first().click();
   await member.page.screenshot({ path: shotPath('S25', '3-member-taking-countdown'), fullPage: false });

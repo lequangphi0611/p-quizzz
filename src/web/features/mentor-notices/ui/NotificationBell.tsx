@@ -141,7 +141,15 @@ export function NotificationBell({ state, desktop, onOpenSession }: { state: Men
                   <li key={n.key} aria-current={i === cursor ? 'true' : undefined} style={{ display: 'grid', gridTemplateColumns: '16px minmax(0,1fr) auto', gap: 10, alignItems: 'start', padding: '12px 16px', borderBottom: '1px solid var(--border-hairline)', background: i === cursor ? 'var(--ink-100)' : fresh ? 'var(--brand-050)' : undefined, boxShadow: needsAttention(n) ? 'inset 3px 0 0 var(--sun-500)' : undefined }}>
                     <span style={{ paddingTop: 2 }}><Icon name={meta.icon} size={16} color={n.kind === 'edit' && !editing ? 'var(--ink-500)' : meta.color} /></span>
                     <div style={{ display: 'grid', gap: 4, minWidth: 0, font: 'var(--type-meta)', gridColumn: editing ? '2 / 4' : undefined }}>
-                      <span><strong style={{ color: 'var(--text-title)', wordBreak: 'break-word' }}>{n.displayName}</strong> {n.kind === 'pending' ? 'đang chờ vào phòng' : meta.text}</span>
+                      <span><strong style={{ color: 'var(--text-title)', wordBreak: 'break-word' }}>{n.displayName}</strong> {n.kind === 'pending' ? 'đang chờ vào phòng' : n.kind === 'start-soon' ? `sắp tự bắt đầu lúc ${time(n.startAt ?? n.at)}, còn ${n.waiting} người chờ duyệt` : meta.text}</span>
+                      {n.kind === 'start-soon' && <span style={{ color: 'var(--text-body)' }}>Người chưa duyệt vào sau sẽ mất giờ. Duyệt ngay ở trên, hoặc mở phòng để lùi giờ.</span>}
+                      {n.kind === 'start-dropped' && <span style={{ color: 'var(--text-body)' }}>Phòng vẫn đang chờ, học viên thấy “Chờ mentor bắt đầu”. Mở phòng để hẹn lại hoặc bắt đầu.</span>}
+                      {(n.kind === 'start-soon' || n.kind === 'start-dropped') && (
+                        // No "Bắt đầu ngay" here: the bell gathers every room, so it is too easy to start the wrong one (PRODUCT.md §7.31g).
+                        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                          <Button size="sm" variant="secondary" icon={n.kind === 'start-dropped' ? 'calendar' : 'door-open'} onClick={() => openSession(n.sessionId)}>{n.kind === 'start-dropped' ? 'Hẹn lại' : 'Mở phòng'}</Button>
+                        </div>
+                      )}
                       {n.kind === 'edit' && n.reason && <span style={{ color: 'var(--text-body)', overflowWrap: 'anywhere', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>“{n.reason}”</span>}
                       {out && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 600, color: out.color }}><Icon name={out.icon} size={13} />{out.label}{n.resolvedAt ? ` · ${time(n.resolvedAt)}` : ''}</span>}
                       <span style={{ color: 'var(--text-faint)', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>

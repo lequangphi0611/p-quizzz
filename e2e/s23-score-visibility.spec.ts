@@ -36,7 +36,6 @@ test('held scores: members and the projector see only who submitted; "Công bố
   await api.post(`/api/admin/sessions/${id}/start`);
 
   // ── An submits: "Đã nộp bài", no score ────────────────────────────────────────────────────────
-  await a.page.getByRole('button', { name: 'Bắt đầu làm bài' }).click();
   await a.page.getByRole('button', { name: 'Nộp bài' }).first().click();
   await a.page.getByRole('dialog').getByRole('button', { name: 'Nộp bài' }).click();
   await expect(a.page.getByText('Điểm sẽ được công bố sau')).toBeVisible();

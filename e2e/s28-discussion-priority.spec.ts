@@ -23,7 +23,6 @@ test('discussion: "Cần bàn trước" reorders the strip by correct rate, keep
   const binh = await join(browser, 'Bình');
   await api.post(`/api/admin/sessions/${id}/start`);
   for (const [page, picks] of [[an, [0, 1, 0]], [binh, [0, 1, 1]]] as const) {
-    await page.getByRole('button', { name: 'Bắt đầu làm bài' }).click();
     for (const [i, pick] of picks.entries()) {
       await page.getByRole('radio').nth(pick).click();
       await expect(page.getByRole('radio').nth(pick)).toHaveAttribute('aria-checked', 'true');

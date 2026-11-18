@@ -97,6 +97,14 @@ export const sessions = sqliteTable(
     timeLimitMinutes: integer('time_limit_minutes'),
     // The shared deadline: set on start (start + limit), pushed back by "+N phút". Past it (plus grace) the session closes itself.
     endsAt: ts('ends_at'),
+    // How the session starts (PRODUCT.md §7.31): the scheduled time, a 10-second countdown ("Bắt đầu ngay" / everyone
+    // ready), whichever comes first. A start that passed while the server was off is dropped (start_schedule_dropped_at).
+    scheduledStartAt: ts('scheduled_start_at'),
+    countdownEndsAt: ts('countdown_ends_at'),
+    countdownSource: text('countdown_source', { enum: ['now', 'ready'] }),
+    autoStartReady: integer('auto_start_ready', { mode: 'boolean' }).notNull().default(false),
+    readyMin: integer('ready_min'),
+    startScheduleDroppedAt: ts('start_schedule_dropped_at'),
     // 6 random digits, generated when the session is opened (null while draft). Members need it to join.
     roomCode: text('room_code'),
     // Lowest number free among open sessions, set on open and cleared on close (for the mentor's "Đang mở" bar).
@@ -139,6 +147,10 @@ export const participants = sqliteTable(
     rejoinAllowedUntil: ts('rejoin_allowed_until'),
     status: text('status', { enum: ['active', 'pending', 'kicked'] }).notNull().default('active'),
     joinedAt: ts('joined_at').notNull(),
+    // Pressed "Sẵn sàng" in the lobby (PRODUCT.md §7.31d).
+    readyAt: ts('ready_at'),
+    // Approved and in the room when the session started: they go straight to question 1; the others joined late (§7.31f).
+    presentAtStart: integer('present_at_start', { mode: 'boolean' }).notNull().default(false),
   },
   t => [
     // A display name is unique (case-insensitive) within a session, among participants not kicked.

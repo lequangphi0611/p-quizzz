@@ -1,3 +1,4 @@
+import { InMemoryParticipantRepository } from '../../testing/in-memory-participant-repository.js';
 import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -41,7 +42,7 @@ let events: RecordingEventPublisher;
 let clock: FakeClock;
 
 function build(modes: SessionModeRegistry = defaultSessionModes()) {
-  const unitOfWork = new InMemoryUnitOfWork({ sessions, exams, attempts: submitter, grading, groups }, [sessions, groups]);
+  const unitOfWork = new InMemoryUnitOfWork({ sessions, lobby: new InMemoryParticipantRepository(), exams, attempts: submitter, grading, groups }, [sessions, groups]);
   const deps = { unitOfWork, sessions, clock, random: new FakeRandom([111111, 222222, 333333, 444444, 555555]), events, modes };
   const examUow = new InMemoryUnitOfWork({ exams }, [exams]);
   return {
@@ -139,7 +140,8 @@ describe('lifecycle', () => {
   it('resolves a member\'s room code to the open session, exam title only; anything else looks like a wrong code', async () => {
     const { uc, id } = await draft();
     const opened = await uc.open.execute(id);
-    expect(await uc.resolve.execute(opened.roomCode!)).toEqual({ id, title: opened.examTitle, status: 'lobby', access: 'free', timeLimitMinutes: null, endsAt: null });
+    expect(await uc.resolve.execute(opened.roomCode!)).toMatchObject({ id, title: opened.examTitle, status: 'lobby', access: 'free', timeLimitMinutes: null, endsAt: null, scheduledStartAt: null, countdownEndsAt: null });
+    expect(await uc.resolve.execute(opened.roomCode!)).not.toHaveProperty('name');
     await expect(uc.resolve.execute('000000')).rejects.toBeInstanceOf(WrongRoomCodeError);
     await uc.start.execute(id);
     await uc.close.execute(id);

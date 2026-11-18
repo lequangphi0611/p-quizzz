@@ -58,7 +58,7 @@ async function setup(opts: { shuffle?: boolean; random?: number[] } = {}) {
     view: new GetAttemptView(reads),
     review: new GetAttemptReview(reads),
     participantReview: new GetParticipantReview({ ...reads, participants: people }),
-    memberState: new GetMemberState({ ...reads, rooms: new FakeMemberRoomReader({ id: 1, title: 'T', status: 'running', totalPoints: 7, hasEssay: true, participantCount: 1, questionCount: 3 }), clock }),
+    memberState: new GetMemberState({ ...reads, rooms: new FakeMemberRoomReader({ id: 1, title: 'T', status: 'running', totalPoints: 7, hasEssay: true, participantCount: 1, readyCount: 0, questionCount: 3 }), clock }),
     autoSubmit: new AutoSubmitOpenAttempts({ attempts, sessions, exams, clock }),
   };
 }

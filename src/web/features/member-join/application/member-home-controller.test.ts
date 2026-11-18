@@ -17,6 +17,7 @@ function make(over: Partial<MemberGateway> = {}, tokens = new InMemoryTokenStore
     requestRejoin: vi.fn(async () => ({ requestId: 7, token: 'req-tok', status: 'pending' as const })),
     getRejoinStatus: vi.fn(async () => ({ status: 'pending' as const, sessionId: 1 })),
     cancelRejoin: vi.fn(async () => {}),
+    setReady: vi.fn(async () => {}),
     getPublicSession: vi.fn(async (id: number) => found(id, 'closed')),
     ...over,
   };

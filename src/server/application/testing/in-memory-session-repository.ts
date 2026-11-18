@@ -26,7 +26,7 @@ export class InMemorySessionRepository implements SessionRepository, SessionRead
 
   async create(s: NewSession) {
     const id = this.nextId++;
-    this.sessions.set(id, { ...s, id, status: 'draft', scoresReleasedAt: null, endsAt: null, slot: null, roomCode: null, openedAt: null, startedAt: null, closedAt: null, finalizedAt: null });
+    this.sessions.set(id, { ...s, id, status: 'draft', scoresReleasedAt: null, endsAt: null, scheduledStartAt: null, countdownEndsAt: null, countdownSource: null, autoStartReady: false, readyMin: null, startScheduleDroppedAt: null, slot: null, roomCode: null, openedAt: null, startedAt: null, closedAt: null, finalizedAt: null });
     return id;
   }
 
@@ -93,6 +93,10 @@ export class InMemorySessionRepository implements SessionRepository, SessionRead
     return [...this.sessions.values()].filter(s => s.status === 'running' && s.endsAt !== null && s.endsAt <= cutoff).map(s => s.id);
   }
 
+  async listLobbyIdsWithStartPlan(): Promise<number[]> {
+    return [...this.sessions.values()].filter(s => s.status === 'lobby' && (s.scheduledStartAt || s.countdownEndsAt || s.autoStartReady)).map(s => s.id);
+  }
+
   async findPublic(id: number): Promise<ActiveSessionView | null> {
     return this.view(s => s.id === id);
   }
@@ -145,13 +149,19 @@ export class InMemorySessionRepository implements SessionRepository, SessionRead
   private async view(match: (s: Session) => boolean): Promise<ActiveSessionView | null> {
     const found = [...this.sessions.values()].filter(match).sort((a, b) => b.id - a.id)[0];
     const exam = found && (await this.exams.findSummary(found.examId));
-    return found && exam ? { id: found.id, title: exam.title, status: found.status, access: found.access, timeLimitMinutes: found.timeLimitMinutes, endsAt: found.endsAt } : null;
+    return found && exam
+      ? {
+          id: found.id, title: exam.title, status: found.status, access: found.access, timeLimitMinutes: found.timeLimitMinutes, endsAt: found.endsAt,
+          scheduledStartAt: found.scheduledStartAt, countdownEndsAt: found.countdownEndsAt, countdownSource: found.countdownSource, autoStartReady: found.autoStartReady, readyMin: found.readyMin,
+          participantCount: 0, readyCount: 0,
+        }
+      : null;
   }
 
   private async summary(id: number): Promise<SessionSummaryView | null> {
     const s = this.sessions.get(id);
     const exam = s && (await this.exams.findSummary(s.examId));
-    return s && exam ? { ...s, examTitle: exam.title, participantCount: 0, rosterSource: s.sourceGroupId !== null ? 'group' : s.access === 'roster' ? 'temp' : null } : null;
+    return s && exam ? { ...s, examTitle: exam.title, participantCount: 0, readyCount: 0, pendingCount: 0, rosterSource: s.sourceGroupId !== null ? 'group' : s.access === 'roster' ? 'temp' : null } : null;
   }
 }
 

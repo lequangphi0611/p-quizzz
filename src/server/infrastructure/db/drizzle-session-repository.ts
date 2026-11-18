@@ -1,7 +1,8 @@
-import { and, asc, desc, eq, inArray, lte, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNotNull, lte, ne, or, sql } from 'drizzle-orm';
 import { ACTIVE_STATUSES } from '../../../shared/session-state.js';
 import type {
   ActiveSessionView,
+  LobbyHeadcount,
   ScreenSessionView,
   SessionDetailView,
   SessionReader,
@@ -9,12 +10,17 @@ import type {
   SessionSummaryView,
 } from '../../application/ports/session-repository.js';
 import type { NewSession, Session, SessionPatch } from '../../domain/session/session.js';
+import type { Headcount } from '../../domain/session/start.js';
 import { exams, participants, rejoinRequests, sessionRoster, sessions } from './schema.js';
 import type { RosterSource } from '../../../shared/api/index.js';
 import { NO_PROGRESS } from '../../domain/attempt/attempt.js';
 import { examQuestionCount } from './question-count.js';
 import { loadSessionProgress } from './session-progress.js';
 import type { DbAccess } from './drizzle-exam-repository.js';
+
+const activeCount = sql<number>`(select count(*) from participants where participants.session_id = sessions.id and participants.status = 'active')`;
+const readyCount = sql<number>`(select count(*) from participants where participants.session_id = sessions.id and participants.status = 'active' and participants.ready_at is not null)`;
+const pendingCount = sql<number>`(select count(*) from participants where participants.session_id = sessions.id and participants.status = 'pending')`;
 
 // Qualified names inside the subquery: drizzle would render a bare "id" that resolves to the wrong table.
 const summaryColumns = {
@@ -35,13 +41,21 @@ const summaryColumns = {
   scoresReleasedAt: sessions.scoresReleasedAt,
   timeLimitMinutes: sessions.timeLimitMinutes,
   endsAt: sessions.endsAt,
+  scheduledStartAt: sessions.scheduledStartAt,
+  countdownEndsAt: sessions.countdownEndsAt,
+  countdownSource: sessions.countdownSource,
+  autoStartReady: sessions.autoStartReady,
+  readyMin: sessions.readyMin,
+  startScheduleDroppedAt: sessions.startScheduleDroppedAt,
   roomCode: sessions.roomCode,
   createdAt: sessions.createdAt,
   openedAt: sessions.openedAt,
   startedAt: sessions.startedAt,
   closedAt: sessions.closedAt,
   finalizedAt: sessions.finalizedAt,
-  participantCount: sql<number>`(select count(*) from participants where participants.session_id = sessions.id and participants.status = 'active')`,
+  participantCount: activeCount,
+  readyCount,
+  pendingCount,
 };
 
 export class DrizzleSessionRepository implements SessionRepository {
@@ -126,7 +140,7 @@ export class DrizzleSessionReader implements SessionReader {
       if (!row) return null;
       const exam = db.select({ id: exams.id, title: exams.title, hasEssay: exams.hasEssay, totalPoints: exams.totalPoints, questionCount: examQuestionCount }).from(exams).where(eq(exams.id, row.examId)).get()!;
       const people = db
-        .select({ id: participants.id, displayName: participants.displayName, status: participants.status, joinedAt: participants.joinedAt, email: participants.email, rejoinAllowedUntil: participants.rejoinAllowedUntil })
+        .select({ id: participants.id, displayName: participants.displayName, status: participants.status, joinedAt: participants.joinedAt, readyAt: participants.readyAt, email: participants.email, rejoinAllowedUntil: participants.rejoinAllowedUntil })
         .from(participants)
         .where(eq(participants.sessionId, id))
         .orderBy(participants.id)
@@ -151,6 +165,17 @@ export class DrizzleSessionReader implements SessionReader {
   async listRunningIdsEndedBy(cutoff: Date): Promise<number[]> {
     const rows = await this.access(db =>
       db.select({ id: sessions.id }).from(sessions).where(and(eq(sessions.status, 'running'), lte(sessions.endsAt, cutoff))).all(),
+    );
+    return rows.map(r => r.id);
+  }
+
+  async listLobbyIdsWithStartPlan(): Promise<number[]> {
+    const rows = await this.access(db =>
+      db
+        .select({ id: sessions.id })
+        .from(sessions)
+        .where(and(eq(sessions.status, 'lobby'), or(isNotNull(sessions.scheduledStartAt), isNotNull(sessions.countdownEndsAt), eq(sessions.autoStartReady, true))))
+        .all(),
     );
     return rows.map(r => r.id);
   }
@@ -190,7 +215,18 @@ export class DrizzleSessionReader implements SessionReader {
   }
 
   private publicRows(db: Parameters<Parameters<DbAccess>[0]>[0]) {
-    return db.select({ id: sessions.id, title: exams.title, status: sessions.status, access: sessions.access, timeLimitMinutes: sessions.timeLimitMinutes, endsAt: sessions.endsAt }).from(sessions).innerJoin(exams, eq(sessions.examId, exams.id));
+    return db
+      .select({
+        id: sessions.id, title: exams.title, status: sessions.status, access: sessions.access, timeLimitMinutes: sessions.timeLimitMinutes, endsAt: sessions.endsAt,
+        scheduledStartAt: sessions.scheduledStartAt,
+        countdownEndsAt: sessions.countdownEndsAt,
+        countdownSource: sessions.countdownSource,
+        autoStartReady: sessions.autoStartReady,
+        readyMin: sessions.readyMin,
+        participantCount: activeCount, readyCount,
+      })
+      .from(sessions)
+      .innerJoin(exams, eq(sessions.examId, exams.id));
   }
 
   private screenRows(db: Parameters<Parameters<DbAccess>[0]>[0]) {
@@ -223,4 +259,25 @@ function rejoinRequestsOf(db: Db, sessionId: number, status: string): { id: numb
     .where(and(eq(participants.sessionId, sessionId), eq(rejoinRequests.status, 'pending')))
     .orderBy(asc(rejoinRequests.id))
     .all();
+}
+
+/** Counts in the lobby for "everyone ready" (PRODUCT.md §7.31e), and the mark of who was there at the start (§7.31f). */
+export class DrizzleLobbyHeadcount implements LobbyHeadcount {
+  constructor(private readonly access: DbAccess) {}
+
+  // The start watcher asks every second per lobby: one aggregate row, not every participant.
+  count(sessionId: number): Promise<Headcount> {
+    return this.access(db => {
+      const row = db
+        .select({ total: activeCount, ready: readyCount, pending: pendingCount })
+        .from(sessions)
+        .where(eq(sessions.id, sessionId))
+        .get();
+      return { total: Number(row?.total ?? 0), ready: Number(row?.ready ?? 0), pending: Number(row?.pending ?? 0) };
+    });
+  }
+
+  async markPresentAtStart(sessionId: number): Promise<void> {
+    await this.access(db => db.update(participants).set({ presentAtStart: true }).where(and(eq(participants.sessionId, sessionId), eq(participants.status, 'active'))).run());
+  }
 }

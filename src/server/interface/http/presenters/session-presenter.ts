@@ -3,6 +3,7 @@ import type { ActiveSessionView, ScreenSessionView, SessionDetailView, SessionSu
 import type { PresenceTracker } from '../../../application/ports/presence-tracker.js';
 import { areScoresHidden } from '../../../domain/session/score-visibility.js';
 import { sessionTimer } from '../../../domain/session/time-limit.js';
+import { sessionStartInfo } from '../../../domain/session/start.js';
 
 const ms = (d: Date | null) => (d ? d.getTime() : null);
 
@@ -26,6 +27,9 @@ export const toSessionSummaryDto = (s: SessionSummaryView, now: Date): SessionSu
   scoresHidden: areScoresHidden(s),
   timeLimitMinutes: s.timeLimitMinutes,
   timer: sessionTimer(s, now),
+  start: sessionStartInfo(s, { count: s.readyCount, total: s.participantCount }, now),
+  startScheduleDroppedAt: ms(s.startScheduleDroppedAt),
+  pendingCount: s.pendingCount,
   roomCode: s.roomCode,
   createdAt: s.createdAt.getTime(),
   openedAt: ms(s.openedAt),
@@ -40,7 +44,7 @@ export const toSessionDetailDto = (s: SessionDetailView, now: Date, presence?: P
   ...toSessionSummaryDto(s, now),
   exam: s.exam,
   participants: s.participants.map(p => ({
-    id: p.id, displayName: p.displayName, status: p.status, joinedAt: p.joinedAt.getTime(), progress: p.progress, email: p.email,
+    id: p.id, displayName: p.displayName, status: p.status, joinedAt: p.joinedAt.getTime(), readyAt: ms(p.readyAt), progress: p.progress, email: p.email,
     connection: presence?.connectionOf(p.id) ?? { online: false, lastSeenAt: null },
     rejoinAllowedUntil: p.rejoinAllowedUntil ? p.rejoinAllowedUntil.getTime() : null,
   })),
@@ -48,6 +52,9 @@ export const toSessionDetailDto = (s: SessionDetailView, now: Date, presence?: P
   rejoinRequests: s.rejoinRequests.map(r => ({ id: r.id, participantId: r.participantId, claimantName: r.claimantName, requestedAt: r.requestedAt.getTime() })),
 });
 
-export const toActiveSessionDto = (s: ActiveSessionView, now: Date): ActiveSession => ({ id: s.id, title: s.title, status: s.status, access: s.access, timer: sessionTimer(s, now) });
+export const toActiveSessionDto = (s: ActiveSessionView, now: Date): ActiveSession => ({
+  id: s.id, title: s.title, status: s.status, access: s.access, timer: sessionTimer(s, now),
+  start: sessionStartInfo(s, { count: s.readyCount, total: s.participantCount }, now),
+});
 
 export const toScreenSessionDto = (s: ScreenSessionView): ScreenSessionItem => ({ id: s.id, name: s.name, slot: s.slot, title: s.title, status: s.status });

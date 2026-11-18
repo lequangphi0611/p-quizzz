@@ -1,5 +1,6 @@
 import type { SessionStatus } from '../../../shared/session-state.js';
 import type { OutsiderPolicy, ScoreVisibility, SessionAccess } from '../../../shared/api/sessions.js';
+import type { CountdownSource } from '../../../shared/session-start.js';
 import type { SessionModeId } from './mode.js';
 
 export interface Session {
@@ -25,6 +26,16 @@ export interface Session {
   timeLimitMinutes: number | null;
   /** The shared deadline: start + limit, pushed back by "+N phút". Null until the session starts or without a limit. */
   endsAt: Date | null;
+  /** The mentor's scheduled start (PRODUCT.md §7.31b); null = none. Set while draft/lobby. */
+  scheduledStartAt: Date | null;
+  /** End of the 10-second countdown of "Bắt đầu ngay" / "everyone ready" (§7.31c); null while none runs. */
+  countdownEndsAt: Date | null;
+  countdownSource: CountdownSource | null;
+  /** "Tự bắt đầu khi mọi người sẵn sàng" (§7.31e), off by default; `readyMin` people at least. */
+  autoStartReady: boolean;
+  readyMin: number | null;
+  /** When a scheduled start was dropped because it passed while the server was off or asleep (§7.31b); the bell says so. */
+  startScheduleDroppedAt: Date | null;
   /** Lowest number not used by another open session; set when the room opens, cleared when it closes. */
   slot: number | null;
   /** Null until the session is opened; a fresh code each time it opens. */
@@ -52,5 +63,9 @@ export interface NewSession {
 
 /** The fields a lifecycle transition (or the score-visibility setting) may change. */
 export type SessionPatch = Partial<
-  Pick<Session, 'status' | 'roomCode' | 'slot' | 'openedAt' | 'startedAt' | 'closedAt' | 'finalizedAt' | 'scoreVisibility' | 'scoresReleasedAt' | 'timeLimitMinutes' | 'endsAt'>
+  Pick<
+    Session,
+    | 'status' | 'roomCode' | 'slot' | 'openedAt' | 'startedAt' | 'closedAt' | 'finalizedAt' | 'scoreVisibility' | 'scoresReleasedAt' | 'timeLimitMinutes' | 'endsAt'
+    | 'scheduledStartAt' | 'countdownEndsAt' | 'countdownSource' | 'autoStartReady' | 'readyMin' | 'startScheduleDroppedAt'
+  >
 >;

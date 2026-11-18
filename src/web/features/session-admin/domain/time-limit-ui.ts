@@ -19,7 +19,7 @@ export function timeLimitHint(examDuration: number | null, limited: boolean, raw
   const parsed = parseMinutes(raw);
   if ('error' in parsed) return parsed.error;
   const fromExam = examDuration === parsed.minutes ? ' (theo file đề)' : '';
-  return `Đồng hồ chung cho cả phòng, chạy từ lúc bạn bấm Bắt đầu${fromExam}. Hết giờ phiên tự đóng và nộp bài dở.`;
+  return `Đồng hồ chung cho cả phòng, chạy từ lúc phiên bắt đầu${fromExam}. Hết giờ phiên tự đóng và nộp bài dở.`;
 }
 
 export const EXTEND_STEPS = [5, 10] as const;

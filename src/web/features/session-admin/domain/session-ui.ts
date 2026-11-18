@@ -14,8 +14,8 @@ export interface ActionSpec {
 export const ACTION_FOR_STATUS: Record<SessionStatus, ActionSpec | null> = {
   draft: { action: 'open', label: 'Mở phòng chờ', icon: 'door-open', variant: 'primary' },
   lobby: {
-    action: 'start', label: 'Bắt đầu', icon: 'play', variant: 'primary',
-    confirm: { title: 'Bắt đầu phiên thi?', confirmLabel: 'Bắt đầu', body: n => `${n} người đang trong phòng chờ. Member sẽ thấy màn hình làm bài ngay.` },
+    action: 'start', label: 'Bắt đầu ngay', icon: 'play', variant: 'primary',
+    confirm: { title: 'Bắt đầu phiên thi?', confirmLabel: 'Bắt đầu ngay', body: n => `${n} người đang trong phòng chờ. Cả phòng đếm ngược 10 giây rồi vào thẳng câu 1.` },
   },
   running: {
     action: 'close', label: 'Đóng phiên', icon: 'door-open', variant: 'danger',

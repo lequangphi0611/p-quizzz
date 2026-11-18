@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useCallback, type ReactNode } from 'react';
 import type { MeResponse } from '../../../../shared/api/index.js';
 import { useExamGateway } from '../application/exam-gateway-context.js';
 import { ResultView } from '../../../shared/ui/member/ResultView.js';
@@ -15,8 +15,9 @@ import { TakingView } from './TakingView.js';
 export function MemberExamPage({ me, onChanged, leaderboard }: { me: MeResponse; onChanged: () => Promise<void>; leaderboard?: ReactNode }) {
   const gateway = useExamGateway();
   const { attempt } = me;
+  const start = useCallback(async () => { await gateway.startAttempt(); await onChanged(); }, [gateway, onChanged]);
   if (attempt.current) return <TakingView key={attempt.current.id} me={me} attemptId={attempt.current.id} onChanged={onChanged} />;
   if (attempt.submitted.length > 0 && editPanelMode(me) === 'editing') return <EditingPage me={me} onChanged={onChanged} leaderboard={leaderboard} />;
   if (attempt.submitted.length > 0) return <ResultView me={me} ended={false}><EditRequestPanel me={me} onChanged={onChanged} />{leaderboard}</ResultView>;
-  return <StartScreen me={me} onStart={async () => { await gateway.startAttempt(); await onChanged(); }} />;
+  return <StartScreen me={me} onStart={start} />;
 }

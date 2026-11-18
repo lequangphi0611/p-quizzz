@@ -1,10 +1,14 @@
 import { EmailTakenError, NameTakenError } from '../../domain/participant/errors.js';
 import type { NewParticipant, Participant, ParticipantStatus } from '../../domain/participant/participant.js';
 import type { ParticipantReader, ParticipantRepository } from '../ports/participant-repository.js';
+import type { LobbyHeadcount } from '../ports/session-repository.js';
 import type { Snapshottable } from './in-memory-unit-of-work.js';
 
-/** Test double for the participant ports. Mimics the database's name index (same session, case-insensitive ASCII, not kicked). */
-export class InMemoryParticipantRepository implements ParticipantRepository, ParticipantReader, Snapshottable {
+/**
+ * Test double for the participant ports (and the lobby headcount of the sessions module). Mimics the database's name index
+ * (same session, case-insensitive ASCII, not kicked).
+ */
+export class InMemoryParticipantRepository implements ParticipantRepository, ParticipantReader, LobbyHeadcount, Snapshottable {
   private rows = new Map<number, Participant>();
   private nextId = 1;
 
@@ -36,7 +40,7 @@ export class InMemoryParticipantRepository implements ParticipantRepository, Par
     const clash = this.inSession(p.sessionId).some(o => o.status !== 'kicked' && o.displayName.toLowerCase() === p.displayName.toLowerCase());
     if (p.status !== 'kicked' && p.email !== null && this.inSession(p.sessionId).some(o => o.status !== 'kicked' && o.email === p.email)) throw new EmailTakenError();
     if (p.status !== 'kicked' && clash) throw new NameTakenError('identity_in_use');
-    const row: Participant = { ...p, replacedToken: null, rejoinAllowedUntil: null, id: this.nextId++ };
+    const row: Participant = { ...p, replacedToken: null, rejoinAllowedUntil: null, readyAt: null, presentAtStart: false, id: this.nextId++ };
     this.rows.set(row.id, row);
     return row;
   }
@@ -56,6 +60,20 @@ export class InMemoryParticipantRepository implements ParticipantRepository, Par
 
   async setRejoinAllowedUntil(id: number, until: Date | null) {
     this.rows.set(id, { ...this.rows.get(id)!, rejoinAllowedUntil: until });
+  }
+
+  async setReady(id: number, at: Date | null) {
+    this.rows.set(id, { ...this.rows.get(id)!, readyAt: at });
+  }
+
+  async count(sessionId: number) {
+    const all = this.inSession(sessionId);
+    const active = all.filter(p => p.status === 'active');
+    return { total: active.length, ready: active.filter(p => p.readyAt !== null).length, pending: all.filter(p => p.status === 'pending').length };
+  }
+
+  async markPresentAtStart(sessionId: number) {
+    for (const p of this.inSession(sessionId)) if (p.status === 'active') this.rows.set(p.id, { ...p, presentAtStart: true });
   }
 
   snapshot() {

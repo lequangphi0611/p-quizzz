@@ -65,5 +65,6 @@ export class ScreenController {
 
   /** SSE: anything about the session changed. */
   onSessionEvent = (): void => { void this.fetchSession(); void this.fetchData(); };
-  onDataEvent = (): void => { void this.fetchData(); };
+  /** Joins, approvals and "Sẵn sàng" (PRODUCT.md §7.31d): in the lobby the ready count lives on the session. */
+  onDataEvent = (): void => { if (this.state.session?.status === 'lobby') void this.fetchSession(); void this.fetchData(); };
 }

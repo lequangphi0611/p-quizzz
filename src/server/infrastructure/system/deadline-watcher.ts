@@ -1,6 +1,7 @@
 /**
- * Runs `closeExpired` once now (a server that was off at a session's deadline closes it on startup, PRODUCT.md §7.27f)
- * and then every `intervalMs`. Runs never overlap. Returns the stop function.
+ * Runs `task` once now and then every `intervalMs`; runs never overlap. Returns the stop function. Used for closing
+ * sessions whose clock ran out (a server that was off at the deadline closes them on startup, PRODUCT.md §7.27f) and for
+ * starting sessions at their start time (§7.31; one missed while off is dropped instead).
  */
 export function startDeadlineWatcher(closeExpired: { execute(onError?: (err: unknown) => void): Promise<unknown> }, intervalMs = 1000, onError: (err: unknown) => void = err => console.error(err)): () => void {
   let busy = false;

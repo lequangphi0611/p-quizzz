@@ -9,8 +9,9 @@ import { ScreenLayout } from '../../../shared/ui/screen/ScreenLayout.js';
 import { ScreenStage } from '../../../shared/ui/screen/ScreenStage.js';
 import { useScreen, useScreenGateway } from '../application/use-screen.js';
 import { decideScreenTarget } from '../domain/screen-target.js';
-import { Ended, Lobby, Running, Waiting } from './ScreenParts.js';
+import { Ended, Lobby, Running, StartCountdown, Waiting } from './ScreenParts.js';
 import { useCountdown } from '../../../shared/hooks/useCountdown.js';
+import { useReducedMotion, useStartNotices } from '../../../shared/hooks/useStartNotices.js';
 
 // "/screen/:sessionId" — public, read-only, needs no interaction: it follows that one session (several may be open at
 // once). It shows the exam title only, never the mentor's session name.
@@ -24,11 +25,18 @@ function SessionScreen({ sessionId }: { sessionId: number }) {
   const { session, names, board, roster, roomCode, roomHidden } = state;
   const join = useJoinHost(() => gateway.getJoinHosts());
   const timeLeft = useCountdown(session?.status === 'running' ? session.timer : null);
+  const start = session?.start ?? null;
+  const startLeft = useCountdown(start ? { remainingMs: start.startsInMs, endsAt: start.startsAt } : null);
+  // Notices become a band for 15 seconds, then only "Vừa đổi" stays on the clock (Design System 7 P10).
+  const { notices, changedAt } = useStartNotices(start, session?.id ?? null, 15_000);
+  const reduced = useReducedMotion();
+  const limitMinutes = session?.timer?.limitMinutes ?? null;
 
   const status = session?.status;
   let body: ReactNode = null;
   if (session === null) body = <Waiting host={join.host} />;
-  else if (status === 'lobby') body = <Lobby names={names} host={join.host} roomCode={roomCode} roomHidden={roomHidden} roster={roster} limitMinutes={session?.timer?.limitMinutes ?? null} />;
+  else if (status === 'lobby' && start?.countdownEndsAt) body = <StartCountdown start={start} leftMs={startLeft} limitMinutes={limitMinutes} reduced={reduced} />;
+  else if (status === 'lobby') body = <Lobby names={names} host={join.host} roomCode={roomCode} roomHidden={roomHidden} roster={roster} limitMinutes={limitMinutes} start={start} leftMs={startLeft} notices={notices} changed={changedAt !== null} />;
   else if (status === 'running') body = <Running board={board} total={names.length} timeLeft={timeLeft} />;
   else if (status === 'closed' || status === 'finalized') body = <Ended board={board} />;
 

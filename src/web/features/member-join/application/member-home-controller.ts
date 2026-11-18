@@ -142,6 +142,12 @@ export class MemberHomeController {
   onSessionEvent = (): void => { if (this.state.followId !== null) void this.fetchMe(this.state.followId); };
   onParticipantsEvent = this.onSessionEvent;
 
+  /** "Sẵn sàng" / "Huỷ sẵn sàng" (PRODUCT.md §7.31d). Refetches either way: a 409 means the countdown already runs. */
+  setReady = async (ready: boolean): Promise<void> => {
+    if (this.state.followId === null) return;
+    try { await this.gateway.setReady(ready); } finally { await this.fetchMe(this.state.followId); }
+  };
+
   refreshMe = async (): Promise<void> => { if (this.state.followId !== null) await this.fetchMe(this.state.followId); };
 
   /**

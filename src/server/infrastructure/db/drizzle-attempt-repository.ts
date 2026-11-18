@@ -112,8 +112,12 @@ export class DrizzleMemberRoomReader implements MemberRoomReader {
         .where(eq(sessions.id, sessionId))
         .get();
       if (!s) return null;
-      const { n } = db.select({ n: count() }).from(participants).where(and(eq(participants.sessionId, sessionId), eq(participants.status, 'active'))).get()!;
-      return { ...s, participantCount: n };
+      const { n, ready } = db
+        .select({ n: count(), ready: count(participants.readyAt) })
+        .from(participants)
+        .where(and(eq(participants.sessionId, sessionId), eq(participants.status, 'active')))
+        .get()!;
+      return { ...s, participantCount: n, readyCount: ready };
     });
   }
 }

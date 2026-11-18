@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { EditRequestBody, SaveAnswerBody, type AttemptView, type MeResponse, type ReviewView, type SubmitResponse } from '../../../shared/api/index.js';
+import { EditRequestBody, ReadyBody, SaveAnswerBody, type AttemptView, type MeResponse, type ReviewView, type SubmitResponse } from '../../../shared/api/index.js';
 import type { GetAttemptReview, GetAttemptView, GetMemberState, GetParticipantReview } from '../../application/use-cases/attempts/queries.js';
 import type { FinishEdit, RequestEdit, ResolveEditRequest } from '../../application/use-cases/attempts/edit-request.js';
 import type { SaveAnswer } from '../../application/use-cases/attempts/save-answer.js';
@@ -8,6 +8,7 @@ import type { SubmitAttempt } from '../../application/use-cases/attempts/submit-
 import { AttemptNotFoundError } from '../../domain/attempt/errors.js';
 import { ParticipantNotFoundError } from '../../domain/participant/errors.js';
 import type { ResumeParticipant } from '../../application/use-cases/participants/resume-participant.js';
+import type { SetReady } from '../../application/use-cases/participants/set-ready.js';
 import { requireParticipant } from './auth/participant-auth.js';
 import { sendDomainError } from './domain-errors.js';
 import { parseId } from './params.js';
@@ -24,6 +25,8 @@ export interface AttemptUseCases {
   requestEdit: RequestEdit;
   finishEdit: FinishEdit;
   resolveEdit: ResolveEditRequest;
+  /** "Sẵn sàng" in the lobby (PRODUCT.md §7.31d). */
+  setReady: SetReady;
 }
 
 // Member routes under /api/me, behind requireParticipant (so `req.participant` is set).
@@ -37,6 +40,17 @@ export const meRoutes = (uc: AttemptUseCases, resume: ResumeParticipant): Fastif
         me.get('/', async (req, reply): Promise<MeResponse | undefined> => {
           try {
             return toMeResponseDto(await uc.memberState.execute(req.participant!));
+          } catch (err) {
+            return sendDomainError(reply, err);
+          }
+        });
+
+        me.put('/ready', async (req, reply) => {
+          const body = ReadyBody.safeParse(req.body);
+          if (!body.success) return reply.code(400).send({ error: 'Dữ liệu không hợp lệ' });
+          try {
+            await uc.setReady.execute(req.participant!.id, body.data.ready);
+            return { ok: true };
           } catch (err) {
             return sendDomainError(reply, err);
           }

@@ -113,7 +113,7 @@ export function useMentorNotices(recheckKey: string): MentorNoticesState {
 
   const loaded = open.every(s => details[s.id]?.id === s.id);
   const notices = useMemo(
-    () => buildAllNotices(open.flatMap(s => (details[s.id] ? [{ session: { id: s.id, name: s.name, slot: s.slot }, participants: details[s.id]!.participants, rejoinRequests: details[s.id]!.rejoinRequests }] : []))),
+    () => buildAllNotices(open.flatMap(s => (details[s.id] ? [{ session: { id: s.id, name: s.name, slot: s.slot }, participants: details[s.id]!.participants, rejoinRequests: details[s.id]!.rejoinRequests, start: details[s.id]! }] : []))),
     [open, details],
   );
   const markAllSeen = useCallback(() => {

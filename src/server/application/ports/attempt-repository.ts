@@ -53,6 +53,8 @@ export interface MemberRoom {
   hasEssay: boolean;
   /** Participants with status 'active'. */
   participantCount: number;
+  /** Active participants who pressed "Sẵn sàng" (PRODUCT.md §7.31d). */
+  readyCount: number;
   questionCount: number;
 }
 
