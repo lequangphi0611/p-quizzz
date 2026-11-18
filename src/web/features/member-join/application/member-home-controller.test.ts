@@ -3,6 +3,7 @@ import type { ActiveSession, MeResponse } from '../../../../shared/api/index.js'
 import { ApiError } from '../../../shared/api-client/http-client.js';
 import { InMemoryTokenStore } from '../../../shared/token-store/in-memory-token-store.js';
 import { InMemoryMySessionsStore, type MemberGateway, type RoomCodeMemory } from './member-gateway.js';
+import { MY_SESSIONS_KEPT } from '../domain/my-sessions.js';
 import { MemberHomeController, selectCanReopen, selectFollowedId, selectRoom, selectScreen } from './member-home-controller.js';
 
 const found = (id = 1, status: ActiveSession['status'] = 'lobby'): ActiveSession => ({ id, title: 'T', status } as ActiveSession);
@@ -19,7 +20,7 @@ function make(over: Partial<MemberGateway> = {}, tokens = new InMemoryTokenStore
     getPublicSession: vi.fn(async (id: number) => found(id, 'closed')),
     ...over,
   };
-  return { gateway, tokens, rooms, mine, ctrl: new MemberHomeController(gateway, tokens, rooms, 1000, mine) };
+  return { gateway, tokens, rooms, mine, ctrl: new MemberHomeController(gateway, tokens, rooms, mine, 1000) };
 }
 const settle = () => vi.advanceTimersByTimeAsync(0);
 const inSession = (id = 1) => { const t = new InMemoryTokenStore(); t.setToken(id, 'tok'); t.setCurrentSessionId(id); return t; };
@@ -351,7 +352,7 @@ describe('MemberHomeController: my sessions on this browser (PRODUCT.md §7.29)'
   it('opening from the list follows that session; a reload (new controller) still lists it', async () => {
     const { ctrl, tokens, mine, gateway } = await joinedAndEnded();
     ctrl.leaveEnded();
-    const again = new MemberHomeController(gateway, tokens, { remember: () => {}, recall: () => '' }, 1000, mine);
+    const again = new MemberHomeController(gateway, tokens, { remember: () => {}, recall: () => '' }, mine, 1000);
     expect(again.getState().mine.map(s => s.sessionId)).toEqual([1]);
     again.openMine(1);
     await settle();
@@ -470,6 +471,17 @@ describe('MemberHomeController: my sessions on this browser (PRODUCT.md §7.29)'
     await settle();
     expect(selectScreen(noStore.getState())).toBe('ended');
     expect(selectCanReopen(noStore.getState())).toBe(false);
+  });
+
+  it(`a session that falls off past ${MY_SESSIONS_KEPT} kept entries takes its token with it`, async () => {
+    const tokens = new InMemoryTokenStore();
+    const old = Array.from({ length: MY_SESSIONS_KEPT }, (_, i) => ({ sessionId: i + 1, roomCode: '', title: 'x', status: 'closed' as const, joinedAt: i + 1 }));
+    for (const s of old) tokens.setToken(s.sessionId, `tok-${s.sessionId}`);
+    const { ctrl } = make({}, tokens, new InMemoryMySessionsStore(old));
+    await ctrl.join(99, 'An', '482913');
+    expect(tokens.getToken(1)).toBeNull(); // the oldest entry fell off: nothing could reach or clear its token any more
+    expect(tokens.getToken(2)).toBe('tok-2');
+    expect(tokens.getToken(99)).toBe('tok');
   });
 
   it('the session that is open in this tab is never removed from the list by "forget"', async () => {

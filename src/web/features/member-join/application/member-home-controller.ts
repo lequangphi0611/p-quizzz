@@ -4,7 +4,7 @@ import { ApiError } from '../../../shared/api-client/http-client.js';
 import type { TokenStore } from '../../../shared/token-store/token-store.js';
 import { decideScreen, type MeState, type MemberScreen, type RejoinState } from '../domain/member-screen.js';
 import { findMySessionByCode, forgetMySession, recentMySessions, rememberMySession, type MySession } from '../domain/my-sessions.js';
-import { InMemoryMySessionsStore, type MemberGateway, type MySessionsStore, type RoomCodeMemory } from './member-gateway.js';
+import type { MemberGateway, MySessionsStore, RoomCodeMemory } from './member-gateway.js';
 
 /** What looking up a room code produced. `error.status` is the HTTP status (0 = no connection). */
 export interface RoomLookup {
@@ -62,7 +62,7 @@ export class MemberHomeController {
   /** A remembered code opened this session without asking the server; if the token turns out unknown, ask it after all. */
   private shortcut: { sessionId: number; code: string } | null = null;
 
-  constructor(private gateway: MemberGateway, private tokens: TokenStore, private rooms: RoomCodeMemory, private pollMs = POLL_MS, private mineStore: MySessionsStore = new InMemoryMySessionsStore()) {
+  constructor(private gateway: MemberGateway, private tokens: TokenStore, private rooms: RoomCodeMemory, private mineStore: MySessionsStore, private pollMs = POLL_MS) {
     // Resume the session this tab (or, for a new tab, the last tab) was in, if a token for it is still here.
     const id = Number(tokens.getCurrentSessionId());
     const followId = id > 0 && tokens.getToken(id) ? id : null;
@@ -117,7 +117,7 @@ export class MemberHomeController {
       // Polled every few seconds: only touch storage and the visible list when something changed.
       const before = this.mineStore.load();
       const after = rememberMySession(before, { sessionId, title: me.session.title, status: me.session.status, roomCode: this.rooms.recall(sessionId) }, Date.now());
-      this.set({ me, meState: 'ok', ...(after === before ? {} : this.changeMine(() => after)) });
+      this.set({ me, meState: 'ok', ...(after === before ? {} : this.changeMine(() => after, true)) });
     } catch (err) {
       if (n !== this.meSeq) return;
       if (err instanceof ApiError && err.status === 401) { // unknown token (e.g. server DB was reset): start over
@@ -189,7 +189,7 @@ export class MemberHomeController {
     this.rooms.remember(sessionId, roomCode);
     const room = selectRoom(this.state);
     const found = room?.id === sessionId ? room : null;
-    this.set(this.changeMine(list => rememberMySession(list, { sessionId, roomCode, title: found?.title, status: found?.status }, Date.now())));
+    this.set(this.changeMine(list => rememberMySession(list, { sessionId, roomCode, title: found?.title, status: found?.status }, Date.now()), true));
   }
   /** After a successful `join`: follow that session and load the member's state. */
   async joined(sessionId: number): Promise<void> {
@@ -309,15 +309,23 @@ export class MemberHomeController {
     let list = this.mineStore.load();
     // Only update entries still stored: one forgotten while the requests were in flight must not come back.
     for (const f of fresh) if (f && list.some(s => s.sessionId === f.id)) list = rememberMySession(list, { sessionId: f.id, title: f.title, status: f.status }, Date.now());
-    this.set(this.changeMine(() => list));
+    this.set(this.changeMine(() => list, true));
   }
 
-  /** Applies a change to the stored list and returns the patch for the visible one. */
-  private changeMine(fn: (list: MySession[]) => MySession[]): { mine: MySession[] } {
+  /**
+   * Applies a change to the stored list and returns the patch for the visible one. `remembering`: the change adds or
+   * updates entries, so any entry missing afterwards fell off past MY_SESSIONS_KEPT and its token goes too (nothing
+   * could reach or clear it any more). Forgetting is not this: a kicked session leaves the list but keeps its token.
+   */
+  private changeMine(fn: (list: MySession[]) => MySession[], remembering = false): { mine: MySession[] } {
     const before = this.mineStore.load();
     const after = fn(before);
     if (after === before) return { mine: this.visibleMine(before) };
     this.mineStore.save(after);
+    if (remembering) {
+      const kept = new Set(after.map(s => s.sessionId));
+      for (const s of before) if (!kept.has(s.sessionId) && s.sessionId !== this.state.followId) this.tokens.clearToken(s.sessionId);
+    }
     // Read back what was kept: storage may refuse writes (private window), and the list must not show more than it holds.
     return { mine: this.visibleMine() };
   }
