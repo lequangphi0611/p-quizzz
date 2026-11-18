@@ -33,7 +33,7 @@ export class InMemoryAttemptRepository implements AttemptRepository, Snapshottab
     return [...this.answers.values()].filter(a => attemptIds.includes(a.attemptId));
   }
 
-  async gradeAnswer(answerId: number, grade: { manualScore: number; feedback: string | null; gradedAt: Date }) {
+  async gradeAnswer(answerId: number, grade: { manualScore: number | null; feedback: string | null; gradedAt: Date | null }) {
     const [key, existing] = [...this.answers].find(([, a]) => a.id === answerId)!;
     const updated = { ...existing, ...grade };
     this.answers.set(key, updated);

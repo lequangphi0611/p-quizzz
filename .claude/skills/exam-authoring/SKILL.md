@@ -70,6 +70,7 @@ Sửa trên file, chạy lại bước 3, rồi báo ngắn những gì đã đ�
 **Tự luận (`{essay, points=N}`)**
 - Câu hỏi giới hạn rõ phạm vi ("nêu 2 lý do", "viết hàm… trả về…").
 - Giải thích gồm **đáp án mẫu** và **rubric chia điểm cộng lại bằng N**, để mentor chấm nhanh và nhất quán.
+- Rubric viết thành **danh sách tiêu chí, mỗi tiêu chí kèm điểm** (ví dụ `> - Nêu được X (1đ)`), ghi rõ trường hợp không cho điểm hoặc cho một phần. AI dùng đúng rubric này để gợi ý chấm (PRODUCT.md §7.28); câu thiếu rubric sẽ không được AI chấm.
 
 ## Chuyển đề cũ sang format
 

@@ -10,6 +10,7 @@ import { ExamImportPage } from '../features/exam-import/ui/ExamImportPage.js';
 import { ExamListPage } from '../features/exam-import/ui/ExamListPage.js';
 import { createGradingLoader } from '../features/grading/application/grading-loader.js';
 import { GradingPage } from '../features/grading/ui/GradingPage.js';
+import { AiGraderHelpPage } from '../features/grading/ui/AiGraderHelpPage.js';
 import { MemberExamPage } from '../features/member-exam/ui/MemberExamPage.js';
 import { MemberHomePage } from '../features/member-join/ui/MemberHomePage.js';
 import { ReviewPage } from '../features/member-review/ui/ReviewPage.js';
@@ -109,6 +110,7 @@ export const router = createBrowserRouter([
       { path: '/admin/sessions/:id', loader: sessionLoaders.detail, element: <SessionDetailPage /> },
       { path: '/admin/sessions/:id/review', loader: sessionLoaders.review, element: <SessionReviewPage /> },
       { path: '/admin/sessions/:id/grading', loader: gradingLoader, element: <GradingPage /> },
+      { path: '/admin/ai-grader-help', element: <AiGraderHelpPage /> },
     ],
   },
   { path: '*', element: <NotFound /> },

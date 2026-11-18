@@ -18,13 +18,19 @@ import { FakeRandom } from '../../testing/fakes.js';
 import { CountUngradedEssays } from './essay-progress.js';
 import { GetDiscussionView } from './get-discussion-view.js';
 import { GetGradingView } from './get-grading-view.js';
-import { GradeAnswer } from './grade-answer.js';
+import { ClearGrade, GradeAnswer } from './grade-answer.js';
+import { FailUnfinishedSuggestions, RequestAiSuggestions, RunAiSuggestion, StopAiSuggestions } from './ai-suggestions.js';
+import { FakeEssayGrader, InMemoryAiSuggestionRepository, RecordingSuggestionQueue } from '../../testing/in-memory-ai-suggestion-repository.js';
+import { EssayGraderError } from '../../ports/essay-grader.js';
 
 let exams: InMemoryExamRepository;
 let sessions: InMemorySessionRepository;
 let people: InMemoryParticipantRepository;
 let attempts: InMemoryAttemptRepository;
 let events: RecordingEventPublisher;
+let ai: InMemoryAiSuggestionRepository;
+let grader: FakeEssayGrader;
+let queue: RecordingSuggestionQueue;
 let sessionId: number;
 let examId: number;
 let ids: { single: number; correct: number; wrong: number; essay: number };
@@ -70,10 +76,20 @@ async function setup() {
   events.events.length = 0;
 
   const reads = { attempts, sessions, exams };
+  ai = new InMemoryAiSuggestionRepository(() => sessionId);
+  grader = new FakeEssayGrader();
+  queue = new RecordingSuggestionQueue();
+  const gradingUnit = new InMemoryUnitOfWork({ attempts, sessions, participants: people, exams, aiSuggestions: ai }, [attempts, ai]);
+  const aiDeps = { unitOfWork: gradingUnit, clock: new FakeClock(7000) };
   return {
-    gradingView: new GetGradingView({ ...reads, participants: people }),
+    gradingView: new GetGradingView({ ...reads, participants: people, aiSuggestions: ai, grader }),
+    requestAi: new RequestAiSuggestions({ ...aiDeps, grader, queue }),
+    stopAi: new StopAiSuggestions(aiDeps),
+    runAi: new RunAiSuggestion({ ...aiDeps, grader }),
+    failUnfinished: new FailUnfinishedSuggestions(aiDeps),
+    clear: new ClearGrade({ unitOfWork: gradingUnit, clock: new FakeClock(5000), events }),
     discussion: new GetDiscussionView(reads),
-    grade: new GradeAnswer({ unitOfWork, clock: new FakeClock(5000), events }),
+    grade: new GradeAnswer({ unitOfWork: gradingUnit, clock: new FakeClock(5000), events }),
     ungraded: new CountUngradedEssays(reads),
     leaderboard: new GetLeaderboard({ ...reads, participants: people }),
     projector: new GetProjectorRoom(sessions),
@@ -194,5 +210,105 @@ describe('GetProjectorRoom', () => {
     await sessions.update(sessionId, { status: 'lobby' });
     expect(await uc.projector.execute(sessionId)).toEqual({ roomCode: '123456' });
     expect(await uc.projector.execute(sessionId + 1)).toEqual({ roomCode: null }); // another session
+  });
+});
+
+describe('AI suggestions (PRODUCT.md §7.28)', () => {
+  const runAll = async (uc: Awaited<ReturnType<typeof setup>>) => {
+    for (const id of queue.enqueued.splice(0)) await uc.runAi.execute(id);
+  };
+
+  it('queues written, ungraded answers only, sends no name, and never changes a score', async () => {
+    const uc = await setup();
+    const an = await essayAnswerOf(members[0]!.id);
+    const cuong = await essayAnswerOf(members[2]!.id);
+    await uc.grade.execute({ answerId: cuong.id, score: 1 });
+    expect(await uc.requestAi.execute({ sessionId, questionId: ids.essay })).toEqual({ queued: 1 }); // Bình is blank, Cường graded
+    expect(await uc.requestAi.execute({ sessionId, questionId: ids.essay })).toEqual({ queued: 0 }); // no duplicate
+    await runAll(uc);
+    expect(grader.inputs).toHaveLength(1);
+    expect(grader.inputs[0]).toMatchObject({ questionPrompt: 'E', maxPoints: 4, rubricText: 'rubric', answerText: 'nội dung bài một' });
+    expect(JSON.stringify(grader.inputs[0])).not.toMatch(/An|Bình|Cường|participant|email/);
+
+    const view = await uc.gradingView.execute(sessionId);
+    const q = view.questions[0]!;
+    const card = q.answers.find(a => a.answerId === an.id)!;
+    expect(card.manualScore).toBeNull();
+    expect(card.aiSuggestion).toMatchObject({ status: 'done', score: 4, used: null });
+    expect(q.ai).toEqual({ queued: 0, running: 0, done: 1, failed: 0 });
+    expect(view.graded).toBe(1);
+    expect(view.aiGrader).toEqual({ available: true });
+    expect(await uc.ungraded.count(sessionId)).toBe(2);
+  });
+
+  it('refuses without a rubric, before the close, or when the AI is not set up', async () => {
+    const uc = await setup();
+    grader.isAvailable = false;
+    await expect(uc.requestAi.execute({ sessionId, questionId: ids.essay })).rejects.toThrow('chưa được bật');
+    grader.isAvailable = true;
+    await expect(uc.requestAi.execute({ sessionId, questionId: ids.single })).rejects.toBeInstanceOf(NotEssayError);
+    await sessions.update(sessionId, { status: 'running' });
+    await expect(uc.requestAi.execute({ sessionId, questionId: ids.essay })).rejects.toBeInstanceOf(GradingNotOpenError);
+  });
+
+  it('records a failure with a short reason, and retries only that answer', async () => {
+    const uc = await setup();
+    grader.next = new EssayGraderError('timeout');
+    await uc.requestAi.execute({ sessionId, questionId: ids.essay });
+    await runAll(uc);
+    const failed = [...ai.rows.values()];
+    expect(failed.map(r => [r.status, r.error])).toEqual([['failed', 'Quá thời gian'], ['failed', 'Quá thời gian']]);
+    grader.next = new FakeEssayGrader().next;
+    expect(await uc.requestAi.execute({ sessionId, questionId: ids.essay, answerIds: [failed[0]!.answerId] })).toEqual({ queued: 1 });
+    await runAll(uc);
+    expect([...ai.rows.values()].map(r => r.status).sort()).toEqual(['done', 'failed']);
+  });
+
+  it('rejects an out-of-range suggestion as invalid output', async () => {
+    const uc = await setup();
+    grader.next = input => ({ score: input.maxPoints + 1, feedback: 'x', criteria: [], suspicious: false, suspiciousReason: null, suspiciousLines: [], model: null });
+    await uc.requestAi.execute({ sessionId, questionId: ids.essay });
+    await runAll(uc);
+    expect([...ai.rows.values()][0]).toMatchObject({ status: 'failed', error: 'AI trả kết quả không hợp lệ' });
+  });
+
+  it('drops a queued answer that the mentor graded by hand, and stops the rest', async () => {
+    const uc = await setup();
+    await uc.requestAi.execute({ sessionId, questionId: ids.essay });
+    const an = await essayAnswerOf(members[0]!.id);
+    await uc.grade.execute({ answerId: an.id, score: 2 });
+    expect(ai.byAnswer(an.id)).toBeUndefined();
+    expect(await uc.stopAi.execute({ sessionId, questionId: ids.essay })).toEqual({ stopped: 1 });
+    await runAll(uc);
+    expect(grader.inputs).toHaveLength(0);
+  });
+
+  it('remembers how the mentor used the suggestion; "Hoàn tác" clears the grade', async () => {
+    const uc = await setup();
+    await uc.requestAi.execute({ sessionId, questionId: ids.essay });
+    await runAll(uc);
+    const an = await essayAnswerOf(members[0]!.id);
+    const saved = await uc.grade.execute({ answerId: an.id, score: 4, feedback: 'Tốt.', aiUse: 'accepted' });
+    expect(saved.answer.aiSuggestion?.used).toBe('accepted');
+    const cleared = await uc.clear.execute(an.id);
+    expect(cleared.answer).toMatchObject({ manualScore: null, feedback: null });
+    expect(cleared.answer.aiSuggestion?.used).toBeNull();
+    expect(cleared.graded).toBe(0);
+    expect(events.events.at(-1)).toEqual({ sessionId, type: 'leaderboard' });
+  });
+
+  it('fails leftovers at startup and flags the session for the member review', async () => {
+    const uc = await setup();
+    await uc.requestAi.execute({ sessionId, questionId: ids.essay });
+    expect(await uc.failUnfinished.execute()).toBe(2);
+    expect([...ai.rows.values()].every(r => r.status === 'failed' && r.error === 'Server đã khởi động lại')).toBe(true);
+    expect(await ai.questionsWithDoneInSession(sessionId)).toEqual([]);
+  });
+
+  it('keeps suggestions out of the discussion view', async () => {
+    const uc = await setup();
+    await uc.requestAi.execute({ sessionId, questionId: ids.essay });
+    await runAll(uc);
+    expect(JSON.stringify(await uc.discussion.execute(sessionId))).not.toMatch(/aiSuggestion|Tốt\./);
   });
 });

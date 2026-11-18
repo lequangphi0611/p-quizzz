@@ -41,3 +41,21 @@ export class DiscussionNotOpenError extends DomainError {
     super('conflict', 'Chỉ thảo luận được sau khi đóng phiên');
   }
 }
+
+export class NoRubricError extends DomainError {
+  constructor() {
+    super('conflict', 'Câu này chưa có rubric, AI không chấm được. Thêm rubric vào đề rồi import lại.');
+  }
+}
+
+export class AiUnavailableError extends DomainError {
+  constructor() {
+    super('conflict', 'AI chấm nháp chưa được bật trên máy này');
+  }
+}
+
+export class QuestionNotFoundError extends DomainError {
+  constructor() {
+    super('not_found', 'Không tìm thấy câu hỏi');
+  }
+}

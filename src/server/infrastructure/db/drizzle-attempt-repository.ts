@@ -33,7 +33,7 @@ export class DrizzleAttemptRepository implements AttemptRepository {
     return this.access(db => db.select().from(answers).where(inArray(answers.attemptId, attemptIds)).all());
   }
 
-  gradeAnswer(answerId: number, grade: { manualScore: number; feedback: string | null; gradedAt: Date }): Promise<Answer> {
+  gradeAnswer(answerId: number, grade: { manualScore: number | null; feedback: string | null; gradedAt: Date | null }): Promise<Answer> {
     return this.access(db => db.update(answers).set(grade).where(eq(answers.id, answerId)).returning().get());
   }
 

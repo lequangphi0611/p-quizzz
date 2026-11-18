@@ -6,6 +6,7 @@ import { Button } from '../../../shared/ui/Button.js';
 import { Card } from '../../../shared/ui/Card.js';
 import { ErrorMessage } from '../../../shared/ui/ErrorMessage.js';
 import { QuestionPreview } from '../../../shared/ui/QuestionPreview.js';
+import { Icon } from '../../../shared/ui/Icon.js';
 import { Spinner } from '../../../shared/ui/Spinner.js';
 import { StatusBadge } from '../../../shared/ui/StatusBadge.js';
 import { WIDE_MIN } from '../../../shared/ui/member/breakpoints.js';
@@ -73,7 +74,13 @@ export function ReviewPage() {
     const q = review.questions[i]!;
     refs.current.length = review.questions.length;
     return (
-      <div key={q.id} ref={el => { refs.current[i] = el; }} style={{ minWidth: 0, scrollMarginTop: 72 }}>
+      <div key={q.id} ref={el => { refs.current[i] = el; }} style={{ minWidth: 0, scrollMarginTop: 72, display: 'grid', gap: 8 }}>
+        {q.aiAssisted && (
+          <p style={{ ...mText.meta, margin: 0, display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+            <Icon name="sparkles" size={14} style={{ marginTop: 2, flex: 'none' }} />
+            <span>Bài tự luận được AI hỗ trợ chấm nháp; điểm và nhận xét do mentor xác nhận.</span>
+          </p>
+        )}
         <QuestionPreview index={i} mode="review" pendingLabel="Chờ chấm"
           question={{ type: q.type, prompt: q.prompt, body: q.body, points: q.points, explanation: q.explanation, options: q.options.map(o => ({ id: o.id, text: o.text, isCorrect: o.isCorrect })) }}
           selectedIds={q.selectedOptionIds ?? []} answerText={q.textAnswer ?? undefined} manualScore={q.type === 'essay' ? q.score : undefined} feedback={q.feedback} />

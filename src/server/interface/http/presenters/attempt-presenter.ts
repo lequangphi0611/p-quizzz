@@ -68,7 +68,8 @@ export const toSubmitResponseDto = (r: SubmitResult): SubmitResponse => ({
 });
 
 // ⚠️ Carries the answer key. Only call it with data the use case released (member after the close, or the mentor).
-export function toReviewViewDto({ attempt, answers, exam, sessionStatus }: ReviewData): ReviewView {
+export function toReviewViewDto({ attempt, answers, exam, sessionStatus, aiAssistedQuestionIds = [] }: ReviewData): ReviewView {
+  const aiQuestions = new Set(aiAssistedQuestionIds);
   const byId = new Map(exam.questions.map(q => [q.id, q]));
   const saved = new Map(answers.map(a => [a.questionId, a]));
   const questions: ReviewQuestion[] = attempt.questionOrder.flatMap(qid => {
@@ -89,6 +90,7 @@ export function toReviewViewDto({ attempt, answers, exam, sessionStatus }: Revie
         textAnswer: a?.textAnswer ?? null,
         score: q.type === 'essay' ? a?.manualScore ?? null : a?.autoScore ?? 0,
         feedback: q.type === 'essay' ? a?.feedback ?? null : null,
+        aiAssisted: aiQuestions.has(q.id),
       },
     ];
   });

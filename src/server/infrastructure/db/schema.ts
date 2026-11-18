@@ -206,6 +206,28 @@ export const answers = sqliteTable(
   t => [uniqueIndex('answers_attempt_question_uq').on(t.attemptId, t.questionId)],
 );
 
+// AI grading suggestion for one essay answer (PRODUCT.md §7.28). Never a score: only the mentor's grade counts.
+export const aiSuggestions = sqliteTable('ai_suggestions', {
+  id: id(),
+  answerId: integer('answer_id')
+    .notNull()
+    .unique()
+    .references(() => answers.id, { onDelete: 'cascade' }),
+  status: text('status', { enum: ['queued', 'running', 'done', 'failed'] }).notNull(),
+  score: real('score'),
+  feedback: text('feedback'),
+  criteria: text('criteria', { mode: 'json' }).$type<{ label: string; score: number; max: number; note: string }[]>(),
+  suspicious: integer('suspicious', { mode: 'boolean' }).notNull().default(false),
+  suspiciousReason: text('suspicious_reason'),
+  suspiciousLines: text('suspicious_lines', { mode: 'json' }).$type<number[]>(),
+  error: text('error'),
+  model: text('model'),
+  // How the mentor used it when saving the grade: one tap ("accepted") or edited first. Null = graded by hand / not yet.
+  used: text('used', { enum: ['accepted', 'edited'] }),
+  requestedAt: ts('requested_at').notNull(),
+  finishedAt: ts('finished_at'),
+});
+
 export const examsRelations = relations(exams, ({ many }) => ({ questions: many(questions), sessions: many(sessions) }));
 export const questionsRelations = relations(questions, ({ one, many }) => ({
   exam: one(exams, { fields: [questions.examId], references: [exams.id] }),

@@ -19,3 +19,7 @@ docs/design/S22-assets/
 docs/design/S23-assets/
 docs/design/S24-assets/
 docs/design/S25-assets/
+docs/design/S26-assets/
+
+# The mentor's AI grading command (PRODUCT.md §7.28g): machine-specific, may point at private settings.
+config/*.local.json
