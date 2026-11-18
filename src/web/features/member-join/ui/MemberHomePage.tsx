@@ -59,24 +59,23 @@ export function MemberHomePage({ examScreen }: { examScreen: ExamScreen }) {
       </>);
     case 'pending':
     case 'lobby': {
-      const pending = screen === 'pending';
-      const inLobby = me!.session.status === 'lobby'; // pending before the start: the mentor lets people into the room first
-      if (inLobby) return <MemberLobby me={me!} desk={desk} onReady={ctrl.setReady} />;
+      // Before the start, approved or not, everyone waits in the lobby (PRODUCT.md §7.31). What is left: waiting for
+      // approval after the session started.
+      if (me!.session.status === 'lobby') return <MemberLobby me={me!} desk={desk} onReady={ctrl.setReady} />;
       return page(
         <PageCard desk={desk} center>
-          <StatusBadge status={pending && !inLobby ? 'running' : 'lobby'} label={pending && !inLobby ? 'Phiên đang diễn ra' : 'Phòng chờ'} />
-          <HeroIcon name={pending ? 'hourglass' : 'users'} tone={pending ? 'warn' : 'brand'} />
+          <StatusBadge status="running" label="Phiên đang diễn ra" />
+          <HeroIcon name="hourglass" tone="warn" />
           <div style={{ display: 'grid', gap: 6 }}>
-            <h1 style={mText.h1}>{pending ? 'Chờ mentor duyệt' : 'Chờ mentor bắt đầu'}</h1>
-            <p style={mText.meta}>{pending ? (inLobby ? 'Mentor sẽ duyệt tên bạn để vào phòng. Giữ trang này mở — màn hình tự chuyển khi được duyệt.' : 'Phiên đã bắt đầu trước khi bạn vào. Mentor cần duyệt thì bạn mới làm bài được.') : 'Giữ trang này mở — màn hình tự chuyển khi phiên bắt đầu.'}</p>
+            <h1 style={mText.h1}>Chờ mentor duyệt</h1>
+            <p style={mText.meta}>Phiên đã bắt đầu trước khi bạn vào. Mentor cần duyệt thì bạn mới làm bài được.</p>
           </div>
           <InfoBox>
             <InfoRow icon="file-text" k="Đề" v={me!.session.title} />
             <InfoRow icon="user" k="Tên của bạn" v={<NameChip name={me!.participant.displayName} />} />
             {me!.session.timer && <InfoRow icon="hourglass" k="Thời gian làm bài" v={formatMinutes(me!.session.timer.limitMinutes)} />}
-            {!pending && <InfoRow icon="users" k="Đã vào phòng" v={<span style={mText.mono}>{me!.session.participantCount} người</span>} />}
           </InfoBox>
-          {pending && <Spinner label="Đang chờ duyệt…" />}
+          <Spinner label="Đang chờ duyệt…" />
         </PageCard>,
         { maxW: 480 },
       );

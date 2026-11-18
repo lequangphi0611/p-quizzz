@@ -44,6 +44,7 @@ function SessionDetailView({ initial }: { initial: SessionDetail }) {
   const impostor = dialog?.kind === 'impostor' ? dialog.request : null;
   const holderOf = (participantId: number) => detail.participants.find(p => p.id === participantId);
   const left = useCountdown(detail.status === 'running' ? detail.timer : null);
+  const early = detail.status === 'lobby' ? earlyStartWarning(detail, Date.now()) : null; // "Bắt đầu ngay" before the scheduled time (§7.31c)
 
   return (
     <div style={{ display: 'grid', gap: 20 }}>
@@ -113,7 +114,7 @@ function SessionDetailView({ initial }: { initial: SessionDetail }) {
 
       <ConfirmDialog open={dialog?.kind === 'action' && !!spec?.confirm} tone={spec?.variant ?? 'primary'} title={spec?.confirm?.title ?? ''} confirmLabel={spec?.confirm?.confirmLabel} busy={working} onCancel={() => ctrl.closeDialog()} onConfirm={() => ctrl.doAction()}>
         {spec?.confirm?.body(active.length)}
-        {detail.status === 'lobby' && earlyStartWarning(detail, Date.now()) && <p style={{ margin: '8px 0 0', color: 'var(--warn-600)', fontWeight: 600 }}>{earlyStartWarning(detail, Date.now())}</p>}
+        {early && <p style={{ margin: '8px 0 0', color: 'var(--warn-600)', fontWeight: 600 }}>{early}</p>}
       </ConfirmDialog>
 
       <ConfirmDialog open={dialog?.kind === 'releaseScores'} title="Công bố điểm?" confirmLabel="Công bố điểm" busy={working} onCancel={() => ctrl.closeDialog()} onConfirm={() => void ctrl.releaseScores()}>

@@ -265,11 +265,15 @@ function rejoinRequestsOf(db: Db, sessionId: number, status: string): { id: numb
 export class DrizzleLobbyHeadcount implements LobbyHeadcount {
   constructor(private readonly access: DbAccess) {}
 
+  // The start watcher asks every second per lobby: one aggregate row, not every participant.
   count(sessionId: number): Promise<Headcount> {
     return this.access(db => {
-      const rows = db.select({ status: participants.status, readyAt: participants.readyAt }).from(participants).where(eq(participants.sessionId, sessionId)).all();
-      const active = rows.filter(r => r.status === 'active');
-      return { total: active.length, ready: active.filter(r => r.readyAt !== null).length, pending: rows.filter(r => r.status === 'pending').length };
+      const row = db
+        .select({ total: activeCount, ready: readyCount, pending: pendingCount })
+        .from(sessions)
+        .where(eq(sessions.id, sessionId))
+        .get();
+      return { total: Number(row?.total ?? 0), ready: Number(row?.ready ?? 0), pending: Number(row?.pending ?? 0) };
     });
   }
 

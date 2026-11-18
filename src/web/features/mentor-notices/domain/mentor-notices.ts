@@ -63,8 +63,9 @@ export function buildNotices(participants: readonly SessionParticipantDetail[], 
   if (s && s.scheduledAt !== null && s.startsAt === s.scheduledAt && s.startsInMs !== null && s.startsInMs > 0 && s.startsInMs <= START_SOON_MS && start!.pendingCount > 0) {
     out.push({ ...base, key: `start-soon:${session.id}:${s.scheduledAt}`, kind: 'start-soon', participantId: 0, displayName: `Phòng “${session.name}”`, at: s.scheduledAt - START_SOON_MS, waiting: start!.pendingCount, startAt: s.scheduledAt });
   }
-  if (start?.startScheduleDroppedAt) {
-    out.push({ ...base, key: `start-dropped:${session.id}:${start.startScheduleDroppedAt}`, kind: 'start-dropped', participantId: 0, displayName: `Giờ hẹn của phòng “${session.name}”`, at: start.startScheduleDroppedAt });
+  // Only while the room still waits to start (`start` is null once it runs): starting by hand answers the notice.
+  if (s && start!.startScheduleDroppedAt) {
+    out.push({ ...base, key: `start-dropped:${session.id}:${start!.startScheduleDroppedAt}`, kind: 'start-dropped', participantId: 0, displayName: `Giờ hẹn của phòng “${session.name}”`, at: start!.startScheduleDroppedAt });
   }
   for (const p of participants) {
     if (p.status === 'kicked') continue;

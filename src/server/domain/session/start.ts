@@ -25,6 +25,14 @@ export function planSchedule(s: Pick<Session, 'status'>, at: Date | null, now: D
   return { scheduledStartAt: at, startScheduleDroppedAt: null };
 }
 
+/**
+ * Opening the lobby (§7.31b): a scheduled time set while draft that has already passed is cleared. Otherwise the start
+ * watcher would start the empty room at once (within the late tolerance) or report it as dropped by a restart.
+ */
+export function planOpenSchedule(s: Pick<Session, 'scheduledStartAt'>, now: Date): SessionPatch {
+  return s.scheduledStartAt && s.scheduledStartAt.getTime() <= now.getTime() ? { scheduledStartAt: null } : {};
+}
+
 /** "Bắt đầu ngay": a 10-second countdown for the whole room (§7.31c). Pressing it again while one runs changes nothing. */
 export function planStartCountdown(s: StartState, now: Date): SessionPatch {
   assertTransition(s, 'start');

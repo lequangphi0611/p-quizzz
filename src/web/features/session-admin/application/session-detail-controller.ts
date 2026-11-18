@@ -114,7 +114,6 @@ export class SessionDetailController {
     return ok;
   }
 
-  /** Change, add or remove the time limit before the start (PRODUCT.md §7.27c). */
   /** How the session starts (PRODUCT.md §7.31). */
   setStartSchedule(startsAt: number | null): Promise<boolean> {
     return this.run(async () => { const d = await this.gateway.setStartSchedule(this.state.detail.id, startsAt); this.seq++; this.set({ detail: d }); }, 'Không đặt được giờ bắt đầu');
@@ -126,6 +125,7 @@ export class SessionDetailController {
     return this.run(async () => { const d = await this.gateway.setAutoStart(this.state.detail.id, enabled, minParticipants); this.seq++; this.set({ detail: d }); }, 'Không đổi được cách tự bắt đầu');
   }
 
+  /** Change, add or remove the time limit before the start (PRODUCT.md §7.27c). */
   setTimeLimit(minutes: number | null): Promise<boolean> {
     return this.run(async () => { const d = await this.gateway.setTimeLimit(this.state.detail.id, minutes); this.seq++; this.set({ detail: d }); }, 'Không đổi được thời gian làm bài');
   }

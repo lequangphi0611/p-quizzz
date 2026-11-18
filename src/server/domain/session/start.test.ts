@@ -7,6 +7,7 @@ import {
   planAutoStart,
   planCancelCountdown,
   planDropOverdue,
+  planOpenSchedule,
   planSchedule,
   planStartCountdown,
   readyToAutoStart,
@@ -88,5 +89,13 @@ describe('session start (PRODUCT.md §7.31)', () => {
     });
     expect(sessionStartInfo(lobby(), { count: 0, total: 0 }, at(0))).toMatchObject({ startsAt: null, startsInMs: null, early: false });
     expect(sessionStartInfo(lobby({ status: 'running' }), { count: 0, total: 0 }, at(0))).toBeNull();
+  });
+});
+
+describe('planOpenSchedule', () => {
+  it('clears a time that passed while the session was a draft, so opening never starts an empty room', () => {
+    expect(planOpenSchedule({ scheduledStartAt: at(-5_000) }, at(0))).toEqual({ scheduledStartAt: null });
+    expect(planOpenSchedule({ scheduledStartAt: at(60_000) }, at(0))).toEqual({});
+    expect(planOpenSchedule({ scheduledStartAt: null }, at(0))).toEqual({});
   });
 });

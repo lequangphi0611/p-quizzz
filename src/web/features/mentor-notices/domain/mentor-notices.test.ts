@@ -161,8 +161,13 @@ describe('start notices (PRODUCT.md §7.31g)', () => {
   });
 
   it('says when a scheduled start was dropped', () => {
-    const [n] = buildNotices([], s, [], { start: null, pendingCount: 0, startScheduleDroppedAt: 5_000 });
+    const waiting = { ...start(0), scheduledAt: null, startsAt: null, startsInMs: null };
+    const [n] = buildNotices([], s, [], { start: waiting, pendingCount: 0, startScheduleDroppedAt: 5_000 });
     expect(n).toMatchObject({ kind: 'start-dropped', at: 5_000 });
     expect(needsAttention(n!)).toBe(true);
+  });
+
+  it('stops saying so once the session has started', () => {
+    expect(buildNotices([], s, [], { start: null, pendingCount: 0, startScheduleDroppedAt: 5_000 })).toEqual([]);
   });
 });
