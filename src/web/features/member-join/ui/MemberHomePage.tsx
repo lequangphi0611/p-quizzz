@@ -8,7 +8,7 @@ import { StatusBadge } from '../../../shared/ui/StatusBadge.js';
 import { HeroIcon, InfoBox, InfoRow, MemberPage, PageCard, mText, useIsDesk } from '../../../shared/ui/member/member-shell.js';
 import { NameChip } from '../../../shared/ui/member/MemberLayout.js';
 import { ResultView } from '../../../shared/ui/member/ResultView.js';
-import { selectRoom, selectScreen } from '../application/member-home-controller.js';
+import { selectCanReopen, selectRoom, selectScreen } from '../application/member-home-controller.js';
 import { useMemberHome } from '../application/member-home-context.js';
 import { ConnLost } from './ConnLost.js';
 import { formatMinutes } from '../../../shared/format/countdown.js';
@@ -34,7 +34,7 @@ export function MemberHomePage({ examScreen }: { examScreen: ExamScreen }) {
     return examScreen({ me: me!, onChanged: ctrl.refreshMe, leaderboard: <Leaderboard sessionId={me!.session.id} highlightName={me!.participant.displayName} /> });
   }
   if (screen === 'ended') {
-    return <ResultView me={me!} ended autoSubmitted={autoSubmitted} endedByTimer={state.endedByTimer} onAnotherRoom={() => { setLinkRoom(''); ctrl.leaveEnded(); }}><Leaderboard sessionId={me!.session.id} highlightName={me!.participant.displayName} /></ResultView>;
+    return <ResultView me={me!} ended autoSubmitted={autoSubmitted} endedByTimer={state.endedByTimer} canReopen={selectCanReopen(state)} onAnotherRoom={() => { setLinkRoom(''); ctrl.leaveEnded(); }}><Leaderboard sessionId={me!.session.id} highlightName={me!.participant.displayName} /></ResultView>;
   }
 
   const page = (body: ReactNode, opts: { maxW?: number; status?: ReactNode } = {}) => (

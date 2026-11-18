@@ -3,7 +3,7 @@ import type { ActiveSession, MeResponse } from '../../../../shared/api/index.js'
 import { ApiError } from '../../../shared/api-client/http-client.js';
 import { InMemoryTokenStore } from '../../../shared/token-store/in-memory-token-store.js';
 import { InMemoryMySessionsStore, type MemberGateway, type RoomCodeMemory } from './member-gateway.js';
-import { MemberHomeController, selectFollowedId, selectRoom, selectScreen } from './member-home-controller.js';
+import { MemberHomeController, selectCanReopen, selectFollowedId, selectRoom, selectScreen } from './member-home-controller.js';
 
 const found = (id = 1, status: ActiveSession['status'] = 'lobby'): ActiveSession => ({ id, title: 'T', status } as ActiveSession);
 const me = (id = 1, status = 'lobby', participant = 'active', attemptCurrent: unknown = null): MeResponse => ({ session: { id, status, title: 'T' }, participant: { status: participant, displayName: 'An' }, attempt: { current: attemptCurrent, submitted: [] } } as unknown as MeResponse);
@@ -435,6 +435,41 @@ describe('MemberHomeController: my sessions on this browser (PRODUCT.md §7.29)'
     ctrl.leaveEnded();
     expect(ctrl.getState().autoSubmitted).toBe(false);
     expect(ctrl.getState().endedByTimer).toBe(false);
+  });
+
+  it('a remembered code whose token the server no longer knows (401) is looked up at the server after all', async () => {
+    let reset = false;
+    const tokens = new InMemoryTokenStore();
+    tokens.setToken(1, 'tok');
+    const store = new InMemoryMySessionsStore([{ sessionId: 1, roomCode: '482913', title: 'T', status: 'closed', joinedAt: 1 }]);
+    const { ctrl, gateway } = make({
+      resolveRoom: vi.fn(async () => found(9, 'lobby')),
+      getMe: vi.fn(async () => { if (reset) throw new ApiError(401, 'unknown token'); return ended(); }),
+    }, tokens, store);
+    reset = true;
+    await ctrl.lookUpRoom('482913');
+    await settle();
+    expect(gateway.resolveRoom).toHaveBeenCalledWith('482913');
+    expect(ctrl.getState().mine).toEqual([]);
+    expect(selectRoom(ctrl.getState())?.id).toBe(9);
+    expect(selectScreen(ctrl.getState())).toBe('join');
+  });
+
+  it('a 401 on a session resumed without its code (reload) does not look anything up', async () => {
+    const { ctrl, gateway } = make({ getMe: vi.fn(async () => { throw new ApiError(401, 'unknown token'); }) }, inSession(1));
+    await settle();
+    expect(selectFollowedId(ctrl.getState())).toBeNull();
+    expect(gateway.resolveRoom).not.toHaveBeenCalled();
+  });
+
+  it('canReopen: true once the ended session is in the list, false when this browser cannot keep the list', async () => {
+    const { ctrl } = await joinedAndEnded();
+    expect(selectCanReopen(ctrl.getState())).toBe(true);
+    const broken = { load: () => [], save: () => {} };
+    const { ctrl: noStore } = make({ getMe: async () => me(1, 'closed') }, inSession(1), broken as never);
+    await settle();
+    expect(selectScreen(noStore.getState())).toBe('ended');
+    expect(selectCanReopen(noStore.getState())).toBe(false);
   });
 
   it('the session that is open in this tab is never removed from the list by "forget"', async () => {

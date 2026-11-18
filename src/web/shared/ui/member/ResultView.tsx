@@ -15,7 +15,7 @@ const timeOf = (ms: number) => new Date(ms).toLocaleTimeString('vi-VN', { hour: 
  * the session while this member was still working, so the attempt was submitted for them. While the mentor holds
  * scores back (PRODUCT.md §7.25) the running card says so instead of showing a score; closing always publishes them.
  */
-export function ResultView({ me, ended, autoSubmitted = false, endedByTimer = false, onAnotherRoom, children }: { me: MeResponse; ended: boolean; autoSubmitted?: boolean; endedByTimer?: boolean; onAnotherRoom?: () => void; children?: ReactNode }) {
+export function ResultView({ me, ended, autoSubmitted = false, endedByTimer = false, canReopen = false, onAnotherRoom, children }: { me: MeResponse; ended: boolean; autoSubmitted?: boolean; endedByTimer?: boolean; canReopen?: boolean; onAnotherRoom?: () => void; children?: ReactNode }) {
   const desk = useIsDesk();
   const nav = useNavigate();
   const { session, attempt, participant } = me;
@@ -98,7 +98,10 @@ export function ResultView({ me, ended, autoSubmitted = false, endedByTimer = fa
       {ended && onAnotherRoom && (
         <div style={{ display: 'grid', gap: 4, justifyItems: 'center', textAlign: 'center' }}>
           <Button variant="ghost" icon="door-open" onClick={onAnotherRoom}>Vào phòng khác</Button>
-          <span style={mText.meta}>Kết quả phiên này vẫn mở lại được ở mục “Phiên của bạn trên máy này”.</span>
+          {/* Only promise what this browser can keep: a private window or blocked site data loses the result on leaving. */}
+          <span style={mText.meta}>{canReopen
+            ? 'Kết quả phiên này vẫn mở lại được ở mục “Phiên của bạn trên máy này”.'
+            : 'Trình duyệt này không lưu được phiên (có thể do chế độ ẩn danh), rời trang này sẽ không mở lại được kết quả.'}</span>
         </div>
       )}
     </MemberPage>

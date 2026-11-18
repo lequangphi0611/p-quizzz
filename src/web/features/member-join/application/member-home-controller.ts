@@ -39,6 +39,11 @@ export const selectRoom = (s: MemberHomeState): ActiveSession | null => (s.looku
 export const selectScreen = (s: MemberHomeState): MemberScreen => decideScreen({ followId: s.followId, room: selectRoom(s), me: s.me, meState: s.meState, rejoin: s.rejoin });
 /** The session whose events and `/api/me` this page follows. */
 export const selectFollowedId = (s: MemberHomeState): number | null => s.followId;
+/**
+ * The followed session is in "my sessions", so leaving it does not lose it. False when this browser cannot keep the
+ * list or the token (private window, blocked site data): the result is gone once the member leaves.
+ */
+export const selectCanReopen = (s: MemberHomeState): boolean => s.followId !== null && s.mine.some(m => m.sessionId === s.followId);
 
 /**
  * What a member sees at "/": finds a session by its room code, follows the session they joined (polling + SSE
@@ -54,6 +59,8 @@ export class MemberHomeController {
   /** The token this browser held for a session before it asked to be let back in; restored if the request ends without a seat. */
   private priorToken: { sessionId: number; token: string | null } | null = null;
   private wasTaking = false;
+  /** A remembered code opened this session without asking the server; if the token turns out unknown, ask it after all. */
+  private shortcut: { sessionId: number; code: string } | null = null;
 
   constructor(private gateway: MemberGateway, private tokens: TokenStore, private rooms: RoomCodeMemory, private pollMs = POLL_MS, private mineStore: MySessionsStore = new InMemoryMySessionsStore()) {
     // Resume the session this tab (or, for a new tab, the last tab) was in, if a token for it is still here.
@@ -106,6 +113,7 @@ export class MemberHomeController {
     try {
       const me = await this.gateway.getMe();
       if (n !== this.meSeq) return;
+      if (this.shortcut?.sessionId === sessionId) this.shortcut = null;
       // Polled every few seconds: only touch storage and the visible list when something changed.
       const before = this.mineStore.load();
       const after = rememberMySession(before, { sessionId, title: me.session.title, status: me.session.status, roomCode: this.rooms.recall(sessionId) }, Date.now());
@@ -116,6 +124,11 @@ export class MemberHomeController {
         this.tokens.clearToken(sessionId);
         this.tokens.clearCurrentSessionId();
         this.set({ followId: null, me: null, meState: 'idle', ...this.changeMine(list => forgetMySession(list, sessionId)) });
+        // Opened by its remembered code: the code may now belong to another session (e.g. the mentor recreated the DB),
+        // so look it up as if typed. The entry is gone, so this time it goes to the server.
+        const sc = this.shortcut?.sessionId === sessionId ? this.shortcut : null;
+        this.shortcut = null;
+        if (sc) void this.lookUpRoom(sc.code);
       } else if (err instanceof ApiError && err.status === 403) {
         // Kicked or replaced: no seat left, so the session leaves "my sessions" now, not only when "leave" is pressed (§7.29d).
         // The token stays until then, so the kicked/replaced screen still shows after a reload.
@@ -142,7 +155,7 @@ export class MemberHomeController {
     // A session this browser joined: open it without asking the server (an ended session's code is not valid there,
     // and a lookup would count as a wrong code). Other browsers cannot tell an ended session from a wrong code (§7.16, §7.29).
     const known = findMySessionByCode(this.mineStore.load(), code);
-    if (known && this.tokens.getToken(known.sessionId)) { this.openMine(known.sessionId); return; }
+    if (known && this.tokens.getToken(known.sessionId)) { this.shortcut = { sessionId: known.sessionId, code }; this.openMine(known.sessionId); return; }
     const cur = this.state.lookup;
     if (cur && cur.code === code && cur.status !== 'error') return;
     const n = ++this.lookupSeq;
@@ -303,8 +316,10 @@ export class MemberHomeController {
   private changeMine(fn: (list: MySession[]) => MySession[]): { mine: MySession[] } {
     const before = this.mineStore.load();
     const after = fn(before);
-    if (after !== before) this.mineStore.save(after);
-    return { mine: this.visibleMine(after) };
+    if (after === before) return { mine: this.visibleMine(before) };
+    this.mineStore.save(after);
+    // Read back what was kept: storage may refuse writes (private window), and the list must not show more than it holds.
+    return { mine: this.visibleMine() };
   }
 
   /** Only sessions this browser still holds a seat in can be opened, so only those are listed. */
