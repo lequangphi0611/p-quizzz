@@ -52,6 +52,7 @@ export async function applyTransition(deps: TransitionDeps, id: number, action: 
       patch = planOpen(now, await newRoomCode(deps.random, code => ctx.sessions.roomCodeInUse(code)), await ctx.sessions.lowestFreeSlot());
     } else if (action === 'start') {
       patch = planStart(now, session.timeLimitMinutes); // starts the shared clock (PRODUCT.md §7.27d)
+      await ctx.lobby.markPresentAtStart(id); // they go straight to question 1; later arrivals see "còn X phút" (§7.31f)
     } else if (action === 'close') {
       const mode = deps.modes.get(session.mode);
       if (mode.submitsOpenAttemptsOnClose) autoSubmitted = await ctx.attempts.submitOpenAttempts(id);

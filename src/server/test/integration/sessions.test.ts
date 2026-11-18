@@ -192,7 +192,7 @@ describe('GET /api/sessions/:id/public', () => {
     expect((await pub()).statusCode).toBe(404); // a draft is not public: its exam title may be the upcoming test
     await act(id, 'open');
     const res = await pub();
-    expect(res.json<ActiveSession>()).toEqual({ id, title: 'Đề Git', status: 'lobby', access: 'free', timer: null });
+    expect(res.json<ActiveSession>()).toEqual({ id, title: 'Đề Git', status: 'lobby', access: 'free', timer: null, start: { scheduledAt: null, countdownEndsAt: null, countdownSource: null, startsAt: null, startsInMs: null, early: false, autoStartReady: false, readyMin: null, ready: { count: 0, total: 0 } } });
     expect(res.body).not.toMatch(/member-0908|roomCode|slot|name/);
     for (const x of ['start', 'close']) await act(id, x);
     expect((await pub()).json<ActiveSession>().status).toBe('finalized');
@@ -233,7 +233,7 @@ describe('GET /sessions', () => {
       { sessionId: a.id, displayName: 'An', token: 'ta', status: 'active', joinedAt: new Date() },
       { sessionId: b.id, displayName: 'Bình', token: 'tb', status: 'pending', joinedAt: new Date() },
     ]).run();
-    expect((await get(a.id)).participants).toEqual([{ id: expect.any(Number), displayName: 'An', status: 'active', joinedAt: expect.any(Number), progress: { state: 'none', attempts: 0, countedScore: null, maxScore: 7, submittedAt: null, editRequest: null, answered: null }, email: null, connection: { online: false, lastSeenAt: null }, rejoinAllowedUntil: null }]);
+    expect((await get(a.id)).participants).toEqual([{ id: expect.any(Number), displayName: 'An', status: 'active', joinedAt: expect.any(Number), readyAt: null, progress: { state: 'none', attempts: 0, countedScore: null, maxScore: 7, submittedAt: null, editRequest: null, answered: null }, email: null, connection: { online: false, lastSeenAt: null }, rejoinAllowedUntil: null }]);
   });
 });
 

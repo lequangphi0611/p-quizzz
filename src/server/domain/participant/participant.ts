@@ -1,5 +1,6 @@
 import { displayNameKey } from '../../../shared/api/participants.js';
 import { ACTIVE_STATUSES, type SessionStatus } from '../../../shared/session-state.js';
+import { ReadyLockedError } from '../session/errors.js';
 import { roomCodeMatches } from '../session/room-code.js';
 import {
   EmailTakenError,
@@ -29,9 +30,13 @@ export interface Participant {
   rejoinAllowedUntil: Date | null;
   status: ParticipantStatus;
   joinedAt: Date;
+  /** Pressed "Sẵn sàng" in the lobby (PRODUCT.md §7.31d); null = not ready. */
+  readyAt: Date | null;
+  /** Was approved and in the room when the session started: goes straight to question 1. Others joined late (§7.31f). */
+  presentAtStart: boolean;
 }
 
-export type NewParticipant = Omit<Participant, 'id' | 'replacedToken' | 'rejoinAllowedUntil'>;
+export type NewParticipant = Omit<Participant, 'id' | 'replacedToken' | 'rejoinAllowedUntil' | 'readyAt' | 'presentAtStart'>;
 
 // Rules for who may be in a session. Pure: use cases load the facts and call these.
 
@@ -81,4 +86,11 @@ export function assertNotKicked(p: Pick<Participant, 'status'>): void {
 export function assertApprovable(p: Pick<Participant, 'status'>, sessionStatus: SessionStatus | undefined): void {
   if (p.status !== 'pending') throw new NotPendingError();
   if (!sessionStatus || !ACTIVE_STATUSES.includes(sessionStatus)) throw new SessionClosedForApprovalError();
+}
+
+/** "Sẵn sàng" / "Huỷ sẵn sàng": in the lobby, approved, and not once the 10-second countdown runs (PRODUCT.md §7.31c, d). */
+export function assertCanSetReady(p: Pick<Participant, 'status'>, session: { status: SessionStatus; countdownEndsAt: Date | null }): void {
+  if (session.status !== 'lobby') throw new ReadyLockedError('not_lobby');
+  if (p.status !== 'active') throw new ReadyLockedError('not_active');
+  if (session.countdownEndsAt) throw new ReadyLockedError('countdown');
 }

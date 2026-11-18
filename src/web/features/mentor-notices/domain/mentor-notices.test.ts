@@ -3,7 +3,7 @@ import type { SessionParticipantDetail } from '../../../../shared/api/index.js';
 import { attentionFirst, buildAllNotices, buildNotices, needsAttention, editPendingCount, DESKTOP_BATCH_MAX, desktopNotifications, markSeenAt, newPendingNotices, pendingCount, titleWithCount, unreadCount } from './mentor-notices.js';
 
 const person = (id: number, status: SessionParticipantDetail['status'], joinedAt: number, submittedAt: number | null = null): SessionParticipantDetail => ({
-  id, displayName: `P${id}`, status, joinedAt, email: null, connection: { online: true, lastSeenAt: null }, rejoinAllowedUntil: null,
+  readyAt: null, id, displayName: `P${id}`, status, joinedAt, email: null, connection: { online: true, lastSeenAt: null }, rejoinAllowedUntil: null,
   progress: { state: submittedAt ? 'submitted' : 'none', attempts: submittedAt ? 1 : 0, countedScore: submittedAt ? 1 : null, maxScore: 2, submittedAt, editRequest: null, answered: null },
 });
 

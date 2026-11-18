@@ -23,9 +23,17 @@ export function assertTransition(session: Pick<Session, 'status'>, action: Sessi
 
 export const planOpen = (now: Date, roomCode: string, slot: number): SessionPatch => ({ status: 'lobby', openedAt: now, roomCode, slot });
 
-/** Starting also starts the shared clock when the session has a time limit (PRODUCT.md §7.27d). */
-export const planStart = (now: Date, timeLimitMinutes: number | null = null): SessionPatch =>
-  timeLimitMinutes === null ? { status: 'running', startedAt: now } : { status: 'running', startedAt: now, endsAt: deadlineFrom(now, timeLimitMinutes) };
+/**
+ * Starting also starts the shared clock when the session has a time limit (PRODUCT.md §7.27d): from the moment it really
+ * starts, whatever started it (§7.31). A countdown still running is spent.
+ */
+export const planStart = (now: Date, timeLimitMinutes: number | null = null): SessionPatch => ({
+  status: 'running',
+  startedAt: now,
+  countdownEndsAt: null,
+  countdownSource: null,
+  ...(timeLimitMinutes === null ? {} : { endsAt: deadlineFrom(now, timeLimitMinutes) }),
+});
 
 export function planClose(mode: SessionMode, exam: { hasEssay: boolean }, now: Date): SessionPatch {
   const status = mode.statusAfterClose(exam);

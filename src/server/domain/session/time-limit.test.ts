@@ -9,8 +9,8 @@ const at = (ms: number) => new Date(ms);
 
 describe('time limit (PRODUCT.md §7.27)', () => {
   it('start sets the shared deadline only when there is a limit', () => {
-    expect(planStart(at(1000), 30)).toEqual({ status: 'running', startedAt: at(1000), endsAt: at(1000 + 30 * MIN) });
-    expect(planStart(at(1000), null)).toEqual({ status: 'running', startedAt: at(1000) });
+    expect(planStart(at(1000), 30)).toMatchObject({ status: 'running', startedAt: at(1000), endsAt: at(1000 + 30 * MIN) });
+    expect(planStart(at(1000), null)).not.toHaveProperty('endsAt');
   });
 
   it('the limit can change, appear or go away only before the start', () => {

@@ -112,8 +112,11 @@ export const toParticipantReviewDto = (r: ParticipantReviewResult): ParticipantR
 });
 
 export const toMeResponseDto = (m: MemberState): MeResponse => ({
-  participant: toParticipantInfoDto(m.participant),
-  session: { ...m.room, scoresHidden: m.scoresHidden, timer: m.timer, closedByTimer: m.closedByTimer },
+  participant: { ...toParticipantInfoDto(m.participant), ready: m.participant.readyAt !== null, lateJoin: m.lateJoin },
+  session: {
+    id: m.room.id, title: m.room.title, status: m.room.status, participantCount: m.room.participantCount, questionCount: m.room.questionCount,
+    totalPoints: m.room.totalPoints, hasEssay: m.room.hasEssay, scoresHidden: m.scoresHidden, timer: m.timer, closedByTimer: m.closedByTimer, start: m.start,
+  },
   attempt: {
     current: m.current ? { id: m.current.id, attemptNo: m.current.attemptNo, startedAt: m.current.startedAt.getTime() } : null,
     submitted: m.submitted.map(a => toSummary(a, m.maxScore, { sessionStatus: m.room.status, participantStatus: m.participant.status, scoresHidden: m.scoresHidden })),

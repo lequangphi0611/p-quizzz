@@ -64,3 +64,29 @@ export class ScoresNotHeldError extends DomainError {
     super('conflict', 'Phiên này không giữ điểm, không có gì để công bố');
   }
 }
+
+/** The scheduled start and the "everyone ready" option can only be changed before the session starts (PRODUCT.md §7.31b, e). */
+export class StartSettingsLockedError extends DomainError {
+  constructor() {
+    super('conflict', 'Phiên đã bắt đầu, không đổi cách bắt đầu được nữa');
+  }
+}
+
+export class StartTimeInPastError extends DomainError {
+  constructor() {
+    super('invalid', 'Giờ bắt đầu phải ở sau thời điểm hiện tại');
+  }
+}
+
+export class NoCountdownError extends DomainError {
+  constructor() {
+    super('conflict', 'Không có đếm ngược nào đang chạy');
+  }
+}
+
+/** Ready can be changed only in the lobby, by an approved member, before the 10-second countdown runs (§7.31c, d). */
+export class ReadyLockedError extends DomainError {
+  constructor(reason: 'not_lobby' | 'not_active' | 'countdown') {
+    super('conflict', reason === 'countdown' ? 'Đang đếm ngược, không đổi sẵn sàng được nữa' : reason === 'not_active' ? 'Mentor chưa duyệt bạn vào phòng' : 'Chỉ báo sẵn sàng được ở phòng chờ');
+  }
+}

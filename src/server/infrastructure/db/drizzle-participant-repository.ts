@@ -72,6 +72,10 @@ export class DrizzleParticipantRepository implements ParticipantRepository, Part
     });
   }
 
+  async setReady(id: number, at: Date | null): Promise<void> {
+    await this.access(db => db.update(participants).set({ readyAt: at }).where(eq(participants.id, id)).run());
+  }
+
   async setRejoinAllowedUntil(id: number, until: Date | null): Promise<void> {
     await this.access(db => db.update(participants).set({ rejoinAllowedUntil: until }).where(eq(participants.id, id)).run());
   }

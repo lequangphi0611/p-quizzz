@@ -58,6 +58,8 @@ import type { PresenceTracker } from './application/ports/presence-tracker.js';
 import type { RejoinUnitContext } from './application/ports/participant-repository.js';
 import type { GroupUnitContext } from './application/ports/group-repository.js';
 import { StartSession } from './application/use-cases/sessions/start-session.js';
+import { CancelCountdown, SetAutoStart, SetStartSchedule, StartCountdown, StartDueSessions } from './application/use-cases/sessions/start-plan.js';
+import { SetReady } from './application/use-cases/participants/set-ready.js';
 import { CloseExpiredSessions, ExtendTime, SetTimeLimit } from './application/use-cases/sessions/time-limit.js';
 import { defaultSessionModes } from './domain/session/mode.js';
 import type { Db } from './infrastructure/db/client.js';
@@ -68,7 +70,7 @@ import { DrizzleParticipantRepository } from './infrastructure/db/drizzle-partic
 import { DrizzleExamRepository } from './infrastructure/db/drizzle-exam-repository.js';
 import { SqliteDatabase, SqliteUnitOfWork } from './infrastructure/db/sqlite-database.js';
 import { DrizzleAttemptRepository, DrizzleMemberRoomReader } from './infrastructure/db/drizzle-attempt-repository.js';
-import { DrizzleSessionReader, DrizzleSessionRepository } from './infrastructure/db/drizzle-session-repository.js';
+import { DrizzleLobbyHeadcount, DrizzleSessionReader, DrizzleSessionRepository } from './infrastructure/db/drizzle-session-repository.js';
 import { bus } from './infrastructure/events/event-bus.js';
 import { BusEventPublisher } from './infrastructure/events/bus-event-publisher.js';
 import { CryptoRandom } from './infrastructure/system/crypto-random.js';
@@ -145,6 +147,7 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}, aiOptions:
     const access = async <T>(fn: (db: Db) => T) => fn(tx);
     return {
       sessions: new DrizzleSessionRepository(access),
+      lobby: new DrizzleLobbyHeadcount(access),
       exams: new DrizzleExamRepository(access),
       groups: new DrizzleGroupRepository(access),
       attempts: new AutoSubmitOpenAttempts({
@@ -237,6 +240,7 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}, aiOptions:
       requestEdit: new RequestEdit(editDeps),
       finishEdit: new FinishEdit(editDeps),
       resolveEdit: new ResolveEditRequest(editDeps),
+      setReady: new SetReady({ unitOfWork: participantUnitOfWork, events: ports.events, clock: ports.clock }),
     },
     participants: {
       join: new JoinSession({ unitOfWork: participantUnitOfWork, clock: ports.clock, tokens: ports.tokens, events: ports.events }),
@@ -288,6 +292,11 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}, aiOptions:
       setTimeLimit: new SetTimeLimit({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, events: ports.events, clock: ports.clock }),
       extendTime: new ExtendTime({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, events: ports.events, clock: ports.clock }),
       closeExpired: new CloseExpiredSessions(lifecycle),
+      setStartSchedule: new SetStartSchedule({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, events: ports.events, clock: ports.clock }),
+      startCountdown: new StartCountdown({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, events: ports.events, clock: ports.clock }),
+      cancelCountdown: new CancelCountdown({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, events: ports.events, clock: ports.clock }),
+      setAutoStart: new SetAutoStart({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, events: ports.events, clock: ports.clock }),
+      startDue: new StartDueSessions(lifecycle),
       saveGroup: new SaveSessionGroup({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, events: ports.events, groups: groupReader, clock: ports.clock }),
     },
     exams: {

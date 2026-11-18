@@ -3,6 +3,7 @@ import type { SessionStatus } from '../session-state.js';
 import type { MeAttemptState } from './attempts.js';
 import type { SessionParticipantInfo } from './sessions.js';
 import type { SessionTimer } from '../session-timer.js';
+import type { SessionStartInfo } from '../session-start.js';
 
 export const MAX_NAME_LENGTH = 30;
 
@@ -46,14 +47,20 @@ export interface JoinResponse {
 }
 
 // GET /api/me.
+/** PUT /api/me/ready: "Sẵn sàng" / "Huỷ sẵn sàng" in the lobby (PRODUCT.md §7.31d). */
+export const ReadyBody = z.object({ ready: z.boolean() });
+
 export interface MeResponse {
-  participant: SessionParticipantInfo;
+  // ready: pressed "Sẵn sàng". lateJoin: the session started without this person in the room, so they see "còn X phút"
+  // before question 1 instead of going straight in (PRODUCT.md §7.31f).
+  participant: SessionParticipantInfo & { ready: boolean; lateJoin: boolean };
   // participantCount = members with status 'active' (the lobby shows "N người đã vào").
   // questionCount / totalPoints / hasEssay describe the exam for the start screen (counts only, no content).
   // scoresHidden: the mentor is holding scores and the leaderboard back until they publish them (PRODUCT.md §7.25).
   // timer: the session's shared clock (PRODUCT.md §7.27); null without a time limit or once the session ended.
   // closedByTimer: the session closed because its time ran out (not an early "Đóng" by the mentor); false while open.
-  session: { id: number; title: string; status: SessionStatus; participantCount: number; questionCount: number; totalPoints: number; hasEssay: boolean; scoresHidden: boolean; timer: SessionTimer | null; closedByTimer: boolean };
+  // start: how and when the session starts (PRODUCT.md §7.31); null once it has started.
+  session: { id: number; title: string; status: SessionStatus; participantCount: number; questionCount: number; totalPoints: number; hasEssay: boolean; scoresHidden: boolean; timer: SessionTimer | null; closedByTimer: boolean; start: SessionStartInfo | null };
   attempt: MeAttemptState;
 }
 

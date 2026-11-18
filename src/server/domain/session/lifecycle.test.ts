@@ -19,7 +19,7 @@ describe('session lifecycle policy', () => {
 
   it('open stamps openedAt and the room code; start stamps startedAt', () => {
     expect(planOpen(now, '123456', 2)).toEqual({ status: 'lobby', openedAt: now, roomCode: '123456', slot: 2 });
-    expect(planStart(now)).toEqual({ status: 'running', startedAt: now });
+    expect(planStart(now)).toEqual({ status: 'running', startedAt: now, countdownEndsAt: null, countdownSource: null });
   });
 
   it('self-paced close finalizes at once only when the exam has no essay', () => {

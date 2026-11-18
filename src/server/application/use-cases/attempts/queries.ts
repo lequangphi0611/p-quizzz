@@ -8,6 +8,8 @@ import { areScoresHidden } from '../../../domain/session/score-visibility.js';
 import { closedByTimer, sessionTimer } from '../../../domain/session/time-limit.js';
 import type { SessionTimer } from '../../../../shared/session-timer.js';
 import type { Clock } from '../../ports/clock.js';
+import { sessionStartInfo } from '../../../domain/session/start.js';
+import type { SessionStartInfo } from '../../../../shared/session-start.js';
 import type { AttemptReader, MemberRoom, MemberRoomReader } from '../../ports/attempt-repository.js';
 import type { ExamReader } from '../../ports/exam-repository.js';
 import type { ParticipantReader } from '../../ports/participant-repository.js';
@@ -101,6 +103,10 @@ export interface MemberState {
   timer: SessionTimer | null;
   /** The session closed because its time ran out, not because the mentor closed it early (PRODUCT.md §7.27f, g). */
   closedByTimer: boolean;
+  /** How and when the session starts (PRODUCT.md §7.31); null once it has started. */
+  start: SessionStartInfo | null;
+  /** Started without this person in the room: "còn X phút" before question 1 (§7.31f). */
+  lateJoin: boolean;
 }
 
 /** `GET /api/me`: every member polls it, so it keeps to a few small queries (an aggregate for the max score, not the exam content). */
@@ -114,6 +120,14 @@ export class GetMemberState {
     const maxScore = await this.deps.exams.maxAutoScoreOf(session.examId);
     const attempts = await this.deps.attempts.listByParticipant(participant.id);
     const { current, submitted, canStartNew } = memberAttemptState({ attempts, sessionStatus: session.status, participantStatus: participant.status });
-    return { participant, room, current, submitted, canStartNew, maxScore, scoresHidden: areScoresHidden(session), timer: sessionTimer(session, this.deps.clock.now()), closedByTimer: closedByTimer(session) };
+    const now = this.deps.clock.now();
+    return {
+      participant, room, current, submitted, canStartNew, maxScore,
+      scoresHidden: areScoresHidden(session),
+      timer: sessionTimer(session, now),
+      closedByTimer: closedByTimer(session),
+      start: sessionStartInfo(session, { count: room.readyCount, total: room.participantCount }, now),
+      lateJoin: session.status !== 'draft' && session.status !== 'lobby' && !participant.presentAtStart,
+    };
   }
 }

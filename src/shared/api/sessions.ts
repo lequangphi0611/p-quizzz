@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { SessionStatus } from '../session-state.js';
 import type { EditRequestInfo } from './attempts.js';
+import { MAX_READY_MIN, type SessionStartInfo } from '../session-start.js';
 import { MAX_EXTEND_MINUTES, MAX_TIME_LIMIT_MINUTES, MIN_TIME_LIMIT_MINUTES, isTimeLimitMinutes, type SessionTimer } from '../session-timer.js';
 
 export type SessionMode = 'self_paced' | 'live';
@@ -25,6 +26,14 @@ export const TimeLimitBody = z.object({ timeLimitMinutes: TimeLimitMinutes.nulla
 /** POST /api/admin/sessions/:id/extend-time: "+N phút" for everyone while the session runs. */
 export const ExtendTimeBody = z.object({
   minutes: z.number().int().min(1, 'Cộng ít nhất 1 phút').max(MAX_EXTEND_MINUTES, `Mỗi lần cộng tối đa ${MAX_EXTEND_MINUTES} phút`),
+});
+
+/** PUT /api/admin/sessions/:id/start-schedule: the scheduled start (epoch ms), or null to remove it (PRODUCT.md §7.31b). */
+export const StartScheduleBody = z.object({ startsAt: z.number({ error: 'Giờ bắt đầu không hợp lệ' }).int().positive().nullable() });
+/** PUT /api/admin/sessions/:id/auto-start: "Tự bắt đầu khi mọi người sẵn sàng" and its least number of people (§7.31e). */
+export const AutoStartBody = z.object({
+  enabled: z.boolean(),
+  minParticipants: z.number({ error: 'Số người tối thiểu không hợp lệ' }).int().min(1, 'Tối thiểu 1 người').max(MAX_READY_MIN, `Tối đa ${MAX_READY_MIN} người`),
 });
 
 export const ScoreVisibilityBody = z.object({ scoreVisibility: z.enum(['on_submit', 'on_release']) });
@@ -67,6 +76,9 @@ export interface SessionSummary {
   scoresHidden: boolean; // members and the projector cannot see scores or ranks right now
   timeLimitMinutes: number | null; // the setting (PRODUCT.md §7.27), kept after the session ends; null = no limit
   timer: SessionTimer | null; // the running clock; null without a limit or once the session ended
+  start: SessionStartInfo | null; // how and when it starts (PRODUCT.md §7.31); null once it has started
+  startScheduleDroppedAt: number | null; // a scheduled start passed while the server was off and was dropped (the bell says so)
+  pendingCount: number; // waiting for the mentor's approval
   roomCode: string | null; // mentor-only; null until the session is opened
   createdAt: number; // epoch ms
   openedAt: number | null;
@@ -98,6 +110,7 @@ export interface ParticipantProgress {
 }
 
 export interface SessionParticipantDetail extends SessionParticipantInfo {
+  readyAt: number | null; // mentor only: pressed "Sẵn sàng" in the lobby (PRODUCT.md §7.31d)
   progress: ParticipantProgress;
   email: string | null; // mentor only (PRODUCT.md §7.24); null in free sessions
   /** Mentor only (PRODUCT.md §7.23b): is the member's browser still talking to the server, and when was it last heard from. */
@@ -141,6 +154,7 @@ export interface ActiveSession {
   status: SessionStatus;
   access: SessionAccess; // tells the join form whether to ask for an email
   timer: SessionTimer | null; // shared clock (PRODUCT.md §7.27): the lobby shows the minutes, the projector counts down
+  start: SessionStartInfo | null; // the start (PRODUCT.md §7.31): counts only, never who; null once started
 }
 
 // POST /api/rooms/resolve: member types the room code, the server finds the open session.

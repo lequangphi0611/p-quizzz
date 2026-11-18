@@ -14,6 +14,8 @@ await composition.ai.failUnfinished.execute();
 await app.listen({ port: config.port, host: config.host });
 // Sessions with a time limit close themselves when the clock runs out (PRODUCT.md §7.27f).
 startDeadlineWatcher(composition.sessions.closeExpired, 1000, err => app.log.error(err));
+// Sessions start themselves at the scheduled time or once everyone is ready; a start missed while off is dropped (§7.31).
+startDeadlineWatcher(composition.sessions.startDue, 1000, err => app.log.error(err));
 
 // Print LAN URLs so the mentor can share them with members.
 const port = config.serveWeb ? config.port : 5173;

@@ -1,3 +1,4 @@
+import { InMemoryParticipantRepository } from '../../testing/in-memory-participant-repository.js';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { TIME_UP_GRACE_MS } from '../../../../shared/session-timer.js';
 import { CannotExtendTimeError, TimeLimitLockedError } from '../../../domain/session/errors.js';
@@ -24,7 +25,7 @@ let events: RecordingEventPublisher;
 let clock: FakeClock;
 
 function build() {
-  const unitOfWork = new InMemoryUnitOfWork({ sessions, exams, attempts: submitter, grading: new FakeUngradedEssayCounter(), groups: new InMemoryGroupRepository() }, [sessions]);
+  const unitOfWork = new InMemoryUnitOfWork({ sessions, lobby: new InMemoryParticipantRepository(), exams, attempts: submitter, grading: new FakeUngradedEssayCounter(), groups: new InMemoryGroupRepository() }, [sessions]);
   const modes = defaultSessionModes();
   const deps = { unitOfWork, sessions, clock, random: new FakeRandom([111111, 222222, 333333]), events, modes };
   return {

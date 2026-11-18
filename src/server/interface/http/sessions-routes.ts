@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { AddRosterBody, CreateSessionBody, ExtendTimeBody, SaveGroupBody, ScoreVisibilityBody, TimeLimitBody } from '../../../shared/api/index.js';
+import { AddRosterBody, AutoStartBody, CreateSessionBody, ExtendTimeBody, SaveGroupBody, ScoreVisibilityBody, StartScheduleBody, TimeLimitBody } from '../../../shared/api/index.js';
 import { SESSION_ACTIONS, type SessionAction } from '../../../shared/session-state.js';
 import { SessionNotFoundError } from '../../domain/session/errors.js';
 import type { CreateSession } from '../../application/use-cases/sessions/create-session.js';
@@ -12,6 +12,7 @@ import type { PresenceTracker } from '../../application/ports/presence-tracker.j
 import type { AddRosterEmails, SaveSessionGroup } from '../../application/use-cases/sessions/roster.js';
 import type { ReleaseScores, SetScoreVisibility } from '../../application/use-cases/sessions/score-visibility.js';
 import type { CloseExpiredSessions, ExtendTime, SetTimeLimit } from '../../application/use-cases/sessions/time-limit.js';
+import type { CancelCountdown, SetAutoStart, SetStartSchedule, StartCountdown, StartDueSessions } from '../../application/use-cases/sessions/start-plan.js';
 import type { GetPublicSession, GetSessionDetail, ListSessions } from '../../application/use-cases/sessions/queries.js';
 import { sendDomainError } from './domain-errors.js';
 import { parseId } from './params.js';
@@ -38,6 +39,12 @@ export interface SessionUseCases {
   extendTime: ExtendTime;
   /** Not a route: the deadline watcher started by index.ts runs it. */
   closeExpired: CloseExpiredSessions;
+  setStartSchedule: SetStartSchedule;
+  startCountdown: StartCountdown;
+  cancelCountdown: CancelCountdown;
+  setAutoStart: SetAutoStart;
+  /** Not a route: the start watcher started by index.ts runs it (PRODUCT.md §7.31). */
+  startDue: StartDueSessions;
 }
 
 // Mentor session routes. Registered inside the requireMentor scope of /api/admin (see buildApp).
@@ -148,6 +155,44 @@ export const sessionsRoutes = (uc: SessionUseCases): FastifyPluginAsync =>
         return sendDomainError(reply, err);
       }
     });
+
+    // How the session starts (PRODUCT.md §7.31). Static paths win over /:action; `start` itself stays immediate.
+    app.put<{ Params: { id: string } }>('/sessions/:id/start-schedule', async (req, reply) => {
+      const id = parseId(req.params.id);
+      if (!id) return reply.code(404).send({ error: new SessionNotFoundError().message });
+      const body = StartScheduleBody.safeParse(req.body);
+      if (!body.success) return reply.code(400).send({ error: body.error.issues[0]?.message ?? 'Giờ bắt đầu không hợp lệ' });
+      try {
+        const at = body.data.startsAt === null ? null : new Date(body.data.startsAt);
+        return toSessionDetailDto(await uc.setStartSchedule.execute(id, at), uc.clock.now(), uc.presence);
+      } catch (err) {
+        return sendDomainError(reply, err);
+      }
+    });
+
+    app.put<{ Params: { id: string } }>('/sessions/:id/auto-start', async (req, reply) => {
+      const id = parseId(req.params.id);
+      if (!id) return reply.code(404).send({ error: new SessionNotFoundError().message });
+      const body = AutoStartBody.safeParse(req.body);
+      if (!body.success) return reply.code(400).send({ error: body.error.issues[0]?.message ?? 'Dữ liệu không hợp lệ' });
+      try {
+        return toSessionDetailDto(await uc.setAutoStart.execute(id, body.data.enabled, body.data.minParticipants), uc.clock.now(), uc.presence);
+      } catch (err) {
+        return sendDomainError(reply, err);
+      }
+    });
+
+    for (const [path, useCase] of [['start-countdown', uc.startCountdown], ['cancel-countdown', uc.cancelCountdown]] as const) {
+      app.post<{ Params: { id: string } }>(`/sessions/:id/${path}`, async (req, reply) => {
+        const id = parseId(req.params.id);
+        if (!id) return reply.code(404).send({ error: new SessionNotFoundError().message });
+        try {
+          return toSessionDetailDto(await useCase.execute(id), uc.clock.now(), uc.presence);
+        } catch (err) {
+          return sendDomainError(reply, err);
+        }
+      });
+    }
 
     app.post<{ Params: { id: string; action: string } }>('/sessions/:id/:action', async (req, reply) => {
       const id = parseId(req.params.id);

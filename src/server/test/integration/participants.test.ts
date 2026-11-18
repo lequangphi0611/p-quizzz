@@ -146,8 +146,8 @@ describe('GET /api/me', () => {
     const res = await me(token);
     expect(res.statusCode).toBe(200);
     expect(res.json<MeResponse>()).toEqual({
-      participant: { id: expect.any(Number), displayName: 'An', status: 'active', joinedAt: expect.any(Number) },
-      session: { id: sid, title: 'Đề Git', status: 'lobby', participantCount: 1, questionCount: 3, totalPoints: 7, hasEssay: false, scoresHidden: false, timer: null, closedByTimer: false },
+      participant: { id: expect.any(Number), displayName: 'An', status: 'active', joinedAt: expect.any(Number), ready: false, lateJoin: false },
+      session: { id: sid, title: 'Đề Git', status: 'lobby', participantCount: 1, questionCount: 3, totalPoints: 7, hasEssay: false, scoresHidden: false, timer: null, closedByTimer: false, start: { scheduledAt: null, countdownEndsAt: null, countdownSource: null, startsAt: null, startsInMs: null, early: false, autoStartReady: false, readyMin: null, ready: { count: 0, total: 1 } } },
       attempt: { current: null, submitted: [], canStartNew: false }, // lobby: nothing to start yet
     });
   });
