@@ -135,3 +135,17 @@ describe('session start over HTTP', () => {
     for (const body of [pub, me]) expect(body).not.toMatch(/readyAt|Bình|pendingCount/);
   });
 });
+
+describe('creating a session with its start (PRODUCT.md §7.31)', () => {
+  it('takes the scheduled time and "everyone ready" at creation, and refuses a time in the past without creating anything', async () => {
+    const { admin } = await setup();
+    const exam = (await admin('GET', '/exams')).json<ExamSummary[]>()[0]!;
+    const before = (await admin('GET', '/sessions')).json<unknown[]>().length;
+    expect((await admin('POST', '/sessions', { examId: exam.id, startsAt: T0 - 1 })).statusCode).toBe(400);
+    expect((await admin('GET', '/sessions')).json<unknown[]>()).toHaveLength(before);
+
+    const made = (await admin('POST', '/sessions', { examId: exam.id, startsAt: T0 + 30 * MIN, autoStart: { enabled: true, minParticipants: 4 } })).json<SessionDetail>();
+    expect(made).toMatchObject({ status: 'draft', start: { scheduledAt: T0 + 30 * MIN, autoStartReady: true, readyMin: 4 } });
+    expect((await admin('POST', '/sessions', { examId: exam.id, autoStart: { enabled: true, minParticipants: 0 } })).statusCode).toBe(400);
+  });
+});

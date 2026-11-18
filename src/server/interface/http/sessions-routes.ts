@@ -61,7 +61,7 @@ export const sessionsRoutes = (uc: SessionUseCases): FastifyPluginAsync =>
       const body = CreateSessionBody.safeParse(req.body);
       if (!body.success) return reply.code(400).send({ error: body.error.issues[0]?.message ?? 'Dữ liệu không hợp lệ' });
       try {
-        return reply.code(201).send(toSessionDetailDto(await uc.create.execute(body.data), uc.clock.now(), uc.presence));
+        return reply.code(201).send(toSessionDetailDto(await uc.create.execute({ ...body.data, startsAt: body.data.startsAt ? new Date(body.data.startsAt) : null }), uc.clock.now(), uc.presence));
       } catch (err) {
         return sendDomainError(reply, err);
       }

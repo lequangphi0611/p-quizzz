@@ -16,6 +16,10 @@ export interface NewSession {
   scoreVisibility?: ScoreVisibility;
   /** Minutes, or null for no limit (PRODUCT.md §7.27). Omitted = the exam's `duration`. */
   timeLimitMinutes?: number | null;
+  /** Scheduled start, epoch ms (PRODUCT.md §7.31b). Omitted = the mentor starts by hand. */
+  startsAt?: number;
+  /** "Tự bắt đầu khi tất cả sẵn sàng" (§7.31e). */
+  autoStart?: { enabled: boolean; minParticipants: number };
 }
 
 /** Port: everything the mentor's session pages need from the server. Failures reject with `ApiError`. */

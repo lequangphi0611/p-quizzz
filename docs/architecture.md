@@ -92,6 +92,7 @@ Mọi body/response là JSON. Lỗi: `{ error: string, code?: string }` (tiếng
 | PUT | `/sessions/:id/score-visibility` | `{ scoreVisibility }` (§7.25). 409 khi đã có người nộp (kể cả bị kick), đã công bố hoặc phiên đã kết thúc. Phát `session` + `leaderboard` |
 | PUT | `/sessions/:id/time-limit` | `{ timeLimitMinutes: number \| null }` (§7.27c). Chỉ ở `draft`/`lobby`, ngược lại 409. Phát `session` |
 | POST | `/sessions/:id/extend-time` | `{ minutes }` (1–60): "+N phút" cho cả phòng (§7.27e), `ends_at` += N (hạn đã qua thì tính từ bây giờ), `time_limit_minutes` += N. Chỉ khi `running` và có giới hạn, ngược lại 409. Phát `session` |
+| POST | `/sessions` (bổ sung S29) | Body tạo phiên nhận thêm `startsAt?` (epoch ms, phải ở tương lai) và `autoStart? { enabled, minParticipants }` (PRODUCT.md §7.31); sai thì 400 và không tạo phiên |
 | PUT | `/sessions/:id/start-schedule` | `{ startsAt: number \| null }` (epoch ms, phải ở tương lai, không thì 400): hẹn/đổi/bỏ giờ bắt đầu (§7.31b). Chỉ ở `draft`/`lobby`, ngược lại 409. Phát `session` |
 | POST | `/sessions/:id/start-countdown` | "Bắt đầu ngay": đếm ngược 10 giây rồi watcher bắt đầu phiên (§7.31c). Chỉ ở `lobby`; đang đếm thì giữ nguyên. Phát `session`. (`POST /sessions/:id/start` vẫn chạy ngay, không đếm ngược.) |
 | POST | `/sessions/:id/cancel-countdown` | Huỷ đếm ngược, đồng thời **tắt** `auto_start_ready` (§7.31c). Không có đếm ngược → 409. Phát `session` |

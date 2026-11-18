@@ -56,6 +56,9 @@ export const CreateSessionBody = z.object({
   scoreVisibility: z.enum(['on_submit', 'on_release']).optional(), // default on_submit (PRODUCT.md §7.25)
   // Minutes (PRODUCT.md §7.27). Omitted = the exam's `duration`; null = no time limit.
   timeLimitMinutes: TimeLimitMinutes.nullable().optional(),
+  // How it starts (PRODUCT.md §7.31). Omitted = by hand, as before. `startsAt` is epoch ms and must lie ahead.
+  startsAt: StartScheduleBody.shape.startsAt.optional(),
+  autoStart: AutoStartBody.optional(),
 });
 
 export interface SessionSummary {

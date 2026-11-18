@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SessionDetail, SessionParticipantDetail } from '../../../../shared/api/index.js';
 import type { SessionStartInfo } from '../../../../shared/session-start.js';
-import { autoStartBlockers, defaultReadyMin, earlyStartWarning, nextOccurrence, scheduleLabel, toTimeInput } from './start-ui.js';
+import { autoStartBlockers, chosenStart, defaultReadyMin, earlyStartWarning, nextOccurrence, scheduleLabel, toTimeInput } from './start-ui.js';
 
 const now = new Date(2026, 10, 18, 8, 55, 48);
 const start = (over: Partial<SessionStartInfo> = {}): SessionStartInfo => ({
@@ -40,5 +40,14 @@ describe('mentor start card (PRODUCT.md §7.31)', () => {
     expect(earlyStartWarning({ start: start({ scheduledAt: at }), timeLimitMinutes: 30 }, now.getTime())).toContain('Bắt đầu sớm hơn giờ hẹn (9:00)');
     expect(earlyStartWarning({ start: start({ scheduledAt: at }), timeLimitMinutes: null }, now.getTime())).toBeNull();
     expect(earlyStartWarning({ start: start(), timeLimitMinutes: 30 }, now.getTime())).toBeNull();
+  });
+});
+
+describe('create form start choice', () => {
+  it('sends nothing for a manual start, the next time for a schedule, and the minimum for everyone-ready', () => {
+    expect(chosenStart({ scheduled: false, time: '', autoOn: false, min: '' }, now)).toEqual({});
+    expect(chosenStart({ scheduled: true, time: '09:00', autoOn: true, min: '20' }, now)).toEqual({ startsAt: new Date(2026, 10, 18, 9, 0).getTime(), autoStart: { enabled: true, minParticipants: 20 } });
+    expect(chosenStart({ scheduled: true, time: '', autoOn: false, min: '' }, now)).toEqual({ error: 'Chọn giờ bắt đầu' });
+    expect(chosenStart({ scheduled: false, time: '', autoOn: true, min: '0' }, now)).toHaveProperty('error');
   });
 });

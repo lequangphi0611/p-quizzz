@@ -86,3 +86,26 @@ test('"Bắt đầu ngay" counts down 10 s on members and the projector; a late 
   await late.page.getByRole('button', { name: 'Vào làm bài' }).click();
   await expect(late.page.getByRole('radio').first()).toBeVisible();
 });
+
+test('the create form sets the scheduled time and "everyone ready" up front', async ({ browser, baseURL }) => {
+  const mentor = await mentorContext(browser, baseURL!, DESKTOP);
+  const api = mentor.context.request;
+  const examId = await importExam(api, resolve('e2e/fixtures/timed-exam.md'));
+  await mentor.page.goto(`/admin/sessions?examId=${examId}`);
+  const at = new Date(Date.now() + 30 * 60_000);
+  const hhmm = `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`;
+  await mentor.page.getByRole('radio', { name: 'Hẹn giờ' }).click();
+  await mentor.page.getByLabel('Giờ bắt đầu').fill(hhmm);
+  await mentor.page.getByRole('switch', { name: 'Tự bắt đầu khi tất cả sẵn sàng' }).click();
+  await expect(mentor.page.getByRole('button', { name: 'Tạo phiên', exact: true }).last()).toBeDisabled(); // free session: the minimum must be typed
+  await mentor.page.getByLabel('Số người tối thiểu').fill('3');
+  await mentor.page.screenshot({ path: shotPath('S29', '0-create-form-start'), fullPage: true });
+  await mentor.page.getByRole('button', { name: 'Tạo phiên', exact: true }).last().click();
+  await mentor.page.waitForURL(/\/admin\/sessions\/\d+$/);
+  const id = Number(mentor.page.url().split('/').pop());
+  const detail = (await (await api.get(`/api/admin/sessions/${id}`)).json()) as { status: string; start: { scheduledAt: number; autoStartReady: boolean; readyMin: number } };
+  expect(detail.status).toBe('draft');
+  expect(detail.start).toMatchObject({ autoStartReady: true, readyMin: 3 });
+  expect(Math.abs(detail.start.scheduledAt - at.getTime())).toBeLessThan(60_000);
+  await expect(mentor.page.getByRole('region', { name: 'Bắt đầu' }).getByText(`${at.getHours()}:${String(at.getMinutes()).padStart(2, '0')}`).first()).toBeVisible();
+});

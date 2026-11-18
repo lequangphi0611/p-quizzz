@@ -16,6 +16,8 @@ import { suggestSessionName } from '../domain/session-ui.js';
 import { SCORE_VISIBILITY_CHOICES } from '../domain/score-visibility-ui.js';
 import { MAX_TIME_LIMIT_MINUTES, MIN_TIME_LIMIT_MINUTES } from '../../../../shared/session-timer.js';
 import { chosenTimeLimit, timeLimitHint } from '../domain/time-limit-ui.js';
+import { chosenStart, nextOccurrence, scheduleLabel } from '../domain/start-ui.js';
+import { Switch } from '../../../shared/ui/member/Switch.js';
 
 const selectStyle = { width: '100%', height: 44, padding: '0 12px', font: 'var(--type-body)', fontSize: 16, color: 'var(--text-title)', background: 'var(--paper)', border: '1.5px solid var(--border-strong)', borderRadius: 'var(--radius-md)' } as const;
 const hintStyle = { margin: 0, font: 'var(--type-meta)', color: 'var(--text-meta)' } as const;
@@ -45,14 +47,25 @@ export function CreateSessionForm({ exams, groups, initialExamId, onCancel }: { 
   const [outsiders, setOutsiders] = useState<OutsiderPolicy>('block');
   const [remind, setRemind] = useState(true);
   const [scoreVisibility, setScoreVisibility] = useState<ScoreVisibility>('on_submit');
+  // How it starts (PRODUCT.md §7.31): by hand (default) or at a time, and optionally once everyone is ready.
+  const [scheduled, setScheduled] = useState(false);
+  const [startTime, setStartTime] = useState('');
+  const [autoOn, setAutoOn] = useState(false);
+  const [minText, setMinText] = useState<string | null>(null); // null = follow the list's size
   const { create: createSession, busy, error } = useCreateSession();
   const tempParse = useMemo(() => parseEmailList(tempText, tempDomain), [tempText, tempDomain]);
   const blocker = accessBlocker(choice, groupId, tempParse);
   const chosen = ACCESS_CHOICES.find(c => c.value === choice)!;
   const selectedGroup = groups.find(g => g.id === groupId);
+  // A roster session suggests its list size as the minimum; a free one has nobody yet, so the mentor types it.
+  const listSize = choice === 'group' ? selectedGroup?.emailCount ?? null : choice === 'temp' ? tempParse.valid.length || null : null;
+  const min = minText ?? (listSize !== null ? String(listSize) : '');
+  const start = chosenStart({ scheduled, time: startTime, autoOn, min }, new Date());
+  const startError = 'error' in start ? start.error : null;
+  const picked = scheduled ? nextOccurrence(startTime, new Date()) : null;
 
   async function create() {
-    if (examId === '' || blocker || timeLimit === undefined) return;
+    if (examId === '' || blocker || timeLimit === undefined || 'error' in start) return;
     writePref(PREF_KEYS.lastAccess, choice);
     const s = await createSession({
       examId, name: name.trim() || undefined, shuffle,
@@ -61,6 +74,7 @@ export function CreateSessionForm({ exams, groups, initialExamId, onCancel }: { 
       ...(choice === 'free' ? {} : { outsiderPolicy: outsiders }),
       scoreVisibility,
       timeLimitMinutes: timeLimit,
+      ...start,
     });
     if (!s) return;
     if (choice === 'temp' && !remind) writePref(PREF_KEYS.saveReminderOff(s.id), '1');
@@ -150,6 +164,33 @@ export function CreateSessionForm({ exams, groups, initialExamId, onCancel }: { 
         </div>
 
         <div style={{ display: 'grid', gap: 6 }}>
+          <span style={{ font: 'var(--type-label)', fontSize: 13, color: 'var(--text-title)' }}>Bắt đầu</span>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <SegmentedControl ariaLabel="Bắt đầu" size="sm" value={scheduled ? 'scheduled' : 'manual'} onChange={v => setScheduled(v === 'scheduled')}
+              items={[{ value: 'manual', label: 'Tôi tự bấm' }, { value: 'scheduled', label: 'Hẹn giờ' }]} />
+            {scheduled && (
+              <input type="time" aria-label="Giờ bắt đầu" value={startTime} onChange={e => setStartTime(e.target.value)}
+                aria-invalid={!picked} style={{ ...selectStyle, width: 130, height: 36, borderColor: picked ? 'var(--border-strong)' : 'var(--wrong-500)' }} />
+            )}
+          </div>
+          <p style={hintStyle}>
+            {!scheduled ? 'Bạn bấm “Bắt đầu ngay” ở trang điều khiển phiên: cả phòng đếm ngược 10 giây rồi vào câu 1.'
+              : picked ? `Tự bắt đầu lúc ${scheduleLabel(picked.getTime(), new Date())} nếu phòng chờ đang mở. Vẫn bắt đầu sớm, đổi hay bỏ giờ được ở trang điều khiển.`
+              : 'Chọn giờ. Giờ đã qua trong hôm nay được hiểu là ngày mai.'}
+          </p>
+          <Switch on={autoOn} onChange={setAutoOn}>Tự bắt đầu khi tất cả sẵn sàng</Switch>
+          {autoOn && (
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, font: 'var(--type-ui)', color: 'var(--text-title)' }}>
+              Tối thiểu
+              <input type="number" inputMode="numeric" min={1} step={1} value={min} onChange={e => setMinText(e.target.value)} aria-label="Số người tối thiểu"
+                aria-invalid={startError !== null && startError.startsWith('Số người')} style={{ ...selectStyle, width: 96, height: 36 }} />
+              người
+            </label>
+          )}
+          {autoOn && <p style={hintStyle}>Khi đủ số người này trong phòng, ai cũng bấm Sẵn sàng và không còn ai chờ duyệt, cả phòng đếm ngược 10 giây rồi vào bài.{listSize !== null && minText === null ? ' Mặc định bằng số email trong danh sách.' : ''}</p>}
+        </div>
+
+        <div style={{ display: 'grid', gap: 6 }}>
           <span style={{ font: 'var(--type-label)', fontSize: 13, color: 'var(--text-title)' }}>Điểm và bảng xếp hạng</span>
           <SegmentedControl ariaLabel="Điểm và bảng xếp hạng" size="sm" value={scoreVisibility} onChange={setScoreVisibility} items={SCORE_VISIBILITY_CHOICES.map(c => ({ value: c.value, label: c.label }))} />
           <p style={hintStyle}>{SCORE_VISIBILITY_CHOICES.find(c => c.value === scoreVisibility)!.hint}</p>
@@ -162,9 +203,9 @@ export function CreateSessionForm({ exams, groups, initialExamId, onCancel }: { 
         {choice !== 'free' && <p style={hintStyle}>Học viên nhập mã phòng, tên và email. Email chỉ bạn thấy; người trong danh sách vào thẳng, không cần bạn duyệt.</p>}
         {error && <ErrorMessage message={error} />}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Button icon="plus" loading={busy} disabled={examId === '' || !!blocker || timeLimit === undefined} onClick={create}>Tạo phiên</Button>
+          <Button icon="plus" loading={busy} disabled={examId === '' || !!blocker || timeLimit === undefined || startError !== null} onClick={create}>Tạo phiên</Button>
           <Button variant="ghost" disabled={busy} onClick={onCancel}>Huỷ</Button>
-          {blocker && examId !== '' && <span style={hintStyle}>{blocker}.</span>}
+          {(blocker || startError) && examId !== '' && <span style={hintStyle}>{blocker ?? startError}.</span>}
         </div>
       </div>
     </Card>

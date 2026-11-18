@@ -9,6 +9,7 @@ import { cleanEmails } from '../../../domain/group/emails.js';
 import { EmptyEmailListError, GroupNotFoundError } from '../../../domain/group/errors.js';
 import type { OutsiderPolicy, ScoreVisibility } from '../../../../shared/api/sessions.js';
 import { resolveSessionName } from '../../../domain/session/session-name.js';
+import { planAutoStart, planSchedule } from '../../../domain/session/start.js';
 
 export interface CreateSessionInput {
   examId: number;
@@ -26,6 +27,10 @@ export interface CreateSessionInput {
    * Time limit in minutes (PRODUCT.md §7.27). Omitted = the exam's `duration` (none if the exam has none); null = no limit.
    */
   timeLimitMinutes?: number | null;
+  /** Scheduled start (PRODUCT.md §7.31b); omitted or null = the mentor starts by hand. Must lie ahead. */
+  startsAt?: Date | null;
+  /** "Tự bắt đầu khi mọi người sẵn sàng" and its least number of people (§7.31e). */
+  autoStart?: { enabled: boolean; minParticipants: number };
   /** Only `self_paced` exists today; the API does not expose this yet. */
   mode?: SessionModeId;
 }
@@ -66,6 +71,13 @@ export class CreateSession {
         createdAt: now,
       });
       if (isRoster) await ctx.sessions.addRoster(sessionId, roster);
+      // The same rules as the "Bắt đầu" card, so a time in the past is refused here too (and nothing is created).
+      const draft = { status: 'draft' as const };
+      const start = {
+        ...(input.startsAt ? planSchedule(draft, input.startsAt, now) : {}),
+        ...(input.autoStart ? planAutoStart(draft, input.autoStart.enabled, input.autoStart.minParticipants) : {}),
+      };
+      if (Object.keys(start).length > 0) await ctx.sessions.update(sessionId, start);
       return sessionId;
     });
     const detail = await this.deps.sessions.findDetail(id);

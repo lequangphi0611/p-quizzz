@@ -1,6 +1,7 @@
 // The mentor's "Bắt đầu" card (PRODUCT.md §7.31). Pure, tested.
 import type { SessionDetail } from '../../../../shared/api/index.js';
 import { formatClockTime } from '../../../shared/format/start.js';
+import { MAX_READY_MIN } from '../../../../shared/session-start.js';
 
 /**
  * The next moment with this time of day ("HH:MM" from a time input): today if it is still ahead, otherwise tomorrow.
@@ -62,4 +63,20 @@ export function earlyStartWarning(d: Pick<SessionDetail, 'start' | 'timeLimitMin
   const at = d.start?.scheduledAt ?? null;
   if (at === null || at <= now || d.timeLimitMinutes === null) return null;
   return `Bắt đầu sớm hơn giờ hẹn (${formatClockTime(at)})? Phiên giới hạn ${d.timeLimitMinutes} phút tính từ lúc bắt đầu; ai chưa ngồi vào chỗ sẽ mất giờ làm bài.`;
+}
+
+/** What the create form sends for the start (PRODUCT.md §7.31), or why it cannot be sent yet. */
+export function chosenStart(c: { scheduled: boolean; time: string; autoOn: boolean; min: string }, now: Date): { startsAt?: number; autoStart?: { enabled: true; minParticipants: number } } | { error: string } {
+  const out: { startsAt?: number; autoStart?: { enabled: true; minParticipants: number } } = {};
+  if (c.scheduled) {
+    const at = nextOccurrence(c.time, now);
+    if (!at) return { error: 'Chọn giờ bắt đầu' };
+    out.startsAt = at.getTime();
+  }
+  if (c.autoOn) {
+    const n = Number(c.min);
+    if (!Number.isInteger(n) || n < 1 || n > MAX_READY_MIN) return { error: `Số người tối thiểu là số nguyên từ 1 đến ${MAX_READY_MIN}` };
+    out.autoStart = { enabled: true, minParticipants: n };
+  }
+  return out;
 }

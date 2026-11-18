@@ -28,6 +28,7 @@ Mentor không muốn canh đồng hồ để bấm Bắt đầu, nhất là khi 
 - `/api/me` cho biết participant có phải **người vào trễ** không (được duyệt/vào sau `started_at`) để web chọn: vào thẳng câu 1 hay hiện màn "còn X phút".
 
 **Web**
+- Form tạo phiên (bổ sung 2026-11-18, PO duyệt): mục "Bắt đầu" = "Tôi tự bấm" / "Hẹn giờ" + ô HH:MM (giờ đã qua = ngày mai), công tắc "Tự bắt đầu khi tất cả sẵn sàng" + tối thiểu (phiên nhóm mặc định = số email; phiên tự do phải nhập). Server nhận `startsAt`, `autoStart` trong `POST /sessions`, cùng luật với thẻ "Bắt đầu" (giờ đã qua → 400, không tạo phiên).
 - Mentor (trang điều khiển phiên, form tạo phiên): thẻ "Bắt đầu" gồm hẹn giờ (chọn giờ, đổi, bỏ), bật "Tự bắt đầu khi tất cả sẵn sàng" + tối thiểu N (phiên nhóm mặc định = số email), "Bắt đầu ngay" (xác nhận cảnh báo khi bắt đầu trước giờ hẹn mà phiên có giới hạn thời gian), "Huỷ đếm ngược". Danh sách người có cột/nhãn sẵn sàng, dòng lý do khi chưa tự chạy được ("đang chờ duyệt 2 người", "mới 3/5 sẵn sàng", "cần tối thiểu 8 người").
 - Chuông (§7.20): "Phòng … sắp tự bắt đầu, còn N người chờ duyệt" (khi còn 1 phút tới giờ hẹn) và "Giờ hẹn của phòng … đã bị bỏ vì máy khởi động lại sau giờ hẹn". Nút trong thông báo: "Duyệt cả N", "Mở phòng", "Hẹn lại"; **không** có "Bắt đầu ngay".
 - Member, phòng chờ: luật làm bài, nút Sẵn sàng / Huỷ sẵn sàng, "Sẵn sàng X/Y", dòng cách bắt đầu, đếm ngược tới giờ hẹn, đếm ngược 10 s, thông báo đổi giờ / bắt đầu sớm / huỷ đếm ngược. Tách rõ trạng thái **chờ duyệt** với **chờ bắt đầu**. Hết đếm ngược thì **tự bắt đầu lượt** và vào câu 1, không qua `StartScreen`. `StartScreen` chỉ còn dùng cho người vào trễ ("Phiên đã bắt đầu, bạn còn X phút").
@@ -72,7 +73,6 @@ Khác đề xuất ban đầu: `POST /sessions/:id/start` **giữ nguyên** (ch�
 
 ## Giới hạn đã biết / chưa làm
 - Thông báo chuông "sắp tự bắt đầu" không có nút "Duyệt cả N" như bản vẽ A15: duyệt từng người ngay trong chuông (đã có) hoặc mở phòng. Chuông làm mới mỗi 15 giây, nên thông báo hiện trong khoảng 45–60 giây trước giờ hẹn.
-- Form tạo phiên chưa có ô hẹn giờ: hẹn ở thẻ "Bắt đầu" (đặt được cả khi phiên còn nháp).
 - Mốc quá hạn tính bằng `START_LATE_TOLERANCE_MS` = 15 giây: server chạy lại trong vòng 15 giây sau giờ hẹn thì vẫn bắt đầu.
 - Đồng hồ máy member/tường có thể lệch với máy mentor; UI luôn hiện đếm ngược.
 - Laptop mentor ngủ thì không có gì tự chạy.
