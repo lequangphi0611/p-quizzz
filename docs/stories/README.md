@@ -54,6 +54,7 @@ Mỗi story là một file tự đủ ngữ cảnh để một model/người im
 | [S24](S24-answered-progress.md) | Tiến độ làm bài (số câu đã trả lời) cho mentor | S09, S11 | ✅ |
 | [S25](S25-time-limit.md) | Giới hạn thời gian làm bài (đồng hồ chung, tự đóng phiên) | S04, S06, S09, S12, S14, S18 | ✅ |
 | [S26](S26-ai-grading-suggestion.md) | Gợi ý chấm tự luận bằng AI (Claude CLI trên máy mentor) | S15, S16, S17 | ✅ |
+| [S27](S27-return-to-ended-session.md) | Quay lại kết quả phiên đã kết thúc ("Phiên của bạn trên máy này") | S16, S18, S20 | ✅ |
 
 ## Thứ tự & song song
 

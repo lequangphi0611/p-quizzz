@@ -3,7 +3,8 @@ import { ROOM_CODE_LENGTH } from '../../../../shared/api/index.js';
 import { ApiError } from '../../../shared/api-client/http-client.js';
 import type { TokenStore } from '../../../shared/token-store/token-store.js';
 import { decideScreen, type MeState, type MemberScreen, type RejoinState } from '../domain/member-screen.js';
-import type { MemberGateway, RoomCodeMemory } from './member-gateway.js';
+import { findMySessionByCode, forgetMySession, recentMySessions, rememberMySession, type MySession } from '../domain/my-sessions.js';
+import { InMemoryMySessionsStore, type MemberGateway, type MySessionsStore, type RoomCodeMemory } from './member-gateway.js';
 
 /** What looking up a room code produced. `error.status` is the HTTP status (0 = no connection). */
 export interface RoomLookup {
@@ -28,6 +29,8 @@ export interface MemberHomeState {
   autoSubmitted: boolean;
   /** That close came from the session clock running out (PRODUCT.md §7.27), not from the mentor. */
   endedByTimer: boolean;
+  /** "Phiên của bạn trên máy này" (PRODUCT.md §7.29): sessions this browser joined and still holds a seat in, newest first. */
+  mine: MySession[];
 }
 
 export const POLL_MS = 5000;
@@ -52,11 +55,11 @@ export class MemberHomeController {
   private priorToken: { sessionId: number; token: string | null } | null = null;
   private wasTaking = false;
 
-  constructor(private gateway: MemberGateway, private tokens: TokenStore, private rooms: RoomCodeMemory, private pollMs = POLL_MS) {
+  constructor(private gateway: MemberGateway, private tokens: TokenStore, private rooms: RoomCodeMemory, private pollMs = POLL_MS, private mineStore: MySessionsStore = new InMemoryMySessionsStore()) {
     // Resume the session this tab (or, for a new tab, the last tab) was in, if a token for it is still here.
     const id = Number(tokens.getCurrentSessionId());
     const followId = id > 0 && tokens.getToken(id) ? id : null;
-    this.state = { followId, lookup: null, me: null, meState: 'idle', rejoin: null, rejoinOffline: false, autoSubmitted: false, endedByTimer: false };
+    this.state = { followId, lookup: null, me: null, meState: 'idle', rejoin: null, rejoinOffline: false, autoSubmitted: false, endedByTimer: false, mine: this.visibleMine() };
     this.lastFollowId = null; // so the first react() fetches `me` for a resumed session
     this.react();
   }
@@ -103,13 +106,14 @@ export class MemberHomeController {
     try {
       const me = await this.gateway.getMe();
       if (n !== this.meSeq) return;
-      this.set({ me, meState: 'ok' });
+      const mine = this.changeMine(list => rememberMySession(list, { sessionId, title: me.session.title, status: me.session.status, roomCode: this.rooms.recall(sessionId) }, Date.now()));
+      this.set({ me, meState: 'ok', ...mine });
     } catch (err) {
       if (n !== this.meSeq) return;
       if (err instanceof ApiError && err.status === 401) { // unknown token (e.g. server DB was reset): start over
         this.tokens.clearToken(sessionId);
         this.tokens.clearCurrentSessionId();
-        this.set({ followId: null, me: null, meState: 'idle' });
+        this.set({ followId: null, me: null, meState: 'idle', ...this.changeMine(list => forgetMySession(list, sessionId)) });
       } else if (err instanceof ApiError && err.status === 403) this.set({ meState: err.code === 'replaced' ? 'replaced' : 'kicked' });
       else if (!this.state.me) this.set({ meState: 'error' });
     }
@@ -129,6 +133,10 @@ export class MemberHomeController {
   async lookUpRoom(rawCode: string): Promise<void> {
     const code = rawCode.replace(/\D/g, '');
     if (code.length !== ROOM_CODE_LENGTH) { this.clearRoom(); return; }
+    // A session this browser joined: open it without asking the server (an ended session's code is not valid there,
+    // and a lookup would count as a wrong code). Other browsers cannot tell an ended session from a wrong code (§7.16, §7.29).
+    const known = findMySessionByCode(this.mineStore.load(), code);
+    if (known && this.tokens.getToken(known.sessionId)) { this.openMine(known.sessionId); return; }
     const cur = this.state.lookup;
     if (cur && cur.code === code && cur.status !== 'error') return;
     const n = ++this.lookupSeq;
@@ -160,6 +168,9 @@ export class MemberHomeController {
     this.tokens.setToken(sessionId, res.token);
     this.tokens.setCurrentSessionId(sessionId);
     this.rooms.remember(sessionId, roomCode);
+    const room = selectRoom(this.state);
+    const found = room?.id === sessionId ? room : null;
+    this.set(this.changeMine(list => rememberMySession(list, { sessionId, roomCode, title: found?.title, status: found?.status }, Date.now())));
   }
   /** After a successful `join`: follow that session and load the member's state. */
   async joined(sessionId: number): Promise<void> {
@@ -224,17 +235,18 @@ export class MemberHomeController {
     }
     this.priorToken = null;
     this.tokens.clearCurrentSessionId();
-    this.set({ followId: null, rejoin: null, rejoinOffline: false, me: null, meState: 'idle' });
+    this.set({ followId: null, rejoin: null, rejoinOffline: false, me: null, meState: 'idle', mine: this.visibleMine() });
   }
 
   /** Done with the session on screen (its result, or being kicked): back to the room code step. */
   leave(): void {
     const id = this.state.followId;
-    if (id !== null) this.tokens.clearToken(id);
+    if (id !== null) this.tokens.clearToken(id); // kicked or replaced: this browser has no seat left, so it forgets the session (§7.29)
     this.priorToken = null;
     this.tokens.clearCurrentSessionId();
     this.lookupSeq++;
-    this.set({ followId: null, lookup: null, me: null, meState: 'idle', rejoin: null, rejoinOffline: false });
+    const mine = id !== null ? this.changeMine(list => forgetMySession(list, id)) : {};
+    this.set({ followId: null, lookup: null, me: null, meState: 'idle', rejoin: null, rejoinOffline: false, ...mine });
   }
 
   /** The kicked screen's "join again": clear the token, then look the room up again with the remembered code. */
@@ -245,10 +257,50 @@ export class MemberHomeController {
     if (code) void this.lookUpRoom(code);
   }
 
-  /** The ended screen's "another room": keep the token (the result can still be reopened by its code). */
+  /** The ended screen's "another room": keep the token, so the result can be reopened from "my sessions" or its code (§7.29). */
   leaveEnded(): void {
     this.tokens.clearCurrentSessionId();
     this.lookupSeq++;
-    this.set({ followId: null, lookup: null, me: null, meState: 'idle' });
+    this.set({ followId: null, lookup: null, me: null, meState: 'idle', mine: this.visibleMine() });
+  }
+
+  // ── "Phiên của bạn trên máy này" (PRODUCT.md §7.29) ────────────────────────────────────────────
+
+  /** Open a session from the list (or a remembered code): follow it; `/api/me` decides the screen. */
+  openMine(sessionId: number): void {
+    if (!this.tokens.getToken(sessionId)) { this.set({ mine: this.visibleMine() }); return; }
+    this.lookupSeq++;
+    this.tokens.setCurrentSessionId(sessionId);
+    if (this.state.followId === sessionId) { this.set({ lookup: null }); void this.fetchMe(sessionId); return; }
+    this.set({ lookup: null, followId: sessionId, autoSubmitted: false, endedByTimer: false });
+  }
+
+  /** "Xoá khỏi máy này": drop the seat and the entry; this browser cannot reopen that session afterwards. */
+  forgetMine(sessionId: number): void {
+    if (this.state.followId === sessionId) return; // only offered on the code screen
+    this.tokens.clearToken(sessionId);
+    this.set(this.changeMine(list => forgetMySession(list, sessionId)));
+  }
+
+  /** Refresh the listed sessions' status (public: exam title + status only). Failures keep what was known. */
+  async refreshMine(): Promise<void> {
+    const shown = this.state.mine;
+    const fresh = await Promise.all(shown.map(async s => { try { return await this.gateway.getPublicSession(s.sessionId); } catch { return null; } }));
+    let list = this.mineStore.load();
+    for (const f of fresh) if (f) list = rememberMySession(list, { sessionId: f.id, title: f.title, status: f.status }, Date.now());
+    this.set(this.changeMine(() => list));
+  }
+
+  /** Applies a change to the stored list and returns the patch for the visible one. */
+  private changeMine(fn: (list: MySession[]) => MySession[]): { mine: MySession[] } {
+    const before = this.mineStore.load();
+    const after = fn(before);
+    if (after !== before) this.mineStore.save(after);
+    return { mine: this.visibleMine(after) };
+  }
+
+  /** Only sessions this browser still holds a seat in can be opened, so only those are listed. */
+  private visibleMine(list: MySession[] = this.mineStore.load()): MySession[] {
+    return recentMySessions(list.filter(s => this.tokens.getToken(s.sessionId)));
   }
 }

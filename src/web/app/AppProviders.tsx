@@ -28,7 +28,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
                   <ExamLibraryGatewayContext.Provider value={c.examLibraryGateway}>
                     <GroupsGatewayContext.Provider value={c.groupsGateway}>
                     <AdminAuthGatewayContext.Provider value={c.adminAuthGateway}>
-                      <MemberServicesContext.Provider value={{ gateway: c.memberGateway, rooms: c.roomCodeMemory }}>
+                      <MemberServicesContext.Provider value={{ gateway: c.memberGateway, rooms: c.roomCodeMemory, mine: c.mySessionsStore }}>
                         <ReviewGatewayContext.Provider value={c.reviewGateway}>
                           <ScreenGatewayContext.Provider value={c.screenGateway}>
                             <MentorNoticesServicesContext.Provider value={{ gateway: c.mentorNoticesGateway, seen: c.seenStore }}>{children}</MentorNoticesServicesContext.Provider>

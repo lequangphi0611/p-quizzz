@@ -95,7 +95,12 @@ export function ResultView({ me, ended, autoSubmitted = false, endedByTimer = fa
       )}
       {card}
       {children}
-      {ended && onAnotherRoom && <Button variant="secondary" size="lg" icon="door-open" block={!desk} onClick={onAnotherRoom}>Vào phòng khác</Button>}
+      {ended && onAnotherRoom && (
+        <div style={{ display: 'grid', gap: 4, justifyItems: 'center', textAlign: 'center' }}>
+          <Button variant="ghost" icon="door-open" onClick={onAnotherRoom}>Vào phòng khác</Button>
+          <span style={mText.meta}>Kết quả phiên này vẫn mở lại được ở mục “Phiên của bạn trên máy này”.</span>
+        </div>
+      )}
     </MemberPage>
   );
 }

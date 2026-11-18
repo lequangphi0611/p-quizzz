@@ -447,7 +447,7 @@ Thêm các feature, mỗi feature đủ 4 lớp, gateway riêng, test controller
 | Feature | Thay cho | Điểm đáng chú ý |
 |---|---|---|
 | `exam-import` | `ExamImport`, `ExamList`, `ExamDetail` | `ImportController` (preview debounce, bỏ phản hồi cũ, chặn nộp đúp), loader gắn gateway ở `router.tsx`, `useDeleteExam`. |
-| `member-join` | `MemberHome` | `MemberHomeController` (poll + SSE, theo dõi phiên đang mở hoặc phiên vừa tham gia, 401 xoá token, 403 bị kick, phát hiện nộp tự động), `decideScreen`, `classifyJoinError`; cổng `MemberGateway` + `RoomCodeMemory`; token qua `TokenStore`. |
+| `member-join` | `MemberHome` | `MemberHomeController` (poll + SSE, theo dõi phiên đang mở hoặc phiên vừa tham gia, 401 xoá token, 403 bị kick, phát hiện nộp tự động), `decideScreen`, `classifyJoinError`; cổng `MemberGateway` + `RoomCodeMemory` + `MySessionsStore` ("Phiên của bạn trên máy này", PRODUCT.md §7.29: `LocalStorageMySessionsStore`, key `pq-my-sessions`; trạng thái lấy từ `GET /api/sessions/:id/public`); token qua `TokenStore`. |
 | `member-review` | `ReviewPage` | `reviewMark`, `notCorrectIndexes`, `useReview`. |
 | `screen` | `ScreenPage` | `ScreenController` (theo phiên mới nhất, tự chuyển phiên, poll + SSE). |
 | `admin-auth` | `AdminLogin` + guard trong router | `createAdminAuthLoaders` (`requireLogin`, `login`), `setupPasswordProblem`. |

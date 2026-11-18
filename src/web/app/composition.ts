@@ -2,6 +2,7 @@ import { HttpAdminAuthGateway } from '../features/admin-auth/infrastructure/http
 import { HttpGroupsGateway } from '../features/groups/infrastructure/http-groups-gateway.js';
 import { HttpExamLibraryGateway } from '../features/exam-import/infrastructure/http-exam-library-gateway.js';
 import { HttpMemberGateway } from '../features/member-join/infrastructure/http-member-gateway.js';
+import { LocalStorageMySessionsStore } from '../features/member-join/infrastructure/local-storage-my-sessions-store.js';
 import { SessionStorageRoomCodeMemory } from '../features/member-join/infrastructure/session-storage-room-code-memory.js';
 import { HttpReviewGateway } from '../features/member-review/infrastructure/http-review-gateway.js';
 import { HttpMentorNoticesGateway } from '../features/mentor-notices/infrastructure/http-mentor-notices-gateway.js';
@@ -36,6 +37,7 @@ export const examLibraryGateway = new HttpExamLibraryGateway(api);
 export const adminAuthGateway = new HttpAdminAuthGateway(api);
 export const memberGateway = new HttpMemberGateway(api);
 export const roomCodeMemory = new SessionStorageRoomCodeMemory();
+export const mySessionsStore = new LocalStorageMySessionsStore();
 export const reviewGateway = new HttpReviewGateway(api);
 export const screenGateway = new HttpScreenGateway(api);
 export const leaderboardGateway = new HttpLeaderboardGateway(api);

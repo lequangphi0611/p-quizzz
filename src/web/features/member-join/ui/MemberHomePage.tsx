@@ -13,6 +13,7 @@ import { useMemberHome } from '../application/member-home-context.js';
 import { ConnLost } from './ConnLost.js';
 import { formatMinutes } from '../../../shared/format/countdown.js';
 import { JoinForm } from './JoinForm.js';
+import { MySessionsList } from './MySessionsList.js';
 import { RejoinWait, Replaced } from './RejoinPanels.js';
 
 // "/" — decides what a member sees from three facts: which room code was found, do I hold a token, what does /api/me say.
@@ -22,7 +23,8 @@ export type ExamScreen = (props: { me: MeResponse; onChanged: () => Promise<void
 export function MemberHomePage({ examScreen }: { examScreen: ExamScreen }) {
   const { state, ctrl, followedId } = useMemberHome();
   const { me, autoSubmitted } = state;
-  const [linkRoom] = useState(() => roomFromSearch(window.location.search)); // from a join link: /?room=482913
+  // From a join link: /?room=482913. Dropped once the member leaves a session, so the code form does not reopen it at once.
+  const [linkRoom, setLinkRoom] = useState(() => roomFromSearch(window.location.search));
   const screen = selectScreen(state);
   const title = me?.session.title ?? selectRoom(state)?.title;
   const name = me && (screen === 'pending' || screen === 'lobby') ? me.participant.displayName : undefined;
@@ -32,7 +34,7 @@ export function MemberHomePage({ examScreen }: { examScreen: ExamScreen }) {
     return examScreen({ me: me!, onChanged: ctrl.refreshMe, leaderboard: <Leaderboard sessionId={me!.session.id} highlightName={me!.participant.displayName} /> });
   }
   if (screen === 'ended') {
-    return <ResultView me={me!} ended autoSubmitted={autoSubmitted} endedByTimer={state.endedByTimer} onAnotherRoom={() => ctrl.leaveEnded()}><Leaderboard sessionId={me!.session.id} highlightName={me!.participant.displayName} /></ResultView>;
+    return <ResultView me={me!} ended autoSubmitted={autoSubmitted} endedByTimer={state.endedByTimer} onAnotherRoom={() => { setLinkRoom(''); ctrl.leaveEnded(); }}><Leaderboard sessionId={me!.session.id} highlightName={me!.participant.displayName} /></ResultView>;
   }
 
   const page = (body: ReactNode, opts: { maxW?: number; status?: ReactNode } = {}) => (
@@ -50,7 +52,10 @@ export function MemberHomePage({ examScreen }: { examScreen: ExamScreen }) {
       return page(<Replaced desk={desk} onLeave={() => ctrl.leave()} />);
     case 'code':
     case 'join':
-      return page(<JoinForm desk={desk} state={state} linkRoom={linkRoom} ctrl={ctrl} />);
+      return page(<>
+        <JoinForm desk={desk} state={state} linkRoom={linkRoom} ctrl={ctrl} />
+        {screen === 'code' && <MySessionsList desk={desk} sessions={state.mine} ctrl={ctrl} />}
+      </>);
     case 'pending':
     case 'lobby': {
       const pending = screen === 'pending';

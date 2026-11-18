@@ -108,12 +108,45 @@ test('member screens after the mentor closes the session', async ({ browser, bas
   await shot(an.page, '11-an-desktop-review-finalized-essay', false);
   await an.page.getByRole('button', { name: 'Về trang kết quả' }).click();
 
-  // ── "Vào phòng khác": then can the member get back to the old result? ──────────────────────────
+  // ── "Vào phòng khác" (PRODUCT.md §7.29): the result can be reopened from this browser ───────────
   await an.page.getByRole('button', { name: 'Vào phòng khác' }).click();
-  await shot(an.page, '12-an-desktop-after-another-room');
+  const mine = an.page.getByRole('region', { name: 'Phiên của bạn trên máy này' });
+  await expect(mine).toContainText('Ôn tập Git cơ bản');
+  await expect(mine).toContainText('Đã chốt kết quả');
+  await shot(an.page, '12-an-desktop-my-sessions-after-leaving');
   await an.page.reload();
-  await shot(an.page, '13-an-desktop-after-another-room-reload');
+  await expect(mine).toContainText('Ôn tập Git cơ bản');
+  await mine.getByRole('button', { name: /^Ôn tập Git cơ bản/ }).click();
+  await expect(an.page.getByRole('heading', { name: 'Phiên đã kết thúc' })).toBeVisible();
+  await an.page.getByRole('button', { name: 'Xem lại bài' }).click();
+  await expect(an.page.getByRole('heading', { name: 'Xem lại bài' })).toBeVisible();
+  await an.page.getByRole('button', { name: 'Về trang kết quả' }).click();
+  await expect(an.page.getByRole('heading', { name: 'Phiên đã kết thúc' })).toBeVisible();
+
+  // The old link goes straight back to the result (no lookup, so no "wrong code").
   await an.page.goto(`/?room=${room}`);
-  await an.page.waitForTimeout(1500);
-  await shot(an.page, '14-an-desktop-old-room-link');
+  await expect(an.page.getByRole('heading', { name: 'Phiên đã kết thúc' })).toBeVisible();
+  await shot(an.page, '13-an-desktop-old-link-back-to-result');
+
+  // Phone: the list under the code form.
+  await dung.page.getByRole('button', { name: 'Vào phòng khác' }).click();
+  await expect(dung.page.getByRole('region', { name: 'Phiên của bạn trên máy này' })).toBeVisible();
+  await shot(dung.page, '14-dung-phone-my-sessions');
+
+  // Another browser that never joined: the old code reads like a wrong code (an ended session is not discoverable).
+  const stranger = await memberContext(browser, baseURL!, DESKTOP);
+  await stranger.page.goto(`/?room=${room}`);
+  await expect(stranger.page.getByText('Không tìm thấy phòng đang mở với mã này. Kiểm tra lại mã, hoặc phiên đã kết thúc.')).toBeVisible();
+  await expect(stranger.page.getByRole('region', { name: 'Phiên của bạn trên máy này' })).toHaveCount(0);
+  await shot(stranger.page, '15-stranger-old-code-neutral');
+
+  // "Xoá khỏi máy này": confirm, then this browser cannot reopen it.
+  await an.page.getByRole('button', { name: 'Vào phòng khác' }).click();
+  await mine.getByRole('button', { name: /khỏi máy này/ }).click();
+  await shot(an.page, '16-an-desktop-forget-confirm', false);
+  await an.page.getByRole('dialog').getByRole('button', { name: 'Xoá khỏi máy này' }).click();
+  await expect(mine).toHaveCount(0);
+  await an.page.goto(`/?room=${room}`);
+  await expect(an.page.getByText('Không tìm thấy phòng đang mở với mã này.', { exact: false })).toBeVisible();
+  await shot(an.page, '17-an-desktop-after-forget');
 });
