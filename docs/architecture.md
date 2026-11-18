@@ -423,8 +423,8 @@ Màn thảo luận trên máy chiếu (`features/discussion/`), theo mẫu §12.
 
 | Lớp | File | Vai trò |
 |---|---|---|
-| `domain` | `discussion-ui.ts`, `grade-draft.ts`, `shortcuts.ts` | Thuần: tách bài/bài trống, "nhầm phổ biến", bài chưa chấm kế tiếp; bản nháp điểm và `planSave` (chờ điểm / sai / không đổi / gửi); bản đồ phím `discussionKeyAction`. |
-| `application` | `discussion-gateway.ts`, `discussion-controller.ts`, `use-discussion.ts` | Port; `DiscussionController` giữ state (đã hiện đáp án, chế độ danh sách/bài, bản nháp, hộp thoại chốt) và các thao tác chấm/chốt; test bằng gateway giả. Câu hỏi đang xem lấy từ URL `?q=`, nên UI truyền câu hiện tại vào thao tác cần nó. |
+| `domain` | `discussion-ui.ts`, `grade-draft.ts`, `shortcuts.ts` | Thuần: tách bài/bài trống, "nhầm phổ biến", bài chưa chấm kế tiếp; thứ tự "Cần bàn trước" `priorityOrder` (S28, §7.30); bản nháp điểm và `planSave` (chờ điểm / sai / không đổi / gửi); bản đồ phím `discussionKeyAction`. |
+| `application` | `discussion-gateway.ts`, `discussion-controller.ts`, `use-discussion.ts` | Port; `DiscussionController` giữ state (đã hiện đáp án, chế độ danh sách/bài, bản nháp, hộp thoại chốt) và các thao tác chấm/chốt; test bằng gateway giả. Câu hỏi đang xem lấy từ URL `?q=` (luôn là số câu theo đề gốc), thứ tự điều hướng từ `?order=priority` (S28), nên UI truyền câu hiện tại vào thao tác cần nó. |
 | `infrastructure` | `http-discussion-gateway.ts` | Cùng endpoint `/api/admin/...`. |
 | `ui` | `DiscussionPage` (container) + `DiscussionScreen` (khung), `ChoiceView`, `EssayList`, `PaperView`, `StateView`, `EssayCard`, `OptionTally`, `ScoreField`, `use-discussion-keys` | Chỉ render và gọi controller. |
 

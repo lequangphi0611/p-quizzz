@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { commonMistakeId, nextUngraded, optionLetter, percent, questionIndexFromSearch, splitPapers } from './discussion-ui.js';
+import { commonMistakeId, nextUngraded, optionLetter, percent, priorityFromSearch, priorityOrder, questionIndexFromSearch, splitPapers } from './discussion-ui.js';
 
 const opt = (id: number, count: number, isCorrect = false) => ({ id, text: '', isCorrect, count });
 const ans = (answerId: number, textAnswer: string | null, manualScore: number | null = null) => ({ answerId, label: '', textAnswer, manualScore, feedback: null });
@@ -33,5 +33,38 @@ describe('discussion-ui', () => {
     expect(questionIndexFromSearch('?q=0', 5)).toBe(0);
     expect(questionIndexFromSearch('?q=abc', 5)).toBe(0);
     expect(questionIndexFromSearch('', 5)).toBe(0);
+  });
+});
+
+type T = 'single' | 'multi' | 'essay';
+const qq = (...xs: [T, number][]) => xs.map(([type, correctCount]) => ({ type, correctCount }));
+
+describe('priorityOrder ("Cần bàn trước", S28)', () => {
+  it('fewest full-mark submissions first, ties keep exam order', () => {
+    // exam: 1:15/20  2:7/20  3:20/20  4:4/20  5:7/20
+    expect(priorityOrder(qq(['single', 15], ['single', 7], ['multi', 20], ['single', 4], ['multi', 7]), 20)).toEqual([3, 1, 4, 0, 2]);
+  });
+  it('multi uses the exact-set count as given (no partial credit)', () => {
+    expect(priorityOrder(qq(['single', 3], ['multi', 1]), 10)).toEqual([1, 0]);
+  });
+  it('essays go last, in exam order, wherever they sit in the exam', () => {
+    expect(priorityOrder(qq(['essay', 0], ['single', 9], ['essay', 0], ['single', 2]), 10)).toEqual([3, 1, 0, 2]);
+  });
+  it('without counted submissions keeps exam order (no rate to sort by)', () => {
+    expect(priorityOrder(qq(['single', 0], ['essay', 0], ['multi', 0]), 0)).toEqual([0, 2, 1]);
+  });
+  it('handles an essay-only or empty exam', () => {
+    expect(priorityOrder(qq(['essay', 0], ['essay', 0]), 5)).toEqual([0, 1]);
+    expect(priorityOrder([], 5)).toEqual([]);
+  });
+  it('does not mutate its input', () => {
+    const qs = qq(['single', 5], ['single', 1]);
+    priorityOrder(qs, 10);
+    expect(qs.map(q => q.correctCount)).toEqual([5, 1]);
+  });
+  it('reads ?order=priority from the URL', () => {
+    expect(priorityFromSearch('q=3&order=priority')).toBe(true);
+    expect(priorityFromSearch('q=3')).toBe(false);
+    expect(priorityFromSearch('order=exam')).toBe(false);
   });
 });

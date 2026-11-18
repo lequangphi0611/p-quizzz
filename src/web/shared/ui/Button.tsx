@@ -13,6 +13,8 @@ export interface ButtonProps {
   shortcut?: string;
   /** Required for icon-only buttons; also used as the tooltip */
   ariaLabel?: string;
+  /** Toggle buttons: on/off state for assistive tech (aria-pressed); omit for plain buttons */
+  pressed?: boolean;
   loading?: boolean; disabled?: boolean; block?: boolean; type?: 'button' | 'submit'; onClick?: () => void; style?: CSSProperties;
 }
 const SIZES: Record<Size, { h: number; px: number; fs: number; ic: number; gap: number }> = {
@@ -30,7 +32,7 @@ const SCREEN: Partial<Record<Variant, Look>> = {
   secondary: { bg: 'var(--screen-panel)', hover: 'var(--screen-panel-hover)', fg: 'var(--screen-text)', border: 'var(--screen-line-strong)', shadow: '0 3px 0 #05070A' },
   ghost: { bg: 'transparent', hover: 'var(--screen-panel-hover)', fg: 'var(--screen-text)', border: 'transparent', shadow: 'none' },
 };
-export function Button({ children, variant = 'primary', size = 'md', tone = 'light', icon, iconRight, shortcut, ariaLabel, loading = false, disabled = false, block = false, type = 'button', onClick, style }: ButtonProps) {
+export function Button({ children, variant = 'primary', size = 'md', tone = 'light', icon, iconRight, shortcut, ariaLabel, pressed, loading = false, disabled = false, block = false, type = 'button', onClick, style }: ButtonProps) {
   const [hover, setHover] = useState(false);
   const [down, setDown] = useState(false);
   const scr = tone === 'screen';
@@ -44,7 +46,7 @@ export function Button({ children, variant = 'primary', size = 'md', tone = 'lig
     else { bg = variant === 'ghost' ? 'transparent' : 'var(--ink-100)'; border = variant !== 'ghost' ? 'var(--ink-200)' : v.border; if (variant === 'primary' || variant === 'danger') fg = 'var(--ink-500)'; opacity = loading ? 1 : 0.55; }
   }
   return (
-    <button type={type} disabled={off} onClick={off ? undefined : onClick} aria-label={ariaLabel} title={ariaLabel}
+    <button type={type} disabled={off} onClick={off ? undefined : onClick} aria-label={ariaLabel} aria-pressed={pressed} title={ariaLabel}
       onMouseEnter={() => setHover(true)} onMouseLeave={() => { setHover(false); setDown(false); }}
       onMouseDown={() => setDown(true)} onMouseUp={() => setDown(false)}
       style={{ display: block ? 'flex' : 'inline-flex', width: block ? '100%' : iconOnly ? s.h : undefined, alignItems: 'center', justifyContent: 'center', gap: s.gap, flex: 'none',

@@ -44,3 +44,23 @@ export function questionIndexFromSearch(search: string, count: number): number {
 
 /** Grading progress of one essay question (blanks included — they need a score too). */
 export const questionProgress = (q: Pick<DiscussionQuestion, 'answers'>) => ({ graded: q.answers.filter(a => a.manualScore !== null).length, total: q.answers.length });
+
+/** `?order=priority` turns on the "Cần bàn trước" order (S28, PRODUCT.md §7.30); anything else = exam order. */
+export const priorityFromSearch = (search: string): boolean => new URLSearchParams(search).get('order') === 'priority';
+
+/**
+ * "Cần bàn trước" (S28, PRODUCT.md §7.30): question indexes, multiple choice with the lowest share of full-mark
+ * submissions first (blank = not correct; multi = exact set, as scored), ties in exam order; essays last in exam order.
+ * Every question shares the same denominator (`submitted`), so comparing counts is comparing rates; with no counted
+ * submission there is no rate and the multiple choice questions keep exam order.
+ */
+export function priorityOrder(questions: readonly Pick<DiscussionQuestion, 'type' | 'correctCount'>[], submitted: number): number[] {
+  const idx = questions.map((_, i) => i);
+  const choice = idx.filter(i => questions[i]!.type !== 'essay');
+  const essays = idx.filter(i => questions[i]!.type === 'essay');
+  if (submitted > 0) choice.sort((a, b) => questions[a]!.correctCount - questions[b]!.correctCount || a - b); // same denominator → compare counts; stable ties
+  return [...choice, ...essays];
+}
+
+/** Search params of the discussion screen: `?q=` is the 1-based exam number; `order=priority` keeps the S28 order. */
+export const discussionSearch = (examIdx: number, priority: boolean): Record<string, string> => ({ q: String(examIdx + 1), ...(priority ? { order: 'priority' } : {}) });
