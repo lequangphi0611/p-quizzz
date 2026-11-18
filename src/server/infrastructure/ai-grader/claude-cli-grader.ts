@@ -43,28 +43,44 @@ const MAX_OUTPUT = 2_000_000;
 
 type Envelope = { type?: unknown; is_error?: boolean; structured_output?: unknown; result?: unknown; modelUsage?: Record<string, unknown> };
 
-function tryParseObject(text: string): Envelope | undefined {
+function tryParse(text: string): unknown {
   try {
-    const v: unknown = JSON.parse(text);
-    return v !== null && typeof v === 'object' && !Array.isArray(v) ? (v as Envelope) : undefined;
+    return JSON.parse(text);
   } catch {
     return undefined;
   }
 }
 
+function isObject(v: unknown): v is Envelope {
+  return v !== null && typeof v === 'object' && !Array.isArray(v);
+}
+
+/** With `--verbose`, `--output-format json` prints an array of every event; the envelope is its last `result` item. */
+function resultIn(v: unknown): Envelope | undefined {
+  if (Array.isArray(v)) {
+    for (let i = v.length - 1; i >= 0; i--) {
+      const e: unknown = v[i];
+      if (isObject(e) && e.type === 'result') return e;
+    }
+    return undefined;
+  }
+  return isObject(v) ? v : undefined;
+}
+
 /**
  * The result envelope in stdout. A wrapper script around the CLI may print its own log lines to stdout,
- * so when the whole output is not JSON, take the last line that is the CLI's one-line `type: "result"` object.
+ * so when the whole output is not JSON, take the last line holding the CLI's one-line `type: "result"` object
+ * (or the `--verbose` event array).
  */
 function findEnvelope(stdout: string): Envelope | undefined {
-  const whole = tryParseObject(stdout.trim());
+  const whole = resultIn(tryParse(stdout.trim()));
   if (whole) return whole;
   const lines = stdout.split(/\r?\n/);
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i]!.trim();
-    if (!line.startsWith('{')) continue;
-    const obj = tryParseObject(line);
-    if (obj?.type === 'result') return obj;
+    if (!line.startsWith('{') && !line.startsWith('[')) continue;
+    const found = resultIn(tryParse(line));
+    if (found?.type === 'result') return found;
   }
   return undefined;
 }
