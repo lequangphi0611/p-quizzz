@@ -9,11 +9,11 @@ import { Icon } from '../../../shared/ui/Icon.js';
 import { st } from './styles.js';
 
 /** Projector frame of the discussion: top bar, question strip, content area, key hints and the finalize dialog. */
-export function DiscussionScreen({ examTitle, status, meta, fullscreen, ready, locked, canFinalize, count, current, navMeta, navDone, hints, remaining, dialog, finalizing, finalizeError, contentKey, children, onGo, onToggleFullscreen, onFinalizeOpen, onFinalizeCancel, onFinalizeConfirm, onExit }: {
+export function DiscussionScreen({ examTitle, status, meta, fullscreen, ready, locked, canFinalize, count, current, navMeta, navDone, navLabels, priority, hints, remaining, dialog, finalizing, finalizeError, contentKey, children, onGo, onTogglePriority, onToggleFullscreen, onFinalizeOpen, onFinalizeCancel, onFinalizeConfirm, onExit }: {
   examTitle?: string; status?: 'lobby' | 'running' | 'closed' | 'finalized'; meta: ReactNode; fullscreen: boolean; ready: boolean; locked: boolean; canFinalize: boolean;
-  count: number; current: number; navMeta: (string | null)[]; navDone: number[]; hints: [string, string][]; remaining: number;
+  count: number; current: number; navMeta: (string | null)[]; navDone: number[]; navLabels: number[]; priority: boolean; hints: [string, string][]; remaining: number;
   dialog: boolean; finalizing: boolean; finalizeError?: string; contentKey: string; children: ReactNode;
-  onGo: (i: number) => void; onToggleFullscreen: () => void; onFinalizeOpen: () => void; onFinalizeCancel: () => void; onFinalizeConfirm: () => void; onExit: () => void;
+  onGo: (i: number) => void; onTogglePriority: () => void; onToggleFullscreen: () => void; onFinalizeOpen: () => void; onFinalizeCancel: () => void; onFinalizeConfirm: () => void; onExit: () => void;
 }) {
   const actions = (
     <>
@@ -30,10 +30,14 @@ export function DiscussionScreen({ examTitle, status, meta, fullscreen, ready, l
             <div style={{ flex: 'none', height: 112, padding: '0 40px', display: 'flex', alignItems: 'center', gap: 16, borderBottom: '2px solid var(--screen-line)' }}>
               <Button tone="screen" variant="secondary" size="xl" icon="chevron-left" ariaLabel="Câu trước (←)" disabled={current === 0} onClick={() => onGo(current - 1)} />
               <div className="pq-scroll" style={{ minWidth: 0, overflowX: 'auto', padding: '4px 2px' }}>
-                <QuestionNav size="screen" count={count} current={current} meta={navMeta} answered={navDone} onSelect={onGo} />
+                <QuestionNav size="screen" count={count} current={current} meta={navMeta} labels={navLabels} answered={navDone} onSelect={onGo} />
               </div>
               <Button tone="screen" variant="secondary" size="xl" icon="chevron-right" ariaLabel="Câu sau (→)" disabled={current === count - 1} onClick={() => onGo(current + 1)} />
-              {locked && <span style={{ marginLeft: 'auto', flex: 'none', display: 'inline-flex', alignItems: 'center', gap: 10, padding: '10px 18px', borderRadius: 'var(--radius-pill)', border: '2px solid var(--brand-200)', color: 'var(--brand-200)', font: '600 22px/1 var(--font-sans)' }}><Icon name="lock" size={22} />Đã chốt — chỉ xem</span>}
+              <div style={{ marginLeft: 'auto', flex: 'none', display: 'flex', alignItems: 'center', gap: 16 }}>
+                {/* Neutral wording on purpose: the projector must not say why a question comes first (PRODUCT.md §7.30c). */}
+                <Button tone="screen" variant={priority ? 'primary' : 'secondary'} size="xl" icon={priority ? 'check' : 'list'} shortcut="S" onClick={onTogglePriority}>Cần bàn trước</Button>
+                {locked && <span style={{ flex: 'none', display: 'inline-flex', alignItems: 'center', gap: 10, padding: '10px 18px', borderRadius: 'var(--radius-pill)', border: '2px solid var(--brand-200)', color: 'var(--brand-200)', font: '600 22px/1 var(--font-sans)' }}><Icon name="lock" size={22} />Đã chốt — chỉ xem</span>}
+              </div>
             </div>
           )}
           <div key={contentKey} style={{ flex: 1, minHeight: 0, padding: '32px 40px 76px', animation: 'pq-fade var(--dur-base) var(--ease-standard)' }}>{children}</div>

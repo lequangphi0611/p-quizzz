@@ -15,6 +15,14 @@ describe('<QuestionNav>', () => {
     expect((html.match(/<button/g) ?? []).length).toBe(34);
   });
 
+  it('shows custom labels (exam numbers when the strip is reordered) and defaults to 1…n', () => {
+    const html = renderToStaticMarkup(createElement(QuestionNav, { count: 3, current: 0, answered: [], labels: [4, 2, 7], size: 'screen', onSelect: () => {} }));
+    expect(html).toContain('aria-label="Câu 4"');
+    expect(html).toContain('aria-label="Câu 7"');
+    expect(html).not.toContain('aria-label="Câu 1"');
+    expect(render('screen', 2)).toContain('aria-label="Câu 2"');
+  });
+
   it('the compact strip for members still wraps', () => {
     expect(render('md', 34)).toContain('flex-wrap:wrap');
   });

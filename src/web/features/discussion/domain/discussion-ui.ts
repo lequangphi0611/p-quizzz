@@ -44,3 +44,19 @@ export function questionIndexFromSearch(search: string, count: number): number {
 
 /** Grading progress of one essay question (blanks included — they need a score too). */
 export const questionProgress = (q: Pick<DiscussionQuestion, 'answers'>) => ({ graded: q.answers.filter(a => a.manualScore !== null).length, total: q.answers.length });
+
+/** `?order=priority` turns on the "Cần bàn trước" order (S28, PRODUCT.md §7.30); anything else = exam order. */
+export const priorityFromSearch = (search: string): boolean => new URLSearchParams(search).get('order') === 'priority';
+
+/**
+ * "Cần bàn trước" (S28, PRODUCT.md §7.30): question indexes, multiple choice with the lowest share of full-mark
+ * submissions first (blank = not correct; multi = exact set, as scored), ties in exam order; essays last in exam order.
+ * With no counted submission there is no rate, so those questions go last among the multiple choice ones.
+ */
+export function priorityOrder(questions: readonly Pick<DiscussionQuestion, 'type' | 'correctCount'>[], submitted: number): number[] {
+  const idx = questions.map((_, i) => i);
+  const choice = idx.filter(i => questions[i]!.type !== 'essay');
+  const essays = idx.filter(i => questions[i]!.type === 'essay');
+  if (submitted > 0) choice.sort((a, b) => questions[a]!.correctCount - questions[b]!.correctCount || a - b); // same denominator → compare counts; stable ties
+  return [...choice, ...essays];
+}

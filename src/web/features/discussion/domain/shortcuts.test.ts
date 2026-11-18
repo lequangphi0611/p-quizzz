@@ -27,4 +27,12 @@ describe('discussionKeyAction', () => {
     expect(k('Escape')).toBeNull();
   });
   it('does nothing before the data is ready', () => expect(k('ArrowRight', { ready: false })).toBeNull());
+  it('S toggles the "Cần bàn trước" order, not while typing a score/feedback or with a modifier (Ctrl+S)', () => {
+    expect(k('s')).toEqual({ kind: 'toggleOrder' });
+    expect(k('S')).toEqual({ kind: 'toggleOrder' });
+    expect(discussionKeyAction({ key: 's', tag: 'TEXTAREA' }, ctx())).toBeNull();
+    expect(k('s', {}, { ctrlKey: true })).toBeNull();
+    expect(k('s', { ready: false })).toBeNull();
+    expect(k('s', { dialog: true })).toBeNull();
+  });
 });
