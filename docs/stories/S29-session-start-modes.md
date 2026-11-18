@@ -1,6 +1,6 @@
 # S29 — Bắt đầu phiên: thủ công, hẹn giờ hoặc khi mọi người sẵn sàng
 
-**Phụ thuộc:** S09, S10, S12, S14, S18, S20, S21, S25 · **Trạng thái:** ⬜ chưa làm
+**Phụ thuộc:** S09, S10, S12, S14, S18, S20, S21, S25 · **Thiết kế:** p-quizzz Design System bản 7, `ui_kits/p-quizzz/s21` ("Phòng chờ mới & bắt đầu phiên", từ [prompt](../design/S29-session-start-ui-prompt.md)) · **Trạng thái:** ⬜ chưa làm
 
 ## Bối cảnh
 Mentor không muốn canh đồng hồ để bấm Bắt đầu, nhất là khi chạy nhiều phòng song song. Member muốn biết khi nào bắt đầu và không bị mất giờ làm bài chỉ vì một bước bấm thừa ở màn "Bắt đầu làm bài". Business: [PRODUCT.md §7.31](../PRODUCT.md), §4.2, §7.27d/g, §7.20, §7.24. Contract hiện tại: [architecture.md](../architecture.md) §2 (`sessions`, `participants`), §3 (`lobby → running`), §5, §7.
@@ -10,6 +10,12 @@ Mentor không muốn canh đồng hồ để bấm Bắt đầu, nhất là khi 
 - "Bắt đầu ngay" và "mọi người sẵn sàng" chạy qua **đếm ngược 10 giây** (cố định, không chỉnh được). Đếm ngược đã chạy thì khoá, chỉ mentor huỷ được.
 - Luật làm bài chuyển lên phòng chờ. Phiên chạy thì mọi người có mặt **vào thẳng câu 1** (mọi phiên). Chỉ người vào trễ còn thấy một màn ngắn "còn X phút".
 - Máy mentor chạy lại khi đã quá giờ hẹn thì **không tự chạy**: phiên chuyển về bắt đầu thủ công và mentor được báo.
+- Sau khi xem thiết kế: mentor **huỷ đếm ngược thì tự tắt** "tự bắt đầu khi sẵn sàng" (sẵn sàng của member giữ nguyên), để đếm ngược không chạy lại ngay. Thông báo chuông **không có nút "Bắt đầu ngay"**.
+
+## Ghi chú khi dựng theo thiết kế
+- Thẻ đã có khối giờ hẹn lớn thì dòng "ai quyết" dưới "Sẵn sàng X/Y" không lặp lại giờ, chỉ ghi "… hoặc khi tất cả sẵn sàng" (hoặc bỏ).
+- Mở rộng `shared/ui/Countdown.tsx` và `shared/ui/screen/ScreenStage.tsx` đã có trong repo (designer chưa thấy chúng trong bundle), không chép bản tham chiếu `s21-parts.jsx`.
+- Component mới designer đề xuất (`ReadyMeter`, `ReadyButton`, `StartRule`, `NoticeStack`, `StartControlCard`, `NumberStepper`) đặt theo layering §12; component chỉ một feature dùng thì để trong feature đó.
 
 ## Phạm vi
 **Server**
@@ -23,7 +29,7 @@ Mentor không muốn canh đồng hồ để bấm Bắt đầu, nhất là khi 
 
 **Web**
 - Mentor (trang điều khiển phiên, form tạo phiên): thẻ "Bắt đầu" gồm hẹn giờ (chọn giờ, đổi, bỏ), bật "Tự bắt đầu khi tất cả sẵn sàng" + tối thiểu N (phiên nhóm mặc định = số email), "Bắt đầu ngay" (xác nhận cảnh báo khi bắt đầu trước giờ hẹn mà phiên có giới hạn thời gian), "Huỷ đếm ngược". Danh sách người có cột/nhãn sẵn sàng, dòng lý do khi chưa tự chạy được ("đang chờ duyệt 2 người", "mới 3/5 sẵn sàng", "cần tối thiểu 8 người").
-- Chuông (§7.20): "Phòng … sắp tự bắt đầu, còn N người chờ duyệt" (khi còn 1 phút tới giờ hẹn) và "Giờ hẹn của phòng … đã bị bỏ vì máy khởi động lại sau giờ hẹn".
+- Chuông (§7.20): "Phòng … sắp tự bắt đầu, còn N người chờ duyệt" (khi còn 1 phút tới giờ hẹn) và "Giờ hẹn của phòng … đã bị bỏ vì máy khởi động lại sau giờ hẹn". Nút trong thông báo: "Duyệt cả N", "Mở phòng", "Hẹn lại"; **không** có "Bắt đầu ngay".
 - Member, phòng chờ: luật làm bài, nút Sẵn sàng / Huỷ sẵn sàng, "Sẵn sàng X/Y", dòng cách bắt đầu, đếm ngược tới giờ hẹn, đếm ngược 10 s, thông báo đổi giờ / bắt đầu sớm / huỷ đếm ngược. Tách rõ trạng thái **chờ duyệt** với **chờ bắt đầu**. Hết đếm ngược thì **tự bắt đầu lượt** và vào câu 1, không qua `StartScreen`. `StartScreen` chỉ còn dùng cho người vào trễ ("Phiên đã bắt đầu, bạn còn X phút").
 - Màn chiếu (phòng chờ): giờ bắt đầu + đếm ngược (nhìn khác đồng hồ làm bài), "Sẵn sàng X/Y", đếm ngược 10 s lớn, thông báo đổi giờ / bắt đầu sớm.
 - UI theo bản thiết kế từ [prompt designer](../design/S29-session-start-ui-prompt.md). Phần mentor dùng lại component sẵn có.
@@ -40,6 +46,7 @@ Mentor không muốn canh đồng hồ để bấm Bắt đầu, nhất là khi 
 - [ ] Không hẹn giờ và không bật sẵn sàng: mentor bấm "Bắt đầu ngay" → đếm ngược 10 s → `running`. Không còn bước "Bắt đầu làm bài" với người có mặt.
 - [ ] Hẹn giờ: đến giờ (đồng hồ server) thì `running`, không thêm 10 s. Đổi giờ / bỏ hẹn có hiệu lực ngay, member và màn chiếu thấy cập nhật kèm thông báo. Không đặt được giờ ở quá khứ.
 - [ ] Tự bắt đầu khi sẵn sàng: chỉ kích hoạt khi đã bật, Y ≥ N, cả Y sẵn sàng, không ai chờ duyệt. Y gồm người đã duyệt, đang trong phòng, kể cả rớt mạng. 1/1 khi chưa bật **không** chạy.
+- [ ] Mentor huỷ đếm ngược → công tắc tự bắt đầu khi sẵn sàng bị tắt, đếm ngược không tự chạy lại; sẵn sàng của member giữ nguyên.
 - [ ] Ba cách đua nhau: cách nào đến trước thì thắng, không bao giờ start hai lần. Đếm ngược đang chạy: huỷ sẵn sàng hay có người mới vào **không** dừng nó. Mentor huỷ thì quay về chờ.
 - [ ] `ends_at` = lúc thực sự `running` + giới hạn (§7.27d).
 - [ ] Server khởi động khi đã quá giờ hẹn: phiên vẫn `lobby`, giờ hẹn bị bỏ, chuông mentor báo.
