@@ -402,6 +402,41 @@ describe('MemberHomeController: my sessions on this browser (PRODUCT.md §7.29)'
     expect(ctrl.getState().mine.map(s => [s.sessionId, s.status])).toEqual([[1, 'finalized'], [2, 'lobby']]);
   });
 
+  it('a 403 (kicked / replaced) drops the entry at once, before "leave" is pressed; the token stays for that screen', async () => {
+    const mine = new InMemoryMySessionsStore([{ sessionId: 1, roomCode: '111111', title: 'T', joinedAt: 1, status: 'running' }]);
+    const tokens = inSession();
+    const { ctrl } = make({ getMe: async () => { throw new ApiError(403, 'x'); } }, tokens, mine);
+    await settle();
+    expect(selectScreen(ctrl.getState())).toBe('kicked');
+    expect(mine.load()).toEqual([]);
+    expect(tokens.getToken(1)).toBe('tok');
+  });
+
+  it('a session forgotten while refreshMine is in flight does not come back in storage', async () => {
+    const t = new InMemoryTokenStore(); t.setToken(1, 'a');
+    const mine = new InMemoryMySessionsStore([{ sessionId: 1, roomCode: '111111', title: 'A', joinedAt: 2, status: 'running' }]);
+    let release!: () => void;
+    const gate = new Promise<void>(r => { release = r; });
+    const { ctrl } = make({ getPublicSession: vi.fn(async (id: number) => { await gate; return found(id, 'closed'); }) }, t, mine);
+    const refreshing = ctrl.refreshMine();
+    ctrl.forgetMine(1);
+    release();
+    await refreshing;
+    expect(mine.load()).toEqual([]);
+  });
+
+  it('"another room" clears the auto-submit flags, so the next session\'s result is not labelled with them', async () => {
+    let status = 'running';
+    const { ctrl } = make({ getMe: async () => me(1, status, 'active', status === 'running' ? { id: 9 } : null) }, inSession());
+    await settle();
+    status = 'closed';
+    await ctrl.refreshMe();
+    expect(ctrl.getState().autoSubmitted).toBe(true);
+    ctrl.leaveEnded();
+    expect(ctrl.getState().autoSubmitted).toBe(false);
+    expect(ctrl.getState().endedByTimer).toBe(false);
+  });
+
   it('the session that is open in this tab is never removed from the list by "forget"', async () => {
     const { ctrl, mine } = make({ getMe: async () => ended() }, inSession(), new InMemoryMySessionsStore([{ sessionId: 1, roomCode: '111111', title: 'T', joinedAt: 1, status: 'closed' }]));
     await settle();

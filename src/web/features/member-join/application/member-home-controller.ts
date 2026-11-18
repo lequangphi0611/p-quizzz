@@ -106,15 +106,21 @@ export class MemberHomeController {
     try {
       const me = await this.gateway.getMe();
       if (n !== this.meSeq) return;
-      const mine = this.changeMine(list => rememberMySession(list, { sessionId, title: me.session.title, status: me.session.status, roomCode: this.rooms.recall(sessionId) }, Date.now()));
-      this.set({ me, meState: 'ok', ...mine });
+      // Polled every few seconds: only touch storage and the visible list when something changed.
+      const before = this.mineStore.load();
+      const after = rememberMySession(before, { sessionId, title: me.session.title, status: me.session.status, roomCode: this.rooms.recall(sessionId) }, Date.now());
+      this.set({ me, meState: 'ok', ...(after === before ? {} : this.changeMine(() => after)) });
     } catch (err) {
       if (n !== this.meSeq) return;
       if (err instanceof ApiError && err.status === 401) { // unknown token (e.g. server DB was reset): start over
         this.tokens.clearToken(sessionId);
         this.tokens.clearCurrentSessionId();
         this.set({ followId: null, me: null, meState: 'idle', ...this.changeMine(list => forgetMySession(list, sessionId)) });
-      } else if (err instanceof ApiError && err.status === 403) this.set({ meState: err.code === 'replaced' ? 'replaced' : 'kicked' });
+      } else if (err instanceof ApiError && err.status === 403) {
+        // Kicked or replaced: no seat left, so the session leaves "my sessions" now, not only when "leave" is pressed (§7.29d).
+        // The token stays until then, so the kicked/replaced screen still shows after a reload.
+        this.set({ meState: err.code === 'replaced' ? 'replaced' : 'kicked', ...this.changeMine(list => forgetMySession(list, sessionId)) });
+      }
       else if (!this.state.me) this.set({ meState: 'error' });
     }
   };
@@ -261,7 +267,8 @@ export class MemberHomeController {
   leaveEnded(): void {
     this.tokens.clearCurrentSessionId();
     this.lookupSeq++;
-    this.set({ followId: null, lookup: null, me: null, meState: 'idle', mine: this.visibleMine() });
+    // The next session starts clean: an auto-submit here must not label a later session's result.
+    this.set({ followId: null, lookup: null, me: null, meState: 'idle', autoSubmitted: false, endedByTimer: false, mine: this.visibleMine() });
   }
 
   // ── "Phiên của bạn trên máy này" (PRODUCT.md §7.29) ────────────────────────────────────────────
@@ -287,7 +294,8 @@ export class MemberHomeController {
     const shown = this.state.mine;
     const fresh = await Promise.all(shown.map(async s => { try { return await this.gateway.getPublicSession(s.sessionId); } catch { return null; } }));
     let list = this.mineStore.load();
-    for (const f of fresh) if (f) list = rememberMySession(list, { sessionId: f.id, title: f.title, status: f.status }, Date.now());
+    // Only update entries still stored: one forgotten while the requests were in flight must not come back.
+    for (const f of fresh) if (f && list.some(s => s.sessionId === f.id)) list = rememberMySession(list, { sessionId: f.id, title: f.title, status: f.status }, Date.now());
     this.set(this.changeMine(() => list));
   }
 
