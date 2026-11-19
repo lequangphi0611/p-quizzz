@@ -100,6 +100,12 @@ test('mentor shares sessions; anyone with the link reads them; old links stop wo
   await expect(v.getByText('Bài của An')).toHaveCount(0);
   await shot(v, 'B5-detail-desktop');
   await shot(v, 'B5-detail-desktop-full', true);
+  // The essay (question 4): model answer and rubric only, nobody's work.
+  const essay = v.locator('#cau-4');
+  await essay.scrollIntoViewIfNeeded();
+  await expect(essay.getByText('Câu tự luận chỉ có đáp án mẫu và tiêu chí chấm')).toBeVisible();
+  await v.waitForTimeout(300);
+  await essay.screenshot({ path: shotPath('S31', 'B5-essay-desktop') });
   await v.getByRole('button', { name: 'Câu 3' }).click();
   await expect(v).toHaveURL(/#cau-3$/);
   await v.getByRole('button', { name: 'Danh sách phiên' }).click();
@@ -113,6 +119,11 @@ test('mentor shares sessions; anyone with the link reads them; old links stop wo
   await phone.page.goto(`/shared/${token}/sessions/${a.id}`);
   await expect(phone.page.getByText('Bạn đang xem lại, không có điểm.')).toBeVisible();
   await shot(phone.page, 'B5p-detail-phone');
+  const essayPhone = phone.page.locator('#cau-4');
+  await essayPhone.scrollIntoViewIfNeeded();
+  await phone.page.waitForTimeout(300);
+  await essayPhone.screenshot({ path: shotPath('S31', 'B5p-essay-phone') });
+  await phone.page.evaluate(() => window.scrollTo(0, 0));
   await phone.page.getByRole('button', { name: /Mục lục/ }).click();
   await shot(phone.page, 'B5p-index-open');
   // Opened directly: "Danh sách phiên" goes to the list.
