@@ -30,8 +30,9 @@ export function Progress({ done, total }: { done: number; total: number }) {
 }
 
 /** Phone bottom sheet: all questions in a 5-column grid, progress and the submit button. */
-export function NavSheet({ count, current, answered, onSelect, onClose, onSubmit }: { count: number; current: number; answered: number[]; onSelect: (i: number) => void; onClose: () => void; onSubmit: () => void }) {
+export function NavSheet({ count, current, answered, needsReason = [], onSelect, onClose, onSubmit }: { count: number; current: number; answered: number[]; needsReason?: number[]; onSelect: (i: number) => void; onClose: () => void; onSubmit: () => void }) {
   const set = new Set(answered);
+  const missing = new Set(needsReason);
   return (
     <div onClick={e => { if (e.target === e.currentTarget) onClose(); }} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'var(--scrim)', display: 'flex', alignItems: 'flex-end', animation: 'pq-fade var(--dur-base) var(--ease-standard)' }}>
       <div role="dialog" aria-modal="true" aria-label="Danh sách câu" style={{ width: '100%', background: 'var(--paper)', borderRadius: '20px 20px 0 0', padding: '8px 16px calc(16px + env(safe-area-inset-bottom))', boxShadow: 'var(--shadow-dialog)', display: 'grid', gap: 16, animation: 'pq-reveal var(--dur-slow) var(--ease-standard)', boxSizing: 'border-box' }}>
@@ -42,11 +43,12 @@ export function NavSheet({ count, current, answered, onSelect, onClose, onSubmit
         </div>
         <Progress done={answered.length} total={count} />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,minmax(0,1fr))', gap: 8 }}>
-          {Array.from({ length: count }, (_, i) => <NavCell key={i} i={i} fill cur={i === current} done={set.has(i)} onSelect={j => { onSelect(j); onClose(); }} />)}
+          {Array.from({ length: count }, (_, i) => <NavCell key={i} i={i} fill cur={i === current} done={set.has(i)} needsReason={missing.has(i)} onSelect={j => { onSelect(j); onClose(); }} />)}
         </div>
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', ...mText.meta }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 16, height: 16, borderRadius: 4, background: 'var(--brand-100)', border: '1.5px solid var(--brand-200)' }} />Đã trả lời</span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 16, height: 16, borderRadius: 4, border: '1.5px dashed var(--ink-400)' }} />Chưa trả lời</span>
+          {missing.size > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 16, height: 16, borderRadius: 4, background: 'var(--warn-surface)', border: '1.5px solid var(--warn-border)' }} />Thiếu lý do</span>}
         </div>
         <Button size="lg" block icon="send" onClick={() => { onClose(); onSubmit(); }}>Nộp bài</Button>
       </div>

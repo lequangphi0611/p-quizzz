@@ -59,6 +59,23 @@ describe('DiscussionController: reveal and navigation', () => {
     ctrl.questionChanged();
     expect(ctrl.getState()).toMatchObject({ mode: 'list', lastOpened: null });
   });
+
+  it('reasons: R toggles them apart from the answer; groups collapse; a new question hides and reopens everything (S30)', () => {
+    const { ctrl } = make();
+    ctrl.toggleReasons();
+    ctrl.toggleGroup('1');
+    ctrl.toggleGroup('2');
+    ctrl.toggleGroup('2');
+    expect(ctrl.getState()).toMatchObject({ reasonsShown: true });
+    expect([...ctrl.getState().collapsed]).toEqual(['1']);
+    expect(ctrl.getState().revealed.size).toBe(0);
+    ctrl.expandAllGroups();
+    expect(ctrl.getState().collapsed.size).toBe(0);
+    ctrl.toggleGroup('1');
+    ctrl.questionChanged();
+    expect(ctrl.getState()).toMatchObject({ reasonsShown: false });
+    expect(ctrl.getState().collapsed.size).toBe(0);
+  });
 });
 
 describe('DiscussionController: grading', () => {

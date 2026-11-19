@@ -6,10 +6,12 @@ import type { DiscussionQuestion } from '../../../../shared/api/index.js';
 import { useDiscussion } from '../application/use-discussion.js';
 import { discussionSearch, priorityFromSearch, priorityOrder, questionIndexFromSearch, questionProgress, splitPapers } from '../domain/discussion-ui.js';
 import { draftOf } from '../domain/grade-draft.js';
+import { reasonBoard } from '../domain/reason-groups.js';
 import { ChoiceView } from './ChoiceView.js';
 import { DiscussionScreen } from './DiscussionScreen.js';
 import { EssayList } from './EssayList.js';
 import { PaperView } from './PaperView.js';
+import { ReasonsView } from './ReasonsView.js';
 import { StateView } from './StateView.js';
 import { useDiscussionKeys } from './use-discussion-keys.js';
 
@@ -35,6 +37,7 @@ export function DiscussionPage() {
   const order = useMemo(() => (priority ? priorityOrder(qs, submitted) : qs.map((_, i) => i)), [priority, qs, submitted]);
   const slot = Math.max(0, order.indexOf(qi));
   const { papers, blanks } = useMemo(() => (q?.type === 'essay' ? splitPapers(q) : { papers: [], blanks: [] }), [q]);
+  const board = useMemo(() => (q && q.type !== 'essay' && q.requireReason ? reasonBoard(q) : null), [q]);
   const locked = view?.status === 'finalized';
   const remaining = view ? view.total - view.graded : 0;
   const empty = load === 'ready' && view !== null && (view.submitted === 0 || qs.length === 0);
@@ -49,12 +52,13 @@ export function DiscussionPage() {
   // Switching the order keeps the question on screen; the strip just regroups around it.
   const togglePriority = useCallback(() => { if (qs.length > 0) setSearch(discussionSearch(qi, !priority), { replace: true }); }, [qs.length, qi, priority, setSearch]);
 
-  useDiscussionKeys({ dialog: state.dialog, finalizing: state.finalizing, ready, hasPapers: q?.type === 'essay' && papers.length > 0, mode, fullscreen }, action => {
+  useDiscussionKeys({ dialog: state.dialog, finalizing: state.finalizing, ready, hasPapers: q?.type === 'essay' && papers.length > 0, hasReasons: board !== null, mode, fullscreen }, action => {
     if (!ctrl || !q) { if (action.kind === 'closeDialog') ctrl?.closeFinalize(); return; }
     if (action.kind === 'closeDialog') ctrl.closeFinalize();
     else if (action.kind === 'question') goSlot(slot + action.delta);
     else if (action.kind === 'toggleOrder') togglePriority();
     else if (action.kind === 'toggleAnswer') ctrl.toggleReveal(q.id);
+    else if (action.kind === 'toggleReasons') ctrl.toggleReasons();
     else if (action.kind === 'paper') ctrl.stepPaper(papers, action.dir);
     else ctrl.backToList();
   });
@@ -70,7 +74,9 @@ export function DiscussionPage() {
   const revealed = q ? state.revealed.has(q.id) : false;
   const toggle = () => { if (q) ctrl?.toggleReveal(q.id); };
   if (load !== 'ready' || !ready) content = <StateView kind={load === 'loading' ? 'loading' : load === 'error' ? 'error' : 'empty'} message={state.loadError} onRetry={() => void ctrl?.load()} onExit={exit} />;
-  else if (q!.type !== 'essay') content = <ChoiceView q={q!} index={qi} submitted={view!.submitted} revealed={revealed} onToggle={toggle} />;
+  else if (q!.type !== 'essay' && board && state.reasonsShown) {
+    content = <ReasonsView q={q!} index={qi} board={board} revealed={revealed} collapsed={state.collapsed} onToggleAnswer={toggle} onToggleReasons={() => ctrl?.toggleReasons()} onToggleGroup={k => ctrl?.toggleGroup(k)} onExpandAll={() => ctrl?.expandAllGroups()} />;
+  } else if (q!.type !== 'essay') content = <ChoiceView q={q!} index={qi} submitted={view!.submitted} revealed={revealed} onToggle={toggle} reasonCount={board?.total} onShowReasons={board ? () => ctrl?.toggleReasons() : undefined} />;
   else if (mode === 'list' || !papers[paperIdx]) content = <EssayList q={q!} index={qi} revealed={revealed} onToggle={toggle} papers={papers} blanks={blanks} lastOpened={state.lastOpened} locked={locked} zeroing={state.zeroing} onOpen={i => ctrl?.openPaper(i)} onZeroBlanks={() => void ctrl?.zeroBlanks(blanks)} />;
   else {
     const a = papers[paperIdx]!;
@@ -82,13 +88,13 @@ export function DiscussionPage() {
     );
   }
 
-  const hints: [string, string][] = [['← →', 'câu'], ['Space', 'đáp án'], ['S', 'cần bàn trước'], ...(q?.type === 'essay' ? [['J K', 'bài'] as [string, string]] : []), ['Esc', 'thoát toàn màn hình']];
+  const hints: [string, string][] = [['← →', 'câu'], ['Space', 'đáp án'], ['S', 'cần bàn trước'], ...(board ? [['R', 'lý do'] as [string, string]] : []), ...(q?.type === 'essay' ? [['J K', 'bài'] as [string, string]] : []), ['Esc', 'thoát toàn màn hình']];
   return (
     <DiscussionScreen examTitle={view?.examTitle} status={view?.status} meta={meta} fullscreen={fullscreen} ready={ready} locked={locked} canFinalize={ready && !locked}
       count={qs.length} current={slot} navLabels={order.map(i => i + 1)} priority={priority}
       navMeta={order.map(i => { const p = essayProgress[i]; return p ? `${p.graded}/${p.total}` : null; })}
       navDone={order.flatMap((i, s) => { const p = essayProgress[i]; return p && p.graded === p.total ? [s] : []; })} hints={hints}
-      remaining={remaining} dialog={state.dialog} finalizing={state.finalizing} finalizeError={state.finalizeError} contentKey={`${load}-${qi}-${mode}`}
+      remaining={remaining} dialog={state.dialog} finalizing={state.finalizing} finalizeError={state.finalizeError} contentKey={`${load}-${qi}-${mode}-${state.reasonsShown && board ? 'r' : 'q'}`} reasonsChip={ready && board ? state.reasonsShown : null}
       onGo={goSlot} onTogglePriority={togglePriority} onToggleFullscreen={toggleFs} onFinalizeOpen={() => ctrl?.openFinalize()} onFinalizeCancel={() => ctrl?.closeFinalize()} onFinalizeConfirm={() => void ctrl?.finalize()} onExit={exit}>
       {content}
     </DiscussionScreen>

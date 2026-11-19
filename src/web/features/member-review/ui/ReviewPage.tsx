@@ -82,8 +82,8 @@ export function ReviewPage() {
           </p>
         )}
         <QuestionPreview index={i} mode="review" pendingLabel="Chờ chấm"
-          question={{ type: q.type, prompt: q.prompt, body: q.body, points: q.points, explanation: q.explanation, options: q.options.map(o => ({ id: o.id, text: o.text, isCorrect: o.isCorrect })) }}
-          selectedIds={q.selectedOptionIds ?? []} answerText={q.textAnswer ?? undefined} manualScore={q.type === 'essay' ? q.score : undefined} feedback={q.feedback} />
+          question={{ type: q.type, prompt: q.prompt, body: q.body, points: q.points, explanation: q.explanation, requireReason: q.requireReason, options: q.options.map(o => ({ id: o.id, text: o.text, isCorrect: o.isCorrect })) }}
+          selectedIds={q.selectedOptionIds ?? []} answerText={q.textAnswer ?? undefined} reasonText={q.reasonText} manualScore={q.type === 'essay' ? q.score : undefined} feedback={q.feedback} />
       </div>
     );
   });

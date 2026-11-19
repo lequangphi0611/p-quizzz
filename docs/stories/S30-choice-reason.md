@@ -1,6 +1,6 @@
 # S30 — Ô lý do cho câu trắc nghiệm
 
-**Phụ thuộc:** S04, S11, S12, S16, S17, S18, S24, S25 · **Trạng thái:** chưa làm
+**Phụ thuộc:** S04, S11, S12, S16, S17, S18, S24, S25 · **Trạng thái:** ✅ xong (2026-11-19)
 
 ## Bối cảnh
 Mentor muốn biết member nghĩ gì khi chọn đáp án: bắt người chọn đúng nhờ đoán mò, và chữa đúng chỗ khi nhiều người dồn vào một phương án sai. Business: [PRODUCT.md §7.32](../PRODUCT.md), §4.5, §7.17, §7.21, §7.26.
@@ -50,20 +50,27 @@ Bản thiết kế: https://claude.ai/artifact/GPyqPG7aB8WobNbtxwPvoi (canvas "p
 - Dữ liệu mẫu trong canvas là giả lập.
 
 ## Acceptance criteria
-- [ ] `{reason}` trên câu single/multi import được; trên câu tự luận báo lỗi có số dòng; đề không có `{reason}` chạy như cũ.
-- [ ] Member thấy ô lý do chỉ ở câu được đánh dấu; F5 giữ nguyên lý do đã gõ.
-- [ ] Bấm nộp khi còn câu đã chọn mà thiếu lý do → không nộp được, app chỉ ra các câu đó; bỏ trống cả câu thì vẫn nộp được.
-- [ ] Hết giờ hoặc mentor đóng phiên → bài vẫn tự nộp dù thiếu lý do.
-- [ ] Lý do không đổi điểm, xếp hạng, điểm tạm tính, việc tự chốt kết quả hay số "đã trả lời" của mentor.
-- [ ] Lượt đã nộp (kể cả đang được sửa tự luận) không sửa được lý do.
-- [ ] Member chỉ thấy lý do của mình, và chỉ từ `CLOSED` ở trang xem lại; không API member/công khai nào trả lý do người khác.
-- [ ] Chế độ thảo luận: khối lý do mặc định ẩn, bấm mới hiện, nhóm theo phương án, không tên, thứ tự cố định khi F5.
-- [ ] Mentor thấy lý do kèm tên ở trang xem lại phiên.
+- [x] `{reason}` trên câu single/multi import được; trên câu tự luận báo lỗi có số dòng; đề không có `{reason}` chạy như cũ.
+- [x] Member thấy ô lý do chỉ ở câu được đánh dấu; F5 giữ nguyên lý do đã gõ.
+- [x] Bấm nộp khi còn câu đã chọn mà thiếu lý do → không nộp được, app chỉ ra các câu đó; bỏ trống cả câu thì vẫn nộp được.
+- [x] Hết giờ hoặc mentor đóng phiên → bài vẫn tự nộp dù thiếu lý do.
+- [x] Lý do không đổi điểm, xếp hạng, điểm tạm tính, việc tự chốt kết quả hay số "đã trả lời" của mentor.
+- [x] Lượt đã nộp (kể cả đang được sửa tự luận) không sửa được lý do.
+- [x] Member chỉ thấy lý do của mình, và chỉ từ `CLOSED` ở trang xem lại; không API member/công khai nào trả lý do người khác.
+- [x] Chế độ thảo luận: khối lý do mặc định ẩn, bấm mới hiện, nhóm theo phương án, không tên, thứ tự cố định khi F5.
+- [x] Mentor thấy lý do kèm tên ở trang xem lại phiên.
 
 ## Test
 - `parse.test.ts`: `{reason}`, `{reason, points=N}`, `{essay, reason}` lỗi, lặp key.
 - Use case / integration: lưu + giới hạn 200 ký tự; `reason_missing` khi tự nộp; tự nộp khi đóng phiên và khi hết giờ không bị chặn; khoá sau khi nộp kể cả khi sửa tự luận được duyệt; điểm không đổi; review trả lý do của mình; discussion không có participant id; quét `reasons` trên mọi response `/api/me/*` và công khai.
 - E2E `e2e/s30-choice-reason.spec.ts`: làm bài có câu lý do (laptop + điện thoại), chặn nộp, xem lại, thảo luận hiện/ẩn; ảnh vào `docs/design/S30-assets/`.
+
+## Ghi chú khi làm (2026-11-19)
+- Ví dụ đề: `exams/examples/react-hooks-ly-do.md` (không gắn `{reason}` vào `git-co-ban.md` để các e2e cũ nộp bài không bị chặn).
+- Lỗi nghiệp vụ có thêm trường: `DomainError` nhận `details` (ở đây là `questionIds`), `sendDomainError` gửi kèm cạnh `error`/`code`.
+- Danh sách câu phía member: câu đã chọn mà thiếu lý do hiện nhãn "Thiếu lý do" (màu cảnh báo) thay cho "Đã trả lời"; số "đã trả lời" không đổi (§7.26b).
+- Chưa làm so với bản thiết kế: dấu lý do trên ô `QuestionNav` của màn chiếu (đã có chip "Lý do · Đã hiện/Đang ẩn" ở thanh câu); nút "Ẩn/Hiện bài làm" (PO tạm bỏ).
+- E2E: `e2e/s30-choice-reason.spec.ts`; ảnh ở `docs/design/S30-assets/`. Chạy cả bộ e2e: `s26-ai-grading` lỗi một lần (canh thời gian với CLI giả), chạy lại riêng thì qua.
 
 ## Giới hạn đã biết / chưa làm
 - Member có thể gõ đại cho đủ; văn phong có thể lộ người viết trong nhóm nhỏ (§7.32).

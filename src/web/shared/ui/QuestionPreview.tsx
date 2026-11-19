@@ -10,6 +10,8 @@ export interface PreviewQuestion {
   body: string;
   points: number;
   explanation: string | null;
+  /** `{reason}`: the member writes a short unscored reason with the pick (PRODUCT.md §7.32). */
+  requireReason?: boolean;
   options: { id?: number; text: string; isCorrect: boolean }[];
 }
 
@@ -19,6 +21,7 @@ export const fromParsed = (q: ParsedQuestion): PreviewQuestion => ({
   body: q.body,
   points: q.points,
   explanation: q.explanation,
+  requireReason: q.requireReason,
   options: q.options.map(o => ({ text: o.text, isCorrect: o.correct })),
 });
 
@@ -28,8 +31,10 @@ const label = { font: 'var(--type-label)', textTransform: 'uppercase', letterSpa
 
 // `preview` (mentor): correct answers marked, explanation shown.
 // `review` (member after close, S16): compares `selectedIds` / `answerText` with the key and shows the score.
-export function QuestionPreview({ question: q, index = 0, mode = 'preview', selectedIds = [], answerText, manualScore, feedback, chosenLabel, pendingLabel = 'Chưa chấm' }: {
+export function QuestionPreview({ question: q, index = 0, mode = 'preview', selectedIds = [], answerText, reasonText, reasonLabel = 'Lý do của bạn', manualScore, feedback, chosenLabel, pendingLabel = 'Chưa chấm' }: {
   question: PreviewQuestion; index?: number; mode?: 'preview' | 'review'; selectedIds?: number[]; answerText?: string; manualScore?: number | null; feedback?: string | null; chosenLabel?: string;
+  /** Review of a `{reason}` question: the person's own reason (PRODUCT.md §7.32e). `reasonLabel`: "Lý do của bạn" (member) / "Lý do" (mentor). */
+  reasonText?: string | null; reasonLabel?: string;
   /** Badge of an essay not graded yet: "Chưa chấm" for the mentor, "Chờ chấm" for the member. */
   pendingLabel?: string;
 }) {
@@ -45,6 +50,7 @@ export function QuestionPreview({ question: q, index = 0, mode = 'preview', sele
     <article style={{ minWidth: 0, background: 'var(--surface-card)', border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-card)', padding: 20, display: 'grid', gridTemplateColumns: 'minmax(0,1fr)', gap: 14 }}>
       <header style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', font: 'var(--type-label)', color: 'var(--text-meta)' }}>
         <span style={{ color: 'var(--brand-700)' }}>Câu {index + 1}</span><span>·</span><span>{q.points} điểm</span><span>·</span><span>{TYPE_LABEL[q.type]}</span>
+        {q.requireReason && <><span>·</span><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="message-square" size={13} />Hỏi lý do</span></>}
         {review && (
           <span style={{ marginLeft: 'auto', font: 'var(--type-score)', fontSize: 14, padding: '3px 10px', borderRadius: 'var(--radius-pill)', background: earned == null ? 'var(--ink-100)' : earned > 0 ? 'var(--correct-surface)' : 'var(--wrong-surface)', color: earned == null ? 'var(--ink-600)' : earned > 0 ? 'var(--correct-600)' : 'var(--wrong-600)' }}>
             {earned == null ? pendingLabel : `${fmt(earned)}/${q.points}`}
@@ -68,6 +74,17 @@ export function QuestionPreview({ question: q, index = 0, mode = 'preview', sele
         </div>
       )}
 
+      {q.requireReason && q.type !== 'essay' && !review && (
+        <div style={{ padding: '10px 14px', border: '1px dashed var(--border-strong)', borderRadius: 'var(--radius-md)', color: 'var(--text-faint)', font: 'var(--type-meta)' }}>Ô lý do (bắt buộc khi đã chọn đáp án, không tính điểm)</div>
+      )}
+      {q.requireReason && q.type !== 'essay' && review && sel.size > 0 && (
+        <div style={{ display: 'grid', gap: 4, background: 'var(--ink-050)', border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-md)', padding: '10px 14px' }}>
+          <div style={label}>{reasonLabel}</div>
+          <div style={{ font: 'var(--type-body)', fontSize: 15, color: 'var(--ink-900)', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+            {reasonText || <span style={{ color: 'var(--text-faint)' }}>(Chưa ghi lý do)</span>}
+          </div>
+        </div>
+      )}
       {q.type === 'essay' && !review && (
         <div style={{ padding: '14px 16px', border: '1px dashed var(--border-strong)', borderRadius: 'var(--radius-md)', color: 'var(--text-faint)', font: 'var(--type-meta)' }}>Ô nhập câu trả lời tự luận</div>
       )}

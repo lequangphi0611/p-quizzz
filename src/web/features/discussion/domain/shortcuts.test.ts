@@ -35,4 +35,11 @@ describe('discussionKeyAction', () => {
     expect(k('s', { ready: false })).toBeNull();
     expect(k('s', { dialog: true })).toBeNull();
   });
+  it('R toggles the class reasons only on a question that asks for them (S30)', () => {
+    expect(k('r', { hasReasons: true })).toEqual({ kind: 'toggleReasons' });
+    expect(k('R', { hasReasons: true })).toEqual({ kind: 'toggleReasons' });
+    expect(k('r')).toBeNull();
+    expect(discussionKeyAction({ key: 'r', tag: 'INPUT' }, ctx({ hasReasons: true }))).toBeNull();
+    expect(k('r', { hasReasons: true, dialog: true })).toBeNull();
+  });
 });

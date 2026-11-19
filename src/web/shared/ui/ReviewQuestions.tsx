@@ -8,12 +8,12 @@ export function ReviewQuestions({ review, viewer = 'member' }: { review: ReviewV
     <>
       {review.questions.map((q, i) => {
         const question: PreviewQuestion = {
-          type: q.type, prompt: q.prompt, body: q.body, points: q.points, explanation: q.explanation,
+          type: q.type, prompt: q.prompt, body: q.body, points: q.points, explanation: q.explanation, requireReason: q.requireReason,
           options: q.options.map(o => ({ id: o.id, text: o.text, isCorrect: o.isCorrect })),
         };
         return (
           <QuestionPreview key={q.id} index={i} mode="review" question={question}
-            selectedIds={q.selectedOptionIds ?? []} answerText={q.textAnswer ?? undefined}
+            selectedIds={q.selectedOptionIds ?? []} answerText={q.textAnswer ?? undefined} reasonText={q.reasonText} reasonLabel={viewer === 'mentor' ? 'Lý do' : 'Lý do của bạn'}
             manualScore={q.type === 'essay' ? q.score : undefined} feedback={q.feedback} chosenLabel={viewer === 'mentor' ? 'Đã chọn' : undefined} />
         );
       })}

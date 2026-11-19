@@ -12,8 +12,8 @@ import { SideNav } from '../../../shared/ui/member/question-nav.js';
 import { OfflineBanner, Progress, ShortcutHelp } from './ExamParts.js';
 
 /** Exam-taking frame for desktop (S18): header with save state, sidebar with progress and navigation, sticky prev/next bar. */
-export function TakingDesktop({ title, name, online, saveEl, clock, questions, cur, answered, content, dialog, showKeys, help, mainRef, onGo, onSubmit, onHelp, onCloseHelp }: {
-  title: string; name: string; online: boolean; saveEl: ReactNode; clock: ReactNode; questions: MemberQuestion[]; cur: number; answered: number[]; content: ReactNode; dialog: ReactNode;
+export function TakingDesktop({ title, name, online, saveEl, clock, questions, cur, answered, needsReason, content, dialog, showKeys, help, mainRef, onGo, onSubmit, onHelp, onCloseHelp }: {
+  title: string; name: string; online: boolean; saveEl: ReactNode; clock: ReactNode; questions: MemberQuestion[]; cur: number; answered: number[]; needsReason: number[]; content: ReactNode; dialog: ReactNode;
   showKeys: boolean; help: boolean; mainRef: Ref<HTMLElement>; onGo: (i: number) => void; onSubmit: () => void; onHelp: () => void; onCloseHelp: () => void;
 }) {
   const wide = useMediaQuery(`(min-width: ${WIDE_MIN}px)`);
@@ -21,7 +21,7 @@ export function TakingDesktop({ title, name, online, saveEl, clock, questions, c
   const sidebar = (
     <>
       <div style={{ padding: '20px 20px 12px', display: 'grid', gap: 12 }}><span style={mText.label}>Tiến độ</span><Progress done={answered.length} total={total} /></div>
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '4px 8px' }}><SideNav questions={questions} current={cur} answered={answered} onSelect={onGo} /></div>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '4px 8px' }}><SideNav questions={questions} current={cur} answered={answered} needsReason={needsReason} onSelect={onGo} /></div>
       <div style={{ padding: '16px 20px 18px', borderTop: '1px solid var(--border-hairline)', display: 'grid', gap: 10 }}>
         <Button size="lg" block icon="send" onClick={onSubmit}>Nộp bài</Button>
         <button type="button" onClick={onHelp} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 32, background: 'none', border: 0, borderRadius: 'var(--radius-sm)', cursor: 'pointer', font: 'var(--type-meta)', color: 'var(--text-meta)' }}><Icon name="info" size={14} />Phím tắt <Kbd>?</Kbd></button>
