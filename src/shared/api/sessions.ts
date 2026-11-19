@@ -88,6 +88,7 @@ export interface SessionSummary {
   startedAt: number | null;
   closedAt: number | null;
   finalizedAt: number | null;
+  sharedAt: number | null; // on the share page since then (PRODUCT.md §7.33); null = not shared
   participantCount: number; // participants with status 'active'
 }
 
@@ -135,6 +136,8 @@ export interface SessionDetail extends SessionSummary {
   roster: SessionRoster | null; // null for free sessions
   /** Someone claiming a seat that already has a person behind it, waiting for the mentor (PRODUCT.md §7.23). Open sessions only. */
   rejoinRequests: RejoinRequestInfo[];
+  /** For the warnings when the mentor turns sharing on (PRODUCT.md §7.33a): other sessions of the same exam not yet closed, and counted submissions here. */
+  share: { examUnfinishedSessions: number; submitted: number };
 }
 
 export interface RejoinRequestInfo {

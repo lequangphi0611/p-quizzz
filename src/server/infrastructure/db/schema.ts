@@ -116,6 +116,8 @@ export const sessions = sqliteTable(
     startedAt: ts('started_at'),
     closedAt: ts('closed_at'),
     finalizedAt: ts('finalized_at'),
+    // Shown on the share page since then (PRODUCT.md §7.33); null = not shared. Only set once the session has closed.
+    sharedAt: ts('shared_at'),
   },
   // Unique across all sessions (NULLs, i.e. drafts, may repeat): an old link can never reach a newer session.
   t => [uniqueIndex('sessions_room_code_uq').on(t.roomCode)],

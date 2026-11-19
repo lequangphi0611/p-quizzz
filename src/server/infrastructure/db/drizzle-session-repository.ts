@@ -9,6 +9,7 @@ import type {
   SessionRepository,
   SessionSummaryView,
 } from '../../application/ports/session-repository.js';
+import type { SharedSessionReader, SharedSessionRow } from '../../application/ports/share.js';
 import type { NewSession, Session, SessionPatch } from '../../domain/session/session.js';
 import type { Headcount } from '../../domain/session/start.js';
 import { exams, participants, rejoinRequests, sessionRoster, sessions } from './schema.js';
@@ -53,6 +54,7 @@ const summaryColumns = {
   startedAt: sessions.startedAt,
   closedAt: sessions.closedAt,
   finalizedAt: sessions.finalizedAt,
+  sharedAt: sessions.sharedAt,
   participantCount: activeCount,
   readyCount,
   pendingCount,
@@ -121,7 +123,7 @@ export class DrizzleSessionRepository implements SessionRepository {
   }
 }
 
-export class DrizzleSessionReader implements SessionReader {
+export class DrizzleSessionReader implements SessionReader, SharedSessionReader {
   constructor(private readonly access: DbAccess) {}
 
   async exists(id: number): Promise<boolean> {
@@ -146,7 +148,14 @@ export class DrizzleSessionReader implements SessionReader {
         .orderBy(participants.id)
         .all();
       const progress = loadSessionProgress(db, id, exam);
-      return { ...row, exam, participants: people.map(p => ({ ...p, progress: progress.get(p.id) ?? NO_PROGRESS(exam.totalPoints) })), roster: row.access === 'roster' ? rosterOf(db, id) : null, rejoinRequests: rejoinRequestsOf(db, id, row.status) };
+      const withProgress = people.map(p => ({ ...p, progress: progress.get(p.id) ?? NO_PROGRESS(exam.totalPoints) }));
+      const examUnfinishedSessions = db
+        .select({ n: sql<number>`count(*)` })
+        .from(sessions)
+        .where(and(eq(sessions.examId, row.examId), ne(sessions.id, id), inArray(sessions.status, ['draft', 'lobby', 'running'])))
+        .get()!.n;
+      const submitted = withProgress.filter(p => p.status === 'active' && p.progress.submittedAt !== null).length;
+      return { ...row, exam, participants: withProgress, roster: row.access === 'roster' ? rosterOf(db, id) : null, rejoinRequests: rejoinRequestsOf(db, id, row.status), share: { examUnfinishedSessions, submitted } };
     });
   }
 
@@ -198,6 +207,19 @@ export class DrizzleSessionReader implements SessionReader {
   listScreenSessions(): Promise<ScreenSessionView[]> {
     return this.access(db =>
       this.screenRows(db).where(inArray(sessions.status, [...ACTIVE_STATUSES])).orderBy(asc(sessions.slot), asc(sessions.id)).all(),
+    );
+  }
+
+  /** The share page (PRODUCT.md §7.33c): shared, ended sessions, newest start first. Exam title only. */
+  listShared(): Promise<SharedSessionRow[]> {
+    return this.access(db =>
+      db
+        .select({ id: sessions.id, examTitle: exams.title, startedAt: sessions.startedAt, questionCount: examQuestionCount })
+        .from(sessions)
+        .innerJoin(exams, eq(sessions.examId, exams.id))
+        .where(and(isNotNull(sessions.sharedAt), inArray(sessions.status, ['closed', 'finalized'])))
+        .orderBy(desc(sessions.startedAt), desc(sessions.id))
+        .all(),
     );
   }
 

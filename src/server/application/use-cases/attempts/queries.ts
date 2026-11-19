@@ -1,4 +1,5 @@
 import { assertReviewable, memberAttemptState, reviewState, type Attempt } from '../../../domain/attempt/attempt.js';
+import { isShared } from '../../../domain/sharing/sharing.js';
 import { AttemptNotFoundError } from '../../../domain/attempt/errors.js';
 import { ExamNotFoundError } from '../../../domain/exam/errors.js';
 import { ParticipantNotFoundError } from '../../../domain/participant/errors.js';
@@ -59,7 +60,7 @@ export class GetAttemptReview {
     assertReviewable(attempt, session.status);
     const exam = await loadExam(this.deps, session.examId);
     const aiAssistedQuestionIds = exam.questions.some(q => q.type === 'essay') ? ((await this.deps.aiSuggestions?.questionsWithDoneInSession(session.id)) ?? []) : [];
-    return { attempt, answers: await this.deps.attempts.answersOf(attempt.id), exam, sessionStatus: session.status, aiAssistedQuestionIds };
+    return { attempt, answers: await this.deps.attempts.answersOf(attempt.id), exam, sessionStatus: session.status, aiAssistedQuestionIds, shared: isShared(session) };
   }
 }
 
@@ -85,7 +86,7 @@ export class GetParticipantReview {
     const submitted = mine.find(a => a.submittedAt);
     if (!submitted) return { participant, state, review: null };
     const exam = await loadExam(this.deps, session.examId);
-    return { participant, state, review: { attempt: submitted, answers: await this.deps.attempts.answersOf(submitted.id), exam, sessionStatus: session.status } };
+    return { participant, state, review: { attempt: submitted, answers: await this.deps.attempts.answersOf(submitted.id), exam, sessionStatus: session.status, shared: isShared(session) } };
   }
 }
 

@@ -83,6 +83,11 @@ import type { AdminUseCases } from './interface/http/admin-routes.js';
 import type { ParticipantUseCases } from './interface/http/participants-routes.js';
 import type { SessionUseCases } from './interface/http/sessions-routes.js';
 import type { GroupUseCases } from './interface/http/groups-routes.js';
+import type { SharingUseCases } from './interface/http/sharing-routes.js';
+import { SetSessionShared } from './application/use-cases/sharing/set-session-shared.js';
+import { GetShareLink, RotateShareLink } from './application/use-cases/sharing/share-link.js';
+import { GetSharedSession, ListSharedSessions } from './application/use-cases/sharing/shared-sessions.js';
+import { DrizzleShareTokenStore } from './infrastructure/db/drizzle-share-token-store.js';
 
 /** Ports every module shares. Tests pass fakes for any of them (see `application/testing`). */
 export interface SharedPorts {
@@ -99,6 +104,8 @@ export interface Composition {
   exams: ExamUseCases;
   sessions: SessionUseCases;
   groups: GroupUseCases;
+  /** The share page of finished sessions (PRODUCT.md §7.33). */
+  sharing: SharingUseCases;
   rejoin: RejoinUseCases;
   /** Who is still talking to the server (the mentor's connection column). */
   presence: PresenceTracker;
@@ -214,9 +221,18 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}, aiOptions:
 
   const gradingReads = { ...attemptReads, participants: participantReader };
   const editDeps = { unitOfWork: attemptUnitOfWork, clock: ports.clock, events: ports.events };
+  const shareStore = new DrizzleShareTokenStore(fn => database.read(fn), () => ports.clock.now());
+  const shareLinkDeps = { store: shareStore, tokens: ports.tokens, shared: sessionReader };
 
   return {
     eventSource: bus,
+    sharing: {
+      setShared: new SetSessionShared({ unitOfWork: sessionUnitOfWork, sessions: sessionReader, clock: ports.clock }),
+      link: new GetShareLink(shareLinkDeps),
+      rotate: new RotateShareLink(shareLinkDeps),
+      list: new ListSharedSessions({ store: shareStore, shared: sessionReader }),
+      get: new GetSharedSession({ ...attemptReads, store: shareStore }),
+    },
     grading: {
       gradingView: new GetGradingView({ ...gradingReads, aiSuggestions: aiReader, grader }),
       discussionView: new GetDiscussionView(attemptReads),

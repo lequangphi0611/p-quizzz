@@ -22,6 +22,7 @@ import { rejoinAdminRoutes, rejoinPublicRoutes } from './interface/http/rejoin-r
 import { joinRoutes, participantsAdminRoutes, publicParticipantsRoutes, rosterCountsRoutes } from './interface/http/participants-routes.js';
 import { publicSessionsRoutes, sessionsRoutes } from './interface/http/sessions-routes.js';
 import { registerLeakGuard } from './interface/http/leak-guard.js';
+import { sharedPublicRoutes, sharingAdminRoutes } from './interface/http/sharing-routes.js';
 
 export interface AppOptions {
   db: Db;
@@ -43,7 +44,7 @@ export interface AppOptions {
 export async function buildApp({ db, composition = compose(db), serveWeb = false, logger = false, allowRemoteAdmin = false, lanIps, joinLimiter, adminRoutes: extraAdminRoutes = [] }: AppOptions) {
   // One counter for wrong room codes at `resolve` and at `join`: the code must not be guessable through either.
   const limiter = joinLimiter ?? createJoinLimiter();
-  const protectedRoutes = [adminEventsRoutes(composition.eventSource), groupsRoutes(composition.groups), rejoinAdminRoutes(composition.rejoin), examsRoutes(composition.exams), sessionsRoutes(composition.sessions), participantsAdminRoutes(composition.participants), participantReviewRoutes(composition.attempts), gradingRoutes(composition.grading), ...extraAdminRoutes];
+  const protectedRoutes = [adminEventsRoutes(composition.eventSource), groupsRoutes(composition.groups), rejoinAdminRoutes(composition.rejoin), examsRoutes(composition.exams), sessionsRoutes(composition.sessions), participantsAdminRoutes(composition.participants), participantReviewRoutes(composition.attempts), gradingRoutes(composition.grading), sharingAdminRoutes(composition.sharing), ...extraAdminRoutes];
   // Honour X-Forwarded-For only when the direct peer is this machine (the Vite dev proxy). A LAN client
   // connecting straight to the server is not trusted, so it cannot forge its address.
   const app = Fastify({ logger, trustProxy: ['127.0.0.1', '::1'] });
@@ -66,6 +67,7 @@ export async function buildApp({ db, composition = compose(db), serveWeb = false
   await app.register(rosterCountsRoutes(composition.participants));
   await app.register(networkRoutes({ lanIps: lanIps ?? lanIPv4, port: config.port }));
   await app.register(meRoutes(composition.attempts, composition.resumeParticipant));
+  await app.register(sharedPublicRoutes(composition.sharing));
 
   if (serveWeb) {
     await app.register(fastifyStatic, { root: resolve('dist/web') });

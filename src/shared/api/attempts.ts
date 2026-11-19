@@ -153,5 +153,6 @@ export interface ReviewView {
   score: number; // automatic + manual points of this attempt so far
   maxScore: number; // exam total points
   official: boolean; // true once the session is finalized
+  shared: boolean; // the mentor shares this session's questions and explanations (PRODUCT.md §7.33f)
   questions: ReviewQuestion[]; // in this member's attempt order
 }

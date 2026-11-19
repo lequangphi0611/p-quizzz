@@ -55,6 +55,7 @@ export interface SessionSummaryView {
   startedAt: Date | null;
   closedAt: Date | null;
   finalizedAt: Date | null;
+  sharedAt: Date | null;
   /** Participants with status 'active'. */
   participantCount: number;
   /** Active participants who pressed "Sẵn sàng" (PRODUCT.md §7.31d). */
@@ -80,6 +81,8 @@ export interface SessionDetailView extends SessionSummaryView {
   roster: { size: number; joined: number; notJoined: string[] } | null;
   /** Requests to take over a seat that are still waiting (open sessions only). Mentor only. */
   rejoinRequests: { id: number; participantId: number; claimantName: string; requestedAt: Date }[];
+  /** For the mentor's warnings when sharing (PRODUCT.md §7.33a): other sessions of the same exam in draft/lobby/running, and active members who submitted here. */
+  share: { examUnfinishedSessions: number; submitted: number };
 }
 
 /** What the public may see: the exam title, never the mentor's session name. */
