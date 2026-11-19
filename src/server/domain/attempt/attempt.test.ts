@@ -2,15 +2,15 @@ import { describe, expect, it } from 'vitest';
 import type { Exam } from '../exam/exam.js';
 import {
   AlreadyAttemptedError, AnswersNotYetVisibleError, AttemptAlreadySubmittedError, AttemptInProgressError, AttemptNotSubmittedError,
-  AwaitingApprovalError, InvalidAnswerError, SessionNotRunningError,
+  AwaitingApprovalError, InvalidAnswerError, ReasonMissingError, SessionNotRunningError,
 } from './errors.js';
 import {
-  assertCanStart, assertCanWork, assertReviewable, computeProgress, countAnswered, gradeAttempt, maxAutoScore, memberAttemptState, planOrder, reviewState, validateAnswer,
+  assertCanStart, assertCanWork, assertReasonsComplete, assertReviewable, missingReasons, computeProgress, countAnswered, gradeAttempt, maxAutoScore, memberAttemptState, planOrder, reviewState, validateAnswer,
   type Attempt,
 } from './attempt.js';
 
 const opt = (id: number, isCorrect: boolean) => ({ id, position: id, text: `o${id}`, isCorrect });
-const q = (id: number, type: 'single' | 'multi' | 'essay', points: number, options = [] as ReturnType<typeof opt>[]) => ({ id, position: id, type, prompt: 'p', body: '', points, explanation: null, options });
+const q = (id: number, type: 'single' | 'multi' | 'essay', points: number, options = [] as ReturnType<typeof opt>[]) => ({ id, position: id, type, prompt: 'p', body: '', points, explanation: null, requireReason: false, options });
 const exam: Pick<Exam, 'questions'> = { questions: [q(1, 'single', 1, [opt(11, true), opt(12, false)]), q(2, 'multi', 2, [opt(21, true), opt(22, true), opt(23, false)]), q(3, 'essay', 4)] };
 const att = (o: Partial<Attempt> = {}): Attempt => ({ id: 1, participantId: 1, attemptNo: 1, questionOrder: [1, 2, 3], optionOrder: {}, startedAt: new Date(0), submittedAt: null, autoScore: null, manualScore: null, editStatus: null, editReason: null, editRequestedAt: null, editResolvedAt: null, ...o });
 
@@ -42,8 +42,8 @@ describe('saving and submitting', () => {
   });
 
   it('validates answers by question type', () => {
-    const single = { id: 1, type: 'single' as const, optionIds: [11, 12] };
-    const essay = { id: 3, type: 'essay' as const, optionIds: [] };
+    const single = { id: 1, type: 'single' as const, optionIds: [11, 12], requireReason: false };
+    const essay = { id: 3, type: 'essay' as const, optionIds: [], requireReason: false };
     expect(validateAnswer(att(), single, 1, { selectedOptionIds: [11, 11] })).toEqual({ selectedOptionIds: [11] });
     expect(validateAnswer(att(), essay, 3, { textAnswer: 'x' })).toEqual({ textAnswer: 'x' });
     const msg = (fn: () => unknown) => { try { fn(); } catch (e) { expect(e).toBeInstanceOf(InvalidAnswerError); return (e as Error).message; } };
@@ -52,6 +52,28 @@ describe('saving and submitting', () => {
     expect(msg(() => validateAnswer(att(), single, 1, { textAnswer: 'x' }))).toBe('Câu trắc nghiệm cần selectedOptionIds');
     expect(msg(() => validateAnswer(att(), single, 1, { selectedOptionIds: [99] }))).toBe('Đáp án không thuộc câu hỏi này');
     expect(msg(() => validateAnswer(att(), single, 1, { selectedOptionIds: [11, 12] }))).toBe('Câu một đáp án chỉ được chọn tối đa 1');
+  });
+
+  it('validates the reason on {reason} questions (PRODUCT.md §7.32)', () => {
+    const rq = { id: 1, type: 'single' as const, optionIds: [11, 12], requireReason: true };
+    const plain = { id: 1, type: 'single' as const, optionIds: [11, 12], requireReason: false };
+    expect(validateAnswer(att(), rq, 1, { selectedOptionIds: [11], reasonText: '  vì vậy  ' })).toEqual({ selectedOptionIds: [11], reasonText: 'vì vậy' });
+    expect(validateAnswer(att(), rq, 1, { selectedOptionIds: [11] })).toEqual({ selectedOptionIds: [11] }); // keeps the saved reason
+    expect(() => validateAnswer(att(), plain, 1, { selectedOptionIds: [11], reasonText: 'x' })).toThrow('Câu này không hỏi lý do');
+    expect(() => validateAnswer(att(), rq, 1, { selectedOptionIds: [11], reasonText: 'x'.repeat(201) })).toThrow('Lý do tối đa 200 ký tự');
+  });
+
+  it('lists picked {reason} questions without a reason, in the member order', () => {
+    const ex = { questions: [{ ...q(1, 'single', 1, [opt(11, true)]), requireReason: true }, { ...q(2, 'multi', 1, [opt(21, true)]), requireReason: true }, q(3, 'single', 1, [opt(31, true)])] };
+    const saved = [
+      { questionId: 1, selectedOptionIds: [11], reasonText: ' ' },
+      { questionId: 2, selectedOptionIds: [21], reasonText: null },
+      { questionId: 3, selectedOptionIds: [31], reasonText: null },
+    ];
+    expect(missingReasons(ex, [2, 3, 1], saved)).toEqual([2, 1]);
+    expect(missingReasons(ex, [1, 2, 3], [{ questionId: 1, selectedOptionIds: [11], reasonText: 'ok' }])).toEqual([]); // q2 left blank is fine
+    expect(() => assertReasonsComplete([2, 1])).toThrow(ReasonMissingError);
+    expect(() => assertReasonsComplete([])).not.toThrow();
   });
 
   it('grades every question, blank ones included; essays stay null', () => {

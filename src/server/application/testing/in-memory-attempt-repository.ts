@@ -80,7 +80,7 @@ export class InMemoryAttemptRepository implements AttemptRepository, Snapshottab
     this.attempts.set(id, { ...this.attempts.get(id)!, ...edit });
   }
 
-  async saveAnswer(attemptId: number, questionId: number, value: { selectedOptionIds?: number[]; textAnswer?: string }) {
+  async saveAnswer(attemptId: number, questionId: number, value: { selectedOptionIds?: number[]; textAnswer?: string; reasonText?: string }) {
     const key = `${attemptId}:${questionId}`;
     const existing = this.answers.get(key);
     this.answers.set(key, { ...(existing ?? this.blank(attemptId, questionId)), ...value });
@@ -106,7 +106,7 @@ export class InMemoryAttemptRepository implements AttemptRepository, Snapshottab
   }
 
   private blank(attemptId: number, questionId: number): Answer {
-    return { id: this.nextAnswerId++, attemptId, questionId, selectedOptionIds: null, textAnswer: null, autoScore: null, manualScore: null, feedback: null, gradedAt: null };
+    return { id: this.nextAnswerId++, attemptId, questionId, selectedOptionIds: null, textAnswer: null, reasonText: null, autoScore: null, manualScore: null, feedback: null, gradedAt: null };
   }
 }
 

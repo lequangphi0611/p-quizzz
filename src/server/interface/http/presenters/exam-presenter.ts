@@ -25,6 +25,7 @@ export const toExamDetailDto = ({ summary, exam }: ExamDetailResult): ExamDetail
     body: q.body,
     points: q.points,
     explanation: q.explanation,
+    requireReason: q.requireReason,
     options: q.options.map(o => ({ id: o.id, position: o.position, text: o.text, isCorrect: o.isCorrect })),
   })),
 });

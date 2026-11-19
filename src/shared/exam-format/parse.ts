@@ -4,7 +4,7 @@ import type { ExamIssue, ParsedExam, ParsedOption, ParsedQuestion, ParseResult }
 // Line-based on purpose: every error must point to a line the mentor can find in the reviewed file.
 // Pure function, no Node/DOM APIs — used by the CLI, the server import endpoint and the web preview.
 
-const KNOWN_META = new Set(['essay', 'points']);
+const KNOWN_META = new Set(['essay', 'points', 'reason']);
 const KNOWN_FRONTMATTER = new Set(['title', 'description', 'duration']);
 /** Allowed `duration` (minutes) in the frontmatter (PRODUCT.md §7.27). */
 export const MIN_DURATION_MINUTES = 1;
@@ -236,7 +236,7 @@ function startQuestion(headingText: string, line: number, err: (l: number, m: st
       const [k, v] = part.split('=').map((s) => s.trim());
       const key = k!.toLowerCase();
       if (!KNOWN_META.has(key)) {
-        err(line, `Thuộc tính không hợp lệ: "${key}". Chỉ hỗ trợ \`essay\` và \`points=N\`. Nếu {…} là nội dung câu hỏi, hãy bọc trong \`code\`.`);
+        err(line, `Thuộc tính không hợp lệ: "${key}". Chỉ hỗ trợ \`essay\`, \`points=N\` và \`reason\`. Nếu {…} là nội dung câu hỏi, hãy bọc trong \`code\`.`);
         continue;
       }
       if (meta.has(key)) err(line, `Thuộc tính "${key}" bị khai báo 2 lần.`);
@@ -267,6 +267,15 @@ function finalizeQuestion(
   const essayFlag = d.meta.get('essay');
   if (typeof essayFlag === 'string') {
     err(d.line, '`essay` không nhận giá trị, chỉ ghi `{essay}`.');
+    ok = false;
+  }
+  const reasonFlag = d.meta.get('reason');
+  if (typeof reasonFlag === 'string') {
+    err(d.line, '`reason` không nhận giá trị, chỉ ghi `{reason}`.');
+    ok = false;
+  }
+  if (reasonFlag !== undefined && essayFlag !== undefined) {
+    err(d.line, '`reason` chỉ dùng cho câu trắc nghiệm, không dùng cùng `{essay}` (câu tự luận đã là phần giải thích).');
     ok = false;
   }
 
@@ -318,7 +327,7 @@ function finalizeQuestion(
   }
 
   if (!ok) return null;
-  return { type, prompt: d.prompt, body, options, points, explanation, line: d.line };
+  return { type, prompt: d.prompt, body, options, points, explanation, requireReason: type !== 'essay' && reasonFlag !== undefined, line: d.line };
 }
 
 function trimBlankLines(lines: string[]): string[] {

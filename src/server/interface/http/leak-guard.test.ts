@@ -75,3 +75,18 @@ describe('leak guard', () => {
     expect(Number(res.headers['content-length'])).toBe(Buffer.byteLength(res.body));
   });
 });
+
+describe("leak guard: the class's reasons are mentor-only (PRODUCT.md §7.32e)", () => {
+  it('blocks `reasons` outside /api/admin, review route included', async () => {
+    const a = Fastify();
+    registerLeakGuard(a);
+    a.get('/api/sessions/:id/public', async () => ({ reasons: [{ optionIds: [1], text: 'vì vậy' }] }));
+    a.get('/api/me/attempts/:id/review', async () => ({ questions: [{ reasons: [] }] }));
+    a.get('/api/admin/sessions/:id/discussion', async () => ({ questions: [{ reasons: [{ optionIds: [1], text: 'vì vậy' }] }] }));
+    a.get('/api/me/attempts/:id', async () => ({ answers: [{ reasonText: 'của tôi' }] }));
+    expect((await a.inject({ url: '/api/sessions/1/public' })).statusCode).toBe(500);
+    expect((await a.inject({ url: '/api/me/attempts/1/review' })).statusCode).toBe(500);
+    expect((await a.inject({ url: '/api/admin/sessions/1/discussion' })).statusCode).toBe(200);
+    expect((await a.inject({ url: '/api/me/attempts/1' })).statusCode).toBe(200); // a member's own reason is fine
+  });
+});

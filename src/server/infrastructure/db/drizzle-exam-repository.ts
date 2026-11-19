@@ -54,7 +54,7 @@ export class DrizzleExamRepository implements ExamRepository {
 
   async findQuestion(questionId: number) {
     const found = await this.access(db => {
-      const q = db.select({ id: questions.id, type: questions.type, points: questions.points }).from(questions).where(eq(questions.id, questionId)).get();
+      const q = db.select({ id: questions.id, type: questions.type, points: questions.points, requireReason: questions.requireReason }).from(questions).where(eq(questions.id, questionId)).get();
       if (!q) return null;
       return { ...q, optionIds: db.select({ id: options.id }).from(options).where(eq(options.questionId, questionId)).all().map(o => o.id) };
     });
@@ -100,6 +100,7 @@ export class DrizzleExamRepository implements ExamRepository {
             body: q.body,
             points: q.points,
             explanation: q.explanation,
+            requireReason: q.requireReason,
           })
           .returning({ id: questions.id })
           .get();

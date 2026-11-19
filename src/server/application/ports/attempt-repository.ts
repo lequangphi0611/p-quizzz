@@ -31,8 +31,8 @@ export interface AttemptRepository extends AttemptReader {
   markSubmitted(id: number, submittedAt: Date, autoScore: number): Promise<void>;
   /** Stores the state of the attempt's request to edit its essays (PRODUCT.md §7.21). */
   setEditRequest(id: number, edit: { editStatus: EditStatus; editReason: string | null; editRequestedAt: Date | null; editResolvedAt: Date | null }): Promise<void>;
-  /** Insert or replace the saved answer for that question (one row per attempt and question). */
-  saveAnswer(attemptId: number, questionId: number, value: { selectedOptionIds?: number[]; textAnswer?: string }): Promise<void>;
+  /** Insert or replace the saved answer for that question (one row per attempt and question). A field left out keeps its saved value. */
+  saveAnswer(attemptId: number, questionId: number, value: { selectedOptionIds?: number[]; textAnswer?: string; reasonText?: string }): Promise<void>;
   /** Stores the automatic score of every question; creates a blank answer row where the member saved nothing. */
   recordAutoScores(attemptId: number, scores: { questionId: number; autoScore: number | null }[]): Promise<void>;
 }

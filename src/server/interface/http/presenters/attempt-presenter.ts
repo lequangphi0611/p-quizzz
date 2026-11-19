@@ -34,11 +34,12 @@ export function toAttemptViewDto({ attempt, answers, exam, sessionStatus }: Atte
         prompt: q.prompt,
         body: q.body,
         points: q.points,
+        requireReason: q.requireReason,
         options: (attempt.optionOrder[String(qid)] ?? []).flatMap(oid => (optById.has(oid) ? [{ id: oid, text: optById.get(oid)!.text }] : [])),
       },
     ];
   });
-  const saved: MemberAnswer[] = answers.map(a => ({ questionId: a.questionId, selectedOptionIds: a.selectedOptionIds, textAnswer: a.textAnswer }));
+  const saved: MemberAnswer[] = answers.map(a => ({ questionId: a.questionId, selectedOptionIds: a.selectedOptionIds, textAnswer: a.textAnswer, reasonText: a.reasonText }));
   return {
     id: attempt.id,
     attemptNo: attempt.attemptNo,
@@ -88,6 +89,8 @@ export function toReviewViewDto({ attempt, answers, exam, sessionStatus, aiAssis
         options: (attempt.optionOrder[String(qid)] ?? []).flatMap(oid => (optById.has(oid) ? [{ id: oid, text: optById.get(oid)!.text, isCorrect: optById.get(oid)!.isCorrect }] : [])),
         selectedOptionIds: a?.selectedOptionIds ?? null,
         textAnswer: a?.textAnswer ?? null,
+        requireReason: q.requireReason,
+        reasonText: q.requireReason ? a?.reasonText ?? null : null,
         score: q.type === 'essay' ? a?.manualScore ?? null : a?.autoScore ?? 0,
         feedback: q.type === 'essay' ? a?.feedback ?? null : null,
         aiAssisted: aiQuestions.has(q.id),

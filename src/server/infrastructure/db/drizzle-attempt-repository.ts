@@ -77,7 +77,7 @@ export class DrizzleAttemptRepository implements AttemptRepository {
     await this.access(db => db.update(attempts).set(edit).where(eq(attempts.id, id)).run());
   }
 
-  async saveAnswer(attemptId: number, questionId: number, value: { selectedOptionIds?: number[]; textAnswer?: string }): Promise<void> {
+  async saveAnswer(attemptId: number, questionId: number, value: { selectedOptionIds?: number[]; textAnswer?: string; reasonText?: string }): Promise<void> {
     await this.access(db =>
       db
         .insert(answers)

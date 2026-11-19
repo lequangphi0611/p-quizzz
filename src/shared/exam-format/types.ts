@@ -14,6 +14,8 @@ export interface ParsedQuestion {
   options: ParsedOption[]; // empty for essay
   points: number;
   explanation: string | null; // MCQ: why; essay: model answer / rubric
+  /** `{reason}`: the member must write a short, unscored reason once an option is picked (PRODUCT.md §7.32). Always false for essay. */
+  requireReason: boolean;
   line: number; // 1-based line of the heading
 }
 

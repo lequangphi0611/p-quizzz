@@ -3,3 +3,11 @@ export function isAnswered(a: { selectedOptionIds?: readonly number[] | null; te
   if (!a) return false;
   return (a.selectedOptionIds?.length ?? 0) > 0 || (a.textAnswer ?? '').trim().length > 0;
 }
+
+/** A `{reason}` question with a pick but no (non-blank) reason: blocks a manual submit (PRODUCT.md §7.32b). Leaving the whole question blank is fine. */
+export function isMissingReason(
+  q: { requireReason: boolean },
+  a: { selectedOptionIds?: readonly number[] | null; reasonText?: string | null } | undefined,
+): boolean {
+  return q.requireReason && (a?.selectedOptionIds?.length ?? 0) > 0 && (a?.reasonText ?? '').trim().length === 0;
+}

@@ -36,6 +36,8 @@ export const questions = sqliteTable(
     body: text('body').notNull().default(''),
     points: integer('points').notNull(),
     explanation: text('explanation'),
+    // `{reason}`: picking an option requires a short unscored reason (PRODUCT.md §7.32).
+    requireReason: integer('require_reason', { mode: 'boolean' }).notNull().default(false),
   },
   t => [index('questions_exam_idx').on(t.examId, t.position)],
 );
@@ -210,6 +212,8 @@ export const answers = sqliteTable(
     questionId: integer('question_id').notNull().references(() => questions.id),
     selectedOptionIds: text('selected_option_ids', { mode: 'json' }).$type<number[]>(),
     textAnswer: text('text_answer'),
+    // Member's reason for the pick on a `{reason}` question; never scored (PRODUCT.md §7.32).
+    reasonText: text('reason_text'),
     autoScore: real('auto_score'),
     manualScore: real('manual_score'),
     feedback: text('feedback'),

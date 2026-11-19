@@ -11,6 +11,8 @@ const KEY = /"(isCorrect|is_correct|explanation)"\s*:/;
 const EMAIL_KEY = /"(email|emails)"\s*:/;
 // AI grading suggestions are mentor-only (PRODUCT.md §7.28f), review route included.
 const AI_KEY = /"aiSuggestion"\s*:/;
+// The class's reasons on `{reason}` questions are mentor-only (PRODUCT.md §7.32e); a member only ever gets their own `reasonText`.
+const REASONS_KEY = /"reasons"\s*:/;
 const REVIEW_ROUTE = '/api/me/attempts/:id/review';
 
 export function registerLeakGuard(app: FastifyInstance): void {
@@ -21,10 +23,11 @@ export function registerLeakGuard(app: FastifyInstance): void {
     const leaksKey = route !== REVIEW_ROUTE && KEY.test(payload);
     const leaksEmail = EMAIL_KEY.test(payload);
     const leaksAi = AI_KEY.test(payload);
-    if (!leaksKey && !leaksEmail && !leaksAi) return payload;
+    const leaksReasons = REASONS_KEY.test(payload);
+    if (!leaksKey && !leaksEmail && !leaksAi && !leaksReasons) return payload;
 
     // Log what leaked where — never the payload itself.
-    req.log.error({ route, method: req.method }, leaksEmail ? 'blocked a response carrying an email' : leaksAi ? 'blocked a response carrying an AI suggestion' : 'blocked a response carrying the answer key');
+    req.log.error({ route, method: req.method }, leaksEmail ? 'blocked a response carrying an email' : leaksAi ? 'blocked a response carrying an AI suggestion' : leaksReasons ? "blocked a response carrying the class's reasons" : 'blocked a response carrying the answer key');
     const body = JSON.stringify({ error: 'Lỗi máy chủ' });
     reply.code(500).header('content-length', Buffer.byteLength(body));
     return body;

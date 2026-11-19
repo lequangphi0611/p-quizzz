@@ -16,6 +16,13 @@ export interface DiscussionAnswer {
   feedback: string | null;
 }
 
+// One counted submission that picked something on a `{reason}` question (PRODUCT.md §7.32e). Anonymous: no id, name or
+// join order; listed in a stable shuffled order. `text` null = picked but no reason (auto-submitted when time ran out).
+export interface DiscussionReason {
+  optionIds: number[]; // the options this submission picked, sorted by id
+  text: string | null;
+}
+
 export interface DiscussionQuestion {
   id: number;
   position: number;
@@ -28,6 +35,8 @@ export interface DiscussionQuestion {
   correctCount: number; // submissions with full marks on this question (multiple choice)
   blankCount: number; // submissions that chose nothing / wrote nothing
   answers: DiscussionAnswer[]; // essays only, shuffled; [] for multiple choice
+  requireReason: boolean;
+  reasons: DiscussionReason[]; // `{reason}` questions only, shuffled; [] otherwise
 }
 
 export interface DiscussionView {

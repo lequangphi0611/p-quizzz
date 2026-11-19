@@ -23,7 +23,7 @@ export interface ExamReader {
   /** The full exam with questions and options in position order. */
   findById(id: number): Promise<Exam | null>;
   /** One question's type and option ids: what saving an answer must check, without loading the whole exam. */
-  findQuestion(questionId: number): Promise<{ id: number; type: Question['type']; points: number; optionIds: number[] } | null>;
+  findQuestion(questionId: number): Promise<{ id: number; type: Question['type']; points: number; requireReason: boolean; optionIds: number[] } | null>;
   /** Most the automatic part can give (every non-essay question), as one aggregate query: members poll it. */
   maxAutoScoreOf(examId: number): Promise<number>;
 }

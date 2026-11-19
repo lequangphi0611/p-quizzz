@@ -36,6 +36,7 @@ export interface ExamQuestionDetail {
   body: string;
   points: number;
   explanation: string | null;
+  requireReason: boolean; // `{reason}` (PRODUCT.md §7.32)
   options: ExamOptionDetail[];
 }
 

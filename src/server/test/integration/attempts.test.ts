@@ -129,8 +129,8 @@ describe('PUT answers — autosave', () => {
     await an.put(v.id, essayQ!.id, { textAnswer: 'merge giữ lịch sử' });
     const back = (await an.get(v.id)).json<AttemptView>();
     expect(back.answers).toEqual(expect.arrayContaining([
-      { questionId: single.q.id, selectedOptionIds: [single.opts[1]!.id], textAnswer: null },
-      { questionId: essayQ!.id, selectedOptionIds: null, textAnswer: 'merge giữ lịch sử' },
+      { questionId: single.q.id, selectedOptionIds: [single.opts[1]!.id], textAnswer: null, reasonText: null },
+      { questionId: essayQ!.id, selectedOptionIds: null, textAnswer: 'merge giữ lịch sử', reasonText: null },
     ]));
   });
 
@@ -427,11 +427,11 @@ describe('⚠️ the answer key never reaches a member before the session closes
     }
   });
 
-  it('the structure of a question really is only id/type/prompt/body/points/options{id,text}', async () => {
+  it('the structure of a question really is only id/type/prompt/body/points/requireReason/options{id,text}', async () => {
     const { an } = await world();
     const v = (await an.start()).json<AttemptView>();
     for (const q of v.questions) {
-      expect(Object.keys(q).sort()).toEqual(['body', 'id', 'options', 'points', 'prompt', 'type']);
+      expect(Object.keys(q).sort()).toEqual(['body', 'id', 'options', 'points', 'prompt', 'requireReason', 'type']);
       for (const o of q.options) expect(Object.keys(o).sort()).toEqual(['id', 'text']);
     }
   });

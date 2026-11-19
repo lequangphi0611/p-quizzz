@@ -10,6 +10,9 @@ export const MAX_SELECTED_OPTIONS = 50;
 
 export const MAX_EDIT_REASON_LENGTH = 500;
 
+/** Longest reason on a `{reason}` question, after trimming (PRODUCT.md §7.32b). */
+export const MAX_CHOICE_REASON_LENGTH = 200;
+
 // Request to reopen the essay part of a submitted attempt (PRODUCT.md §7.21). `expired` = the session closed before the
 // request was settled (derived when read, never stored).
 export type EditRequestStatus = 'pending' | 'approved' | 'rejected' | 'done' | 'expired';
@@ -37,6 +40,7 @@ export interface MemberQuestion {
   prompt: string;
   body: string;
   points: number; // how much the question is worth (shown as "2 điểm"), not what the member earned
+  requireReason: boolean; // `{reason}`: once an option is picked, a short unscored reason is required (PRODUCT.md §7.32)
   options: MemberOption[]; // already in this attempt's shuffled order; empty for essay
 }
 
@@ -44,6 +48,7 @@ export interface MemberAnswer {
   questionId: number;
   selectedOptionIds: number[] | null;
   textAnswer: string | null;
+  reasonText: string | null; // the member's own reason on a `{reason}` question
 }
 
 // GET /api/me/attempts/:id — questions in this attempt's order, plus what the member has saved so far.
@@ -90,12 +95,23 @@ export interface SubmitResponse {
 }
 
 // PUT /api/me/attempts/:id/answers/:questionId — send either `selectedOptionIds` (choice questions) or `textAnswer` (essay).
+// `reasonText` goes with `selectedOptionIds`, only on a `{reason}` question; leaving it out keeps the saved reason.
 export const SaveAnswerBody = z
   .object({
     selectedOptionIds: z.array(z.number().int().positive(), { error: 'Danh sách đáp án không hợp lệ' }).max(MAX_SELECTED_OPTIONS, 'Chọn quá nhiều đáp án').optional(),
     textAnswer: z.string({ error: 'Câu trả lời không hợp lệ' }).max(MAX_ESSAY_LENGTH, 'Câu trả lời tối đa 10.000 ký tự').optional(),
+    reasonText: z.string({ error: 'Lý do không hợp lệ' }).trim().max(MAX_CHOICE_REASON_LENGTH, `Lý do tối đa ${MAX_CHOICE_REASON_LENGTH} ký tự`).optional(),
   })
-  .refine(b => (b.selectedOptionIds === undefined) !== (b.textAnswer === undefined), 'Chỉ gửi selectedOptionIds hoặc textAnswer');
+  .refine(b => (b.selectedOptionIds === undefined) !== (b.textAnswer === undefined), 'Chỉ gửi selectedOptionIds hoặc textAnswer')
+  .refine(b => b.reasonText === undefined || b.selectedOptionIds !== undefined, 'Lý do chỉ gửi kèm selectedOptionIds');
+
+// 409 body of POST /api/me/attempts/:id/submit when the member submits with picks that still lack a reason (PRODUCT.md §7.32b).
+export const REASON_MISSING_CODE = 'reason_missing';
+export interface ReasonMissingError {
+  error: string;
+  code: typeof REASON_MISSING_CODE;
+  questionIds: number[];
+}
 
 // ── Review (only after the session has closed) ──────────────────────────────────────────────────
 // GET /api/me/attempts/:id/review. This is the one member DTO that carries the answer key; the server
@@ -116,6 +132,8 @@ export interface ReviewQuestion {
   options: ReviewOption[]; // in the order this member saw them
   selectedOptionIds: number[] | null;
   textAnswer: string | null;
+  requireReason: boolean;
+  reasonText: string | null; // this member's own reason (never someone else's)
   score: number | null; // choice: automatic score; essay: the mentor's score, null until graded
   feedback: string | null; // mentor's comment on an essay
   aiAssisted: boolean; // AI suggestions helped grade this essay; the score is still the mentor's (PRODUCT.md §7.28f)
