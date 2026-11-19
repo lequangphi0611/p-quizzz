@@ -5,7 +5,7 @@
 //  • flushAll() lets "submit" and "next question" wait until everything typed is on the server.
 
 export type SaveState = 'saved' | 'saving' | 'error';
-export type AnswerPayload = { selectedOptionIds: number[] } | { textAnswer: string };
+export type AnswerPayload = { selectedOptionIds: number[]; reasonText?: string } | { textAnswer: string };
 export type SendFn = (questionId: number, payload: AnswerPayload) => Promise<void>;
 
 export class AnswerSaver {

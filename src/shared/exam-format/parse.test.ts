@@ -194,3 +194,23 @@ describe('parseExam — warnings (exam still valid)', () => {
     expect(warnings.some((w) => w.message.includes('Tất cả đáp án đều đúng'))).toBe(true);
   });
 });
+
+describe('parseExam — reason box (PRODUCT.md §7.32)', () => {
+  it('marks single and multi questions with {reason}', () => {
+    const src = fm('## S {reason}\n- [x] a\n- [ ] b\n> x\n\n## M {reason, points=2}\n- [x] a\n- [x] b\n- [ ] c\n> x\n\n## N\n- [x] a\n- [ ] b\n> x');
+    const { exam, errors } = parseExam(src);
+    expect(errors).toEqual([]);
+    expect(exam!.questions.map((q) => q.requireReason)).toEqual([true, true, false]);
+    expect(exam!.questions[1]!.points).toBe(2);
+    expect(exam!.questions[0]!.prompt).toBe('S');
+  });
+
+  it('rejects {reason} on an essay, with a value, or twice', () => {
+    const essay = fm('## Intro\n- [x] a\n- [ ] b\n> x\n\n## E {essay, reason}\n> rubric');
+    const r1 = parseExam(essay);
+    expect(r1.exam).toBeNull();
+    expect(r1.errors).toEqual([{ line: lineOf(essay, '## E'), message: expect.stringContaining('chỉ dùng cho câu trắc nghiệm') }]);
+    expect(parseExam(fm('## S {reason=yes}\n- [x] a\n- [ ] b\n> x')).errors[0]!.message).toContain('không nhận giá trị');
+    expect(parseExam(fm('## S {reason, reason}\n- [x] a\n- [ ] b\n> x')).errors[0]!.message).toContain('2 lần');
+  });
+});

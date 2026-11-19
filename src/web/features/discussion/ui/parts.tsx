@@ -6,7 +6,12 @@ import { formatPoints } from '../../../shared/format/points.js';
 import { TYPE_LABEL, st } from './styles.js';
 
 export function QHeader({ q, index }: { q: DiscussionQuestion; index: number }) {
-  return <div style={st.meta}><span style={{ color: 'var(--sun-400)' }}>Câu {index + 1}</span><span>·</span><span>{TYPE_LABEL[q.type]}</span><span>·</span><span>{formatPoints(q.points)} điểm</span></div>;
+  return (
+    <div style={st.meta}>
+      <span style={{ color: 'var(--sun-400)' }}>Câu {index + 1}</span><span>·</span><span>{TYPE_LABEL[q.type]}</span><span>·</span><span>{formatPoints(q.points)} điểm</span>
+      {q.requireReason && <><span>·</span><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="message-square" size={22} />Hỏi lý do</span></>}
+    </div>
+  );
 }
 
 export function RevealButton({ revealed, onToggle, size = 'xxl' }: { revealed: boolean; onToggle: () => void; size?: 'xl' | 'xxl' }) {

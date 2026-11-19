@@ -1,6 +1,6 @@
-import type { AttemptView, MemberQuestion } from '../../../../shared/api/index.js';
+import { REASON_MISSING_CODE, type AttemptView, type MemberQuestion } from '../../../../shared/api/index.js';
 import { ApiError } from '../../../shared/api-client/http-client.js';
-import { draftsFromAnswers, nextSelection, withChoice, withText, type Drafts } from '../domain/answer-progress.js';
+import { draftOf, draftsFromAnswers, nextSelection, withChoice, withReason, withText, type Drafts } from '../domain/answer-progress.js';
 import { AnswerSaver, type SaveState } from './answer-saver.js';
 import type { ExamGateway } from './exam-gateway.js';
 
@@ -77,7 +77,19 @@ export class TakingController {
     if (question.type === 'essay') return;
     const selected = nextSelection(question.type, this.state.drafts[question.id]?.selected ?? [], optionId);
     this.set({ drafts: withChoice(this.state.drafts, question.id, selected) });
-    this.saver.queue(question.id, { selectedOptionIds: selected });
+    this.saver.queue(question.id, this.choicePayload(question, selected));
+  }
+
+  /** Reason box of a `{reason}` question (PRODUCT.md §7.32): saved after a quiet period, together with the current pick. */
+  setReason(question: MemberQuestion, reason: string): void {
+    if (question.type === 'essay' || !question.requireReason) return;
+    this.set({ drafts: withReason(this.state.drafts, question.id, reason) });
+    this.saver.queue(question.id, this.choicePayload(question, draftOf(this.state.drafts, question.id).selected), true);
+  }
+
+  // A `{reason}` question always sends the pick and the reason together, so neither overwrites the other on the wire.
+  private choicePayload(question: MemberQuestion, selected: number[]) {
+    return question.requireReason ? { selectedOptionIds: selected, reasonText: draftOf(this.state.drafts, question.id).reason } : { selectedOptionIds: selected };
   }
 
   setText(questionId: number, text: string): void {
@@ -123,7 +135,17 @@ export class TakingController {
       await this.deps.gateway.submitAttempt(this.deps.attemptId);
       await this.deps.onChanged();
     } catch (err) {
-      this.set({ confirming: false, submitError: err instanceof ApiError ? err.message : 'Còn câu chưa lưu được. Kiểm tra mạng rồi thử nộp lại.', submitting: false });
+      // reason_missing: another tab or an old draft left a pick without a reason; the dialog lists the questions again.
+      const missingReason = err instanceof ApiError && err.code === REASON_MISSING_CODE;
+      if (missingReason) {
+        // Everything local was flushed, so the server is the truth: reload the drafts, otherwise the dialog would not
+        // list the questions (local drafts look complete) and the member would loop on the same refusal.
+        try {
+          const view = await this.deps.gateway.getAttempt(this.deps.attemptId);
+          this.set({ drafts: draftsFromAnswers(view.answers), view });
+        } catch { /* keep the local drafts; the message below still explains the refusal */ }
+      }
+      this.set({ confirming: missingReason, submitError: err instanceof ApiError ? err.message : 'Còn câu chưa lưu được. Kiểm tra mạng rồi thử nộp lại.', submitting: false });
     }
   }
 

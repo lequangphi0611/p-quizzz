@@ -12,6 +12,10 @@ export interface DiscussionState {
   loadError: string | undefined;
   /** Question ids whose answer the mentor has revealed (session-local, never sent anywhere). */
   revealed: ReadonlySet<number>;
+  /** "Lý do của lớp" is open for the question on screen (S30). Hidden again on every question change (PRODUCT.md §7.32e). */
+  reasonsShown: boolean;
+  /** Reason groups the mentor collapsed (keys from `reasonBoard`); all open again on a question change. */
+  collapsed: ReadonlySet<string>;
   mode: 'list' | 'paper';
   paperIdx: number;
   lastOpened: number | null;
@@ -23,7 +27,7 @@ export interface DiscussionState {
 }
 
 export const initialDiscussionState = (): DiscussionState => ({
-  view: null, load: 'loading', loadError: undefined, revealed: new Set(), mode: 'list', paperIdx: 0, lastOpened: null, drafts: {},
+  view: null, load: 'loading', loadError: undefined, revealed: new Set(), reasonsShown: false, collapsed: new Set(), mode: 'list', paperIdx: 0, lastOpened: null, drafts: {},
   dialog: false, finalizing: false, finalizeError: undefined, zeroing: false,
 });
 
@@ -54,7 +58,15 @@ export class DiscussionController {
 
   // ── navigation ──
   /** A different question is on screen: back to its list, forget which paper was open. */
-  questionChanged(): void { this.set({ mode: 'list', lastOpened: null }); }
+  questionChanged(): void { this.set({ mode: 'list', lastOpened: null, reasonsShown: false, collapsed: new Set() }); }
+  /** R / "Hiện lý do": independent of the answer (Space), either can come first. */
+  toggleReasons(): void { this.set({ reasonsShown: !this.state.reasonsShown }); }
+  toggleGroup(key: string): void {
+    const c = new Set(this.state.collapsed);
+    if (!c.delete(key)) c.add(key);
+    this.set({ collapsed: c });
+  }
+  expandAllGroups(): void { this.set({ collapsed: new Set() }); }
   toggleReveal(questionId: number): void {
     const r = new Set(this.state.revealed);
     if (!r.delete(questionId)) r.add(questionId);

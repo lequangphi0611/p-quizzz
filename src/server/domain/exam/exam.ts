@@ -19,6 +19,8 @@ export interface Question {
   body: string;
   points: number;
   explanation: string | null;
+  /** `{reason}`: a pick needs a short, unscored reason (PRODUCT.md §7.32). Always false for essay. */
+  requireReason: boolean;
   options: Option[];
 }
 
@@ -53,6 +55,7 @@ export interface NewExamInput {
     body: string;
     points: number;
     explanation: string | null;
+    requireReason?: boolean;
     options: { text: string; correct: boolean }[];
   }[];
 }
@@ -66,6 +69,7 @@ export function newExam(input: NewExamInput): NewExam {
     body: q.body,
     points: q.points,
     explanation: q.explanation,
+    requireReason: q.type !== 'essay' && q.requireReason === true,
     options: q.options.map((o, oi) => ({ position: oi + 1, text: o.text, isCorrect: o.correct })),
   }));
   return {

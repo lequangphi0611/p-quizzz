@@ -1,12 +1,17 @@
 import type { DiscussionQuestion } from '../../../../shared/api/index.js';
 import { Markdown } from '../../../shared/ui/Markdown.js';
 import { Icon } from '../../../shared/ui/Icon.js';
+import { Button } from '../../../shared/ui/Button.js';
 import { commonMistakeId, optionLetter, percent } from '../domain/discussion-ui.js';
 import { OptionTally } from './OptionTally.js';
 import { QHeader, RevealButton } from './parts.js';
 import { st } from './styles.js';
 
-export function ChoiceView({ q, index, submitted, revealed, onToggle }: { q: DiscussionQuestion; index: number; submitted: number; revealed: boolean; onToggle: () => void }) {
+export function ChoiceView({ q, index, submitted, revealed, onToggle, reasonCount, onShowReasons }: {
+  q: DiscussionQuestion; index: number; submitted: number; revealed: boolean; onToggle: () => void;
+  /** `{reason}` question (S30): how many reasons the class wrote, and the action that opens them. */
+  reasonCount?: number; onShowReasons?: () => void;
+}) {
   const flagged = commonMistakeId(q, submitted);
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,800px) minmax(0,1fr)', gap: 64, height: '100%', minHeight: 0 }}>
@@ -34,8 +39,16 @@ export function ChoiceView({ q, index, submitted, revealed, onToggle }: { q: Dis
               ? <><span style={{ ...st.big, color: 'var(--screen-correct)' }}>{q.correctCount}<span style={{ fontSize: 36, color: 'var(--screen-meta)' }}>/{submitted}</span></span><span>làm đúng <b style={st.mono}>({percent(q.correctCount, submitted)}%)</b>{q.type === 'multi' ? ' trọn bộ' : ''}</span><span style={{ color: 'var(--screen-meta)' }}>· <span style={st.mono}>{q.blankCount}</span> bỏ trống</span></>
               : <><span style={st.big}>{submitted}</span><span>bài</span><span style={{ color: 'var(--screen-meta)' }}>· <span style={st.mono}>{q.blankCount}</span> bỏ trống</span></>}
           </div>
-          <RevealButton revealed={revealed} onToggle={onToggle} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <RevealButton revealed={revealed} onToggle={onToggle} />
+            {q.requireReason && onShowReasons && <Button tone="screen" variant="secondary" size="xxl" icon="message-square" shortcut="R" onClick={onShowReasons}>Hiện lý do</Button>}
+          </div>
         </div>
+        {q.requireReason && onShowReasons && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', font: '500 24px/1.3 var(--font-sans)', color: 'var(--screen-meta)' }}>
+            <span><b style={{ font: '700 26px/1 var(--font-mono)', color: 'var(--screen-text)' }}>{reasonCount ?? 0}</b> lý do · không tên</span>
+          </div>
+        )}
       </div>
     </div>
   );

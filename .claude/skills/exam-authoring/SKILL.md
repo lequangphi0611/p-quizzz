@@ -16,6 +16,7 @@ Spec cú pháp: `docs/exam-format.md` (đọc trước khi soạn). Ví dụ chu
 - **Số câu và tỉ lệ loại câu** (một đáp án / nhiều đáp án / tự luận). Nếu đề có tự luận thì nhắc mentor rằng mentor phải chấm tay các câu đó sau khi đóng phiên. (Mọi đề đều chỉ làm 1 lượt mỗi phiên; muốn làm lại thì mentor mở phiên mới.)
 - **Trình độ member** và độ khó mong muốn.
 - **Thang điểm**: mặc định mỗi câu 1 điểm, tự luận thường 3–5 điểm.
+- **Hỏi lý do** (tuỳ chọn): mặc định Claude tự đề xuất câu nào có `{reason}` theo tiêu chí ở mục "Hỏi lý do" bên dưới. Mentor muốn khác (mọi câu, không câu nào, câu cụ thể) thì theo mentor.
 - **Thời gian làm bài** (tuỳ chọn): mentor muốn giới hạn thì ghi `duration: <số phút>` (1–300) vào frontmatter; không nói thì bỏ key (đề không giới hạn). Đây chỉ là mặc định khi tạo phiên, mentor đổi được. Nếu mentor không nêu, có thể gợi ý một con số theo số câu và độ khó, nhưng không tự thêm khi chưa hỏi.
 
 Mentor đã nói rõ thì không hỏi lại. Thiếu chi tiết nhỏ thì tự chọn mặc định hợp lý và ghi lại ở bước 4.
@@ -36,7 +37,8 @@ npm run exam:check -- exams/<slug>.md
 Trả lời ngắn gọn, gồm:
 1. Đường dẫn file và dòng tóm tắt từ `exam:check` (số câu, loại câu, tổng điểm, có tự luận hay không).
 2. **Những câu cần mentor soi kỹ**, kèm số dòng: câu Claude không chắc 100% đáp án, câu kiến thức phụ thuộc phiên bản/công cụ, câu có thể hiểu theo hai cách. Đây là phần giá trị nhất của bàn giao. Không chắc thì nói không chắc, không được tỏ ra tự tin.
-3. Các mặc định Claude đã tự chọn, và các cảnh báo còn giữ lại (nếu có).
+3. Các câu đã gắn `{reason}` (số câu, số dòng) và lý do chọn ngắn gọn, để mentor thêm/bỏ.
+4. Các mặc định Claude đã tự chọn, và các cảnh báo còn giữ lại (nếu có).
 
 Không dán lại toàn bộ đề vào chat, vì mentor sẽ duyệt trên file.
 
@@ -72,8 +74,15 @@ Sửa trên file, chạy lại bước 3, rồi báo ngắn những gì đã đ�
 - Giải thích gồm **đáp án mẫu** và **rubric chia điểm cộng lại bằng N**, để mentor chấm nhanh và nhất quán.
 - Rubric viết thành **danh sách tiêu chí, mỗi tiêu chí kèm điểm** (ví dụ `> - Nêu được X (1đ)`), ghi rõ trường hợp không cho điểm hoặc cho một phần. AI dùng đúng rubric này để gợi ý chấm (PRODUCT.md §7.28); câu thiếu rubric sẽ không được AI chấm.
 
+**Hỏi lý do (`{reason}`)**: member phải ghi một câu lý do khi đã chọn đáp án; không tính điểm, chỉ để mentor hiểu cách member nghĩ (PRODUCT.md §7.32).
+- **Nên gắn** cho: câu có đáp án nhiễu dựa trên hiểu lầm phổ biến (để thấy member hiểu nhầm ở đâu); câu tình huống "chọn cách làm"; câu dễ đoán mò đúng.
+- **Không gắn** cho: câu nhớ định nghĩa, cú pháp, tên lệnh (lý do sẽ chỉ là "vì nhớ vậy"); câu tự luận (`{reason}` với `{essay}` là lỗi).
+- **Số lượng**: mặc định khoảng 20–30% số câu trắc nghiệm, để member không mất giờ gõ (nhất là phiên có giới hạn thời gian). Mentor yêu cầu khác thì theo mentor.
+- Câu có `{reason}` thì câu hỏi phải đủ rõ để trả lời "vì sao" trong một câu ngắn (tối đa 200 ký tự).
+
 ## Chuyển đề cũ sang format
 
 - Đề dạng `A. … B. …`: đổi mỗi lựa chọn thành `- [ ]`/`- [x]` theo đáp án gốc. **Đề gốc không có đáp án thì không tự suy rồi đánh dấu.** Phải hỏi mentor, hoặc đánh dấu theo phán đoán và liệt kê rõ ở bước 4 là "Claude tự xác định đáp án".
+- Đề gốc có dòng kiểu "Lý do: ……" dưới câu trắc nghiệm: bỏ dòng đó và gắn `{reason}` vào tiêu đề câu.
 - Đề gốc dùng "Tất cả các đáp án trên" thì đổi thành câu nhiều đáp án, và ghi lại thay đổi này ở bước 4.
 - Giữ nguyên nội dung câu hỏi. Chỉ sửa lỗi chính tả hoặc sự mơ hồ khi có báo cho mentor.

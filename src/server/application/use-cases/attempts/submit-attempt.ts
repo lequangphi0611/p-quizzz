@@ -1,4 +1,4 @@
-import { assertCanWork, maxAutoScore } from '../../../domain/attempt/attempt.js';
+import { assertCanWork, assertReasonsComplete, maxAutoScore, missingReasons } from '../../../domain/attempt/attempt.js';
 import { AttemptNotFoundError } from '../../../domain/attempt/errors.js';
 import type { Attempt } from '../../../domain/attempt/attempt.js';
 import { ExamNotFoundError } from '../../../domain/exam/errors.js';
@@ -38,6 +38,8 @@ export class SubmitAttempt {
 
       const exam = await ctx.exams.findById(session.examId);
       if (!exam) throw new ExamNotFoundError();
+      // Only the member's own submit checks reasons; closing the session or running out of time submits as is (PRODUCT.md §7.32b).
+      assertReasonsComplete(missingReasons(exam, attempt.questionOrder, await ctx.attempts.answersOf(attempt.id)));
       const done = await gradeAndSubmit(ctx.attempts, attempt, exam, this.deps.clock.now());
       return { sessionId: session.id, result: { attempt: done, maxScore: maxAutoScore(exam), essayPending: exam.questions.some(q => q.type === 'essay'), scoresHidden: areScoresHidden(session) } };
     });

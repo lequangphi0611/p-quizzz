@@ -38,9 +38,11 @@ for (const file of files) {
     .filter((t) => counts[t])
     .map((t) => `${TYPE_LABEL[t]}: ${counts[t]}`)
     .join(', ');
+  const reasonCount = exam.questions.filter((q) => q.requireReason).length;
   console.log(
     `✓ ${file}: "${exam.title}" — ${exam.questions.length} câu (${breakdown}), tổng ${exam.totalPoints} điểm, ` +
       `${exam.hasEssay ? 'có tự luận → mentor chấm tay' : 'thuần trắc nghiệm → chấm tự động'}` +
+      `${reasonCount ? `, ${reasonCount} câu hỏi lý do` : ''}` +
       `${warnings.length ? `, ${warnings.length} cảnh báo` : ''}.\n`,
   );
 }

@@ -1,3 +1,4 @@
+import { REASON_MISSING_CODE } from '../../../shared/api/attempts.js';
 import { DomainError } from '../errors.js';
 
 /** Someone else's attempt looks exactly like a missing one. */
@@ -70,5 +71,12 @@ export class NoPendingEditRequestError extends DomainError {
 export class EditLockedError extends DomainError {
   constructor() {
     super('conflict', 'Bài đã nộp: chỉ sửa được câu tự luận');
+  }
+}
+
+/** Manual submit with picks that still lack a reason (PRODUCT.md §7.32b). Carries the question ids so the member can jump to them. */
+export class ReasonMissingError extends DomainError {
+  constructor(questionIds: readonly number[]) {
+    super('conflict', `Còn ${questionIds.length} câu đã chọn đáp án nhưng chưa ghi lý do`, REASON_MISSING_CODE, { questionIds: [...questionIds] });
   }
 }

@@ -1,5 +1,5 @@
-import type { EditRequestInfo, ParticipantProgress } from '../../../shared/api/index.js';
-import { isAnswered } from '../../../shared/answered.js';
+import { MAX_CHOICE_REASON_LENGTH, type EditRequestInfo, type ParticipantProgress } from '../../../shared/api/index.js';
+import { isAnswered, isMissingReason } from '../../../shared/answered.js';
 import { pickCountedAttempt, scoreAnswer, totalScore } from '../../../shared/scoring.js';
 import type { SessionStatus } from '../../../shared/session-state.js';
 import type { Exam, Question } from '../exam/exam.js';
@@ -16,6 +16,7 @@ import {
   EditRequestNotAllowedError,
   InvalidAnswerError,
   NoPendingEditRequestError,
+  ReasonMissingError,
   SessionNotRunningError,
 } from './errors.js';
 
@@ -46,6 +47,8 @@ export interface Answer {
   questionId: number;
   selectedOptionIds: number[] | null;
   textAnswer: string | null;
+  /** Reason on a `{reason}` question (PRODUCT.md §7.32); never scored. */
+  reasonText: string | null;
   autoScore: number | null;
   manualScore: number | null;
   feedback: string | null;
@@ -56,7 +59,7 @@ export type NewAttempt = Pick<Attempt, 'participantId' | 'attemptNo' | 'question
 
 export const NO_EDIT_REQUEST = { editStatus: null, editReason: null, editRequestedAt: null, editResolvedAt: null } as const;
 
-export type AnswerInput = { selectedOptionIds?: number[]; textAnswer?: string };
+export type AnswerInput = { selectedOptionIds?: number[]; textAnswer?: string; reasonText?: string };
 
 // ── Rules (pure: use cases load the facts) ──────────────────────────────────────────────────────
 
@@ -131,8 +134,14 @@ export const canRequestEdit = (attempt: Pick<Attempt, 'submittedAt' | 'editStatu
   sessionStatus === 'running' && participantStatus === 'active' && !!attempt.submittedAt && (attempt.editStatus === null || attempt.editStatus === 'rejected');
 
 /** The answer to store for `question`, or `InvalidAnswerError` (400). Duplicate option ids are dropped. */
-export function validateAnswer(attempt: Pick<Attempt, 'questionOrder'>, question: { id: number; type: Question['type']; optionIds: number[] } | null, questionId: number, input: AnswerInput) {
+export function validateAnswer(
+  attempt: Pick<Attempt, 'questionOrder'>,
+  question: { id: number; type: Question['type']; optionIds: number[]; requireReason: boolean } | null,
+  questionId: number,
+  input: AnswerInput,
+) {
   if (!attempt.questionOrder.includes(questionId) || !question) throw new InvalidAnswerError('Câu hỏi không thuộc lượt làm bài này');
+  if (input.reasonText !== undefined && !question.requireReason) throw new InvalidAnswerError('Câu này không hỏi lý do');
   if (question.type === 'essay') {
     if (input.textAnswer === undefined) throw new InvalidAnswerError('Câu tự luận cần textAnswer');
     return { textAnswer: input.textAnswer };
@@ -142,7 +151,25 @@ export function validateAnswer(attempt: Pick<Attempt, 'questionOrder'>, question
   const valid = new Set(question.optionIds);
   if (!selected.every(id => valid.has(id))) throw new InvalidAnswerError('Đáp án không thuộc câu hỏi này');
   if (question.type === 'single' && selected.length > 1) throw new InvalidAnswerError('Câu một đáp án chỉ được chọn tối đa 1');
-  return { selectedOptionIds: selected };
+  if (input.reasonText === undefined) return { selectedOptionIds: selected };
+  const reasonText = input.reasonText.trim();
+  if (reasonText.length > MAX_CHOICE_REASON_LENGTH) throw new InvalidAnswerError(`Lý do tối đa ${MAX_CHOICE_REASON_LENGTH} ký tự`);
+  return { selectedOptionIds: selected, reasonText };
+}
+
+/** Question ids (in the member's order) that have a pick but no reason on a `{reason}` question (PRODUCT.md §7.32b). */
+export function missingReasons(exam: Pick<Exam, 'questions'>, order: readonly number[], saved: readonly Pick<Answer, 'questionId' | 'selectedOptionIds' | 'reasonText'>[]): number[] {
+  const byQuestion = new Map(saved.map(a => [a.questionId, a]));
+  const questions = new Map(exam.questions.map(q => [q.id, q]));
+  return order.filter(id => {
+    const q = questions.get(id);
+    return q !== undefined && isMissingReason(q, byQuestion.get(id));
+  });
+}
+
+/** A member's own submit is refused while a picked `{reason}` question has no reason. Closing the session or the clock running out never checks this. */
+export function assertReasonsComplete(missing: readonly number[]): void {
+  if (missing.length > 0) throw new ReasonMissingError(missing);
 }
 
 /**

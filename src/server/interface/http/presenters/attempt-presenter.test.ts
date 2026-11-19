@@ -5,12 +5,12 @@ import { toAttemptViewDto, toReviewViewDto } from './attempt-presenter.js';
 const data: ReviewData = {
   sessionStatus: 'running',
   attempt: { id: 1, participantId: 1, attemptNo: 1, questionOrder: [2, 1], optionOrder: { '1': [12, 11], '2': [] }, startedAt: new Date(1), submittedAt: null, autoScore: 1, manualScore: null, editStatus: null, editReason: null, editRequestedAt: null, editResolvedAt: null },
-  answers: [{ id: 1, attemptId: 1, questionId: 1, selectedOptionIds: [11], textAnswer: null, autoScore: 1, manualScore: null, feedback: 'secret feedback', gradedAt: null }],
+  answers: [{ id: 1, attemptId: 1, questionId: 1, selectedOptionIds: [11], textAnswer: null, reasonText: 'tôi nghĩ vậy', autoScore: 1, manualScore: null, feedback: 'secret feedback', gradedAt: null }],
   exam: {
     id: 1, title: 'T', description: null, durationMinutes: null, sourceMarkdown: 'SECRET SOURCE', totalPoints: 5, hasEssay: true, createdAt: new Date(0),
     questions: [
-      { id: 1, position: 1, type: 'single', prompt: 'S', body: 'b', points: 1, explanation: 'SECRET WHY', options: [{ id: 11, position: 1, text: 'a', isCorrect: true }, { id: 12, position: 2, text: 'b', isCorrect: false }] },
-      { id: 2, position: 2, type: 'essay', prompt: 'E', body: '', points: 4, explanation: 'SECRET RUBRIC', options: [] },
+      { id: 1, position: 1, type: 'single', prompt: 'S', body: 'b', points: 1, explanation: 'SECRET WHY', requireReason: true, options: [{ id: 11, position: 1, text: 'a', isCorrect: true }, { id: 12, position: 2, text: 'b', isCorrect: false }] },
+      { id: 2, position: 2, type: 'essay', prompt: 'E', body: '', points: 4, explanation: 'SECRET RUBRIC', requireReason: false, options: [] },
     ],
   },
 };

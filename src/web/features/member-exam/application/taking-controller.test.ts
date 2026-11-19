@@ -34,7 +34,7 @@ describe('TakingController: loading', () => {
     await ctrl.load();
     const s = ctrl.getState();
     expect(s.view?.id).toBe(9);
-    expect(s.drafts[3]).toEqual({ selected: [], text: 'saved text' });
+    expect(s.drafts[3]).toEqual({ selected: [], text: 'saved text', reason: '' });
     expect(s.loadError).toBe('');
   });
 
@@ -200,5 +200,58 @@ describe('TakingController: time up (PRODUCT.md §7.27)', () => {
     ctrl.timeUp();
     ctrl.timeResumed();
     expect(ctrl.getState().timeUp).toBe(false);
+  });
+});
+
+describe('TakingController: reasons on {reason} questions (PRODUCT.md §7.32)', () => {
+  const rview = (): AttemptView => ({ id: 9, questions: [{ ...q(1, 'single', [10, 11]), requireReason: true }, q(2, 'single', [20, 21])], answers: [] } as unknown as AttemptView);
+
+  it('sends the pick and the reason together, the reason after the quiet period', async () => {
+    vi.useFakeTimers();
+    try {
+      const { ctrl, saved } = make({ getAttempt: async () => rview() });
+      await ctrl.load();
+      const [q1, q2] = ctrl.getState().view!.questions;
+      ctrl.pick(q1!, 10);
+      await vi.runAllTimersAsync();
+      expect(saved.at(-1)).toEqual([9, 1, { selectedOptionIds: [10], reasonText: '' }]);
+      ctrl.setReason(q1!, 'vì');
+      ctrl.setReason(q1!, 'vì vậy');
+      await vi.runAllTimersAsync();
+      expect(saved.at(-1)).toEqual([9, 1, { selectedOptionIds: [10], reasonText: 'vì vậy' }]);
+      ctrl.pick(q1!, 11); // a new pick keeps the typed reason on the wire
+      await vi.runAllTimersAsync();
+      expect(saved.at(-1)).toEqual([9, 1, { selectedOptionIds: [11], reasonText: 'vì vậy' }]);
+      ctrl.pick(q2!, 20); // no reason box: no reasonText
+      await vi.runAllTimersAsync();
+      expect(saved.at(-1)).toEqual([9, 2, { selectedOptionIds: [20] }]);
+      ctrl.setReason(q2!, 'x'); // ignored
+      expect(ctrl.getState().drafts[2]!.reason).toBe('');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a reason_missing refusal keeps the dialog open and is not a closed session', async () => {
+    const { ctrl } = make({ getAttempt: async () => rview(), submitAttempt: async () => { throw new ApiError(409, 'Còn 1 câu…', 'reason_missing'); } });
+    await ctrl.load();
+    ctrl.requestSubmit();
+    await ctrl.submit();
+    expect(ctrl.getState()).toMatchObject({ confirming: true, submitError: 'Còn 1 câu…', closed: false, submitting: false });
+  });
+
+  it('a reason_missing refusal reloads the drafts from the server so the dialog lists the questions', async () => {
+    let calls = 0;
+    // This tab still shows a reason; another tab has cleared it on the server.
+    const local = { ...rview(), answers: [{ questionId: 1, selectedOptionIds: [10], textAnswer: null, reasonText: 'vì A' }] } as AttemptView;
+    const server = { ...rview(), answers: [{ questionId: 1, selectedOptionIds: [10], textAnswer: null, reasonText: null }] } as AttemptView;
+    const { ctrl } = make({ getAttempt: async () => (calls++ === 0 ? local : server), submitAttempt: async () => { throw new ApiError(409, 'Còn 1 câu…', 'reason_missing'); } });
+    await ctrl.load();
+    expect(ctrl.getState().drafts[1]?.reason).toBe('vì A');
+    ctrl.requestSubmit();
+    await ctrl.submit();
+    expect(calls).toBe(2);
+    expect(ctrl.getState().drafts[1]?.reason).toBe('');
+    expect(ctrl.getState().confirming).toBe(true);
   });
 });
