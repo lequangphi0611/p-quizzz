@@ -33,7 +33,21 @@ Phương án B trong báo cáo làm rõ yêu cầu: lý do **không tính điể
 - `features/member-exam`: ô lý do dưới danh sách đáp án ở câu `requireReason`, nhãn "Lý do (bắt buộc, không tính điểm)", đếm ký tự /200, autosave như tự luận. Danh sách câu báo riêng "thiếu lý do" (khác "chưa trả lời"). Bấm nộp còn thiếu → hộp thoại liệt kê các câu, bấm vào nhảy tới câu. Dùng tốt trên laptop và điện thoại (S18).
 - Trang "Xem lại bài": hiện lý do của mình dưới lựa chọn.
 - Trang xem lại phiên của mentor: hiện lý do cạnh lựa chọn từng người.
-- `features/discussion`: khối "Lý do của lớp" mặc định ẩn, nút + phím tắt riêng (không dùng chung nút hiện đáp án), nhóm theo phương án (nhóm hiện theo nhãn phương án như phân bố lựa chọn đang hiện), không tên. Đổi câu thì khối ẩn lại. **Cần designer** cho khối này: prompt ở [S30-reason-ui-prompt.md](../design/S30-reason-ui-prompt.md); phím tắt đề xuất `R`.
+- `features/discussion`: khối "Lý do của lớp" mặc định ẩn, nút + phím tắt riêng (không dùng chung nút hiện đáp án), nhóm theo phương án (nhóm hiện theo nhãn phương án như phân bố lựa chọn đang hiện), không tên. Đổi câu thì khối ẩn lại. Prompt designer: [S30-reason-ui-prompt.md](../design/S30-reason-ui-prompt.md); thiết kế đã duyệt ở mục dưới.
+
+### Thiết kế đã duyệt cho chế độ thảo luận (2026-11-19)
+Bản thiết kế: https://claude.ai/artifact/GPyqPG7aB8WobNbtxwPvoi (canvas "p-quizzz — Thảo luận: Lý do của lớp", artboard `Discussion.dc.html` là bản chạy thử). Làm theo bản này, trừ các điểm ghi "không làm".
+- Khi mở, khối lý do **thay chỗ** màn câu (phân bố + đề). Đề thu gọn còn 4 dòng (30 px); phần Giải thích hiện bên phải nếu đã hiện đáp án. Số người của mỗi phương án nằm ở đầu nhóm.
+- Mỗi phương án là một nhóm (component đề xuất `ReasonGroup`, thẻ `ReasonCard`, trạng thái rỗng `ReasonsEmpty`). Nhóm có nút **Thu gọn / Mở nhóm**, khối có **"Mở tất cả nhóm"**. Đổi câu thì khối ẩn lại và mọi nhóm mở lại.
+- Thứ tự nhóm luôn theo thứ tự phương án (câu nhiều đáp án: theo tổ hợp, sắp theo chữ cái), **không đổi khi hiện đáp án**. Nhóm đúng: nền/viền xanh + ✓ "Đáp án đúng".
+- Câu nhiều đáp án: nhóm theo **đúng tổ hợp đã chọn**, không gom tổ hợp hiếm.
+- Phương án không ai chọn: dòng mờ "Không ai chọn · 0 người". Chọn mà chưa ghi lý do: dòng "N người chọn nhưng chưa ghi lý do". Không có lý do nào: `ReasonsEmpty` "Chưa có lý do nào cho câu này".
+- Thanh trên có chip **"Lý do · Đã hiện/Đang ẩn"** (chỉ ở câu có hỏi lý do); `QuestionNav.marks` thêm dấu lý do. Nút "Hiện lý do" kèm số "N lý do · không tên"; phím `R`, dòng gợi ý phím chỉ có `R` ở câu có hỏi lý do.
+- Motion: mở `pq-reveal` `--dur-slow`, thẻ so le (12 thẻ đầu); đóng `pq-fade` `--dur-base`; giảm chuyển động thì hiện ngay. Sau khi bấm `R`, focus vào tiêu đề "Lý do của lớp"; vùng thẻ cuộn bằng con lăn, PgUp/PgDn, ↑ ↓.
+- 1366×768: giữ cách scale nguyên khung 1920×1080 của màn thảo luận hiện tại.
+- **Không làm trong S30**: nút/phím `B` "Ẩn/Hiện bài làm" (ẩn phân bố lựa chọn) và chip "Bài làm" trong bản thiết kế. App hiện chưa có tính năng này, nó không thuộc §7.32; muốn có thì làm story riêng.
+- Font trong canvas tải từ Google Fonts; trong app dùng font đã bundle (offline).
+- Dữ liệu mẫu trong canvas là giả lập.
 
 ## Acceptance criteria
 - [ ] `{reason}` trên câu single/multi import được; trên câu tự luận báo lỗi có số dòng; đề không có `{reason}` chạy như cũ.
