@@ -111,4 +111,12 @@ describe('leak guard: the share page (PRODUCT.md §7.33)', () => {
       expect(res.statusCode).toBe(500);
     },
   );
+
+  it.each([{ roomCode: 'ABC123' }, { slot: 2 }, { access: 'roster' }, { sourceGroupId: 3 }])(
+    'blocks the mentor-only fields of a session row: %o',
+    async extra => {
+      const res = await shareApp({ questions: [], ...extra }).inject({ url: '/api/shared/t/sessions/1' });
+      expect(res.statusCode).toBe(500);
+    },
+  );
 });

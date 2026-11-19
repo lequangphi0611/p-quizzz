@@ -80,7 +80,7 @@ export class InMemorySessionRepository implements SessionRepository, SessionRead
     if (!summary || !exam) return null;
     const emails = this.rosters.get(id) ?? [];
     const roster = summary.access === 'roster' ? { size: emails.length, joined: 0, notJoined: [...emails] } : null; // participants are not modelled here
-    return { ...summary, exam: { id: exam.id, title: exam.title, hasEssay: exam.hasEssay, totalPoints: exam.totalPoints, questionCount: exam.questionCount }, participants: [], roster, rejoinRequests: [], share: { examUnfinishedSessions: this.unfinishedOfExam(summary.examId, id), submitted: 0 } };
+    return { ...summary, exam: { id: exam.id, title: exam.title, hasEssay: exam.hasEssay, totalPoints: exam.totalPoints, questionCount: exam.questionCount }, participants: [], roster, rejoinRequests: [], share: { examUnfinishedSessions: this.unfinishedOfExam(summary.examId, id), submitted: 0 } }; // submitted: attempts are not modelled here (stub)
   }
 
   async listActive() {
@@ -143,7 +143,7 @@ export class InMemorySessionRepository implements SessionRepository, SessionRead
 
   /** Shared sessions, newest start first (the share page, PRODUCT.md §7.33). */
   async listShared() {
-    const shared = [...this.sessions.values()].filter(s => s.sharedAt !== null).sort((a, b) => (b.startedAt?.getTime() ?? 0) - (a.startedAt?.getTime() ?? 0) || b.id - a.id);
+    const shared = [...this.sessions.values()].filter(s => s.sharedAt !== null && (s.status === 'closed' || s.status === 'finalized')).sort((a, b) => (b.startedAt?.getTime() ?? 0) - (a.startedAt?.getTime() ?? 0) || b.id - a.id);
     const rows = await Promise.all(shared.map(async s => { const exam = await this.exams.findSummary(s.examId); return exam ? { id: s.id, examTitle: exam.title, startedAt: s.startedAt, questionCount: exam.questionCount } : null; }));
     return rows.filter((r): r is NonNullable<typeof r> => !!r);
   }

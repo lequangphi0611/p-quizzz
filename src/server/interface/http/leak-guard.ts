@@ -15,9 +15,10 @@ const AI_KEY = /"aiSuggestion"\s*:/;
 const REASONS_KEY = /"reasons"\s*:/;
 const REVIEW_ROUTE = '/api/me/attempts/:id/review';
 // The share page (PRODUCT.md §7.33) carries the key and explanations on purpose, and must never carry anything about one
-// person: no name, answer, reason, feedback or score.
+// person: no name, answer, reason, feedback or score. Nor the mentor-only fields of a session row (room code, slot, access,
+// source group), so spreading a session into the DTO later cannot slip through.
 const SHARED_ROUTES = new Set(['/api/shared/:token/sessions', '/api/shared/:token/sessions/:id']);
-const PERSONAL_KEY = /"(displayName|name|participant|participants|participantId|attemptId|answerId|selectedOptionIds|textAnswer|reasonText|feedback|score|autoScore|manualScore|label)"\s*:/;
+const PERSONAL_KEY = /"(displayName|name|participant|participants|participantId|attemptId|answerId|selectedOptionIds|textAnswer|reasonText|feedback|score|autoScore|manualScore|label|roomCode|slot|access|sourceGroupId)"\s*:/;
 
 export function registerLeakGuard(app: FastifyInstance): void {
   app.addHook('onSend', async (req, reply, payload) => {

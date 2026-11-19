@@ -100,7 +100,7 @@ Mọi body/response là JSON. Lỗi: `{ error: string, code?: string }` (tiếng
 | POST | `/sessions/:id/release-scores` | "Công bố điểm": ghi `scores_released_at`. 409 nếu phiên không đang giữ điểm. Phát `session` + `leaderboard` |
 | PUT | `/sessions/:id/share` | `{ shared: boolean }` (PRODUCT.md §7.33): bật/tắt chia sẻ. Bật chỉ khi `closed`/`finalized` (khác → 409); bật lại khi đang bật giữ nguyên `shared_at`; tắt luôn được. → `{ sharedAt: number \| null }`. `SessionSummary` và chi tiết có `sharedAt`; chi tiết có thêm `share: { examUnfinishedSessions: number, submitted: number }` = số phiên khác của cùng đề đang `draft`/`lobby`/`running` (cảnh báo mạnh + ô xác nhận) và số bài nộp được tính (cảnh báo khi < 5) |
 | GET | `/share-link` | `{ token, sharedCount }`: token của trang chia sẻ (sinh nếu chưa có), số phiên đang chia sẻ. Web dựng URL `/shared/<token>` theo địa chỉ LAN (`/api/network`) |
-| POST | `/share-link/rotate` | "Đổi link": thay `share_token` → `{ token }`. Token cũ hết hiệu lực ngay |
+| POST | `/share-link/rotate` | "Đổi link": thay `share_token` → `{ token, sharedCount }` (cùng dạng `GET /share-link`). Token cũ hết hiệu lực ngay |
 | PATCH | `/participants/:id` | `{ displayName }` đổi tên |
 | POST | `/participants/:id/{kick,approve}` | |
 | POST | `/rejoin-requests/:id/{approve-keep,approve-takeover,reject}` | Trả lời yêu cầu vào lại (§7.23c): **giữ bài** (đổi token của người giữ chỗ sang token người xin; máy cũ nhận 403 `replaced`), **mạo danh** (người giữ chỗ bị kick và mất lượt, người xin vào như người mới với tên họ nhập; 409 nếu tên đã bị người khác dùng, không đổi gì), **từ chối**. Chỉ khi yêu cầu còn `pending` và phiên còn mở (409), không bao giờ tự duyệt. Phát `participants` (+ `leaderboard` khi mạo danh) |
@@ -399,9 +399,9 @@ Gợi ý chấm tự luận bằng cách gọi Claude CLI trên máy mentor. UI 
 ### 11.7 Module `sharing` (S31, PRODUCT.md §7.33)
 
 - **Domain** `domain/sharing/` (thuần): `assertCanShare(status)` (`closed`/`finalized`), `SMALL_CLASS_WARNING = 5` (chỉ để web cảnh báo mentor, không ẩn dữ liệu), dựng `SharedQuestion` từ câu hỏi + số đếm (chỉ trường đã liệt kê ở §5).
-- **Port** `ShareTokenStore` (`get(): Promise<string \| null>`, `set(token)`), adapter trên `app_meta`; sinh token qua port ngẫu nhiên sẵn có (như token participant).
+- **Port** `ShareTokenStore` (`get(): Promise<string \| null>`, `getOrCreate(candidate): Promise<string>` giữ token đang có nếu đã có, `replace(token)` cho "Đổi link"), adapter trên `app_meta`; sinh token qua port ngẫu nhiên sẵn có (như token participant).
 - **Use case** `application/use-cases/sharing/`: `SetSessionShared`, `GetShareLink`, `RotateShareLink`, `ListSharedSessions`, `GetSharedSession`. Đếm lựa chọn dùng lại port đọc của thảo luận (§11.5) nếu đủ, không thì thêm một port đọc riêng; **không** đọc tên hay bài làm.
-- **Route** `interface/http/admin-share-routes.ts` (trong `/api/admin`) và `shared-routes.ts` (công khai). Không phát event SSE (trang chia sẻ không cần realtime).
+- **Route** `interface/http/sharing-routes.ts`, gồm hai plugin `sharingAdminRoutes` (trong `/api/admin`) và `sharedPublicRoutes` (công khai, `/api/shared`). Không phát event SSE (trang chia sẻ không cần realtime).
 - **Web** `features/shared-sessions/{domain,application,infrastructure,ui}`; mentor bật/tắt và lấy link trong `features/session-admin`; dòng thông báo trong `features/member-review`.
 
 ## 12. Web: hạ tầng dùng chung (P4-1, issue #18)

@@ -41,6 +41,9 @@ export function ShareCard({ session }: { session: SessionDetail }) {
   const warn = shareWarnings(session.share);
   const link = token ? shareLink(host, token) : '';
 
+  // The prop is the source of truth whenever the loader revalidates (another tab or the list page may have changed it).
+  useEffect(() => { setSharedAt(session.sharedAt); }, [session.sharedAt]);
+
   useEffect(() => {
     if (!on) return;
     let live = true;

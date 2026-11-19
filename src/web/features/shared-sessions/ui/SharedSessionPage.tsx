@@ -43,15 +43,28 @@ export function SharedSessionPage() {
     history.replaceState(history.state, '', `#cau-${i + 1}`);
     scrollTo(i);
   };
+  // The current question is the last one whose top has passed near the top of the scrolling area: the main pane
+  // on desktop, the window on a phone.
   const onScroll = () => {
-    const box = mainRef.current;
-    if (!box || load.state !== 'ready') return;
+    if (load.state !== 'ready') return;
+    const box = desk ? mainRef.current : null;
+    if (desk && !box) return;
+    const top = box ? box.getBoundingClientRect().top : 0;
     let c = 0;
-    refs.current.forEach((el, i) => { if (el && el.getBoundingClientRect().top - box.getBoundingClientRect().top < 120) c = i; });
-    if (c !== cur) setCur(c);
+    refs.current.forEach((el, i) => { if (el && el.getBoundingClientRect().top - top < 120) c = i; });
+    setCur(prev => (prev === c ? prev : c));
   };
+  const onScrollRef = useRef(onScroll);
+  onScrollRef.current = onScroll;
 
   const count = load.state === 'ready' ? load.data.questions.length : 0;
+  // On a phone the window scrolls, so follow it there (desktop listens on the main pane through SharedFrame).
+  useEffect(() => {
+    if (desk || load.state !== 'ready') return;
+    const handler = () => onScrollRef.current();
+    window.addEventListener('scroll', handler, { passive: true });
+    return () => window.removeEventListener('scroll', handler);
+  }, [desk, load.state]);
   useEffect(() => {
     if (load.state !== 'ready') return;
     const at = questionFromHash(loc.hash, count);

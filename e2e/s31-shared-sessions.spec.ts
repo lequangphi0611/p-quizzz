@@ -123,7 +123,11 @@ test('mentor shares sessions; anyone with the link reads them; old links stop wo
   await essayPhone.scrollIntoViewIfNeeded();
   await phone.page.waitForTimeout(300);
   await essayPhone.screenshot({ path: shotPath('S31', 'B5p-essay-phone') });
+  // Scrolling by hand moves the collapsed index along with the page.
+  await phone.page.evaluate(() => window.scrollTo(0, document.querySelector('#cau-2')!.getBoundingClientRect().top + window.scrollY - 72));
+  await expect(phone.page.getByRole('button', { name: /Mục lục · Câu 2\// })).toBeVisible();
   await phone.page.evaluate(() => window.scrollTo(0, 0));
+  await expect(phone.page.getByRole('button', { name: /Mục lục · Câu 1\// })).toBeVisible();
   await phone.page.getByRole('button', { name: /Mục lục/ }).click();
   await shot(phone.page, 'B5p-index-open');
   // Opened directly: "Danh sách phiên" goes to the list.

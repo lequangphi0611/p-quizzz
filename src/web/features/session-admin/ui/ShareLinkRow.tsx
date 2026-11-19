@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import type { ShareLinkInfo } from '../../../../shared/api/index.js';
+import { ApiError } from '../../../shared/api-client/http-client.js';
 import { useJoinHost } from '../../../shared/room/join-url.js';
 import { Button } from '../../../shared/ui/Button.js';
 import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog.js';
+import { ErrorMessage } from '../../../shared/ui/ErrorMessage.js';
 import { Icon } from '../../../shared/ui/Icon.js';
 import { useSessionAdminGateway } from '../application/session-admin-context.js';
 import { shareLink } from '../domain/share-ui.js';
@@ -15,6 +17,7 @@ export function ShareLinkRow() {
   const [info, setInfo] = useState<ShareLinkInfo | null>(null);
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
   const { copied, copy } = useCopy();
 
   useEffect(() => {
@@ -27,7 +30,10 @@ export function ShareLinkRow() {
 
   async function rotate() {
     setBusy(true);
-    try { setInfo(await gateway.rotateShareLink()); setAsking(false); } finally { setBusy(false); }
+    setError('');
+    try { setInfo(await gateway.rotateShareLink()); setAsking(false); }
+    catch (err) { setError(err instanceof ApiError ? err.message : 'Không đổi được link. Link cũ vẫn dùng được.'); }
+    finally { setBusy(false); }
   }
 
   return (
@@ -36,9 +42,10 @@ export function ShareLinkRow() {
       <code style={{ flex: '1 1 260px', minWidth: 0, font: 'var(--type-code)', fontSize: 13, color: 'var(--text-body)', wordBreak: 'break-all', userSelect: 'all' }}>{link}</code>
       <span style={{ font: 'var(--type-meta)', color: 'var(--text-meta)' }}>{info.sharedCount > 0 ? `${info.sharedCount} phiên đang chia sẻ · ai có link đều xem được` : 'Chưa chia sẻ phiên nào'}</span>
       <span aria-live="polite"><Button size="sm" variant="secondary" icon={copied ? 'check' : 'copy'} onClick={() => copy(link)}>{copied ? 'Đã sao chép' : 'Sao chép'}</Button></span>
-      <Button size="sm" variant="ghost" icon="refresh-cw" onClick={() => setAsking(true)}>Đổi link</Button>
+      <Button size="sm" variant="ghost" icon="refresh-cw" onClick={() => { setError(''); setAsking(true); }}>Đổi link</Button>
       <ConfirmDialog open={asking} busy={busy} title="Đổi link chia sẻ?" confirmLabel="Đổi link" tone="danger" onConfirm={() => void rotate()} onCancel={() => setAsking(false)}>
         <div style={{ display: 'grid', gap: 8 }}>
+          {error && <ErrorMessage message={error} />}
           <p style={{ margin: 0 }}>Mọi người đang có link cũ sẽ không mở được nữa; bạn cần gửi lại link mới.</p>
           <p style={{ margin: 0, color: 'var(--text-meta)', fontSize: 14 }}>{info.sharedCount > 0 ? `${info.sharedCount} phiên vẫn đang được chia sẻ — chỉ link thay đổi.` : 'Các phiên đang chia sẻ giữ nguyên, chỉ link thay đổi.'} Ai mở link cũ sẽ thấy “Link này không mở được”.</p>
         </div>
