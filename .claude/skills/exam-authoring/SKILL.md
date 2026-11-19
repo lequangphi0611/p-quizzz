@@ -78,7 +78,7 @@ Sửa trên file, chạy lại bước 3, rồi báo ngắn những gì đã đ�
 - **Nên gắn** cho: câu có đáp án nhiễu dựa trên hiểu lầm phổ biến (để thấy member hiểu nhầm ở đâu); câu tình huống "chọn cách làm"; câu dễ đoán mò đúng.
 - **Không gắn** cho: câu nhớ định nghĩa, cú pháp, tên lệnh (lý do sẽ chỉ là "vì nhớ vậy"); câu tự luận (`{reason}` với `{essay}` là lỗi).
 - **Số lượng**: mặc định khoảng 20–30% số câu trắc nghiệm, để member không mất giờ gõ (nhất là phiên có giới hạn thời gian). Mentor yêu cầu khác thì theo mentor.
-- Câu có `{reason}` thì câu hỏi phải đủ rõ để trả lời "vì sao" trong một câu ngắn (tối đa 200 ký tự).
+- Câu có `{reason}` thì câu hỏi phải đủ rõ để trả lời "vì sao" trong một câu ngắn (tối đa 500 ký tự).
 
 ## Chuyển đề cũ sang format
 

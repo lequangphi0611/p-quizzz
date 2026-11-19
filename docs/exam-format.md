@@ -49,7 +49,7 @@ Mỗi câu hỏi gồm các phần **theo đúng thứ tự**: tiêu đề → n
 
 ### Hỏi lý do: `{reason}`
 
-Câu trắc nghiệm (một hoặc nhiều đáp án) có `{reason}` thì member thấy thêm ô **lý do** dưới các đáp án ([PRODUCT.md §7.32](PRODUCT.md)). Đã chọn đáp án thì **bắt buộc** ghi lý do (tối đa 200 ký tự); lý do **không tính điểm**. Mentor đọc lý do sau khi đóng phiên và chiếu ẩn danh trong chế độ thảo luận.
+Câu trắc nghiệm (một hoặc nhiều đáp án) có `{reason}` thì member thấy thêm ô **lý do** dưới các đáp án ([PRODUCT.md §7.32](PRODUCT.md)). Đã chọn đáp án thì **bắt buộc** ghi lý do (tối đa 500 ký tự); lý do **không tính điểm**. Mentor đọc lý do sau khi đóng phiên và chiếu ẩn danh trong chế độ thảo luận.
 
 ```markdown
 ## Cách nào phù hợp nhất để có danh sách đã lọc? {reason}

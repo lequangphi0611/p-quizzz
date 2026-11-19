@@ -30,11 +30,11 @@ describe('saving a reason (PUT /api/me/attempts/:id/answers/:questionId)', () =>
     expect(view.answers.find(x => x.questionId === w.single.q.id)).toMatchObject({ selectedOptionIds: [w.s1(1)], reasonText: 'vì A đúng' });
   });
 
-  it('caps the reason at 200 characters and refuses it on a question without {reason} or with textAnswer', async () => {
+  it('caps the reason at 500 characters and refuses it on a question without {reason} or with textAnswer', async () => {
     const w = await setup({ essay: true });
     const a = await w.startedAttempt(w.an);
-    expect((await w.an.put(a.id, w.single.q.id, { selectedOptionIds: [w.s1(0)], reasonText: 'x'.repeat(201) })).statusCode).toBe(400);
-    expect((await w.an.put(a.id, w.single.q.id, { selectedOptionIds: [w.s1(0)], reasonText: 'x'.repeat(200) })).statusCode).toBe(200);
+    expect((await w.an.put(a.id, w.single.q.id, { selectedOptionIds: [w.s1(0)], reasonText: 'x'.repeat(501) })).statusCode).toBe(400);
+    expect((await w.an.put(a.id, w.single.q.id, { selectedOptionIds: [w.s1(0)], reasonText: 'x'.repeat(500) })).statusCode).toBe(200);
     expect((await w.an.put(a.id, w.essayQ!.id, { textAnswer: 'bài', reasonText: 'x' })).statusCode).toBe(400);
     w.db.update(questions).set({ requireReason: false }).where(eq(questions.id, w.multi.q.id)).run();
     const res = await w.an.put(a.id, w.multi.q.id, { selectedOptionIds: [w.m(0)], reasonText: 'x' });

@@ -36,7 +36,7 @@ export function QuestionContent({ q, cur, total, desk, draft, showKeys, typing, 
       {q.requireReason && (
         // PRODUCT.md §7.32: required once an option is picked, never scored. Shortcuts pause while typing, as in essays.
         <div onFocusCapture={() => onTyping(true)} onBlurCapture={() => onTyping(false)} style={{ display: 'grid', gap: 6, marginTop: 4, minWidth: 0 }}>
-          <TextField key={`reason-${q.id}`} label="Lý do (bắt buộc, không tính điểm)" multiline rows={2} maxLength={MAX_CHOICE_REASON_LENGTH} value={reason} onChange={onReason} placeholder="Vì sao bạn chọn đáp án này? Một câu ngắn là đủ." />
+          <TextField key={`reason-${q.id}`} label="Lý do (bắt buộc, không tính điểm)" multiline rows={3} maxLength={MAX_CHOICE_REASON_LENGTH} value={reason} onChange={onReason} placeholder="Vì sao bạn chọn đáp án này? Một câu ngắn là đủ." />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', ...mText.meta }}>
             {needsReason
               ? <span role="status" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--warn-600)' }}><Icon name="message-square" size={14} />Ghi lý do để nộp được bài</span>
