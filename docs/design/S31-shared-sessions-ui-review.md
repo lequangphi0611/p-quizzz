@@ -22,6 +22,6 @@ Dùng được để code. Đủ 13 trạng thái của prompt, có laptop 1440�
 
 ## Phản biện của designer và quyết định của PO (2026-11-19)
 1. **Ngưỡng ẩn tỉ lệ** (prompt: < 3 bài nộp thì ẩn; designer đề xuất 5). PO chọn **không có ngưỡng**, thay bằng dòng cảnh báo trong hộp xác nhận khi phiên **dưới 5 bài nộp**. Màn B6 ("ít bài nộp") vì vậy chỉ còn dùng cho phiên **0 bài nộp**, chữ đổi thành "Phiên không có bài nộp nào nên không có tỉ lệ chọn". Hộp xác nhận C10 thêm biến thể cảnh báo ít bài nộp, dùng `ErrorMessage tone="warning"` như cảnh báo mạnh, không cần thiết kế lại.
-2. **Dấu "Đã lộ đáp án" ở trang Đề thi**: chờ PO quyết, chưa vào phạm vi S31.
+2. **Dấu "Đã lộ đáp án" ở trang Đề thi**: PO quyết **không làm**. Chia sẻ chỉ chọn theo phiên, không chọn từng câu.
 3. `ReviewQuestions` có trong code nhưng gắn với bài làm của một người, `AnswerOption` mang nghĩa "bạn đã chọn/bỏ sót": đều không dùng. Dùng component mới **`ClassTally`** của designer; phần đề và giải thích dùng lại `QuestionPreview`.
 4. `Button` thêm prop `href` để nút điều hướng là link thật.
