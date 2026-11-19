@@ -106,8 +106,6 @@ DRAFT ──open──▶ LOBBY ──start──▶ RUNNING ──close──�
 - Giới hạn thời gian làm bài theo phiên, số phút mặc định khai báo trong file đề (§7.27)
 - Xếp câu "Cần bàn trước" trong chế độ thảo luận (§7.30), phần đầu của mục thống kê theo câu ở phase 2
 - Bắt đầu phiên: thủ công / hẹn giờ / khi mọi người sẵn sàng; luật ở phòng chờ, vào thẳng câu 1 (§7.31)
-
-### Sau MVP (đã duyệt, chưa làm)
 - Ô lý do cho câu trắc nghiệm, bắt buộc với câu được đánh dấu, không tính điểm (§7.32)
 
 ### Phase 2 (đã xác định, chưa làm)

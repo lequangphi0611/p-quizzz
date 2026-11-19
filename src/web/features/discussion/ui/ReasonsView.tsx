@@ -80,7 +80,8 @@ function Group({ g, multi, revealed, collapsed, onToggle }: { g: ReasonGroup; mu
           <div role="list" style={{ columns: 2, columnGap: 14 }}>
             {g.reasons.map((text, i) => (
               <div key={i} role="listitem" style={{ breakInside: 'avoid', margin: '0 0 14px', padding: '16px 20px', background: 'var(--screen-panel)', border: '2px solid var(--screen-line)', borderRadius: 'var(--radius-md)', font: '500 28px/1.4 var(--font-sans)', color: '#fff', overflowWrap: 'anywhere', textWrap: 'pretty', animation: `pq-reveal var(--dur-slow) var(--ease-standard) calc(var(--dur-fast) * ${(Math.min(i, 12) * 0.3).toFixed(1)}) both` }}>
-                <Markdown inlineOnly size="screen" source={text} />
+                {/* Member-written text: shown as typed (like essays in PaperView), never parsed as Markdown. */}
+                <span style={{ whiteSpace: 'pre-wrap' }}>{text}</span>
               </div>
             ))}
           </div>

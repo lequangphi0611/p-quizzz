@@ -237,6 +237,21 @@ describe('TakingController: reasons on {reason} questions (PRODUCT.md §7.32)', 
     await ctrl.load();
     ctrl.requestSubmit();
     await ctrl.submit();
-    expect(ctrl.getState()).toMatchObject({ confirming: true, submitError: '', closed: false, submitting: false });
+    expect(ctrl.getState()).toMatchObject({ confirming: true, submitError: 'Còn 1 câu…', closed: false, submitting: false });
+  });
+
+  it('a reason_missing refusal reloads the drafts from the server so the dialog lists the questions', async () => {
+    let calls = 0;
+    // This tab still shows a reason; another tab has cleared it on the server.
+    const local = { ...rview(), answers: [{ questionId: 1, selectedOptionIds: [10], textAnswer: null, reasonText: 'vì A' }] } as AttemptView;
+    const server = { ...rview(), answers: [{ questionId: 1, selectedOptionIds: [10], textAnswer: null, reasonText: null }] } as AttemptView;
+    const { ctrl } = make({ getAttempt: async () => (calls++ === 0 ? local : server), submitAttempt: async () => { throw new ApiError(409, 'Còn 1 câu…', 'reason_missing'); } });
+    await ctrl.load();
+    expect(ctrl.getState().drafts[1]?.reason).toBe('vì A');
+    ctrl.requestSubmit();
+    await ctrl.submit();
+    expect(calls).toBe(2);
+    expect(ctrl.getState().drafts[1]?.reason).toBe('');
+    expect(ctrl.getState().confirming).toBe(true);
   });
 });

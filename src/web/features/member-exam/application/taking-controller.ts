@@ -137,7 +137,15 @@ export class TakingController {
     } catch (err) {
       // reason_missing: another tab or an old draft left a pick without a reason; the dialog lists the questions again.
       const missingReason = err instanceof ApiError && err.code === REASON_MISSING_CODE;
-      this.set({ confirming: missingReason, submitError: missingReason ? '' : err instanceof ApiError ? err.message : 'Còn câu chưa lưu được. Kiểm tra mạng rồi thử nộp lại.', submitting: false });
+      if (missingReason) {
+        // Everything local was flushed, so the server is the truth: reload the drafts, otherwise the dialog would not
+        // list the questions (local drafts look complete) and the member would loop on the same refusal.
+        try {
+          const view = await this.deps.gateway.getAttempt(this.deps.attemptId);
+          this.set({ drafts: draftsFromAnswers(view.answers), view });
+        } catch { /* keep the local drafts; the message below still explains the refusal */ }
+      }
+      this.set({ confirming: missingReason, submitError: err instanceof ApiError ? err.message : 'Còn câu chưa lưu được. Kiểm tra mạng rồi thử nộp lại.', submitting: false });
     }
   }
 
