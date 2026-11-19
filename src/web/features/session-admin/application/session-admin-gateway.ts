@@ -1,4 +1,4 @@
-import type { ExamSummary, GroupSummary, LeaderboardResponse, OutsiderPolicy, ParticipantReview, ScoreVisibility, SessionDetail, SessionSummary } from '../../../../shared/api/index.js';
+import type { ExamSummary, GroupSummary, LeaderboardResponse, OutsiderPolicy, ParticipantReview, ScoreVisibility, SessionDetail, SessionSummary, ShareLinkInfo } from '../../../../shared/api/index.js';
 import type { SessionAction } from '../../../../shared/session-state.js';
 
 import type { NewSessionAccess } from '../domain/access-ui.js';
@@ -63,6 +63,12 @@ export interface SessionAdminGateway {
   allowRejoin(participantId: number): Promise<number>;
   getParticipantReview(participantId: number): Promise<ParticipantReview>;
   getLeaderboard(sessionId: number): Promise<LeaderboardResponse>;
+  /** Puts an ended session on the share page or takes it off (PRODUCT.md §7.33a). Resolves with the time it is shared since, or null. */
+  setShared(sessionId: number, shared: boolean): Promise<number | null>;
+  /** The share page's token (made on first use) and how many sessions it lists. */
+  getShareLink(): Promise<ShareLinkInfo>;
+  /** "Đổi link": a new token; the old link stops working. */
+  rotateShareLink(): Promise<ShareLinkInfo>;
   /** LAN addresses members can type (`/api/network`). */
   getJoinHosts(): Promise<string[]>;
 }

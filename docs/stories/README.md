@@ -58,7 +58,7 @@ Mỗi story là một file tự đủ ngữ cảnh để một model/người im
 | [S28](S28-discussion-priority-order.md) | Xếp câu "Cần bàn trước" trong chế độ thảo luận | S17 | ✅ |
 | [S29](S29-session-start-modes.md) | Bắt đầu phiên: thủ công / hẹn giờ / khi mọi người sẵn sàng | S09, S10, S12, S14, S18, S20, S21, S25 | ✅ |
 | [S30](S30-choice-reason.md) | Ô lý do cho câu trắc nghiệm (bắt buộc khi đánh dấu, không tính điểm) | S04, S11, S12, S16, S17, S18, S24, S25 | ✅ |
-| [S31](S31-shared-sessions.md) | Trang chia sẻ các phiên đã thi (một link chung, chỉ đề + lời giải + tỉ lệ chọn) | S16, S17, S18, S20 | ⬜ |
+| [S31](S31-shared-sessions.md) | Trang chia sẻ các phiên đã thi (một link chung, chỉ đề + lời giải + tỉ lệ chọn) | S16, S17, S18, S20 | ✅ |
 
 ## Thứ tự & song song
 

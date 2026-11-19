@@ -1,6 +1,6 @@
 # S31 — Trang chia sẻ các phiên đã thi
 
-**Phụ thuộc:** S16, S17, S18, S20 · **Trạng thái:** ⬜ chưa làm
+**Phụ thuộc:** S16, S17, S18, S20 · **Trạng thái:** ✅ xong (2026-11-19)
 
 ## Bối cảnh
 Người vắng buổi hoặc mới vào dự án muốn ôn đúng phần lớp đã làm; mentor không muốn gửi tay file đề (file có cả đề còn dùng) hay chụp màn hình. Business: [PRODUCT.md §7.33](../PRODUCT.md), §4.6, §7.16, §7.24. Thiết kế: [prompt](../design/S31-shared-sessions-ui-prompt.md), [bản thiết kế + nhận xét](../design/S31-shared-sessions-ui-review.md).
@@ -21,21 +21,20 @@ Contract: `architecture.md` §2 (`sessions.shared_at`, `app_meta.share_token`), 
 - **Web**
   - Feature mới `features/shared-sessions/{domain,application,infrastructure,ui}`: trang danh sách, trang chi tiết, các trạng thái (rỗng, link không hiệu lực, phiên ngừng chia sẻ, tải, lỗi). Theo bản thiết kế: một trang cuộn + mục lục (`QuestionNav` dính bên trái trên laptop, sheet trên điện thoại), component mới `ClassTally` (thanh tỉ lệ: % + số người, đáp án đúng có ✓), phần đề/giải thích dùng lại `QuestionPreview`. `ReviewQuestions` và `AnswerOption` không dùng được (gắn với bài làm của một người).
   - `session-admin`: thẻ "Chia sẻ phiên này" (công tắc, trạng thái, "Sao chép link chia sẻ", "Xem như người xem") ở trang xem lại phiên; hộp xác nhận: cảnh báo mạnh + ô "Tôi hiểu…" bắt buộc khi `examUnfinishedSessions > 0`, dòng cảnh báo khi `submitted < 5`; hàng "Link chia sẻ" (sao chép, đổi link) ngay trên bảng Lịch sử phiên; dấu "Đang chia sẻ" trong danh sách phiên.
-  - `shared/ui/Button`: thêm prop `href` (render link cùng kiểu) cho nút điều hướng.
   - `member-review`: dòng thông báo khi `shared = true`.
   - Router: `/shared/:token`, `/shared/:token/sessions/:sessionId`.
 - **UI chờ bản thiết kế**; phần server + domain làm trước được.
 
 ## Acceptance criteria
-- [ ] Mentor bật được chia sẻ chỉ khi phiên `closed`/`finalized`; phiên khác → 409. Tắt được bất cứ lúc nào, có hiệu lực ngay.
-- [ ] Hộp xác nhận khi bật có cảnh báo lộ đáp án; đề còn phiên `draft`/`lobby`/`running` → cảnh báo mạnh kèm số phiên và phải tick ô xác nhận; phiên < 5 bài nộp → thêm dòng cảnh báo có số bài nộp.
-- [ ] Mentor sao chép được link; "Đổi link" (có xác nhận) làm link cũ trả lỗi trung tính ngay.
-- [ ] Link đúng: danh sách các phiên đang chia sẻ, mới nhất trước (theo `started_at`), mỗi dòng chỉ có tên đề, ngày giờ thi, số câu. Không có phiên → trạng thái rỗng.
-- [ ] Chi tiết theo thứ tự đề gốc: đề, đáp án đúng, giải thích, đáp án mẫu tự luận, tỉ lệ chọn từng phương án (số người + %) + bỏ trống với mọi phiên có ≥ 1 bài nộp; 0 bài nộp hoặc câu tự luận → `distribution: null`.
-- [ ] Response `/api/shared/*` **không bao giờ** chứa tên phiên, tên nhóm, tên/email người thi, điểm, bài làm, lý do, nhận xét, gợi ý AI (test quét key).
-- [ ] Link sai/đã đổi → cùng một 404 trung tính; link đúng nhưng phiên không (còn) chia sẻ → 404 `session_not_shared`; quay lại danh sách hoạt động.
-- [ ] Trang "Xem lại bài" của người đã thi hiện dòng thông báo khi phiên đang được chia sẻ.
-- [ ] Màn chiếu, bảng xếp hạng, mã phòng (§7.16, §7.29b) không đổi.
+- [x] Mentor bật được chia sẻ chỉ khi phiên `closed`/`finalized`; phiên khác → 409. Tắt được bất cứ lúc nào, có hiệu lực ngay.
+- [x] Hộp xác nhận khi bật có cảnh báo lộ đáp án; đề còn phiên `draft`/`lobby`/`running` → cảnh báo mạnh kèm số phiên và phải tick ô xác nhận; phiên < 5 bài nộp → thêm dòng cảnh báo có số bài nộp.
+- [x] Mentor sao chép được link; "Đổi link" (có xác nhận) làm link cũ trả lỗi trung tính ngay.
+- [x] Link đúng: danh sách các phiên đang chia sẻ, mới nhất trước (theo `started_at`), mỗi dòng chỉ có tên đề, ngày giờ thi, số câu. Không có phiên → trạng thái rỗng.
+- [x] Chi tiết theo thứ tự đề gốc: đề, đáp án đúng, giải thích, đáp án mẫu tự luận, tỉ lệ chọn từng phương án (số người + %) + bỏ trống với mọi phiên có ≥ 1 bài nộp; 0 bài nộp hoặc câu tự luận → `distribution: null`.
+- [x] Response `/api/shared/*` **không bao giờ** chứa tên phiên, tên nhóm, tên/email người thi, điểm, bài làm, lý do, nhận xét, gợi ý AI (test quét key).
+- [x] Link sai/đã đổi → cùng một 404 trung tính; link đúng nhưng phiên không (còn) chia sẻ → 404 `session_not_shared`; quay lại danh sách hoạt động.
+- [x] Trang "Xem lại bài" của người đã thi hiện dòng thông báo khi phiên đang được chia sẻ.
+- [x] Màn chiếu, bảng xếp hạng, mã phòng (§7.16, §7.29b) không đổi.
 
 ## Test
 - Domain: `domain/sharing/*.test.ts` (điều kiện bật, `distribution` null khi 0 bài nộp / tự luận, dựng DTO không có key cấm).
@@ -48,3 +47,9 @@ Contract: `architecture.md` §2 (`sessions.shared_at`, `app_meta.share_token`), 
 - Link chuyền tay được; ai có link thấy cả phiên chia sẻ về sau; không thu hồi theo từng người (§7.33).
 - Không có giới hạn số lần thử token (token 32 byte không đoán được).
 - Chưa làm: bảng điểm trên trang chia sẻ, nhãn công khai, link riêng từng phiên, giới hạn theo email nhóm.
+
+## Lệch so với bản thiết kế (khi implement)
+- Nút "Danh sách phiên" vẫn là `Button` gọi điều hướng (quay lại bằng lịch sử trình duyệt nếu đến từ danh sách, nếu không thì về danh sách và focus dòng phiên); chưa thêm prop `href` cho `Button`.
+- Điện thoại: mục lục là một khối mở/đóng ngay trên danh sách câu, chưa phải sheet có bẫy focus.
+- Hàng "Link chia sẻ" chỉ hiện khi đã có phiên trong Lịch sử.
+- Ảnh chụp: `docs/design/S31-assets/` (chạy `e2e/s31-shared-sessions.spec.ts`).

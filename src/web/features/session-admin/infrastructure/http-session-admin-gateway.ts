@@ -1,4 +1,4 @@
-import type { ExamSummary, GroupSummary, NetworkInfo, LeaderboardResponse, ParticipantReview, ScoreVisibility, SessionDetail, SessionSummary } from '../../../../shared/api/index.js';
+import type { ExamSummary, GroupSummary, NetworkInfo, LeaderboardResponse, ParticipantReview, ScoreVisibility, SessionDetail, SessionSummary, ShareLinkInfo } from '../../../../shared/api/index.js';
 import type { SessionAction } from '../../../../shared/session-state.js';
 import type { HttpClient } from '../../../shared/api-client/http-client.js';
 import type { NewSession, SessionAdminGateway } from '../application/session-admin-gateway.js';
@@ -32,5 +32,8 @@ export class HttpSessionAdminGateway implements SessionAdminGateway {
   async allowRejoin(participantId: number): Promise<number> { return (await this.http.post<{ until: number }>(`/api/admin/participants/${participantId}/allow-rejoin`)).until; }
   getParticipantReview(id: number): Promise<ParticipantReview> { return this.http.get<ParticipantReview>(`/api/admin/participants/${id}/review`); }
   getLeaderboard(sessionId: number): Promise<LeaderboardResponse> { return this.http.get<LeaderboardResponse>(`/api/sessions/${sessionId}/leaderboard`); }
+  async setShared(id: number, shared: boolean): Promise<number | null> { return (await this.http.put<{ sharedAt: number | null }>(`/api/admin/sessions/${id}/share`, { shared })).sharedAt; }
+  getShareLink(): Promise<ShareLinkInfo> { return this.http.get<ShareLinkInfo>('/api/admin/share-link'); }
+  rotateShareLink(): Promise<ShareLinkInfo> { return this.http.post<ShareLinkInfo>('/api/admin/share-link/rotate'); }
   async getJoinHosts(): Promise<string[]> { return (await this.http.get<NetworkInfo>('/api/network')).joinHosts; }
 }
