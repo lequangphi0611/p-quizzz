@@ -98,7 +98,7 @@ Mọi body/response là JSON. Lỗi: `{ error: string, code?: string }` (tiếng
 | POST | `/sessions/:id/cancel-countdown` | Huỷ đếm ngược, đồng thời **tắt** `auto_start_ready` (§7.31c). Không có đếm ngược → 409. Phát `session` |
 | PUT | `/sessions/:id/auto-start` | `{ enabled, minParticipants }` (1–500): "Tự bắt đầu khi mọi người sẵn sàng" (§7.31e). Chỉ ở `draft`/`lobby`. Phát `session` |
 | POST | `/sessions/:id/release-scores` | "Công bố điểm": ghi `scores_released_at`. 409 nếu phiên không đang giữ điểm. Phát `session` + `leaderboard` |
-| PUT | `/sessions/:id/share` | `{ shared: boolean }` (PRODUCT.md §7.33): bật/tắt chia sẻ. Bật chỉ khi `closed`/`finalized` (khác → 409); bật lại khi đang bật giữ nguyên `shared_at`; tắt luôn được. → `{ sharedAt: number \| null }`. `SessionSummary` và chi tiết có `sharedAt`; chi tiết có thêm `share: { examUnfinishedSessions: number }` = số phiên khác của cùng đề đang `draft`/`lobby`/`running` (cho cảnh báo) |
+| PUT | `/sessions/:id/share` | `{ shared: boolean }` (PRODUCT.md §7.33): bật/tắt chia sẻ. Bật chỉ khi `closed`/`finalized` (khác → 409); bật lại khi đang bật giữ nguyên `shared_at`; tắt luôn được. → `{ sharedAt: number \| null }`. `SessionSummary` và chi tiết có `sharedAt`; chi tiết có thêm `share: { examUnfinishedSessions: number, submitted: number }` = số phiên khác của cùng đề đang `draft`/`lobby`/`running` (cảnh báo mạnh + ô xác nhận) và số bài nộp được tính (cảnh báo khi < 5) |
 | GET | `/share-link` | `{ token, sharedCount }`: token của trang chia sẻ (sinh nếu chưa có), số phiên đang chia sẻ. Web dựng URL `/shared/<token>` theo địa chỉ LAN (`/api/network`) |
 | POST | `/share-link/rotate` | "Đổi link": thay `share_token` → `{ token }`. Token cũ hết hiệu lực ngay |
 | PATCH | `/participants/:id` | `{ displayName }` đổi tên |
@@ -130,7 +130,7 @@ Mọi body/response là JSON. Lỗi: `{ error: string, code?: string }` (tiếng
 | GET | `/api/sessions/:id/participants` | — | Chỉ `{ displayName }[]` của participant `active` (cho màn hình chiếu) |
 | GET | `/api/sessions/:id/leaderboard` | — | Xem §6 |
 | GET | `/api/shared/:token/sessions` | token chia sẻ | Trang chia sẻ (PRODUCT.md §7.33): `{ sessions: { id, examTitle, startedAt, questionCount }[] }` của các phiên có `shared_at`, `started_at` mới nhất trước. Token sai/đã đổi → 404 `{ error, code: 'share_link_invalid' }` (một thông báo trung tính). So token hằng-thời-gian |
-| GET | `/api/shared/:token/sessions/:id` | token chia sẻ | `{ id, examTitle, startedAt, questionCount, submitted, questions: SharedQuestion[] }` theo `position`. `SharedQuestion = { id, position, type, prompt, body, points, explanation, options: { id, position, text, isCorrect }[], distribution: { counts: Record<optionId, number>, blank: number } \| null }`; `distribution` (đếm trên attempt được tính, như thảo luận) là `null` với tự luận và khi `submitted < 3`. Token sai → như trên; phiên không có `shared_at` (hoặc không tồn tại) → 404 `{ error, code: 'session_not_shared' }` |
+| GET | `/api/shared/:token/sessions/:id` | token chia sẻ | `{ id, examTitle, startedAt, questionCount, submitted, questions: SharedQuestion[] }` theo `position`. `SharedQuestion = { id, position, type, prompt, body, points, explanation, options: { id, position, text, isCorrect }[], distribution: { counts: Record<optionId, number>, blank: number } \| null }`; `distribution` (đếm trên attempt được tính, như thảo luận) là `null` với tự luận và khi `submitted = 0`; **không có ngưỡng ẩn** (PO, 2026-11-19). Token sai → như trên; phiên không có `shared_at` (hoặc không tồn tại) → 404 `{ error, code: 'session_not_shared' }` |
 | GET | `/api/sessions/:id/events` | — | SSE, xem §7 |
 | GET | `/api/me` | participant | participant (kèm `ready`, `lateJoin` = phiên đã chạy mà người này không có mặt lúc bắt đầu, §7.31f) + session (`start: SessionStartInfo \| null` = giờ hẹn, đếm ngược, `early`, `ready { count, total }`, chỉ có trước khi chạy; chỉ con số, không bao giờ tên ai sẵn sàng/chờ duyệt; cũng có trong `ActiveSession` của màn chiếu và tra mã phòng; mentor thấy thêm `pendingCount`, `startScheduleDroppedAt`, `readyAt` từng người), id, title, status, `participantCount` = số người `active`, `questionCount`, `totalPoints`, `hasEssay`, `scoresHidden`, `timer`, `closedByTimer` = phiên đóng lúc/sau mốc hết giờ chứ không phải mentor đóng sớm, so `closed_at` với `ends_at` trên server) + `attempt: { current, submitted[], canStartNew }` (lượt đang làm, lượt đã nộp với điểm tự động `score/maxScore` và `essayScore` = tổng điểm tự luận đã chấm hoặc `null`, `canStartNew` = chưa có lượt nào và phiên đang `running`). Khi `scoresHidden`: `score` và `essayScore` là `null` (cả trong response của `submit`) |
 | PUT | `/api/me/ready` | participant | `{ ready: boolean }`: "Sẵn sàng"/"Huỷ sẵn sàng" (§7.31d). Chỉ ở `lobby`, participant `active`, khi chưa đếm ngược; ngược lại 409. Phát `participants` |
@@ -173,7 +173,7 @@ Hàm thuần trong `src/shared/scoring.ts`:
 | Route | Ai | Màn hình |
 |---|---|---|
 | `/` | member | Nhập mã phòng (hoặc mở link `/?room=…`) → nhập tên → phòng chờ → làm bài → kết quả/xếp hạng → xem lại |
-| `/shared/:token` · `/shared/:token/sessions/:sessionId` | ai có link | Trang chia sẻ: danh sách phiên được chia sẻ · chi tiết một phiên (PRODUCT.md §7.33, S31) |
+| `/shared/:token` · `/shared/:token/sessions/:sessionId` | ai có link | Trang chia sẻ: danh sách phiên được chia sẻ · chi tiết một phiên, `#cau-<n>` nhảy tới câu (PRODUCT.md §7.33, S31) |
 | `/screen` | máy chiếu (máy mentor) | Chỉ có một phiên mở → chuyển sang nó; nhiều phiên → trang chọn phiên; không có phiên mở → phiên vừa kết thúc |
 | `/screen/:sessionId` | máy chiếu | Màn hình chiếu của **một** phiên (công khai trong LAN; chỉ hiện tên đề) |
 | `/admin/login` | mentor | Setup lần đầu / đăng nhập |
@@ -398,7 +398,7 @@ Gợi ý chấm tự luận bằng cách gọi Claude CLI trên máy mentor. UI 
 
 ### 11.7 Module `sharing` (S31, PRODUCT.md §7.33)
 
-- **Domain** `domain/sharing/` (thuần): `assertCanShare(status)` (`closed`/`finalized`), `MIN_SUBMISSIONS_FOR_DISTRIBUTION = 3`, dựng `SharedQuestion` từ câu hỏi + số đếm (chỉ trường đã liệt kê ở §5).
+- **Domain** `domain/sharing/` (thuần): `assertCanShare(status)` (`closed`/`finalized`), `SMALL_CLASS_WARNING = 5` (chỉ để web cảnh báo mentor, không ẩn dữ liệu), dựng `SharedQuestion` từ câu hỏi + số đếm (chỉ trường đã liệt kê ở §5).
 - **Port** `ShareTokenStore` (`get(): Promise<string \| null>`, `set(token)`), adapter trên `app_meta`; sinh token qua port ngẫu nhiên sẵn có (như token participant).
 - **Use case** `application/use-cases/sharing/`: `SetSessionShared`, `GetShareLink`, `RotateShareLink`, `ListSharedSessions`, `GetSharedSession`. Đếm lựa chọn dùng lại port đọc của thảo luận (§11.5) nếu đủ, không thì thêm một port đọc riêng; **không** đọc tên hay bài làm.
 - **Route** `interface/http/admin-share-routes.ts` (trong `/api/admin`) và `shared-routes.ts` (công khai). Không phát event SSE (trang chia sẻ không cần realtime).
