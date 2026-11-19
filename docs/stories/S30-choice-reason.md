@@ -33,7 +33,7 @@ Phương án B trong báo cáo làm rõ yêu cầu: lý do **không tính điể
 - `features/member-exam`: ô lý do dưới danh sách đáp án ở câu `requireReason`, nhãn "Lý do (bắt buộc, không tính điểm)", đếm ký tự /200, autosave như tự luận. Danh sách câu báo riêng "thiếu lý do" (khác "chưa trả lời"). Bấm nộp còn thiếu → hộp thoại liệt kê các câu, bấm vào nhảy tới câu. Dùng tốt trên laptop và điện thoại (S18).
 - Trang "Xem lại bài": hiện lý do của mình dưới lựa chọn.
 - Trang xem lại phiên của mentor: hiện lý do cạnh lựa chọn từng người.
-- `features/discussion`: khối "Lý do của lớp" mặc định ẩn, nút + phím tắt riêng (không dùng chung nút hiện đáp án), nhóm theo phương án (nhóm hiện theo nhãn phương án như phân bố lựa chọn đang hiện), không tên. Đổi câu thì khối ẩn lại. **Cần designer** cho khối này (màn chiếu cả phòng nhìn, nhiều lý do, không có lý do nào).
+- `features/discussion`: khối "Lý do của lớp" mặc định ẩn, nút + phím tắt riêng (không dùng chung nút hiện đáp án), nhóm theo phương án (nhóm hiện theo nhãn phương án như phân bố lựa chọn đang hiện), không tên. Đổi câu thì khối ẩn lại. **Cần designer** cho khối này: prompt ở [S30-reason-ui-prompt.md](../design/S30-reason-ui-prompt.md); phím tắt đề xuất `R`.
 
 ## Acceptance criteria
 - [ ] `{reason}` trên câu single/multi import được; trên câu tự luận báo lỗi có số dòng; đề không có `{reason}` chạy như cũ.
