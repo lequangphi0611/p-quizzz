@@ -57,7 +57,7 @@ Thông tin mới từ designer, **chưa kiểm chứng**: máy do công ty quả
 
 ## 4. Phản biện của designer: PO đã quyết hay còn chờ
 
-1. **Output của công cụ Read chính là nội dung file** (kể cả `.env`). Designer đề xuất không lưu output của Read, chỉ lưu tên file + số dòng; màn đồng ý đang viết theo đề xuất này. → **Chờ PO quyết.** Nếu đồng ý thì sửa §7.34(c) và `filterHookEvent` (§11.8).
+1. **Output của công cụ Read chính là nội dung file** (kể cả `.env`). Designer đề xuất không lưu output của Read, chỉ lưu tên file + số dòng; màn đồng ý đang viết theo đề xuất này. → **PO đồng ý (2026-11-20)**: đã sửa §7.34(c), `filterHookEvent` (§11.8) và S33.
 2. **"Không gửi việc làm ngoài thư mục bài tập" là không chính xác**: Claude mở trong thư mục bài tập vẫn có thể chạy lệnh đụng chỗ khác (ví dụ `cat ~/.ssh/...`), và lệnh đó vẫn bị gửi. Câu đúng là "phiên Claude Code mở ở thư mục khác thì không gửi", kèm một dòng lưu ý. → Đã sửa §7.34(i) (2026-11-20).
 3. **"Đã gỡ" chỉ là tự khai báo có kiểm tra, không phải bằng chứng**: không nhận được gì cũng xảy ra khi học viên quên gõ prompt hoặc máy mất mạng. → Đã ghi vào giới hạn đã biết §7.34(i).
 4. **Mentor vẫn suy ra được số người từ chối** (lớp 20 người mà bảng có 17), chỉ không biết là ai. → Đã ghi vào giới hạn đã biết §7.34(i).

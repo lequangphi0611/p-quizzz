@@ -18,7 +18,7 @@ Contract: `architecture.md` §5 (`POST /api/training/ingest`, `uninstall-check`,
   - `GetMyTraining` trả `connection` và `uninstallCheck` thật.
 
 ## Acceptance criteria
-- [ ] Với các payload thật trong spike: `UserPromptSubmit` lưu đúng `prompt`; `PostToolUse` Bash lưu `toolTarget` = câu lệnh, `ok = true`, `durationMs`, output đã `clip`; `PostToolUseFailure` lưu `ok = false`, `errorExcerpt`; `Write`/`Edit` lưu `toolTarget` là đường dẫn tương đối và `change`; `Stop` không lưu gì.
+- [ ] Với các payload thật trong spike: `UserPromptSubmit` lưu đúng `prompt`; `PostToolUse` Bash lưu `toolTarget` = câu lệnh, `ok = true`, `durationMs`, output đã `clip`; `PostToolUseFailure` lưu `ok = false`, `errorExcerpt`; `Write`/`Edit` lưu `toolTarget` là đường dẫn tương đối và `change`; `Read` lưu `toolTarget` = đường dẫn tương đối + số dòng, **không có output** (test quét: nội dung file không nằm ở cột nào); `Stop` không lưu gì.
 - [ ] Không cột nào chứa `transcript_path`, `cwd`, đường dẫn tuyệt đối, `last_assistant_message` (test quét bản ghi).
 - [ ] Output 10 000 dòng → lưu 200 dòng đầu + 200 dòng cuối, `omittedLines = 9 600`; mỗi phần ≤ 32 KB.
 - [ ] Body > 2 MB → 413; JSON sai dạng → 204, không lưu, không 500.
@@ -29,7 +29,7 @@ Contract: `architecture.md` §5 (`POST /api/training/ingest`, `uninstall-check`,
 - [ ] Ingest không gọi mạng, chỉ một lần ghi DB (đo trong test tích hợp: < 50 ms trên DB `:memory:` cho payload 1 MB).
 
 ## Test
-- Domain: `filterHookEvent.test.ts` (fixture = payload thật của spike, đặt trong `domain/training/fixtures/`), `clip.test.ts`, `connection-state.test.ts`.
+- Domain: `filterHookEvent.test.ts` (fixture = payload thật của spike, đặt trong `domain/training/fixtures/`; spike chưa ghi payload của `Read`, cần ghi một mẫu thật trước khi viết test), `clip.test.ts`, `connection-state.test.ts`.
 - Use case: ingest với fake repo + fake clock (`open`/`stopped`/token lạ); kiểm tra gỡ.
 - Tích hợp HTTP: `test/integration/training-ingest.test.ts` (204/200/404/413, quét bản ghi, bộ gộp SSE).
 
