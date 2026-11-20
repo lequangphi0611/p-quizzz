@@ -25,3 +25,10 @@ export class TrainingNotJoinedError extends DomainError {
     super('unauthenticated', 'Bạn chưa vào buổi training');
   }
 }
+
+/** The removal check was asked for its verdict before the quiet period was over. */
+export class TrainingCheckTooEarlyError extends DomainError {
+  constructor() {
+    super('conflict', 'Chờ thêm vài giây rồi bấm kiểm tra lại', 'too_early');
+  }
+}

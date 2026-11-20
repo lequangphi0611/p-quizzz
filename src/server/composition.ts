@@ -90,9 +90,12 @@ import { GetSharedSession, ListSharedSessions } from './application/use-cases/sh
 import { DrizzleShareTokenStore } from './infrastructure/db/drizzle-share-token-store.js';
 import type { TrainingUnitContext } from './application/ports/training-repository.js';
 import { CreateTraining, EndTraining, GetTrainingDetail, ListTrainings, RemoveTrainingMember, StopTraining } from './application/use-cases/training/admin.js';
-import { GetHookConfig, GetMyTraining, JoinTraining, ResumeTrainingMember, WithdrawTrainingConsent } from './application/use-cases/training/member.js';
+import { FinishUninstallCheck, GetHookConfig, GetMyTraining, JoinTraining, ResumeTrainingMember, StartUninstallCheck, WithdrawTrainingConsent } from './application/use-cases/training/member.js';
 import { ResolveAnyRoom } from './application/use-cases/training/resolve-any-room.js';
+import { DrizzleTrainingEventRepository } from './infrastructure/db/drizzle-training-event-repository.js';
 import { DrizzleTrainingMemberRepository, DrizzleTrainingRepository } from './infrastructure/db/drizzle-training-repository.js';
+import { ThrottledTrainingSignals } from './infrastructure/events/throttled-training-signals.js';
+import { IngestHookEvent } from './application/use-cases/training/ingest.js';
 import { BusTrainingSignals } from './infrastructure/events/bus-training-signals.js';
 import type { TrainingUseCases } from './interface/http/training-routes.js';
 
@@ -228,9 +231,12 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}, aiOptions:
   const trainingMemberReader = new DrizzleTrainingMemberRepository(fn => database.read(fn));
   const trainingUnitOfWork = new SqliteUnitOfWork<TrainingUnitContext>(database, tx => {
     const access = async <T>(fn: (db: Db) => T) => fn(tx);
-    return { trainings: new DrizzleTrainingRepository(access), members: new DrizzleTrainingMemberRepository(access) };
+    return { trainings: new DrizzleTrainingRepository(access), members: new DrizzleTrainingMemberRepository(access), events: new DrizzleTrainingEventRepository(access) };
   });
-  const trainingDeps = { unitOfWork: trainingUnitOfWork, clock: ports.clock, signals: new BusTrainingSignals(bus) };
+  const trainingSignals = new BusTrainingSignals(bus);
+  const trainingDeps = { unitOfWork: trainingUnitOfWork, clock: ports.clock, signals: trainingSignals };
+  // Ingest is dense (every prompt and tool call): the mentor's screen is refreshed at most every 2 s per training. Other changes are rare and go out at once.
+  const ingestSignals = new ThrottledTrainingSignals(trainingSignals);
 
   const lifecycle = { unitOfWork: sessionUnitOfWork, sessions: sessionReader, clock: ports.clock, random: ports.random, events: ports.events, modes: defaultSessionModes() };
 
@@ -274,6 +280,9 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}, aiOptions:
       me: new GetMyTraining(),
       hookConfig: new GetHookConfig(),
       withdraw: new WithdrawTrainingConsent(trainingDeps),
+      startUninstallCheck: new StartUninstallCheck(trainingDeps),
+      finishUninstallCheck: new FinishUninstallCheck(trainingDeps),
+      ingest: new IngestHookEvent({ ...trainingDeps, members: trainingMemberReader, trainings: trainingReader, signals: ingestSignals }),
     },
     attempts: {
       start: new StartAttempt({ unitOfWork: attemptUnitOfWork, clock: ports.clock, random: ports.random, events: ports.events }),

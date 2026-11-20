@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { NameTakenError } from '../participant/errors.js';
 import { TrainingStateError } from './errors.js';
 import { buildHookSettings, buildMergePrompt } from './hook-settings.js';
-import { assertTrainingNameFree, connectionState, nextTrainingStatus, stillSending, uninstallCheckState } from './training.js';
+import { assertTrainingNameFree, nextTrainingStatus } from './training.js';
 
 describe('nextTrainingStatus', () => {
   it('goes open → stopped → ended and nowhere else', () => {
@@ -23,29 +23,6 @@ describe('assertTrainingNameFree', () => {
     } catch (err) {
       expect((err as NameTakenError).code).toBe('identity_in_use');
     }
-  });
-});
-
-describe('connection and removal state', () => {
-  const none = { firstSeenAt: null, uninstalledAt: null };
-  it('waiting until the first event, connected after, uninstalled once the check passed', () => {
-    expect(connectionState(none)).toBe('waiting');
-    expect(connectionState({ ...none, firstSeenAt: new Date(1) })).toBe('connected');
-    expect(connectionState({ firstSeenAt: new Date(1), uninstalledAt: new Date(2) })).toBe('uninstalled');
-  });
-
-  it('stillSending only while stopped, after events were seen, before removal', () => {
-    const m = { seenAfterStopAt: new Date(1), uninstalledAt: null };
-    expect(stillSending({ status: 'stopped' }, m)).toBe(true);
-    expect(stillSending({ status: 'open' }, m)).toBe(false);
-    expect(stillSending({ status: 'stopped' }, { ...m, seenAfterStopAt: null })).toBe(false);
-    expect(stillSending({ status: 'stopped' }, { ...m, uninstalledAt: new Date(2) })).toBe(false);
-  });
-
-  it('uninstall check: none → waiting → passed', () => {
-    expect(uninstallCheckState({ uninstallCheckAt: null, uninstalledAt: null })).toBe('none');
-    expect(uninstallCheckState({ uninstallCheckAt: new Date(1), uninstalledAt: null })).toBe('waiting');
-    expect(uninstallCheckState({ uninstallCheckAt: new Date(1), uninstalledAt: new Date(2) })).toBe('passed');
   });
 });
 

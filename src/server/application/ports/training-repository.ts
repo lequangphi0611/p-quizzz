@@ -1,4 +1,5 @@
 import type { Training, TrainingMember } from '../../domain/training/training.js';
+import type { TrainingEventRepository } from './training-event-repository.js';
 
 export interface NewTraining {
   name: string;
@@ -42,6 +43,8 @@ export interface TrainingRepository {
 export interface TrainingMemberReader {
   findById(id: number): Promise<TrainingMember | null>;
   findByToken(token: string): Promise<TrainingMember | null>;
+  /** The token that sits in the hook config on the member's machine (unique index: one lookup per hook call). */
+  findByIngestToken(token: string): Promise<TrainingMember | null>;
   listByTraining(trainingId: number): Promise<TrainingMember[]>;
 }
 
@@ -53,9 +56,17 @@ export interface TrainingMemberRepository extends TrainingMemberReader {
   /** Deletes every member of the training (and their events); returns how many there were. */
   deleteByTraining(trainingId: number): Promise<number>;
   count(trainingId: number): Promise<number>;
+  /** An event arrived while open: `first_seen_at` is set once, `last_seen_at` moves. */
+  recordSeen(id: number, at: Date): Promise<void>;
+  /** An event arrived after "Dừng thu": the hook is still installed. */
+  recordSeenAfterStop(id: number, at: Date): Promise<void>;
+  /** The member began the removal check (asking again starts over). */
+  startUninstallCheck(id: number, at: Date): Promise<void>;
+  finishUninstall(id: number, at: Date): Promise<void>;
 }
 
 export interface TrainingUnitContext {
   trainings: TrainingRepository;
   members: TrainingMemberRepository;
+  events: TrainingEventRepository;
 }

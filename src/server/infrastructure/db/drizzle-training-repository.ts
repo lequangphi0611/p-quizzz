@@ -62,6 +62,11 @@ export class DrizzleTrainingMemberRepository implements TrainingMemberRepository
     return (await this.access(db => db.select().from(trainingMembers).where(eq(trainingMembers.token, token)).get())) ?? null;
   }
 
+  async findByIngestToken(token: string): Promise<TrainingMember | null> {
+    if (!token) return null;
+    return (await this.access(db => db.select().from(trainingMembers).where(eq(trainingMembers.ingestToken, token)).get())) ?? null;
+  }
+
   listByTraining(trainingId: number): Promise<TrainingMember[]> {
     return this.access(db => db.select().from(trainingMembers).where(eq(trainingMembers.trainingId, trainingId)).orderBy(trainingMembers.id).all());
   }
@@ -85,5 +90,23 @@ export class DrizzleTrainingMemberRepository implements TrainingMemberRepository
 
   count(trainingId: number): Promise<number> {
     return this.access(db => db.select({ n: sql<number>`count(*)` }).from(trainingMembers).where(eq(trainingMembers.trainingId, trainingId)).get()!.n);
+  }
+
+  async recordSeen(id: number, at: Date): Promise<void> {
+    await this.access(db =>
+      db.update(trainingMembers).set({ firstSeenAt: sql`coalesce(${trainingMembers.firstSeenAt}, ${at.getTime()})`, lastSeenAt: at }).where(eq(trainingMembers.id, id)).run(),
+    );
+  }
+
+  async recordSeenAfterStop(id: number, at: Date): Promise<void> {
+    await this.access(db => db.update(trainingMembers).set({ seenAfterStopAt: at }).where(eq(trainingMembers.id, id)).run());
+  }
+
+  async startUninstallCheck(id: number, at: Date): Promise<void> {
+    await this.access(db => db.update(trainingMembers).set({ uninstallCheckAt: at }).where(eq(trainingMembers.id, id)).run());
+  }
+
+  async finishUninstall(id: number, at: Date): Promise<void> {
+    await this.access(db => db.update(trainingMembers).set({ uninstalledAt: at }).where(eq(trainingMembers.id, id)).run());
   }
 }

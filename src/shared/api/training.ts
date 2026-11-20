@@ -105,3 +105,15 @@ export interface HookEntry {
   matcher?: string;
   hooks: { type: 'http'; url: string; headers: Record<string, string>; timeout: number }[];
 }
+
+/** What the member's removal check came to (POST /api/training/me/uninstall-check/finish). */
+export interface UninstallCheckResult {
+  result: 'passed' | 'failed';
+}
+
+/** A long text kept as its first and last lines; `omittedLines` were dropped from the middle. */
+export interface Clip {
+  head: string;
+  tail: string | null;
+  omittedLines: number;
+}

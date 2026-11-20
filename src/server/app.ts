@@ -23,7 +23,7 @@ import { joinRoutes, participantsAdminRoutes, publicParticipantsRoutes, rosterCo
 import { publicSessionsRoutes, sessionsRoutes } from './interface/http/sessions-routes.js';
 import { registerLeakGuard } from './interface/http/leak-guard.js';
 import { sharedPublicRoutes, sharingAdminRoutes } from './interface/http/sharing-routes.js';
-import { trainingAdminRoutes, trainingMemberRoutes } from './interface/http/training-routes.js';
+import { trainingAdminRoutes, trainingIngestRoute, trainingMemberRoutes } from './interface/http/training-routes.js';
 
 export interface AppOptions {
   db: Db;
@@ -64,6 +64,7 @@ export async function buildApp({ db, composition = compose(db), serveWeb = false
   await app.register(rejoinPublicRoutes(composition.rejoin, { join: limiter, requests: createJoinLimiter({ max: 8 }) }));
   await app.register(joinRoutes(composition.participants), { limiter });
   await app.register(trainingMemberRoutes(composition.training), { limiter });
+  await app.register(trainingIngestRoute(composition.training));
   await app.register(screenRoutes(composition.screen));
   await app.register(publicParticipantsRoutes(composition.participants));
   await app.register(rosterCountsRoutes(composition.participants));

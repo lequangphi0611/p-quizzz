@@ -1,9 +1,9 @@
 import { WrongRoomCodeError } from '../../../domain/participant/errors.js';
 import { TrainingNotJoinedError, TrainingStateError } from '../../../domain/training/errors.js';
 import { buildHookSettings, buildMergePrompt } from '../../../domain/training/hook-settings.js';
-import { assertTrainingNameFree, connectionState, uninstallCheckState, type Training, type TrainingMember } from '../../../domain/training/training.js';
+import { assertTrainingNameFree, connectionState, uninstallCheckState, uninstallCheckVerdict, type Training, type TrainingMember } from '../../../domain/training/training.js';
 import { roomCodeMatches } from '../../../domain/session/room-code.js';
-import type { HookConfig } from '../../../../shared/api/training.js';
+import type { HookConfig, UninstallCheckResult } from '../../../../shared/api/training.js';
 import type { Clock } from '../../ports/clock.js';
 import type { TokenGenerator } from '../../ports/token-generator.js';
 import type { TrainingMemberReader, TrainingReader, TrainingUnitContext } from '../../ports/training-repository.js';
@@ -75,5 +75,31 @@ export class WithdrawTrainingConsent {
   async execute({ member, training }: TrainingMemberContext): Promise<void> {
     await this.deps.unitOfWork.run(({ members }) => members.delete(member.id));
     await this.deps.signals.signal(training.id);
+  }
+}
+
+/** The member says they removed the hook: from now on any event that still arrives proves they did not. Only once stopped. */
+export class StartUninstallCheck {
+  constructor(private readonly deps: { unitOfWork: UnitOfWork<TrainingUnitContext>; clock: Clock }) {}
+
+  async execute({ member, training }: TrainingMemberContext): Promise<void> {
+    if (training.status !== 'stopped') throw new TrainingStateError('Chỉ kiểm tra gỡ được sau khi mentor dừng thu');
+    await this.deps.unitOfWork.run(({ members }) => members.startUninstallCheck(member.id, this.deps.clock.now()));
+  }
+}
+
+/** The verdict: quiet since the check began → passed (and the mentor's board shows it), else failed. Asked too early → 409. */
+export class FinishUninstallCheck {
+  constructor(private readonly deps: { unitOfWork: UnitOfWork<TrainingUnitContext>; clock: Clock; signals: TrainingSignals }) {}
+
+  async execute({ member, training }: TrainingMemberContext): Promise<UninstallCheckResult> {
+    if (training.status !== 'stopped') throw new TrainingStateError('Chỉ kiểm tra gỡ được sau khi mentor dừng thu');
+    const now = this.deps.clock.now();
+    const result = uninstallCheckVerdict(member, now);
+    if (result === 'passed') {
+      await this.deps.unitOfWork.run(({ members }) => members.finishUninstall(member.id, now));
+      await this.deps.signals.signal(training.id);
+    }
+    return { result };
   }
 }

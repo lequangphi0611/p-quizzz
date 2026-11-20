@@ -69,6 +69,10 @@ export class InMemoryTrainingMemberRepository implements TrainingMemberRepositor
     return [...this.rows.values()].find(m => m.token === token) ?? null;
   }
 
+  async findByIngestToken(token: string) {
+    return [...this.rows.values()].find(m => m.ingestToken === token) ?? null;
+  }
+
   async listByTraining(trainingId: number) {
     return [...this.rows.values()].filter(m => m.trainingId === trainingId);
   }
@@ -93,6 +97,27 @@ export class InMemoryTrainingMemberRepository implements TrainingMemberRepositor
 
   async count(trainingId: number) {
     return this.countSync(trainingId);
+  }
+
+  private patch(id: number, change: Partial<TrainingMember>) {
+    const row = this.rows.get(id);
+    if (row) this.rows.set(id, { ...row, ...change });
+  }
+
+  async recordSeen(id: number, at: Date) {
+    this.patch(id, { firstSeenAt: this.rows.get(id)?.firstSeenAt ?? at, lastSeenAt: at });
+  }
+
+  async recordSeenAfterStop(id: number, at: Date) {
+    this.patch(id, { seenAfterStopAt: at });
+  }
+
+  async startUninstallCheck(id: number, at: Date) {
+    this.patch(id, { uninstallCheckAt: at });
+  }
+
+  async finishUninstall(id: number, at: Date) {
+    this.patch(id, { uninstalledAt: at });
   }
 
   countSync(trainingId: number) {

@@ -60,7 +60,7 @@ Mỗi story là một file tự đủ ngữ cảnh để một model/người im
 | [S30](S30-choice-reason.md) | Ô lý do cho câu trắc nghiệm (bắt buộc khi đánh dấu, không tính điểm) | S04, S11, S12, S16, S17, S18, S24, S25 | ✅ |
 | [S31](S31-shared-sessions.md) | Trang chia sẻ các phiên đã thi (một link chung, chỉ đề + lời giải + tỉ lệ chọn) | S16, S17, S18, S20 | ✅ |
 | [S32](S32-training-api.md) | Buổi training AI: tạo / dừng thu / kết thúc, member vào + đồng ý, cấu hình hook | S03, S20 | ✅ |
-| [S33](S33-training-ingest.md) | Nhận sự kiện hook (ingest), lọc + cắt output, trạng thái kết nối, kiểm tra gỡ | S32 | ⬜ |
+| [S33](S33-training-ingest.md) | Nhận sự kiện hook (ingest), lọc + cắt output, trạng thái kết nối, kiểm tra gỡ | S32 | ✅ |
 | [S34](S34-training-mentor-view-api.md) | API xem dữ liệu training cho mentor: dòng thời gian, output khi cần, cờ kẹt | S33 | ⬜ |
 | [S35](S35-training-mentor-ui.md) | UI mentor: buổi training AI | S34 | ⬜ |
 | [S36](S36-training-member-ui.md) | UI member: vào buổi training, đồng ý, cài và gỡ hook | S32, S33 | ⬜ |

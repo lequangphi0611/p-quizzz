@@ -6,6 +6,8 @@ export type SessionEventHandlers = Partial<Record<SessionEventType, () => void>>
 export interface AdminEventHandlers {
   onEvent(type: SessionEventType, sessionId: number): void;
   onResync(): void;
+  /** An AI training changed (PRODUCT.md §7.34): refetch it. Optional so a page that does not show trainings need not care. */
+  onTraining?(trainingId: number): void;
 }
 
 /**

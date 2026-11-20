@@ -1,9 +1,11 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { CreateTrainingBody, JoinTrainingBody, type HookConfig, type JoinTrainingResponse, type MyTraining, type TrainingDetail } from '../../../shared/api/training.js';
+import { CreateTrainingBody, JoinTrainingBody, type HookConfig, type JoinTrainingResponse, type MyTraining, type TrainingDetail, type UninstallCheckResult } from '../../../shared/api/training.js';
 import { WrongRoomCodeError } from '../../domain/participant/errors.js';
 import { TrainingMemberNotFoundError, TrainingNotFoundError } from '../../domain/training/errors.js';
 import type { CreateTraining, EndTraining, GetTrainingDetail, ListTrainings, RemoveTrainingMember, StopTraining } from '../../application/use-cases/training/admin.js';
-import type { GetHookConfig, GetMyTraining, JoinTraining, ResumeTrainingMember, WithdrawTrainingConsent } from '../../application/use-cases/training/member.js';
+import type { IngestHookEvent } from '../../application/use-cases/training/ingest.js';
+import type { FinishUninstallCheck, GetHookConfig, GetMyTraining, JoinTraining, ResumeTrainingMember, StartUninstallCheck, WithdrawTrainingConsent } from '../../application/use-cases/training/member.js';
+import { INGEST_HEADER, INGEST_PATH } from '../../domain/training/hook-settings.js';
 import { requireTrainingMember } from './auth/training-auth.js';
 import { sendDomainError } from './domain-errors.js';
 import { createJoinLimiter, type JoinLimiter } from './join-limiter.js';
@@ -22,6 +24,9 @@ export interface TrainingUseCases {
   me: GetMyTraining;
   hookConfig: GetHookConfig;
   withdraw: WithdrawTrainingConsent;
+  startUninstallCheck: StartUninstallCheck;
+  finishUninstallCheck: FinishUninstallCheck;
+  ingest: IngestHookEvent;
 }
 
 const badBody = (issue: { message: string } | undefined) => ({ error: issue?.message ?? 'Dữ liệu không hợp lệ' });
@@ -77,7 +82,7 @@ export const trainingAdminRoutes = (uc: Pick<TrainingUseCases, 'create' | 'list'
 
 // Member routes: public inside the LAN. Joining needs the room code (shared wrong-code limiter with sessions);
 // everything under /api/training/me needs the member token. Nothing here ever carries what was collected.
-export const trainingMemberRoutes = (uc: Pick<TrainingUseCases, 'join' | 'resume' | 'me' | 'hookConfig' | 'withdraw'>): FastifyPluginAsync<{ limiter?: JoinLimiter }> =>
+export const trainingMemberRoutes = (uc: Pick<TrainingUseCases, 'join' | 'resume' | 'me' | 'hookConfig' | 'withdraw' | 'startUninstallCheck' | 'finishUninstallCheck'>): FastifyPluginAsync<{ limiter?: JoinLimiter }> =>
   async (app, opts) => {
     const limiter = opts.limiter ?? createJoinLimiter();
 
@@ -116,9 +121,62 @@ export const trainingMemberRoutes = (uc: Pick<TrainingUseCases, 'join' | 'resume
         }
       });
 
+      scope.post('/api/training/me/uninstall-check', async (req, reply) => {
+        try {
+          await uc.startUninstallCheck.execute(req.trainingMember!);
+          return reply.code(204).send();
+        } catch (err) {
+          return sendDomainError(reply, err);
+        }
+      });
+
+      scope.post('/api/training/me/uninstall-check/finish', async (req, reply): Promise<UninstallCheckResult | undefined> => {
+        try {
+          return await uc.finishUninstallCheck.execute(req.trainingMember!);
+        } catch (err) {
+          return sendDomainError(reply, err);
+        }
+      });
+
       scope.delete('/api/training/me', async (req, reply) => {
         await uc.withdraw.execute(req.trainingMember!);
         return reply.code(204).send();
       });
+    });
+  };
+
+/** What a machine that still sends after "Dừng thu" is told (Claude Code may show it). Plain text: nothing collected is in it. */
+export const STOPPED_REMINDER =
+  'Buổi training AI đã dừng thu. Hãy xoá phần cấu hình hook mà buổi training thêm vào file .claude/settings.local.json của thư mục bài tập, để Claude Code không gửi gì nữa.';
+
+/** The hooks' bodies can be large (tool output): a bigger limit than the rest of the API, and never above this. */
+export const INGEST_BODY_LIMIT = 2 * 1024 * 1024;
+
+/**
+ * Where Claude Code's hooks land (`POST /api/training/ingest`, token in `X-Training-Token`). Answers fast and says as little as
+ * possible: it must never slow the member's Claude Code down or teach a stranger anything.
+ *  - unknown token → 404, empty body; our hooks or not, a good token → 204; a stopped training → 200 with a reminder;
+ *  - a body that is not valid JSON is not an error (204): a hook failing makes noise on the member's screen.
+ *  - body over 2 MB → 413 (Fastify).
+ * Own plugin scope so the lenient body parsing applies here only.
+ */
+export const trainingIngestRoute = (uc: Pick<TrainingUseCases, 'ingest'>): FastifyPluginAsync =>
+  async app => {
+    app.removeAllContentTypeParsers();
+    app.addContentTypeParser('application/json', { parseAs: 'string', bodyLimit: INGEST_BODY_LIMIT }, (_req, body, done) => {
+      try {
+        done(null, JSON.parse(body as string));
+      } catch {
+        done(null, undefined);
+      }
+    });
+    app.addContentTypeParser('*', { parseAs: 'buffer', bodyLimit: INGEST_BODY_LIMIT }, (_req, _body, done) => done(null, undefined));
+
+    app.post(INGEST_PATH, { bodyLimit: INGEST_BODY_LIMIT }, async (req, reply) => {
+      const header = req.headers[INGEST_HEADER.toLowerCase()];
+      const result = await uc.ingest.execute(typeof header === 'string' ? header : undefined, req.body);
+      if (result === 'unknown') return reply.code(404).send();
+      if (result === 'stopped') return reply.code(200).send({ systemMessage: STOPPED_REMINDER });
+      return reply.code(204).send();
     });
   };

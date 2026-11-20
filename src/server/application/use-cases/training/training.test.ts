@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { NameTakenError, WrongRoomCodeError } from '../../../domain/participant/errors.js';
 import { TrainingMemberNotFoundError, TrainingNotFoundError, TrainingNotJoinedError, TrainingStateError } from '../../../domain/training/errors.js';
 import { FakeClock, FakeRandom, FakeTokenGenerator, RecordingTrainingSignals } from '../../testing/fakes.js';
+import { InMemoryTrainingEventRepository } from '../../testing/in-memory-training-event-repository.js';
 import { InMemoryTrainingMemberRepository, InMemoryTrainingRepository } from '../../testing/in-memory-training-repository.js';
 import { InMemoryUnitOfWork } from '../../testing/in-memory-unit-of-work.js';
 import { CreateTraining, EndTraining, GetTrainingDetail, ListTrainings, RemoveTrainingMember, StopTraining } from './admin.js';
@@ -10,11 +11,12 @@ import { ResolveAnyRoom } from './resolve-any-room.js';
 
 let members: InMemoryTrainingMemberRepository;
 let trainings: InMemoryTrainingRepository;
+let events: InMemoryTrainingEventRepository;
 let signals: RecordingTrainingSignals;
 let clock: FakeClock;
 
 function build(randoms = [111111, 222222]) {
-  const unitOfWork = new InMemoryUnitOfWork({ trainings, members }, [trainings, members]);
+  const unitOfWork = new InMemoryUnitOfWork({ trainings, members, events }, [trainings, members, events]);
   const deps = { unitOfWork, clock, signals };
   return {
     create: new CreateTraining({ ...deps, random: new FakeRandom(randoms) }),
@@ -34,6 +36,7 @@ function build(randoms = [111111, 222222]) {
 beforeEach(() => {
   members = new InMemoryTrainingMemberRepository();
   trainings = new InMemoryTrainingRepository(members);
+  events = new InMemoryTrainingEventRepository(members);
   signals = new RecordingTrainingSignals();
   clock = new FakeClock(1000);
 });
