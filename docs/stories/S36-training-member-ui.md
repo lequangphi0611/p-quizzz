@@ -1,6 +1,6 @@
 # S36 — UI member: vào buổi training, đồng ý, cài và gỡ hook
 
-**Phụ thuộc:** S32, S33 · **Trạng thái:** ⬜ chưa làm · **UI chờ bản thiết kế** ([prompt](../design/S35-S36-training-ui-prompt.md))
+**Phụ thuộc:** S32, S33 · **Trạng thái:** ⬜ chưa làm · **Thiết kế:** [bản thiết kế](https://claude.ai/artifact/4LDc4JsZ1p7W6jPYbxrpuR#page-dcb81aee8d83), [nhận xét + bản đồ màn hình](../design/S35-S36-training-ui-review.md), [prompt](../design/S35-S36-training-ui-prompt.md)
 
 ## Bối cảnh
 Member phải hiểu rõ mình đồng ý gửi gì, cài đúng chỗ (chỉ thư mục bài tập), biết chắc đã kết nối, và cuối buổi gỡ sạch. Member không xem được dữ liệu đã thu. Business: [PRODUCT.md §7.34](../PRODUCT.md) (b), (d), (g), (h); §1 (ngoại lệ "không cài đặt").
