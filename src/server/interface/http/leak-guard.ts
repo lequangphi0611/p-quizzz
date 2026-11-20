@@ -13,6 +13,11 @@ const EMAIL_KEY = /"(email|emails)"\s*:/;
 const AI_KEY = /"aiSuggestion"\s*:/;
 // The class's reasons on `{reason}` questions are mentor-only (PRODUCT.md §7.32e); a member only ever gets their own `reasonText`.
 const REASONS_KEY = /"reasons"\s*:/;
+// What an AI training collected (PRODUCT.md §7.34) is mentor-only: nothing under the member's /api/training* routes may carry it,
+// and the token that sits in the hook config on a member's machine never travels as a field (it appears only as a header value).
+const TRAINING_ROUTE = /^\/api\/trainings?\//;
+const TRAINING_KEY = /"(prompt|toolTarget|summary|output|change|events)"\s*:/;
+const INGEST_TOKEN_KEY = /"ingestToken"\s*:/;
 const REVIEW_ROUTE = '/api/me/attempts/:id/review';
 // The share page (PRODUCT.md §7.33) carries the key and explanations on purpose, and must never carry anything about one
 // person: no name, answer, reason, feedback or score. Nor the mentor-only fields of a session row (room code, slot, access,
@@ -31,10 +36,11 @@ export function registerLeakGuard(app: FastifyInstance): void {
     const leaksEmail = EMAIL_KEY.test(payload);
     const leaksAi = AI_KEY.test(payload);
     const leaksReasons = REASONS_KEY.test(payload);
-    if (!leaksKey && !leaksEmail && !leaksAi && !leaksReasons && !leaksPersonal) return payload;
+    const leaksTraining = (TRAINING_ROUTE.test(route) && TRAINING_KEY.test(payload)) || INGEST_TOKEN_KEY.test(payload);
+    if (!leaksKey && !leaksEmail && !leaksAi && !leaksReasons && !leaksPersonal && !leaksTraining) return payload;
 
     // Log what leaked where — never the payload itself.
-    req.log.error({ route, method: req.method }, leaksEmail ? 'blocked a response carrying an email' : leaksPersonal ? 'blocked a share-page response carrying personal data' : leaksAi ? 'blocked a response carrying an AI suggestion' : leaksReasons ? "blocked a response carrying the class's reasons" : 'blocked a response carrying the answer key');
+    req.log.error({ route, method: req.method }, leaksTraining ? 'blocked a response carrying AI training data' : leaksEmail ? 'blocked a response carrying an email' : leaksPersonal ? 'blocked a share-page response carrying personal data' : leaksAi ? 'blocked a response carrying an AI suggestion' : leaksReasons ? "blocked a response carrying the class's reasons" : 'blocked a response carrying the answer key');
     const body = JSON.stringify({ error: 'Lỗi máy chủ' });
     reply.code(500).header('content-length', Buffer.byteLength(body));
     return body;

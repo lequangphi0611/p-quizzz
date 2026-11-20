@@ -1,6 +1,6 @@
 # S32 — API buổi training AI: tạo, dừng thu, kết thúc, member vào và đồng ý
 
-**Phụ thuộc:** S03, S20 · **Trạng thái:** ⬜ chưa làm
+**Phụ thuộc:** S03, S20 · **Trạng thái:** ✅ xong
 
 ## Bối cảnh
 Khi dạy dùng Claude Code, mentor muốn biết member giao việc cho AI thế nào để góp ý đúng chỗ, thay vì đi kiểm tra từng máy. Story này dựng khung: buổi training, member vào bằng mã + tên + đồng ý, nhận cấu hình hook. Business: [PRODUCT.md §7.34](../PRODUCT.md), §7.16. Kết quả thử kỹ thuật: [spikes/claude-code-hooks.md](../spikes/claude-code-hooks.md).
@@ -22,14 +22,14 @@ Contract: `architecture.md` §2 (`trainings`, `training_members`, `training_even
 - **Không làm ở story này:** ingest (S33), dòng thời gian và chi tiết output (S34), mọi UI (S35, S36). Phát tín hiệu SSE `training` khi tạo, dừng, kết thúc, member vào/ra (bộ gộp ở S33).
 
 ## Acceptance criteria
-- [ ] Mentor tạo buổi → `open` kèm mã 6 chữ số không trùng mã của phiên thi đang mở nào; danh sách mới nhất trước.
-- [ ] `resolve` với mã của buổi `open` → `{ kind: 'training', id, title }`; mã phiên thi trả `kind: 'session'`; mã sai/buổi đã dừng → cùng lỗi 403 như cũ, tính vào giới hạn chung.
-- [ ] `join` thiếu `consent: true` → 400; mã sai → 403; trùng tên (không phân biệt hoa thường) → 409 `identity_in_use`; buổi không `open` → 403 trung tính.
-- [ ] `GET /api/training/me` chỉ trả trạng thái; quét key không có `prompt`, `toolTarget`, `summary`, `output`, `change`, `events`, `ingestToken`.
-- [ ] `hook-config`: đúng 3 hook (`UserPromptSubmit`, `PostToolUse`, `PostToolUseFailure`), `type: 'http'`, `timeout: 1`, header `X-Training-Token`, URL theo Host của request; không có `Stop`. Buổi không `open` → 409.
-- [ ] `stop`: `open` → `stopped`, mã phòng hết hiệu lực ngay; `end`: `stopped` → `ended`, xoá mọi member và sự kiện, giữ tên, thời gian, `memberCount`. Sai thứ tự → 409.
-- [ ] Rút đồng ý / mời ra xoá member và mọi sự kiện của họ; token cũ → 401.
-- [ ] `/api/admin/trainings*` từ máy khác trong LAN → 403 (như §4).
+- [x] Mentor tạo buổi → `open` kèm mã 6 chữ số không trùng mã của phiên thi đang mở nào; danh sách mới nhất trước.
+- [x] `resolve` với mã của buổi `open` → `{ kind: 'training', id, title }`; mã phiên thi trả `kind: 'session'`; mã sai/buổi đã dừng → cùng lỗi 403 như cũ, tính vào giới hạn chung.
+- [x] `join` thiếu `consent: true` → 400; mã sai → 403; trùng tên (không phân biệt hoa thường) → 409 `identity_in_use`; buổi không `open` → 403 trung tính.
+- [x] `GET /api/training/me` chỉ trả trạng thái; quét key không có `prompt`, `toolTarget`, `summary`, `output`, `change`, `events`, `ingestToken`.
+- [x] `hook-config`: đúng 3 hook (`UserPromptSubmit`, `PostToolUse`, `PostToolUseFailure`), `type: 'http'`, `timeout: 1`, header `X-Training-Token`, URL theo Host của request; không có `Stop`. Buổi không `open` → 409.
+- [x] `stop`: `open` → `stopped`, mã phòng hết hiệu lực ngay; `end`: `stopped` → `ended`, xoá mọi member và sự kiện, giữ tên, thời gian, `memberCount`. Sai thứ tự → 409.
+- [x] Rút đồng ý / mời ra xoá member và mọi sự kiện của họ; token cũ → 401.
+- [x] `/api/admin/trainings*` từ máy khác trong LAN → 403 (như §4).
 
 ## Test
 - Domain: `domain/training/*.test.ts` (chuyển trạng thái, `buildHookSettings`).
@@ -39,3 +39,10 @@ Contract: `architecture.md` §2 (`trainings`, `training_members`, `training_even
 ## Giới hạn đã biết / chưa làm
 - Không duyệt người vào (không có điểm, không có gì để gian lận); mentor mời ra được.
 - Không mở thu lại sau khi dừng.
+
+## Báo cáo hoàn thành (2026-11-20)
+- **Đã làm:** migration `0013` (3 bảng); `domain/training/` (`nextTrainingStatus`, `connectionState`, `stillSending`, `uninstallCheckState`, `buildHookSettings`, `buildMergePrompt`); cổng + Drizzle repo cho training/member; use case `training/{admin,member,resolve-any-room}.ts`; route `trainingAdminRoutes`, `trainingMemberRoutes`; `resolve` trả `kind`; mã phòng dùng chung không gian với phiên (`room-code-space.ts`); leak-guard quy tắc 5; tín hiệu SSE `training` trên kênh mentor khi tạo / dừng / kết thúc / vào / ra / mời ra / rút đồng ý.
+- **Chi tiết contract để ngỏ, đã chốt và ghi vào architecture.md §5, §7:** `POST /trainings` → 201; `stop`/`end` trả chi tiết buổi; `join` → 201; `:id` không tồn tại ở `join` → 403 trung tính; bus có kênh riêng cho tín hiệu training.
+- **Lệch / lưu ý:** `uninstallCheck` chỉ trả `none`/`waiting`/`passed`, `failed` thuộc S33 (cần `uninstall-check`). `promptCount`, `toolCount`, `failedCount`, `stuck` luôn 0/false cho tới S33–S34. `stillSending` đã tính từ `seen_after_stop_at` nhưng chưa có gì ghi cột đó (S33). Bộ gộp tín hiệu 2 giây là việc của S33.
+- **Web:** `POST /api/rooms/resolve` của phiên thi nay có thêm `kind: 'session'` (không phá luồng cũ). Màn nhập mã hiện chưa biết `kind: 'training'`: S36 làm.
+- **Chưa kiểm:** chưa chạy trên Claude Code thật (cần checklist máy thật trong spike §5, không ảnh hưởng story này).

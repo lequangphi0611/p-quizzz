@@ -49,4 +49,20 @@ describe('event bus', () => {
     expect(all).toHaveBeenCalledTimes(2);
     expect(bus.allListenerCount()).toBe(0);
   });
+
+  it('training signals have their own channel: session listeners never hear them', () => {
+    const bus = createEventBus();
+    const training = vi.fn(), session = vi.fn(), all = vi.fn();
+    const off = bus.subscribeTraining(training);
+    bus.subscribe(1, session);
+    bus.subscribeAll(all);
+    bus.publishTraining(1);
+    expect(training).toHaveBeenCalledWith(1);
+    expect(session).not.toHaveBeenCalled();
+    expect(all).not.toHaveBeenCalled();
+    off();
+    bus.publishTraining(1);
+    expect(training).toHaveBeenCalledTimes(1);
+    expect(bus.trainingListenerCount()).toBe(0);
+  });
 });

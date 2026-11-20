@@ -23,6 +23,7 @@ import { joinRoutes, participantsAdminRoutes, publicParticipantsRoutes, rosterCo
 import { publicSessionsRoutes, sessionsRoutes } from './interface/http/sessions-routes.js';
 import { registerLeakGuard } from './interface/http/leak-guard.js';
 import { sharedPublicRoutes, sharingAdminRoutes } from './interface/http/sharing-routes.js';
+import { trainingAdminRoutes, trainingMemberRoutes } from './interface/http/training-routes.js';
 
 export interface AppOptions {
   db: Db;
@@ -44,7 +45,7 @@ export interface AppOptions {
 export async function buildApp({ db, composition = compose(db), serveWeb = false, logger = false, allowRemoteAdmin = false, lanIps, joinLimiter, adminRoutes: extraAdminRoutes = [] }: AppOptions) {
   // One counter for wrong room codes at `resolve` and at `join`: the code must not be guessable through either.
   const limiter = joinLimiter ?? createJoinLimiter();
-  const protectedRoutes = [adminEventsRoutes(composition.eventSource), groupsRoutes(composition.groups), rejoinAdminRoutes(composition.rejoin), examsRoutes(composition.exams), sessionsRoutes(composition.sessions), participantsAdminRoutes(composition.participants), participantReviewRoutes(composition.attempts), gradingRoutes(composition.grading), sharingAdminRoutes(composition.sharing), ...extraAdminRoutes];
+  const protectedRoutes = [adminEventsRoutes(composition.eventSource), groupsRoutes(composition.groups), rejoinAdminRoutes(composition.rejoin), examsRoutes(composition.exams), sessionsRoutes(composition.sessions), participantsAdminRoutes(composition.participants), participantReviewRoutes(composition.attempts), gradingRoutes(composition.grading), sharingAdminRoutes(composition.sharing), trainingAdminRoutes(composition.training), ...extraAdminRoutes];
   // Honour X-Forwarded-For only when the direct peer is this machine (the Vite dev proxy). A LAN client
   // connecting straight to the server is not trusted, so it cannot forge its address.
   const app = Fastify({ logger, trustProxy: ['127.0.0.1', '::1'] });
@@ -62,6 +63,7 @@ export async function buildApp({ db, composition = compose(db), serveWeb = false
   // Asking to come back is limited on its own too, so nobody can flood the mentor with requests (8 per minute per address).
   await app.register(rejoinPublicRoutes(composition.rejoin, { join: limiter, requests: createJoinLimiter({ max: 8 }) }));
   await app.register(joinRoutes(composition.participants), { limiter });
+  await app.register(trainingMemberRoutes(composition.training), { limiter });
   await app.register(screenRoutes(composition.screen));
   await app.register(publicParticipantsRoutes(composition.participants));
   await app.register(rosterCountsRoutes(composition.participants));
