@@ -1,6 +1,6 @@
 # S35 — UI mentor: buổi training AI
 
-**Phụ thuộc:** S34 · **Trạng thái:** ⬜ chưa làm · **UI chờ bản thiết kế** (chưa có prompt designer)
+**Phụ thuộc:** S34 · **Trạng thái:** ⬜ chưa làm · **UI chờ bản thiết kế** ([prompt](../design/S35-S36-training-ui-prompt.md))
 
 ## Bối cảnh
 Mentor tạo buổi, chiếu mã cho lớp, theo dõi ai đã kết nối, ai đang kẹt, lướt cách từng member làm, mở output khi cần, rồi Dừng thu và Kết thúc. Business: [PRODUCT.md §7.34](../PRODUCT.md) (a), (f), (g), (h).
