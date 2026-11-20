@@ -32,3 +32,9 @@ export class TrainingCheckTooEarlyError extends DomainError {
     super('conflict', 'Chờ thêm vài giây rồi bấm kiểm tra lại', 'too_early');
   }
 }
+
+export class TrainingEventNotFoundError extends DomainError {
+  constructor() {
+    super('not_found', 'Không tìm thấy sự kiện');
+  }
+}

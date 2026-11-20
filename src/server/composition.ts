@@ -96,6 +96,7 @@ import { DrizzleTrainingEventRepository } from './infrastructure/db/drizzle-trai
 import { DrizzleTrainingMemberRepository, DrizzleTrainingRepository } from './infrastructure/db/drizzle-training-repository.js';
 import { ThrottledTrainingSignals } from './infrastructure/events/throttled-training-signals.js';
 import { IngestHookEvent } from './application/use-cases/training/ingest.js';
+import { GetTrainingEventDetail, ListMemberEvents } from './application/use-cases/training/view.js';
 import { BusTrainingSignals } from './infrastructure/events/bus-training-signals.js';
 import type { TrainingUseCases } from './interface/http/training-routes.js';
 
@@ -229,6 +230,7 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}, aiOptions:
 
   const trainingReader = new DrizzleTrainingRepository(fn => database.read(fn));
   const trainingMemberReader = new DrizzleTrainingMemberRepository(fn => database.read(fn));
+  const trainingEventReader = new DrizzleTrainingEventRepository(fn => database.read(fn));
   const trainingUnitOfWork = new SqliteUnitOfWork<TrainingUnitContext>(database, tx => {
     const access = async <T>(fn: (db: Db) => T) => fn(tx);
     return { trainings: new DrizzleTrainingRepository(access), members: new DrizzleTrainingMemberRepository(access), events: new DrizzleTrainingEventRepository(access) };
@@ -271,7 +273,9 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}, aiOptions:
     training: {
       create: new CreateTraining({ ...trainingDeps, random: ports.random }),
       list: new ListTrainings(trainingReader),
-      detail: new GetTrainingDetail({ trainings: trainingReader, members: trainingMemberReader }),
+      detail: new GetTrainingDetail({ trainings: trainingReader, members: trainingMemberReader, events: trainingEventReader }),
+      memberEvents: new ListMemberEvents({ trainings: trainingReader, members: trainingMemberReader, events: trainingEventReader }),
+      eventDetail: new GetTrainingEventDetail({ trainings: trainingReader, events: trainingEventReader }),
       stop: new StopTraining(trainingDeps),
       end: new EndTraining(trainingDeps),
       removeMember: new RemoveTrainingMember(trainingDeps),

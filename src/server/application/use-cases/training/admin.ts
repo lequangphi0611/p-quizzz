@@ -1,6 +1,8 @@
 import { TrainingMemberNotFoundError, TrainingNotFoundError, TrainingStateError } from '../../../domain/training/errors.js';
+import { isStuck, STUCK_REPEAT } from '../../../domain/training/is-stuck.js';
 import { connectionState, nextTrainingStatus, stillSending, type Training, type TrainingMember } from '../../../domain/training/training.js';
 import type { Clock } from '../../ports/clock.js';
+import type { MemberCounts, TrainingEventReader } from '../../ports/training-event-repository.js';
 import type { Random } from '../../ports/random.js';
 import type { TrainingListItem, TrainingMemberReader, TrainingReader, TrainingUnitContext } from '../../ports/training-repository.js';
 import type { TrainingSignals } from '../../ports/training-signals.js';
@@ -34,7 +36,7 @@ export class ListTrainings {
   }
 }
 
-/** One row of the member table. Counts and the stuck flag come with S33/S34 (they need the events). */
+/** One row of the member table. */
 export interface TrainingMemberView {
   id: number;
   displayName: string;
@@ -56,29 +58,34 @@ export interface TrainingDetailView {
 }
 
 export class GetTrainingDetail {
-  constructor(private readonly deps: { trainings: TrainingReader; members: TrainingMemberReader }) {}
+  constructor(private readonly deps: { trainings: TrainingReader; members: TrainingMemberReader; events: TrainingEventReader }) {}
 
   async execute(id: number): Promise<TrainingDetailView> {
     const training = await this.deps.trainings.findById(id);
     if (!training) throw new TrainingNotFoundError();
     const members = training.status === 'ended' ? [] : await this.deps.members.listByTraining(id);
+    const counts = members.length > 0 ? await this.deps.events.countsByMember(id) : new Map<number, MemberCounts>();
+    const views = await Promise.all(
+      members.map(async m => memberView(training, m, counts.get(m.id), isStuck(await this.deps.events.recentTools(m.id, STUCK_REPEAT)))),
+    );
     return {
       training,
-      uninstalled: training.status === 'stopped' ? { count: members.filter(m => m.uninstalledAt).length, total: members.length } : null,
-      members: members.map(m => memberView(training, m)),
+      // A member who passed the removal check counts only while nothing came after it.
+      uninstalled: training.status === 'stopped' ? { count: views.filter(v => v.connection === 'uninstalled').length, total: members.length } : null,
+      members: views,
     };
   }
 }
 
-const memberView = (training: Training, m: TrainingMember): TrainingMemberView => ({
+const memberView = (training: Training, m: TrainingMember, counts: MemberCounts | undefined, stuck: boolean): TrainingMemberView => ({
   id: m.id,
   displayName: m.displayName,
   connection: connectionState(m),
   lastSeenAt: m.lastSeenAt,
-  promptCount: 0,
-  toolCount: 0,
-  failedCount: 0,
-  stuck: false,
+  promptCount: counts?.promptCount ?? 0,
+  toolCount: counts?.toolCount ?? 0,
+  failedCount: counts?.failedCount ?? 0,
+  stuck,
   stillSending: stillSending(training, m),
 });
 

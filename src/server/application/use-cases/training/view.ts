@@ -1,0 +1,77 @@
+import { TrainingEventNotFoundError, TrainingMemberNotFoundError, TrainingNotFoundError, TrainingStateError } from '../../../domain/training/errors.js';
+import { buildSummary } from '../../../domain/training/summary.js';
+import type { Clip } from '../../../domain/training/clip.js';
+import type { LightEvent, TrainingEventReader } from '../../ports/training-event-repository.js';
+import type { TrainingMemberReader, TrainingReader } from '../../ports/training-repository.js';
+
+/** Events per page of a member's timeline. */
+export const EVENTS_PAGE_SIZE = 500;
+
+/** One line of the timeline: what the member asked or ran, with a one-glance summary, and whether there is more to open. */
+export interface TimelineEvent {
+  id: number;
+  kind: 'prompt' | 'tool';
+  receivedAt: Date;
+  claudeSessionId: string;
+  prompt: string | null;
+  toolName: string | null;
+  toolTarget: string | null;
+  ok: boolean | null;
+  durationMs: number | null;
+  summary: string | null;
+  hasOutput: boolean;
+  hasChange: boolean;
+}
+
+export interface TimelinePage {
+  events: TimelineEvent[];
+  hasMore: boolean;
+}
+
+const toTimelineEvent = (e: LightEvent): TimelineEvent => ({
+  id: e.id,
+  kind: e.kind,
+  receivedAt: e.receivedAt,
+  claudeSessionId: e.claudeSessionId,
+  prompt: e.prompt,
+  toolName: e.toolName,
+  toolTarget: e.toolTarget,
+  ok: e.ok,
+  durationMs: e.durationMs,
+  summary: e.kind === 'tool' ? buildSummary({ ok: e.ok === true, errorExcerpt: e.errorExcerpt, outputEnd: e.outputEnd }) : null,
+  hasOutput: e.hasOutput,
+  hasChange: e.hasChange,
+});
+
+/** Once ended the members and their events are gone for good: reviewing is a conflict, not a "not found". */
+async function openTraining(trainings: TrainingReader, id: number) {
+  const training = await trainings.findById(id);
+  if (!training) throw new TrainingNotFoundError();
+  if (training.status === 'ended') throw new TrainingStateError('Buổi training đã kết thúc, dữ liệu đã bị xoá');
+  return training;
+}
+
+/** A member's timeline in the order received, a page at a time (`after` = the last event id the screen already has). */
+export class ListMemberEvents {
+  constructor(private readonly deps: { trainings: TrainingReader; members: TrainingMemberReader; events: TrainingEventReader }) {}
+
+  async execute(trainingId: number, memberId: number, after = 0): Promise<TimelinePage> {
+    await openTraining(this.deps.trainings, trainingId);
+    const member = await this.deps.members.findById(memberId);
+    if (!member || member.trainingId !== trainingId) throw new TrainingMemberNotFoundError();
+    const rows = await this.deps.events.listLight(memberId, after, EVENTS_PAGE_SIZE + 1);
+    return { events: rows.slice(0, EVENTS_PAGE_SIZE).map(toTimelineEvent), hasMore: rows.length > EVENTS_PAGE_SIZE };
+  }
+}
+
+/** The output and the change of one event: read only when the mentor asks to see them. */
+export class GetTrainingEventDetail {
+  constructor(private readonly deps: { trainings: TrainingReader; events: TrainingEventReader }) {}
+
+  async execute(trainingId: number, eventId: number): Promise<{ output: Clip | null; change: Clip | null }> {
+    await openTraining(this.deps.trainings, trainingId);
+    const detail = await this.deps.events.getDetail(eventId);
+    if (!detail || detail.trainingId !== trainingId) throw new TrainingEventNotFoundError();
+    return { output: detail.output, change: detail.change };
+  }
+}

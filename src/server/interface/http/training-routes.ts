@@ -1,8 +1,9 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { CreateTrainingBody, JoinTrainingBody, type HookConfig, type JoinTrainingResponse, type MyTraining, type TrainingDetail, type UninstallCheckResult } from '../../../shared/api/training.js';
+import { CreateTrainingBody, JoinTrainingBody, type HookConfig, type JoinTrainingResponse, type MyTraining, type TrainingDetail, type TrainingEventDetail, type TrainingEventsPage, type UninstallCheckResult } from '../../../shared/api/training.js';
 import { WrongRoomCodeError } from '../../domain/participant/errors.js';
-import { TrainingMemberNotFoundError, TrainingNotFoundError } from '../../domain/training/errors.js';
+import { TrainingEventNotFoundError, TrainingMemberNotFoundError, TrainingNotFoundError } from '../../domain/training/errors.js';
 import type { CreateTraining, EndTraining, GetTrainingDetail, ListTrainings, RemoveTrainingMember, StopTraining } from '../../application/use-cases/training/admin.js';
+import type { GetTrainingEventDetail, ListMemberEvents } from '../../application/use-cases/training/view.js';
 import type { IngestHookEvent } from '../../application/use-cases/training/ingest.js';
 import type { FinishUninstallCheck, GetHookConfig, GetMyTraining, JoinTraining, ResumeTrainingMember, StartUninstallCheck, WithdrawTrainingConsent } from '../../application/use-cases/training/member.js';
 import { INGEST_HEADER, INGEST_PATH } from '../../domain/training/hook-settings.js';
@@ -10,7 +11,7 @@ import { requireTrainingMember } from './auth/training-auth.js';
 import { sendDomainError } from './domain-errors.js';
 import { createJoinLimiter, type JoinLimiter } from './join-limiter.js';
 import { parseId } from './params.js';
-import { toCreatedTrainingDto, toTrainingDetailDto, toTrainingSummaryDto } from './presenters/training-presenter.js';
+import { toCreatedTrainingDto, toEventsPageDto, toTrainingDetailDto, toTrainingSummaryDto } from './presenters/training-presenter.js';
 
 export interface TrainingUseCases {
   create: CreateTraining;
@@ -19,6 +20,8 @@ export interface TrainingUseCases {
   stop: StopTraining;
   end: EndTraining;
   removeMember: RemoveTrainingMember;
+  memberEvents: ListMemberEvents;
+  eventDetail: GetTrainingEventDetail;
   join: JoinTraining;
   resume: ResumeTrainingMember;
   me: GetMyTraining;
@@ -32,7 +35,7 @@ export interface TrainingUseCases {
 const badBody = (issue: { message: string } | undefined) => ({ error: issue?.message ?? 'Dữ liệu không hợp lệ' });
 
 // Mentor routes (PRODUCT.md §7.34). Registered inside the requireMentor scope of /api/admin, so they only answer on the mentor's machine.
-export const trainingAdminRoutes = (uc: Pick<TrainingUseCases, 'create' | 'list' | 'detail' | 'stop' | 'end' | 'removeMember'>): FastifyPluginAsync =>
+export const trainingAdminRoutes = (uc: Pick<TrainingUseCases, 'create' | 'list' | 'detail' | 'stop' | 'end' | 'removeMember' | 'memberEvents' | 'eventDetail'>): FastifyPluginAsync =>
   async app => {
     app.post('/trainings', async (req, reply) => {
       const body = CreateTrainingBody.safeParse(req.body);
@@ -47,6 +50,36 @@ export const trainingAdminRoutes = (uc: Pick<TrainingUseCases, 'create' | 'list'
         const id = parseId(req.params.id);
         if (!id) throw new TrainingNotFoundError();
         return toTrainingDetailDto(await uc.detail.execute(id));
+      } catch (err) {
+        return sendDomainError(reply, err);
+      }
+    });
+
+    // A member's timeline (light rows) and, separately, the output / change of one event: the list never carries those.
+    app.get<{ Params: { id: string; memberId: string }; Querystring: { after?: string } }>(
+      '/trainings/:id/members/:memberId/events',
+      async (req, reply): Promise<TrainingEventsPage | undefined> => {
+        try {
+          const id = parseId(req.params.id);
+          const memberId = parseId(req.params.memberId);
+          if (!id) throw new TrainingNotFoundError();
+          if (!memberId) throw new TrainingMemberNotFoundError();
+          const after = req.query.after === undefined ? 0 : Number(req.query.after);
+          if (!Number.isInteger(after) || after < 0) return reply.code(400).send({ error: 'after phải là số nguyên không âm' });
+          return toEventsPageDto(await uc.memberEvents.execute(id, memberId, after));
+        } catch (err) {
+          return sendDomainError(reply, err);
+        }
+      },
+    );
+
+    app.get<{ Params: { id: string; eventId: string } }>('/trainings/:id/events/:eventId/detail', async (req, reply): Promise<TrainingEventDetail | undefined> => {
+      try {
+        const id = parseId(req.params.id);
+        const eventId = parseId(req.params.eventId);
+        if (!id) throw new TrainingNotFoundError();
+        if (!eventId) throw new TrainingEventNotFoundError();
+        return await uc.eventDetail.execute(id, eventId);
       } catch (err) {
         return sendDomainError(reply, err);
       }

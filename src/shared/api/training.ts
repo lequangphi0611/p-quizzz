@@ -117,3 +117,35 @@ export interface Clip {
   tail: string | null;
   omittedLines: number;
 }
+
+// GET /api/admin/trainings/:id/members/:memberId/events?after=<eventId>
+/** One line of a member's timeline. No output and no change: those are fetched on demand (`TrainingEventDetail`). */
+export interface TrainingEventRow {
+  id: number;
+  kind: 'prompt' | 'tool';
+  receivedAt: number;
+  claudeSessionId: string;
+  /** `prompt` events. */
+  prompt?: string;
+  /** `tool` events. */
+  toolName?: string;
+  toolTarget?: string;
+  ok?: boolean;
+  durationMs?: number;
+  /** The error for a failed call, else the last line of text in its output. */
+  summary?: string;
+  hasOutput: boolean;
+  hasChange: boolean;
+}
+
+export interface TrainingEventsPage {
+  /** Oldest first, at most 500. */
+  events: TrainingEventRow[];
+  hasMore: boolean;
+}
+
+// GET /api/admin/trainings/:id/events/:eventId/detail
+export interface TrainingEventDetail {
+  output: Clip | null;
+  change: Clip | null;
+}

@@ -1,4 +1,5 @@
-import type { CreatedTraining, TrainingDetail, TrainingSummary } from '../../../../shared/api/training.js';
+import type { CreatedTraining, TrainingDetail, TrainingEventRow, TrainingEventsPage, TrainingSummary } from '../../../../shared/api/training.js';
+import type { TimelineEvent, TimelinePage } from '../../../application/use-cases/training/view.js';
 import type { TrainingDetailView } from '../../../application/use-cases/training/admin.js';
 import type { TrainingListItem } from '../../../application/ports/training-repository.js';
 import type { Training } from '../../../domain/training/training.js';
@@ -49,3 +50,21 @@ export const toTrainingDetailDto = ({ training, uninstalled, members }: Training
     stillSending: m.stillSending,
   })),
 });
+
+// Optional fields are left out when they do not apply, so a prompt row carries no `toolName` and a tool row no `prompt`.
+const toEventRowDto = (e: TimelineEvent): TrainingEventRow => ({
+  id: e.id,
+  kind: e.kind,
+  receivedAt: e.receivedAt.getTime(),
+  claudeSessionId: e.claudeSessionId,
+  ...(e.prompt !== null ? { prompt: e.prompt } : {}),
+  ...(e.toolName !== null ? { toolName: e.toolName } : {}),
+  ...(e.toolTarget !== null ? { toolTarget: e.toolTarget } : {}),
+  ...(e.ok !== null ? { ok: e.ok } : {}),
+  ...(e.durationMs !== null ? { durationMs: e.durationMs } : {}),
+  ...(e.summary !== null ? { summary: e.summary } : {}),
+  hasOutput: e.hasOutput,
+  hasChange: e.hasChange,
+});
+
+export const toEventsPageDto = (page: TimelinePage): TrainingEventsPage => ({ events: page.events.map(toEventRowDto), hasMore: page.hasMore });

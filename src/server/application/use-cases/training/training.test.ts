@@ -21,7 +21,7 @@ function build(randoms = [111111, 222222]) {
   return {
     create: new CreateTraining({ ...deps, random: new FakeRandom(randoms) }),
     list: new ListTrainings(trainings),
-    detail: new GetTrainingDetail({ trainings, members }),
+    detail: new GetTrainingDetail({ trainings, members, events }),
     stop: new StopTraining(deps),
     end: new EndTraining(deps),
     remove: new RemoveTrainingMember(deps),
