@@ -13,6 +13,7 @@ import type { SessionReviewData } from '../application/session-admin-loaders.js'
 import { defaultSelection, MEMBERSHIP_LABEL, summarize } from '../domain/session-review.js';
 import { PROGRESS_LABEL } from '../domain/session-ui.js';
 import { PersonDetail } from './PersonDetail.js';
+import { ShareCard } from './ShareCard.js';
 
 const cell = { padding: '10px 12px', whiteSpace: 'normal' } as const; // compact: this table sits in a narrow column
 const caption = { font: 'var(--type-label)', textTransform: 'uppercase', letterSpacing: 'var(--tracking-label)', color: 'var(--text-faint)' } as const;
@@ -50,6 +51,8 @@ export function SessionReviewPage() {
           <span style={{ marginLeft: 'auto' }}><Button variant="secondary" icon="message-square" onClick={() => nav(`/admin/sessions/${session.id}/discuss`)}>Thảo luận</Button></span>
         )}
       </div>
+
+      <ShareCard session={session} />
 
       <Card>
         <div style={{ display: 'flex', gap: 40, flexWrap: 'wrap' }}>

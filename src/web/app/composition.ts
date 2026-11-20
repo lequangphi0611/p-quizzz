@@ -13,6 +13,7 @@ import { HttpGradingGateway } from '../features/grading/infrastructure/http-grad
 import { HttpSessionAdminGateway } from '../features/session-admin/infrastructure/http-session-admin-gateway.js';
 import { HttpDiscussionGateway } from '../features/discussion/infrastructure/http-discussion-gateway.js';
 import { HttpExamGateway } from '../features/member-exam/infrastructure/http-exam-gateway.js';
+import { HttpSharedSessionsGateway } from '../features/shared-sessions/infrastructure/http-shared-sessions-gateway.js';
 import { createHttpClient } from '../shared/api-client/http-client.js';
 import { participantAuth } from '../shared/api-client/participant-auth.js';
 import { createSessionEventHub } from '../shared/events/sse-event-stream.js';
@@ -44,3 +45,4 @@ export const leaderboardGateway = new HttpLeaderboardGateway(api);
 export const groupsGateway = new HttpGroupsGateway(api);
 export const mentorNoticesGateway = new HttpMentorNoticesGateway(api);
 export const seenStore = new LocalStorageSeenStore();
+export const sharedSessionsGateway = new HttpSharedSessionsGateway(api);

@@ -1,0 +1,1 @@
+ALTER TABLE `sessions` ADD `shared_at` integer;

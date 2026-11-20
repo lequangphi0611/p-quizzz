@@ -10,6 +10,7 @@ import { ReviewGatewayContext } from '../features/member-review/application/use-
 import { MentorNoticesServicesContext } from '../features/mentor-notices/application/use-mentor-notices.js';
 import { ScreenGatewayContext } from '../features/screen/application/use-screen.js';
 import { SessionAdminGatewayContext } from '../features/session-admin/application/session-admin-context.js';
+import { SharedSessionsGatewayContext } from '../features/shared-sessions/application/use-shared.js';
 import { EventStreamProvider } from '../shared/events/use-session-events.js';
 import { LeaderboardGatewayContext } from '../shared/leaderboard/Leaderboard.js';
 import { TokenStoreContext } from '../shared/token-store/token-store-context.js';
@@ -31,7 +32,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
                       <MemberServicesContext.Provider value={{ gateway: c.memberGateway, rooms: c.roomCodeMemory, mine: c.mySessionsStore }}>
                         <ReviewGatewayContext.Provider value={c.reviewGateway}>
                           <ScreenGatewayContext.Provider value={c.screenGateway}>
-                            <MentorNoticesServicesContext.Provider value={{ gateway: c.mentorNoticesGateway, seen: c.seenStore }}>{children}</MentorNoticesServicesContext.Provider>
+                            <MentorNoticesServicesContext.Provider value={{ gateway: c.mentorNoticesGateway, seen: c.seenStore }}>
+                              <SharedSessionsGatewayContext.Provider value={c.sharedSessionsGateway}>{children}</SharedSessionsGatewayContext.Provider>
+                            </MentorNoticesServicesContext.Provider>
                           </ScreenGatewayContext.Provider>
                         </ReviewGatewayContext.Provider>
                       </MemberServicesContext.Provider>

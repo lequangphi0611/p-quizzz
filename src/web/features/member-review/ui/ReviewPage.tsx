@@ -89,6 +89,12 @@ export function ReviewPage() {
   });
   // Cards not rendered (filtered out) must not keep stale refs.
   for (let i = 0; i < review.questions.length; i++) if (!shown.includes(i)) refs.current[i] = null;
+  // The mentor shares this session's questions and explanations (PRODUCT.md §7.33f): say so, and that nobody's work goes with it.
+  const sharedNote = review.shared && (
+    <p role="note" style={{ margin: 0, display: 'grid', gridTemplateColumns: '18px minmax(0,1fr)', gap: 10, padding: '12px 14px', borderRadius: 'var(--radius-md)', background: 'var(--surface-sunken)', border: '1px solid var(--ink-200)', font: 'var(--type-ui)', fontSize: 14, lineHeight: 1.5, color: 'var(--ink-700)' }}>
+      <Icon name="eye" size={16} style={{ marginTop: 2 }} /><span>Mentor đang chia sẻ đề và lời giải của phiên này, không kèm tên, điểm hay bài làm của ai.</span>
+    </p>
+  );
   const status = <StatusBadge status={review.official ? 'finalized' : 'closed'} label={review.official ? 'Đã chốt kết quả' : 'Đã đóng'} />;
 
   if (desk) {
@@ -104,6 +110,7 @@ export function ReviewPage() {
         <div style={{ padding: wide ? '40px 48px 64px' : '28px 24px 48px' }}>
           <div style={{ maxWidth: 960, margin: '0 auto', display: 'grid', gap: 20 }}>
             <div style={{ display: 'grid', gap: 4 }}><h1 tabIndex={-1} data-pq-focus="" style={{ ...mText.h1, outline: 'none' }}>Xem lại bài</h1><p style={mText.meta}>Lựa chọn của bạn, đáp án đúng, lời giải và điểm từng câu.</p></div>
+            {sharedNote}
             {cards}
             {shown.length === 0 && <p style={mText.meta}>Bạn làm đúng tất cả các câu.</p>}
           </div>
@@ -115,6 +122,7 @@ export function ReviewPage() {
     <MemberLayout>
       <div style={{ display: 'grid', gap: 16, minWidth: 0 }}>
         <h1 style={mText.h1}>Xem lại bài</h1>
+        {sharedNote}
         <Card padding={16}><div style={{ display: 'grid', gap: 12 }}>{scoreBlock}<StripNav count={review.questions.length} current={cur} marks={marks} onSelect={jump} />{filter}</div></Card>
         {cards}
         {shown.length === 0 && <p style={mText.meta}>Bạn làm đúng tất cả các câu.</p>}

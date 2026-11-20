@@ -60,7 +60,7 @@ describe('saving and submitting', () => {
     expect(validateAnswer(att(), rq, 1, { selectedOptionIds: [11], reasonText: '  vì vậy  ' })).toEqual({ selectedOptionIds: [11], reasonText: 'vì vậy' });
     expect(validateAnswer(att(), rq, 1, { selectedOptionIds: [11] })).toEqual({ selectedOptionIds: [11] }); // keeps the saved reason
     expect(() => validateAnswer(att(), plain, 1, { selectedOptionIds: [11], reasonText: 'x' })).toThrow('Câu này không hỏi lý do');
-    expect(() => validateAnswer(att(), rq, 1, { selectedOptionIds: [11], reasonText: 'x'.repeat(201) })).toThrow('Lý do tối đa 200 ký tự');
+    expect(() => validateAnswer(att(), rq, 1, { selectedOptionIds: [11], reasonText: 'x'.repeat(501) })).toThrow('Lý do tối đa 500 ký tự');
   });
 
   it('lists picked {reason} questions without a reason, in the member order', () => {

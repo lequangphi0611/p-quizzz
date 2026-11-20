@@ -11,7 +11,7 @@ export const MAX_SELECTED_OPTIONS = 50;
 export const MAX_EDIT_REASON_LENGTH = 500;
 
 /** Longest reason on a `{reason}` question, after trimming (PRODUCT.md §7.32b). */
-export const MAX_CHOICE_REASON_LENGTH = 200;
+export const MAX_CHOICE_REASON_LENGTH = 500;
 
 // Request to reopen the essay part of a submitted attempt (PRODUCT.md §7.21). `expired` = the session closed before the
 // request was settled (derived when read, never stored).
@@ -153,5 +153,6 @@ export interface ReviewView {
   score: number; // automatic + manual points of this attempt so far
   maxScore: number; // exam total points
   official: boolean; // true once the session is finalized
+  shared: boolean; // the mentor shares this session's questions and explanations (PRODUCT.md §7.33f)
   questions: ReviewQuestion[]; // in this member's attempt order
 }

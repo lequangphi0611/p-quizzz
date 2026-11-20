@@ -36,6 +36,7 @@ export const toSessionSummaryDto = (s: SessionSummaryView, now: Date): SessionSu
   startedAt: ms(s.startedAt),
   closedAt: ms(s.closedAt),
   finalizedAt: ms(s.finalizedAt),
+  sharedAt: ms(s.sharedAt),
   participantCount: s.participantCount,
 });
 
@@ -50,6 +51,7 @@ export const toSessionDetailDto = (s: SessionDetailView, now: Date, presence?: P
   })),
   roster: s.roster,
   rejoinRequests: s.rejoinRequests.map(r => ({ id: r.id, participantId: r.participantId, claimantName: r.claimantName, requestedAt: r.requestedAt.getTime() })),
+  share: s.share,
 });
 
 export const toActiveSessionDto = (s: ActiveSessionView, now: Date): ActiveSession => ({

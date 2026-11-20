@@ -90,3 +90,33 @@ describe("leak guard: the class's reasons are mentor-only (PRODUCT.md §7.32e)",
     expect((await a.inject({ url: '/api/me/attempts/1' })).statusCode).toBe(200); // a member's own reason is fine
   });
 });
+
+describe('leak guard: the share page (PRODUCT.md §7.33)', () => {
+  const shareApp = (body: object) => {
+    const a = Fastify();
+    registerLeakGuard(a);
+    a.get('/api/shared/:token/sessions/:id', async () => body);
+    return a;
+  };
+
+  it('may carry the key and explanations', async () => {
+    const res = await shareApp({ questions: [{ explanation: 'why', options: [{ isCorrect: true }], distribution: { counts: { 1: 2 }, blank: 0 } }] }).inject({ url: '/api/shared/t/sessions/1' });
+    expect(res.statusCode).toBe(200);
+  });
+
+  it.each([{ displayName: 'An' }, { participants: [] }, { textAnswer: 'x' }, { reasonText: 'x' }, { feedback: 'x' }, { score: 1 }, { selectedOptionIds: [1] }, { name: 'Phiên nhóm A' }])(
+    'blocks anything about one person: %o',
+    async extra => {
+      const res = await shareApp({ questions: [], ...extra }).inject({ url: '/api/shared/t/sessions/1' });
+      expect(res.statusCode).toBe(500);
+    },
+  );
+
+  it.each([{ roomCode: 'ABC123' }, { slot: 2 }, { access: 'roster' }, { sourceGroupId: 3 }])(
+    'blocks the mentor-only fields of a session row: %o',
+    async extra => {
+      const res = await shareApp({ questions: [], ...extra }).inject({ url: '/api/shared/t/sessions/1' });
+      expect(res.statusCode).toBe(500);
+    },
+  );
+});

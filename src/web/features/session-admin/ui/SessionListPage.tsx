@@ -9,6 +9,8 @@ import { formatDate } from '../../../shared/format/date.js';
 import type { SessionListData } from '../application/session-admin-loaders.js';
 import { CreateSessionForm } from './CreateSessionForm.js';
 import { SessionCard } from './SessionCard.js';
+import { ShareLinkRow } from './ShareLinkRow.js';
+import { Icon } from '../../../shared/ui/Icon.js';
 
 export function SessionListPage() {
   const { sessions, exams, groups } = useLoaderData() as SessionListData;
@@ -47,6 +49,8 @@ export function SessionListPage() {
       {sessions.length === 0 ? (
         <Card><p style={{ margin: 0, font: 'var(--type-body)', color: 'var(--text-meta)' }}>Chưa có phiên thi nào. Mỗi phiên đang mở có số thứ tự riêng, nhiều phiên có thể chạy cùng lúc.</p></Card>
       ) : history.length === 0 ? null : (
+        <>
+        <ShareLinkRow />
         <Card padding={0} title="Gần đây" style={{ paddingTop: 16 }}>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
@@ -55,7 +59,7 @@ export function SessionListPage() {
                 {history.map(s => (
                   <tr key={s.id} style={{ cursor: 'pointer' }} onClick={() => nav(`/admin/sessions/${s.id}`)}>
                     <td style={{ ...td, fontWeight: 600, color: 'var(--text-title)' }}>{s.name}<div style={{ font: 'var(--type-meta)', fontWeight: 400, color: 'var(--text-meta)' }}>{s.examTitle}</div></td>
-                    <td style={td}><StatusBadge status={s.status} /></td>
+                    <td style={td}><span style={{ display: 'inline-flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}><StatusBadge status={s.status} />{s.sharedAt !== null && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 'var(--radius-pill)', background: 'var(--brand-100)', color: 'var(--brand-700)', border: '1px solid var(--brand-200)', font: 'var(--type-label)', whiteSpace: 'nowrap' }}><Icon name="eye" size={12} />Đang chia sẻ</span>}</span></td>
                     <td className="pq-tabular" style={{ ...td, fontFamily: 'var(--font-mono)' }}>{s.participantCount}</td>
                     <td style={{ ...td, color: 'var(--text-meta)' }}>{formatDate(s.createdAt)}</td>
                     <td style={{ ...td, textAlign: 'right' }} onClick={e => e.stopPropagation()}>
@@ -75,6 +79,7 @@ export function SessionListPage() {
             </table>
           </div>
         </Card>
+        </>
       )}
     </div>
   );

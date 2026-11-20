@@ -35,3 +35,6 @@ code, kbd, pre { font-family: var(--font-mono); }
 .pq-md-screen th, .pq-md-screen td { border-color: var(--screen-line-strong); font-size: 24px; }
 .pq-md-screen th { background: var(--screen-panel); }
 .pq-scroll { scrollbar-color: var(--screen-line-strong) transparent; }
+/* Share page rows (S31): the whole row is one link. */
+.pq-share-row { transition: background var(--dur-fast) var(--ease-standard); }
+.pq-share-row:hover { background: var(--ink-050); color: inherit; }

@@ -14,4 +14,6 @@ export interface AttemptViewData {
 export type ReviewData = AttemptViewData & {
   /** Essay questions of the session that got AI grading suggestions (the member review says so, PRODUCT.md §7.28f). */
   aiAssistedQuestionIds?: number[];
+  /** The session is on the share page (PRODUCT.md §7.33f): the review says so. */
+  shared?: boolean;
 };

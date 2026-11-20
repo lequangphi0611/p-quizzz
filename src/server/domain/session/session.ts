@@ -45,6 +45,8 @@ export interface Session {
   startedAt: Date | null;
   closedAt: Date | null;
   finalizedAt: Date | null;
+  /** On the share page since then (PRODUCT.md §7.33); null = not shared. Only set once the session has closed. */
+  sharedAt: Date | null;
 }
 
 export interface NewSession {
@@ -66,6 +68,6 @@ export type SessionPatch = Partial<
   Pick<
     Session,
     | 'status' | 'roomCode' | 'slot' | 'openedAt' | 'startedAt' | 'closedAt' | 'finalizedAt' | 'scoreVisibility' | 'scoresReleasedAt' | 'timeLimitMinutes' | 'endsAt'
-    | 'scheduledStartAt' | 'countdownEndsAt' | 'countdownSource' | 'autoStartReady' | 'readyMin' | 'startScheduleDroppedAt'
+    | 'scheduledStartAt' | 'countdownEndsAt' | 'countdownSource' | 'autoStartReady' | 'readyMin' | 'startScheduleDroppedAt' | 'sharedAt'
   >
 >;

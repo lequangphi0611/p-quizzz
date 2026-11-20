@@ -19,6 +19,8 @@ import { titleWithCount } from '../features/mentor-notices/domain/mentor-notices
 import { NotificationBell } from '../features/mentor-notices/ui/NotificationBell.js';
 import { useDesktopNotify } from '../features/mentor-notices/ui/useDesktopNotify.js';
 import { ScreenPage } from '../features/screen/ui/ScreenPage.js';
+import { SharedListPage } from '../features/shared-sessions/ui/SharedListPage.js';
+import { SharedSessionPage } from '../features/shared-sessions/ui/SharedSessionPage.js';
 import { createGroupLoaders } from '../features/groups/application/groups-loaders.js';
 import { GroupsPage } from '../features/groups/ui/GroupsPage.js';
 import { createSessionAdminLoaders } from '../features/session-admin/application/session-admin-loaders.js';
@@ -91,6 +93,9 @@ function NotFound() {
 export const router = createBrowserRouter([
   { path: '/', element: <MemberHomePage examScreen={props => <MemberExamPage {...props} />} />, errorElement: <RouteError /> }, // renders its own <MemberLayout> (title and name depend on its state)
   { path: '/review/:attemptId', element: <ReviewPage />, errorElement: <RouteError /> }, // member: own attempt with the answer key, once the session is over
+  // Share page of finished sessions (PRODUCT.md §7.33): anyone holding the link; questions, key and class counts only.
+  { path: '/shared/:token', element: <SharedListPage />, errorElement: <RouteError /> },
+  { path: '/shared/:token/sessions/:sessionId', element: <SharedSessionPage />, errorElement: <RouteError /> },
   { path: '/screen', element: <ScreenPage />, errorElement: <RouteError /> }, // the mentor's machine: opens the only open session, or asks which
   { path: '/screen/:sessionId', element: <ScreenPage />, errorElement: <RouteError /> }, // public projector page for ONE session; scales its own 1920×1080 stage
   { path: '/admin/login', loader: authLoaders.login, element: <AdminLoginPage />, errorElement: <RouteError />, hydrateFallbackElement: loading },
