@@ -38,6 +38,7 @@ Contract: `architecture.md` §5 (`POST /api/training/ingest`, `uninstall-check`,
 - Ai có `ingest_token` gửi được sự kiện giả cho member đó (không đọc được gì).
 - Không có giới hạn số sự kiện mỗi member; xem lại sau khi đo trên máy thật.
 - `Grep`/`Glob` (và mọi tool ngoài `Read`/`Write`/`Edit`) vẫn lưu output theo luật "tool khác": output của `Grep` là các dòng nội dung file khớp mẫu, có thể chứa dòng của `.env`. PO mới chốt loại `Read`; cần PO xem lại có loại thêm không.
+- Công cụ `PowerShell` (Windows) được xử lý như `Bash` (câu lệnh, `stdout` + `stderr`), cũng như mọi công cụ có `tool_input.command`. Payload PowerShell trong fixture là **giả lập** (spike chạy trên Linux); nếu thật khác, bộ lọc vẫn lưu lệnh, còn output có thể ở dạng JSON cho tới khi có mẫu thật. Công cụ MCP lạ có tham số tên `command` cũng hiện như một câu lệnh (cố ý).
 - Prompt được lưu nguyên văn, không cắt độ dài (chỉ bị giới hạn bởi body 2 MB): member dán cả file vào prompt thì file đó được lưu.
 
 ## Báo cáo hoàn thành (2026-11-20)

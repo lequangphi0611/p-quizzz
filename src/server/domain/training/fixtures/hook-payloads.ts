@@ -61,4 +61,30 @@ export const postToolUseRead = {
   duration_ms: 4,
 };
 
+/**
+ * ⚠️ SIMULATED, like `postToolUseRead`: no real Windows payload was captured (the spike ran on Linux). Assumes `PowerShell` mirrors
+ * `Bash` (`tool_input.command`, `tool_response.stdout/stderr`) with CRLF line ends and a Windows `cwd`. Replace after the Windows
+ * checklist (spike §5).
+ */
+export const WIN_CWD = 'C:\\Users\\Lan\\bai-tap';
+const winCommon = { ...common, cwd: WIN_CWD, transcript_path: 'C:\\Users\\Lan\\.claude\\projects\\x\\c0ffee00.jsonl' };
+
+export const postToolUsePowerShell = {
+  ...winCommon,
+  hook_event_name: 'PostToolUse',
+  tool_name: 'PowerShell',
+  tool_input: { command: `Get-ChildItem ${WIN_CWD}\\src`, description: 'List sources' },
+  tool_response: { stdout: `${WIN_CWD}\\src\\add.ts\r\nMode  Length Name\r\n-a--- 52 add.ts\r\n`, stderr: '', interrupted: false },
+  duration_ms: 412,
+};
+
+export const postToolUseFailurePowerShell = {
+  ...winCommon,
+  hook_event_name: 'PostToolUseFailure',
+  tool_name: 'PowerShell',
+  tool_input: { command: 'npm test' },
+  error: `npm : The term 'npm' is not recognized\r\nAt line:1 char:1`,
+  duration_ms: 95,
+};
+
 export const stop = { ...common, hook_event_name: 'Stop', stop_hook_active: false, last_assistant_message: ASSISTANT_ANSWER };

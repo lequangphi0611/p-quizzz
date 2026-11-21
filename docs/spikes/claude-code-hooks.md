@@ -63,7 +63,8 @@ Lỗi hook (kết nối thất bại, quá timeout, mã khác 2xx) mặc định
 6. Server trả `systemMessage`: lời nhắc có hiện trong giao diện không.
 7. Gỡ: xoá đoạn hook, gõ prompt thử, server không còn nhận gì. Lệnh `/hooks` không còn liệt kê.
 8. Đo kích thước output thực tế của một buổi (`npm install`, `npm test`, đọc file lớn) để chốt giới hạn lưu.
-9. Máy do công ty quản lý: kiểm cài đặt `allowedHttpHookUrls` (designer nêu, chưa kiểm) có chặn hook HTTP tới IP LAN không.
+9. **Windows:** chụp payload thật của công cụ `PowerShell` (tên công cụ, `tool_input`, `tool_response`, kiểu xuống dòng, `cwd`) và của `Read`, đối chiếu với fixture giả lập ở `src/server/domain/training/fixtures/hook-payloads.ts`.
+10. Máy do công ty quản lý: kiểm cài đặt `allowedHttpHookUrls` (designer nêu, chưa kiểm) có chặn hook HTTP tới IP LAN không.
 
 ## 6. Tài liệu tham khảo
 

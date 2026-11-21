@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import type { CreatedTraining, TrainingDetail, TrainingEventDetail, TrainingEventsPage } from '../../../shared/api/index.js';
 import { FakeClock } from '../../application/testing/fakes.js';
-import { postToolUseBash, postToolUseEdit, postToolUseFailure, postToolUseRead, postToolUseWrite, userPromptSubmit } from '../../domain/training/fixtures/hook-payloads.js';
+import { postToolUseFailurePowerShell, postToolUsePowerShell, postToolUseBash, postToolUseEdit, postToolUseFailure, postToolUseRead, postToolUseWrite, userPromptSubmit } from '../../domain/training/fixtures/hook-payloads.js';
 import { UNINSTALL_CHECK_MIN_MS } from '../../domain/training/training.js';
 import { trainingEvents, trainingMembers } from '../../infrastructure/db/schema.js';
 import { LOCAL_ONLY_MESSAGE } from '../../interface/http/auth/require-local.js';
@@ -86,6 +86,20 @@ describe('training detail: counts, stuck, still sending', () => {
 
     const ended = (await s.admin('POST', `/trainings/${t.id}/end`)).json<TrainingDetail>();
     expect(ended).toMatchObject({ status: 'ended', members: [], uninstalled: null });
+  });
+});
+
+describe('PowerShell on the timeline and the stuck flag', () => {
+  it('shows the command with a clean summary, and flags three failures of the same PowerShell command', async () => {
+    const s = await setup();
+    const t = await s.training();
+    const win = await s.member(t, 'Lan');
+    await s.send(win.ingestToken, postToolUsePowerShell, postToolUseFailurePowerShell, postToolUseFailurePowerShell, postToolUseFailurePowerShell);
+    const events = (await s.timeline(t.id, win.id)).json<TrainingEventsPage>().events;
+    expect(events[0]).toMatchObject({ toolName: 'PowerShell', toolTarget: 'Get-ChildItem src', summary: '-a--- 52 add.ts', ok: true });
+    expect(events[1]).toMatchObject({ ok: false, toolTarget: 'npm test', summary: "npm : The term 'npm' is not recognized\nAt line:1 char:1" });
+    expect(JSON.stringify(events)).not.toContain('\\r');
+    expect((await s.detail(t.id)).members[0]).toMatchObject({ toolCount: 4, failedCount: 3, stuck: true });
   });
 });
 

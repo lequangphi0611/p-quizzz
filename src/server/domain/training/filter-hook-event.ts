@@ -82,8 +82,17 @@ function readLineCount(response: unknown): number | null {
   return null;
 }
 
+/** Tools that run a command line, each with its own shell: `Bash` (macOS, Linux) and `PowerShell` (Windows). */
+const SHELL_TOOLS = new Set(['bash', 'powershell']);
+
+/**
+ * Does this tool call run a command? By name, or by shape (`tool_input.command` is a string), so a shell this code has
+ * not heard of yet still shows its command line instead of an empty row.
+ */
+const isShellTool = (toolName: string, input: Json): boolean => SHELL_TOOLS.has(toolName.toLowerCase()) || typeof input.command === 'string';
+
 function toolTarget(toolName: string, input: Json, response: unknown, cwd: string | null): string | null {
-  if (toolName === 'Bash') return str(input.command);
+  if (isShellTool(toolName, input)) return str(input.command);
   const path = str(input.file_path) ?? str(input.notebook_path) ?? str(input.path);
   if (path === null) return null;
   const rel = relativePath(path, cwd);
@@ -93,10 +102,13 @@ function toolTarget(toolName: string, input: Json, response: unknown, cwd: strin
 }
 
 /** The tool's own output as text. `Read` never gets here: its output is the file's content. */
-function outputText(toolName: string, response: unknown): string {
+function outputText(toolName: string, input: Json, response: unknown): string {
   if (typeof response === 'string') return response;
   if (!isObject(response)) return response === undefined || response === null ? '' : JSON.stringify(response);
-  if (toolName === 'Bash') return [str(response.stdout), str(response.stderr)].filter(Boolean).join('\n');
+  // A shell reports `stdout` / `stderr`. If a shell's response has neither (a shape not seen yet), keep it as JSON rather than lose it.
+  if (isShellTool(toolName, input) && (typeof response.stdout === 'string' || typeof response.stderr === 'string')) {
+    return [str(response.stdout), str(response.stderr)].filter(Boolean).join('\n');
+  }
   return JSON.stringify(response);
 }
 
@@ -137,7 +149,7 @@ export function filterHookEvent(raw: unknown): TrainingEventDraft | null {
     durationMs: typeof raw.duration_ms === 'number' && Number.isFinite(raw.duration_ms) ? Math.round(raw.duration_ms) : null,
     toolTarget: target === null ? null : scrubCwd(target, cwd),
     errorExcerpt: !ok && error ? scrubCwd(error.split(/\r?\n/).slice(0, ERROR_EXCERPT_LINES).join('\n'), cwd) : null,
-    output: NO_OUTPUT_TOOLS.has(toolName) ? null : clipOrNull(scrubCwd(outputText(toolName, raw.tool_response), cwd)),
+    output: NO_OUTPUT_TOOLS.has(toolName) ? null : clipOrNull(scrubCwd(outputText(toolName, input, raw.tool_response), cwd)),
     change: clipOrNull(changeText(toolName, input)),
   };
 }

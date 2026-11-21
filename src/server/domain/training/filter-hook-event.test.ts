@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { filterHookEvent, isHookEvent } from './filter-hook-event.js';
 import {
   ASSISTANT_ANSWER, CWD, FILE_SECRET, SESSION_ID, TRANSCRIPT,
+  WIN_CWD, postToolUseFailurePowerShell, postToolUsePowerShell,
   postToolUseBash, postToolUseEdit, postToolUseFailure, postToolUseRead, postToolUseWrite, stop, userPromptSubmit,
 } from './fixtures/hook-payloads.js';
 
@@ -146,5 +147,50 @@ describe('the exercise folder never travels in kept text', () => {
   it('Write and Edit keep no output (a confirmation with an absolute path); the change is what counts', () => {
     expect(filterHookEvent(postToolUseWrite)).toMatchObject({ output: null });
     expect(filterHookEvent(postToolUseEdit)).toMatchObject({ output: null });
+  });
+});
+
+describe('PowerShell and other shells', () => {
+  it('PowerShell is a command tool like Bash: the command, ok, duration, stdout as the output', () => {
+    const e = filterHookEvent(postToolUsePowerShell)!;
+    expect(e).toMatchObject({ kind: 'tool', toolName: 'PowerShell', ok: true, durationMs: 412, errorExcerpt: null, change: null });
+    expect(e).toMatchObject({ toolTarget: 'Get-ChildItem src' }); // the exercise folder becomes a relative path
+    expect((e as { output: { head: string } }).output.head).toBe('src\\add.ts\nMode  Length Name\n-a--- 52 add.ts\n');
+  });
+
+  it('CRLF output leaves no carriage return behind', () => {
+    expect(JSON.stringify(filterHookEvent(postToolUsePowerShell))).not.toContain('\\r');
+  });
+
+  it('a failed PowerShell call keeps the command and the first lines of the error', () => {
+    expect(filterHookEvent(postToolUseFailurePowerShell)).toMatchObject({
+      ok: false, toolName: 'PowerShell', toolTarget: 'npm test', durationMs: 95, errorExcerpt: "npm : The term 'npm' is not recognized\nAt line:1 char:1", output: null,
+    });
+  });
+
+  it('stderr follows stdout, as for Bash', () => {
+    const e = filterHookEvent({ ...postToolUsePowerShell, tool_response: { stdout: 'out', stderr: 'warn' } });
+    expect(e).toMatchObject({ output: { head: 'out\nwarn' } });
+  });
+
+  it('the tool name is not case sensitive', () => {
+    expect(filterHookEvent({ ...postToolUsePowerShell, tool_name: 'powershell' })).toMatchObject({ toolTarget: 'Get-ChildItem src' });
+  });
+
+  it('a tool this code has not heard of still shows its command line when its input has one', () => {
+    const e = filterHookEvent({ ...postToolUseBash, tool_name: 'Pwsh', tool_input: { command: 'Get-Date' }, tool_response: { stdout: 'Friday' } });
+    expect(e).toMatchObject({ toolName: 'Pwsh', toolTarget: 'Get-Date', output: { head: 'Friday' } });
+  });
+
+  it('a shell response with neither stdout nor stderr is kept as JSON, not lost', () => {
+    const e = filterHookEvent({ ...postToolUsePowerShell, tool_response: { output: 'hello', exitCode: 0 } });
+    expect(e).toMatchObject({ toolTarget: 'Get-ChildItem src', output: { head: '{"output":"hello","exitCode":0}' } });
+  });
+
+  it('keeps the Windows folder, the user name and the transcript out of everything kept', () => {
+    for (const payload of [postToolUsePowerShell, postToolUseFailurePowerShell]) {
+      const json = JSON.stringify(filterHookEvent(payload));
+      for (const forbidden of [WIN_CWD, 'C:', 'Users', 'Lan', 'transcript', '.claude']) expect(json, forbidden).not.toContain(forbidden);
+    }
   });
 });

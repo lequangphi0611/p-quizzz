@@ -4,6 +4,7 @@ import type { CreatedTraining, MyTraining, TrainingDetail, UninstallCheckResult 
 import { FakeClock } from '../../application/testing/fakes.js';
 import {
   ASSISTANT_ANSWER, CWD, FILE_SECRET, TRANSCRIPT,
+  WIN_CWD, postToolUseFailurePowerShell, postToolUsePowerShell,
   postToolUseBash, postToolUseEdit, postToolUseFailure, postToolUseRead, postToolUseWrite, stop, userPromptSubmit,
 } from '../../domain/training/fixtures/hook-payloads.js';
 import { bus } from '../../infrastructure/events/event-bus.js';
@@ -113,6 +114,20 @@ describe('ingest: what is kept', () => {
     expect(res.statusCode).toBe(204);
     expect(ms).toBeLessThan(50);
     expect(s.events()).toHaveLength(2);
+  });
+});
+
+describe('ingest: PowerShell (Windows)', () => {
+  it('stores the command and the output like Bash, with no trace of the Windows folder or user', async () => {
+    const s = await setup();
+    const lan = await s.member(await s.training(), 'Lan');
+    for (const p of [postToolUsePowerShell, postToolUseFailurePowerShell]) expect((await s.ingest(lan.ingestToken, p)).statusCode).toBe(204);
+    const rows = s.events();
+    expect(rows.map(r => [r.toolName, r.toolTarget, r.ok])).toEqual([['PowerShell', 'Get-ChildItem src', true], ['PowerShell', 'npm test', false]]);
+    expect(rows[0]).toMatchObject({ outputHead: 'src\\add.ts\nMode  Length Name\n-a--- 52 add.ts\n', durationMs: 412 });
+    expect(rows[1]).toMatchObject({ errorExcerpt: "npm : The term 'npm' is not recognized\nAt line:1 char:1" });
+    const dump = JSON.stringify(rows);
+    for (const forbidden of [WIN_CWD, 'C:', 'C:\\\\Users', 'transcript', '\\r']) expect(dump, forbidden).not.toContain(forbidden);
   });
 });
 
@@ -287,8 +302,12 @@ describe('mentor signal', () => {
     const seen: number[] = [];
     const off = bus.subscribeTraining(id => seen.push(id));
     try {
+      const t0 = Date.now();
       for (let i = 0; i < 50; i++) expect((await s.ingest(lan.ingestToken, userPromptSubmit)).statusCode).toBe(204);
-      expect(seen).toEqual([t.id]);
+      const windows = Math.ceil((Date.now() - t0) / 2000); // a slow machine may stretch the burst over more than one 2 s window
+      expect(seen.every(id => id === t.id)).toBe(true);
+      expect(seen.length).toBeGreaterThanOrEqual(1);
+      expect(seen.length).toBeLessThanOrEqual(windows); // at most one signal per 2 s window, however many events
     } finally {
       off();
     }

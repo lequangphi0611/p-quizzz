@@ -18,7 +18,7 @@ export interface ToolDraft extends DraftBase {
   toolName: string;
   ok: boolean;
   durationMs: number | null;
-  /** `Bash`: the command. Files: a path relative to the exercise folder (`Read` adds ` · N dòng`). Else null. */
+  /** `Bash` / `PowerShell` (any tool that runs a command): the command line. Files: a path relative to the exercise folder (`Read` adds ` · N dòng`). Else null. */
   toolTarget: string | null;
   /** First lines of the tool's error (failed calls only). */
   errorExcerpt: string | null;

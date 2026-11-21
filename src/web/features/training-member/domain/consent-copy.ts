@@ -12,7 +12,7 @@ export interface ConsentItem {
 /** "Những gì được gửi về máy mentor". */
 export const SENT_ITEMS: readonly ConsentItem[] = [
   { icon: 'message-square', lead: 'Prompt', text: 'mỗi câu bạn gõ cho Claude Code.' },
-  { icon: 'code', lead: 'Mỗi lần Claude dùng công cụ', text: '(Bash, Edit, Write, Read…): tên công cụ, câu lệnh hoặc tên file (đường dẫn tính từ thư mục bài tập), lệnh chạy xong hay bị lỗi (pass/fail) và mất bao lâu.' },
+  { icon: 'code', lead: 'Mỗi lần Claude dùng công cụ', text: '(Bash hoặc PowerShell, Edit, Write, Read…): tên công cụ, câu lệnh hoặc tên file (đường dẫn tính từ thư mục bài tập), lệnh chạy xong hay bị lỗi (pass/fail) và mất bao lâu.' },
   { icon: 'file-text', lead: 'Output của lệnh và nội dung thay đổi file', text: '(phần Edit/Write). Nếu dài, chỉ giữ phần đầu và phần cuối.' },
   { icon: 'eye-off', lead: 'Công cụ đọc file (Read)', text: 'chỉ gửi tên file và số dòng đã đọc, không gửi nội dung file.' },
 ];
