@@ -88,3 +88,78 @@ export const postToolUseFailurePowerShell = {
 };
 
 export const stop = { ...common, hook_event_name: 'Stop', stop_hook_active: false, last_assistant_message: ASSISTANT_ANSWER };
+
+/**
+ * Session, permission, question and plan payloads, rebuilt from the real runs in docs/spikes/claude-code-hooks.md §6
+ * (Claude Code 2.1.330, Linux) with the absolute paths replaced by `CWD` / `SCRATCHPAD` / `HOME_DIR`. They carry the fields the
+ * filter must DROP: `scratchpad_dir`, `compact_summary`, the notification `message`, `permission_suggestions`.
+ */
+export const SCRATCHPAD = '/tmp/claude-1000/-home-lan-bai-tap/c0ffee00/scratchpad';
+export const HOME_DIR = '/home/lan';
+export const COMPACT_SUMMARY = 'Tóm tắt do Claude viết: người dùng đang sửa hàm add, mã nguồn nằm ở src/add.ts';
+export const PROMPT_ID = 'prompt-1111';
+
+const turn = { session_id: SESSION_ID, transcript_path: TRANSCRIPT, cwd: CWD, scratchpad_dir: SCRATCHPAD, prompt_id: PROMPT_ID };
+// `SessionEnd`, `PreCompact` and `Notification` carry no `permission_mode` (spike §6.1).
+const turnNoMode = turn;
+const turnWithMode = { ...turn, permission_mode: 'default' };
+
+export const sessionEndClear = { ...turnNoMode, hook_event_name: 'SessionEnd', reason: 'clear' };
+export const sessionEndExit = { ...turnNoMode, hook_event_name: 'SessionEnd', reason: 'prompt_input_exit' };
+export const preCompactManual = { ...turnNoMode, hook_event_name: 'PreCompact', trigger: 'manual', custom_instructions: 'giữ lại ý chính' };
+export const preCompactAuto = { ...turnNoMode, hook_event_name: 'PreCompact', trigger: 'auto', custom_instructions: null };
+export const postCompact = { ...turnNoMode, hook_event_name: 'PostCompact', trigger: 'manual', compact_summary: COMPACT_SUMMARY };
+export const postModelSwitch = {
+  ...turnWithMode,
+  hook_event_name: 'PostModelSwitch',
+  from_model: 'claude-opus-4-5',
+  to_model: 'claude-sonnet-4-5',
+  requested_model: 'sonnet',
+  source: 'command',
+  context_tokens: 1234,
+};
+export const notificationPermission = { ...turnNoMode, hook_event_name: 'Notification', notification_type: 'permission_prompt', message: 'Claude needs your permission' };
+export const notificationIdle = { ...turnNoMode, hook_event_name: 'Notification', notification_type: 'idle_prompt', message: 'Claude is waiting for your input' };
+export const notificationOther = { ...turnNoMode, hook_event_name: 'Notification', notification_type: 'auth_success', message: 'Signed in' };
+
+export const permissionRequestEdit = {
+  ...turnWithMode,
+  hook_event_name: 'PermissionRequest',
+  tool_name: 'Edit',
+  tool_input: { file_path: `${CWD}/src/add.ts`, old_string: 'a + b', new_string: 'a + b + 0' },
+  permission_suggestions: [{ type: 'addRules', rules: [{ toolName: 'Edit' }], behavior: 'allow', destination: 'session' }],
+};
+export const permissionRequestBash = {
+  ...turnWithMode,
+  hook_event_name: 'PermissionRequest',
+  tool_name: 'Bash',
+  tool_input: { command: `cd ${CWD} && rm -rf build`, description: 'Remove build' },
+  permission_suggestions: [],
+};
+
+export const askUserQuestionTool_input = {
+  questions: [
+    { question: 'Dùng thư viện nào?', header: 'Thư viện', multiSelect: false, options: [{ label: 'vitest', description: '' }, { label: 'jest', description: '' }] },
+  ],
+  answers: { 'Dùng thư viện nào?': 'vitest' },
+};
+export const postToolUseAskUserQuestion = {
+  ...turnWithMode,
+  hook_event_name: 'PostToolUse',
+  tool_name: 'AskUserQuestion',
+  tool_input: askUserQuestionTool_input,
+  tool_response: { questions: askUserQuestionTool_input.questions, answers: askUserQuestionTool_input.answers },
+  duration_ms: 18000,
+};
+
+export const PLAN = '# Kế hoạch\n1. Viết hàm add\n2. Chạy test';
+export const permissionRequestExitPlan = { ...turn, permission_mode: 'plan', hook_event_name: 'PermissionRequest', tool_name: 'ExitPlanMode', tool_input: { plan: PLAN } };
+export const postToolUseExitPlan = {
+  ...turn,
+  permission_mode: 'plan',
+  hook_event_name: 'PostToolUse',
+  tool_name: 'ExitPlanMode',
+  tool_input: { plan: PLAN },
+  tool_response: { plan: PLAN, isAgent: false, filePath: `${HOME_DIR}/.claude/plans/x.md` },
+  duration_ms: 5,
+};

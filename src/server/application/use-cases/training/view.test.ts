@@ -28,9 +28,9 @@ function build(randoms = [111111, 222222]) {
   };
 }
 
-const prompt = (text = 'hỏi gì đó'): TrainingEventDraft => ({ kind: 'prompt', claudeSessionId: 's1', prompt: text });
+const prompt = (text = 'hỏi gì đó'): TrainingEventDraft => ({ kind: 'prompt', claudeSessionId: 's1', permissionMode: null, promptId: null, prompt: text });
 const tool = (o: Partial<Extract<TrainingEventDraft, { kind: 'tool' }>> = {}): TrainingEventDraft => ({
-  kind: 'tool', claudeSessionId: 's1', toolName: 'Bash', ok: true, durationMs: 10, toolTarget: 'npm test', errorExcerpt: null, output: null, change: null, ...o,
+  kind: 'tool', claudeSessionId: 's1', permissionMode: null, promptId: null, note: null, toolName: 'Bash', ok: true, durationMs: 10, toolTarget: 'npm test', errorExcerpt: null, output: null, change: null, ...o,
 });
 const add = (memberId: number, draft: TrainingEventDraft) => events.append({ ...draft, memberId, receivedAt: clock.now() });
 

@@ -1,19 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { filterHookEvent, isHookEvent } from './filter-hook-event.js';
+import { filterHookEvent, isHookEvent, isPermissionRequest, NOTE_MAX_CHARS } from './filter-hook-event.js';
 import {
-  ASSISTANT_ANSWER, CWD, FILE_SECRET, SESSION_ID, TRANSCRIPT,
+  ASSISTANT_ANSWER, COMPACT_SUMMARY, CWD, FILE_SECRET, HOME_DIR, PLAN, PROMPT_ID, SCRATCHPAD, SESSION_ID, TRANSCRIPT,
+  notificationIdle, notificationOther, notificationPermission, permissionRequestBash, permissionRequestEdit, permissionRequestExitPlan,
+  postCompact, postModelSwitch, postToolUseAskUserQuestion, postToolUseExitPlan, preCompactAuto, preCompactManual, sessionEndClear, sessionEndExit,
   WIN_CWD, postToolUseFailurePowerShell, postToolUsePowerShell,
   postToolUseBash, postToolUseEdit, postToolUseFailure, postToolUseRead, postToolUseWrite, stop, userPromptSubmit,
 } from './fixtures/hook-payloads.js';
 
 describe('filterHookEvent', () => {
   it('UserPromptSubmit keeps the prompt and Claude Code session id', () => {
-    expect(filterHookEvent(userPromptSubmit)).toEqual({ kind: 'prompt', claudeSessionId: SESSION_ID, prompt: 'Viết hàm cộng hai số' });
+    expect(filterHookEvent(userPromptSubmit)).toEqual({ kind: 'prompt', claudeSessionId: SESSION_ID, permissionMode: 'default', promptId: null, prompt: 'Viết hàm cộng hai số' });
   });
 
   it('PostToolUse Bash: the command, ok, duration, and the output as a clip', () => {
     expect(filterHookEvent(postToolUseBash)).toEqual({
-      kind: 'tool', claudeSessionId: SESSION_ID, toolName: 'Bash', ok: true, durationMs: 2310, toolTarget: 'npm test', errorExcerpt: null,
+      kind: 'tool', claudeSessionId: SESSION_ID, permissionMode: 'default', promptId: null, note: null, toolName: 'Bash', ok: true, durationMs: 2310, toolTarget: 'npm test', errorExcerpt: null,
       output: { head: 'PASS src/add.test.ts\nTests: 3 passed', tail: null, omittedLines: 0 }, change: null,
     });
   });
@@ -92,10 +94,10 @@ describe('filterHookEvent', () => {
     expect(filterHookEvent({ ...postToolUseBash, duration_ms: 12.6 })).toMatchObject({ durationMs: 13 });
   });
 
-  it('keeps nothing else: no transcript path, absolute cwd, permission mode or the assistant answer', () => {
+  it('keeps nothing else: no transcript path, absolute cwd, scratchpad or the assistant answer', () => {
     for (const payload of [userPromptSubmit, postToolUseBash, postToolUseFailure, postToolUseWrite, postToolUseEdit, postToolUseRead]) {
       const json = JSON.stringify(filterHookEvent(payload));
-      for (const forbidden of [TRANSCRIPT, 'transcript', CWD, '/home/lan', 'permission', 'default', ASSISTANT_ANSWER]) expect(json, forbidden).not.toContain(forbidden);
+      for (const forbidden of [TRANSCRIPT, 'transcript', CWD, '/home/lan', SCRATCHPAD, ASSISTANT_ANSWER]) expect(json, forbidden).not.toContain(forbidden);
     }
   });
 
@@ -192,5 +194,104 @@ describe('PowerShell and other shells', () => {
       const json = JSON.stringify(filterHookEvent(payload));
       for (const forbidden of [WIN_CWD, 'C:', 'Users', 'Lan', 'transcript', '.claude']) expect(json, forbidden).not.toContain(forbidden);
     }
+  });
+});
+
+describe('filterHookEvent: session, permission, notice, question and plan (S37)', () => {
+  const draft = (raw: unknown) => filterHookEvent(raw)!;
+
+  it('SessionEnd: /clear is `clear`, any other reason is `exit`', () => {
+    expect(draft(sessionEndClear)).toMatchObject({ kind: 'session', subtype: 'clear', note: null, claudeSessionId: SESSION_ID });
+    expect(draft(sessionEndExit)).toMatchObject({ kind: 'session', subtype: 'exit', note: null });
+    expect(draft({ ...sessionEndClear, reason: 'other' })).toMatchObject({ subtype: 'exit' });
+  });
+
+  it('PreCompact: typed /compact keeps what the member wrote, automatic does not', () => {
+    expect(draft(preCompactManual)).toMatchObject({ kind: 'session', subtype: 'compact_manual', note: 'giữ lại ý chính' });
+    expect(draft({ ...preCompactManual, custom_instructions: '  ' })).toMatchObject({ subtype: 'compact_manual', note: null });
+    expect(draft(preCompactAuto)).toMatchObject({ kind: 'session', subtype: 'compact_auto', note: null });
+    expect(filterHookEvent({ ...preCompactManual, trigger: 'weird' })).toBeNull();
+  });
+
+  it('a long /compact note is cut', () => {
+    const e = draft({ ...preCompactManual, custom_instructions: 'x'.repeat(NOTE_MAX_CHARS + 500) }) as { note: string };
+    expect(e.note).toHaveLength(NOTE_MAX_CHARS);
+  });
+
+  it('PostCompact is not ours: its summary is Claude\'s own writing', () => {
+    expect(filterHookEvent(postCompact)).toBeNull();
+    expect(isHookEvent(postCompact)).toBe(false);
+  });
+
+  it('PostModelSwitch: "from → to"', () => {
+    expect(draft(postModelSwitch)).toMatchObject({ kind: 'session', subtype: 'model_switch', note: 'claude-opus-4-5 → claude-sonnet-4-5', permissionMode: 'default' });
+    expect(filterHookEvent({ ...postModelSwitch, to_model: undefined })).toBeNull();
+  });
+
+  it('Notification: waiting for permission / idle; the message is dropped; other types are not ours', () => {
+    expect(draft(notificationPermission)).toMatchObject({ kind: 'notice', subtype: 'waiting_permission' });
+    expect(draft(notificationIdle)).toMatchObject({ kind: 'notice', subtype: 'idle' });
+    expect(JSON.stringify(draft(notificationPermission))).not.toContain('needs your permission');
+    expect(filterHookEvent(notificationOther)).toBeNull();
+  });
+
+  it('PermissionRequest Edit: the tool, the file relative to the folder, and the change; no suggestions', () => {
+    const e = draft(permissionRequestEdit);
+    expect(e).toMatchObject({ kind: 'permission', toolName: 'Edit', toolTarget: 'src/add.ts', change: { head: '- a + b\n+ a + b + 0' }, permissionMode: 'default', promptId: PROMPT_ID });
+    expect(JSON.stringify(e)).not.toContain('permission_suggestions');
+    expect(JSON.stringify(e)).not.toContain('addRules');
+  });
+
+  it('PermissionRequest Bash: the command with the folder taken out', () => {
+    expect(draft(permissionRequestBash)).toMatchObject({ kind: 'permission', toolName: 'Bash', toolTarget: 'cd . && rm -rf build', change: null });
+  });
+
+  it('PermissionRequest ExitPlanMode: the plan is the change', () => {
+    expect(draft(permissionRequestExitPlan)).toMatchObject({ kind: 'permission', toolName: 'ExitPlanMode', permissionMode: 'plan', change: { head: PLAN } });
+  });
+
+  it('AskUserQuestion: the questions as the target, the member\'s choices as the note, no output', () => {
+    expect(draft(postToolUseAskUserQuestion)).toMatchObject({
+      kind: 'tool', toolName: 'AskUserQuestion', ok: true, toolTarget: 'Dùng thư viện nào?', note: 'Dùng thư viện nào? → vitest', output: null,
+    });
+  });
+
+  it('AskUserQuestion reads the answers from tool_response when tool_input has none', () => {
+    const { answers: _a, ...input } = postToolUseAskUserQuestion.tool_input;
+    expect(draft({ ...postToolUseAskUserQuestion, tool_input: input })).toMatchObject({ note: 'Dùng thư viện nào? → vitest' });
+    expect(draft({ ...postToolUseAskUserQuestion, tool_input: input, tool_response: {} })).toMatchObject({ note: null });
+  });
+
+  it('ExitPlanMode (PostToolUse): the output is the plan, never the plan file\'s absolute path', () => {
+    const e = draft(postToolUseExitPlan);
+    expect(e).toMatchObject({ kind: 'tool', toolName: 'ExitPlanMode', output: { head: PLAN }, note: null });
+    expect(JSON.stringify(e)).not.toContain(HOME_DIR);
+  });
+
+  it('keeps the permission mode and turn id of an ordinary tool call, nothing else from the envelope', () => {
+    expect(draft(postToolUseExitPlan)).toMatchObject({ permissionMode: 'plan', promptId: PROMPT_ID });
+  });
+
+  it('no stored string carries the exercise folder, the scratchpad, the transcript or the summary', () => {
+    const all = [
+      sessionEndClear, sessionEndExit, preCompactManual, preCompactAuto, postModelSwitch, notificationPermission, notificationIdle,
+      permissionRequestEdit, permissionRequestBash, permissionRequestExitPlan, postToolUseAskUserQuestion, postToolUseExitPlan,
+    ];
+    for (const payload of all) {
+      const json = JSON.stringify(filterHookEvent(payload));
+      for (const forbidden of [CWD, SCRATCHPAD, TRANSCRIPT, 'transcript', 'scratchpad', COMPACT_SUMMARY, HOME_DIR]) expect(json, forbidden).not.toContain(forbidden);
+    }
+  });
+
+  it('text that mentions the scratchpad folder has it taken out too', () => {
+    const e = draft({ ...postToolUseBash, scratchpad_dir: SCRATCHPAD, tool_response: { stdout: `wrote ${SCRATCHPAD}/out.txt`, stderr: '' } }) as { output: { head: string } };
+    expect(e.output.head).toBe('wrote out.txt');
+  });
+
+  it('isPermissionRequest only for that hook', () => {
+    expect(isPermissionRequest(permissionRequestEdit)).toBe(true);
+    expect(isPermissionRequest(postToolUseBash)).toBe(false);
+    expect(isPermissionRequest(null)).toBe(false);
+    expect(isHookEvent(permissionRequestEdit)).toBe(true);
   });
 });

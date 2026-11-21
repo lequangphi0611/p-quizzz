@@ -27,9 +27,10 @@ export class InMemoryTrainingEventRepository implements TrainingEventRepository,
 
   async listLight(memberId: number, afterId: number, limit: number): Promise<LightEvent[]> {
     return (await this.all())
-      .filter(e => e.memberId === memberId && e.id > afterId)
+      .filter(e => e.memberId === memberId && e.id > afterId && (e.kind === 'prompt' || e.kind === 'tool'))
       .slice(0, limit)
       .map(e => {
+        if (e.kind !== 'prompt' && e.kind !== 'tool') throw new Error('unreachable');
         const tool = e.kind === 'tool' ? e : null;
         const text = tool?.output ? (tool.output.tail ?? tool.output.head) : null;
         return {
@@ -54,7 +55,11 @@ export class InMemoryTrainingEventRepository implements TrainingEventRepository,
     const e = (await this.all()).find(x => x.id === eventId);
     if (!e) return null;
     const member = await this.members.findById(e.memberId);
-    return { trainingId: member!.trainingId, output: e.kind === 'tool' ? e.output : null, change: e.kind === 'tool' ? e.change : null };
+    return {
+      trainingId: member!.trainingId,
+      output: e.kind === 'tool' ? e.output : null,
+      change: e.kind === 'tool' || e.kind === 'permission' ? e.change : null,
+    };
   }
 
   async recentTools(memberId: number, n: number): Promise<ToolOutcome[]> {
@@ -68,7 +73,7 @@ export class InMemoryTrainingEventRepository implements TrainingEventRepository,
       if ((await this.members.findById(e.memberId))?.trainingId !== trainingId) continue;
       const c = out.get(e.memberId) ?? { promptCount: 0, toolCount: 0, failedCount: 0 };
       if (e.kind === 'prompt') c.promptCount++;
-      else {
+      else if (e.kind === 'tool') {
         c.toolCount++;
         if (!e.ok) c.failedCount++;
       }

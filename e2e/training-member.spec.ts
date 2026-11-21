@@ -98,6 +98,10 @@ test('the whole member flow: code → consent → install → recording → stop
     await expect(page.getByText(must).first()).toBeVisible();
   }
   await expect(page.getByText('chỉ gửi tên file và số dòng')).toBeVisible(); // Read: file name and line count only
+  // S37: the data added by §7.35 and the permission-hook risk (PRODUCT.md §7.35f).
+  for (const must of ['Mỗi lần Claude xin quyền', 'Câu Claude hỏi và lựa chọn của bạn', 'Phiên Claude Code', 'Rủi ro: hook xin quyền', 'tự chạy lệnh trên máy bạn mà không hỏi bạn', 'xuất báo cáo có tên bạn']) {
+    await expect(page.getByText(must).first()).toBeVisible();
+  }
   await expect(page.getByText('vẫn được gửi, kèm output')).toBeVisible(); // the honest caveat about commands that touch other places
   const agree = page.getByRole('button', { name: 'Đồng ý và tiếp tục' });
   const decline = page.getByRole('button', { name: 'Không tham gia' });
@@ -137,6 +141,8 @@ test('the whole member flow: code → consent → install → recording → stop
   await expect(page.getByText('Ghép vào, đừng ghi đè')).toBeVisible();
   await expect(page.getByText('~/.claude/settings.json').first()).toBeVisible();
   await expect(page.getByText('Hộp thoại tin cậy thư mục')).toBeVisible();
+  await expect(page.getByText('"No, exit"')).toBeVisible(); // S37: the default of the trust dialog is to exit
+  await expect(page.getByText('"Yes, I trust this folder"').first()).toBeVisible();
   await expect(page.getByText('Đang chờ tín hiệu từ Claude Code của bạn…')).toBeVisible();
   await page.getByRole('button', { name: 'Sao chép' }).nth(1).click(); // 0 = folder commands, 1 = the merge request
   await expect(page.getByRole('button', { name: 'Đã sao chép' })).toBeVisible();
@@ -146,7 +152,9 @@ test('the whole member flow: code → consent → install → recording → stop
   await page.getByRole('radio', { name: /B\. Tự ghép/ }).click();
   const manual = page.getByLabel(/Đoạn cấu hình để ghép vào/);
   await expect(manual).toContainText(cfg.ingestToken);
-  await expect(manual).toContainText('PostToolUseFailure');
+  for (const hook of ['PostToolUseFailure', 'PermissionRequest', 'Notification', 'PreCompact', 'SessionEnd', 'PostModelSwitch']) await expect(manual).toContainText(hook);
+  await expect(manual).not.toContainText('"Stop"');
+  await expect(manual).not.toContainText('PostCompact');
   await expect(manual).toContainText('"timeout": 1');
   await expect(page.getByText('Chỉ file trong thư mục bài tập')).toBeVisible();
   await tallShot(page, shotPath('S36', '3b-install-manual-desktop'));

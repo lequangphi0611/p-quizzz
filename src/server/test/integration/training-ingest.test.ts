@@ -6,6 +6,8 @@ import {
   ASSISTANT_ANSWER, CWD, FILE_SECRET, TRANSCRIPT,
   WIN_CWD, postToolUseFailurePowerShell, postToolUsePowerShell,
   postToolUseBash, postToolUseEdit, postToolUseFailure, postToolUseRead, postToolUseWrite, stop, userPromptSubmit,
+  SCRATCHPAD, notificationIdle, notificationPermission, permissionRequestBash, permissionRequestEdit, permissionRequestExitPlan,
+  postCompact, postModelSwitch, postToolUseAskUserQuestion, postToolUseExitPlan, preCompactAuto, preCompactManual, sessionEndClear, sessionEndExit,
 } from '../../domain/training/fixtures/hook-payloads.js';
 import { bus } from '../../infrastructure/events/event-bus.js';
 import { trainingEvents, trainingMembers } from '../../infrastructure/db/schema.js';
@@ -114,6 +116,116 @@ describe('ingest: what is kept', () => {
     expect(res.statusCode).toBe(204);
     expect(ms).toBeLessThan(50);
     expect(s.events()).toHaveLength(2);
+  });
+});
+
+describe('ingest: session, permission, question and plan (S37)', () => {
+  it('stores each new kind with its subtype, note, permission mode and turn id, and answers 204', async () => {
+    const s = await setup();
+    const lan = await s.member(await s.training(), 'Lan');
+    const payloads = [
+      sessionEndClear, preCompactManual, preCompactAuto, postModelSwitch, notificationPermission, notificationIdle,
+      permissionRequestEdit, postToolUseAskUserQuestion, postToolUseExitPlan, sessionEndExit,
+    ];
+    for (const p of payloads) {
+      const res = await s.ingest(lan.ingestToken, p);
+      expect(res.statusCode).toBe(204);
+      expect(res.body).toBe('');
+    }
+    expect(s.events().map(r => [r.kind, r.subtype ?? r.toolName, r.note])).toEqual([
+      ['session', 'clear', null],
+      ['session', 'compact_manual', 'giữ lại ý chính'],
+      ['session', 'compact_auto', null],
+      ['session', 'model_switch', 'claude-opus-4-5 → claude-sonnet-4-5'],
+      ['notice', 'waiting_permission', null],
+      ['notice', 'idle', null],
+      ['permission', 'Edit', null],
+      ['tool', 'AskUserQuestion', 'Dùng thư viện nào? → vitest'],
+      ['tool', 'ExitPlanMode', null],
+      ['session', 'exit', null],
+    ]);
+    const rows = s.events();
+    expect(rows[6]).toMatchObject({ toolTarget: 'src/add.ts', changeHead: '- a + b\n+ a + b + 0', permissionMode: 'default', promptId: 'prompt-1111' });
+    expect(rows[8]).toMatchObject({ outputHead: '# Kế hoạch\n1. Viết hàm add\n2. Chạy test', permissionMode: 'plan' });
+  });
+
+  it('PostCompact and an unknown Notification store nothing', async () => {
+    const s = await setup();
+    const lan = await s.member(await s.training(), 'Lan');
+    for (const p of [postCompact, { ...notificationIdle, notification_type: 'auth_success' }]) expect((await s.ingest(lan.ingestToken, p)).statusCode).toBe(204);
+    expect(s.events()).toEqual([]);
+  });
+
+  it('nothing stored contains the exercise folder, the scratchpad or the transcript', async () => {
+    const s = await setup();
+    const lan = await s.member(await s.training(), 'Lan');
+    for (const p of [sessionEndClear, preCompactManual, postModelSwitch, notificationPermission, permissionRequestEdit, permissionRequestBash, permissionRequestExitPlan, postToolUseAskUserQuestion, postToolUseExitPlan]) {
+      await s.ingest(lan.ingestToken, p);
+    }
+    const json = JSON.stringify(s.events());
+    for (const forbidden of [CWD, SCRATCHPAD, TRANSCRIPT, '/home/lan']) expect(json, forbidden).not.toContain(forbidden);
+  });
+
+  it('the member timeline lists only prompts and tools until S39 shows the rest', async () => {
+    const s = await setup();
+    const t = await s.training();
+    const lan = await s.member(t, 'Lan');
+    for (const p of [userPromptSubmit, sessionEndClear, permissionRequestEdit, notificationPermission, postToolUseBash]) await s.ingest(lan.ingestToken, p);
+    const res = await s.admin('GET', `/trainings/${t.id}/members/${lan.id}/events`);
+    expect(res.json<{ events: { kind: string }[] }>().events.map(e => e.kind)).toEqual(['prompt', 'tool']);
+    const row = (await s.detail(t.id)).members[0]!;
+    expect([row.promptCount, row.toolCount]).toEqual([1, 1]);
+  });
+});
+
+describe('ingest: PermissionRequest never gets a decision (S37 safety invariant)', () => {
+  /** Whatever the state, the answer to a PermissionRequest is an empty 204: no body, so no `hookSpecificOutput` and no `decision`. */
+  const expectSilent = (res: { statusCode: number; body: string; headers: Record<string, unknown> }) => {
+    expect(res.statusCode).toBe(204);
+    expect(res.body).toBe('');
+    expect(res.body).not.toMatch(/hookSpecificOutput|decision|behavior|allow/);
+  };
+
+  it('open training', async () => {
+    const s = await setup();
+    const lan = await s.member(await s.training(), 'Lan');
+    expectSilent(await s.ingest(lan.ingestToken, permissionRequestBash));
+    expectSilent(await s.ingest(lan.ingestToken, permissionRequestExitPlan));
+  });
+
+  it('stopped training: no reminder either (a systemMessage is not a decision, but this hook gets nothing)', async () => {
+    const s = await setup();
+    const t = await s.training();
+    const lan = await s.member(t, 'Lan');
+    await s.admin('POST', `/trainings/${t.id}/stop`);
+    expectSilent(await s.ingest(lan.ingestToken, permissionRequestBash));
+    expect((await s.ingest(lan.ingestToken, postToolUseBash)).json()).toEqual({ systemMessage: STOPPED_REMINDER });
+    expect(s.events()).toEqual([]);
+  });
+
+  it('unknown or missing token, and unparseable body', async () => {
+    const s = await setup();
+    await s.member(await s.training(), 'Lan');
+    expectSilent(await s.ingest('not-a-token', permissionRequestBash));
+    expectSilent(await s.ingest(undefined, permissionRequestBash));
+    expect((await s.ingest('not-a-token', postToolUseBash)).statusCode).toBe(404);
+  });
+
+  it('no ingest answer, for any fixture and any state, carries hookSpecificOutput or decision', async () => {
+    const s = await setup();
+    const t = await s.training();
+    const lan = await s.member(t, 'Lan');
+    const all = [
+      userPromptSubmit, postToolUseBash, postToolUseFailure, sessionEndClear, preCompactManual, postModelSwitch, notificationPermission,
+      permissionRequestEdit, permissionRequestBash, permissionRequestExitPlan, postToolUseAskUserQuestion, postToolUseExitPlan, stop,
+    ];
+    const check = async (token: string) => {
+      for (const p of all) expect((await s.ingest(token, p)).body, JSON.stringify(p).slice(0, 60)).not.toMatch(/hookSpecificOutput|decision/);
+    };
+    await check(lan.ingestToken);
+    await check('not-a-token');
+    await s.admin('POST', `/trainings/${t.id}/stop`);
+    await check(lan.ingestToken);
   });
 });
 
@@ -304,10 +416,10 @@ describe('mentor signal', () => {
     try {
       const t0 = Date.now();
       for (let i = 0; i < 50; i++) expect((await s.ingest(lan.ingestToken, userPromptSubmit)).statusCode).toBe(204);
-      const windows = Math.ceil((Date.now() - t0) / 2000); // a slow machine may stretch the burst over more than one 2 s window
+      const windows = Math.ceil((Date.now() - t0) / 2000) + 1; // the first signal goes out at once, then one per 2 s window; a slow machine may stretch the burst over more than one window
       expect(seen.every(id => id === t.id)).toBe(true);
       expect(seen.length).toBeGreaterThanOrEqual(1);
-      expect(seen.length).toBeLessThanOrEqual(windows); // at most one signal per 2 s window, however many events
+      expect(seen.length).toBeLessThanOrEqual(windows); // one at once plus at most one per 2 s window, however many events
     } finally {
       off();
     }

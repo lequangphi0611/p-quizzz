@@ -456,11 +456,11 @@ Thu prompt và hoạt động công cụ của Claude Code qua hook HTTP. Kết 
 - **Web**: `features/training-admin/{domain,application,infrastructure,ui}` (mentor), `features/training-member/{…}` (member). `features/member-join` chỉ thêm: `resolve` trả `kind: 'training'` → chuyển tới `/training/:id` kèm mã. Hai feature không import nhau; component dùng chung (nếu có) vào `shared/ui/`. Liên kết "Buổi training AI" trong khung `/admin/*`.
 - **Test**: domain `filterHookEvent` dùng các payload thật đã ghi trong spike (`PostToolUse` Bash/PowerShell/Write, `PostToolUseFailure`, `UserPromptSubmit`, `Stop` → null); tích hợp HTTP ingest + quét key cấm ở route member; không chạy Claude Code thật trong `npm test`/`npm run e2e` (e2e gửi JSON hook giả tới ingest).
 
-### 11.9 Mở rộng `training` (S37–S40, PRODUCT.md §7.35, **chưa làm**)
+### 11.9 Mở rộng `training` (S37–S40, PRODUCT.md §7.35; S37 xong, S38–S40 chưa làm)
 
 Contract dự kiến; story nào chạm thì chốt lại tại đây. Payload thật: [spikes/claude-code-hooks.md](spikes/claude-code-hooks.md) §6.
 
-- **Hook thêm vào `buildHookSettings`** (S37):
+- **Hook thêm vào `buildHookSettings`** (S37, xong):
   - `PermissionRequest` (matcher `*`).
   - `Notification` (matcher `permission_prompt|idle_prompt`).
   - `PreCompact`, `SessionEnd`, `PostModelSwitch`.

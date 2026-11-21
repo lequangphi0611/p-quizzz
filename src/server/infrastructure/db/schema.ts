@@ -293,8 +293,13 @@ export const trainingEvents = sqliteTable(
   {
     id: id(),
     memberId: integer('member_id').notNull().references(() => trainingMembers.id, { onDelete: 'cascade' }),
-    kind: text('kind', { enum: ['prompt', 'tool'] }).notNull(),
+    kind: text('kind', { enum: ['prompt', 'tool', 'permission', 'session', 'notice'] }).notNull(),
     claudeSessionId: text('claude_session_id').notNull(),
+    // S37 (architecture.md §11.9): Claude Code's permission mode and turn id, the subtype of session / notice rows, and a short note.
+    permissionMode: text('permission_mode'),
+    promptId: text('prompt_id'),
+    subtype: text('subtype'),
+    note: text('note'),
     receivedAt: ts('received_at').notNull(),
     prompt: text('prompt'),
     toolName: text('tool_name'),

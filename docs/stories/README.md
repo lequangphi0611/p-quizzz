@@ -64,7 +64,7 @@ Mỗi story là một file tự đủ ngữ cảnh để một model/người im
 | [S34](S34-training-mentor-view-api.md) | API xem dữ liệu training cho mentor: dòng thời gian, output khi cần, cờ kẹt | S33 | ✅ |
 | [S35](S35-training-mentor-ui.md) | UI mentor: buổi training AI | S34 | ✅ |
 | [S36](S36-training-member-ui.md) | UI member: vào buổi training, đồng ý, cài và gỡ hook | S32, S33 | ✅ |
-| [S37](S37-training-capture-more.md) | Training: thu thêm phiên, xin quyền, câu hỏi và kế hoạch của Claude | S33, S36 | ⬜ |
+| [S37](S37-training-capture-more.md) | Training: thu thêm phiên, xin quyền, câu hỏi và kế hoạch của Claude | S33, S36 | ✅ |
 | [S38](S38-training-stop-sending.md) | Training: member dừng gửi, mentor duyệt xoá dữ liệu | S35, S36 | ⬜ |
 | [S39](S39-training-flags-timeline.md) | Training: cờ gợi ý và các dòng mới trên dòng thời gian | S37 | ⬜ |
 | [S40](S40-training-report.md) | Training: đánh dấu ví dụ, ghi chú, xuất báo cáo trước khi kết thúc | S38, S39 | ⬜ |

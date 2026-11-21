@@ -29,16 +29,21 @@ describe('assertTrainingNameFree', () => {
 describe('buildHookSettings', () => {
   const settings = buildHookSettings('http://192.168.1.5:3000/', 'ingest-abc');
 
-  it('has exactly the three approved hooks: http, timeout 1, token header, no Stop', () => {
-    expect(Object.keys(settings.hooks).sort()).toEqual(['PostToolUse', 'PostToolUseFailure', 'UserPromptSubmit']);
+  it('has exactly the eight approved hooks: http, timeout 1, token header, no Stop, no PostCompact', () => {
+    expect(Object.keys(settings.hooks).sort()).toEqual([
+      'Notification', 'PermissionRequest', 'PostModelSwitch', 'PostToolUse', 'PostToolUseFailure', 'PreCompact', 'SessionEnd', 'UserPromptSubmit',
+    ]);
     for (const entries of Object.values(settings.hooks)) {
       expect(entries).toHaveLength(1);
       expect(entries[0]!.hooks).toEqual([{ type: 'http', url: 'http://192.168.1.5:3000/api/training/ingest', headers: { 'X-Training-Token': 'ingest-abc' }, timeout: 1 }]);
     }
     expect(settings.hooks.PostToolUse[0]!.matcher).toBe('*');
     expect(settings.hooks.PostToolUseFailure[0]!.matcher).toBe('*');
-    expect(settings.hooks.UserPromptSubmit[0]!.matcher).toBeUndefined();
+    expect(settings.hooks.PermissionRequest[0]!.matcher).toBe('*');
+    expect(settings.hooks.Notification[0]!.matcher).toBe('permission_prompt|idle_prompt');
+    for (const name of ['UserPromptSubmit', 'PreCompact', 'SessionEnd', 'PostModelSwitch'] as const) expect(settings.hooks[name][0]!.matcher).toBeUndefined();
     expect(JSON.stringify(settings)).not.toContain('"Stop"');
+    expect(JSON.stringify(settings)).not.toContain('PostCompact');
     expect(JSON.stringify(settings)).not.toContain('"command"');
   });
 

@@ -1,7 +1,9 @@
+import { HOOK_EVENT_NAMES } from '../../../../shared/api/training.js';
+
 /** Where the member merged the hooks, relative to the exercise folder. */
 export const SETTINGS_LOCAL_PATH = '.claude/settings.local.json';
-/** The three events the hooks listen to (docs/architecture.md §11.8 `buildHookSettings`). */
-export const HOOK_EVENTS = ['UserPromptSubmit', 'PostToolUse', 'PostToolUseFailure'] as const;
+/** The eight events the hooks listen to (docs/architecture.md §11.9 `buildHookSettings`): one list, shared with the server. */
+export const HOOK_EVENTS = HOOK_EVENT_NAMES;
 
 /** The address every hook posts to: the server the member is on right now (`http://<host>`, the same host `hook-config` used). */
 export const ingestUrl = (host: string): string => `http://${host.replace(/^https?:\/\//, '').replace(/\/+$/, '')}/api/training/ingest`;

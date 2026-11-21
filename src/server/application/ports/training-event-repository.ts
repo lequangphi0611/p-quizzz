@@ -8,7 +8,10 @@ export type NewTrainingEvent = TrainingEventDraft & { memberId: number; received
 /** How much of the end of an output the list may read: enough for a one-line summary, never the whole output. */
 export const OUTPUT_END_CHARS = 1000;
 
-/** One line of the timeline, read without `output_*` / `change_*` in full. */
+/**
+ * One line of the timeline, read without `output_*` / `change_*` in full. Only `prompt` and `tool` rows are listed until the
+ * timeline can show the others (S39): `permission`, `session` and `notice` rows are stored but not read back yet.
+ */
 export interface LightEvent {
   id: number;
   kind: 'prompt' | 'tool';

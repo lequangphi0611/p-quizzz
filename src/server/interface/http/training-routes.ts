@@ -6,6 +6,7 @@ import type { CreateTraining, EndTraining, GetTrainingDetail, ListTrainings, Rem
 import type { GetTrainingEventDetail, ListMemberEvents } from '../../application/use-cases/training/view.js';
 import type { IngestHookEvent } from '../../application/use-cases/training/ingest.js';
 import type { FinishUninstallCheck, GetHookConfig, GetMyTraining, JoinTraining, ResumeTrainingMember, StartUninstallCheck, WithdrawTrainingConsent } from '../../application/use-cases/training/member.js';
+import { isPermissionRequest } from '../../domain/training/filter-hook-event.js';
 import { INGEST_HEADER, INGEST_PATH } from '../../domain/training/hook-settings.js';
 import { requireTrainingMember } from './auth/training-auth.js';
 import { sendDomainError } from './domain-errors.js';
@@ -191,6 +192,9 @@ export const INGEST_BODY_LIMIT = 2 * 1024 * 1024;
  *  - unknown token → 404, empty body; our hooks or not, a good token → 204; a stopped training → 200 with a reminder;
  *  - a body that is not valid JSON is not an error (204): a hook failing makes noise on the member's screen.
  *  - body over 2 MB → 413 (Fastify).
+ *  - SAFETY: ingest never answers with `hookSpecificOutput` or `decision`. A `PermissionRequest` gets an empty 204 in every
+ *    state (open, stopped, unknown token): that hook is the one whose answer can approve a command on the member's machine
+ *    (spike §6.2, architecture.md §11.9).
  * Own plugin scope so the lenient body parsing applies here only.
  */
 export const trainingIngestRoute = (uc: Pick<TrainingUseCases, 'ingest'>): FastifyPluginAsync =>
@@ -208,6 +212,7 @@ export const trainingIngestRoute = (uc: Pick<TrainingUseCases, 'ingest'>): Fasti
     app.post(INGEST_PATH, { bodyLimit: INGEST_BODY_LIMIT }, async (req, reply) => {
       const header = req.headers[INGEST_HEADER.toLowerCase()];
       const result = await uc.ingest.execute(typeof header === 'string' ? header : undefined, req.body);
+      if (isPermissionRequest(req.body)) return reply.code(204).send();
       if (result === 'unknown') return reply.code(404).send();
       if (result === 'stopped') return reply.code(200).send({ systemMessage: STOPPED_REMINDER });
       return reply.code(204).send();

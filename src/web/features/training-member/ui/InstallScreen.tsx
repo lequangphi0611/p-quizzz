@@ -68,7 +68,7 @@ export function InstallScreen({ config, configStatus, onRetryConfig, showHint, o
           </div>
         )}
         <Callout tone="neutral" icon="shield-alert" title="Hộp thoại tin cậy thư mục">
-          Lần đầu mở một thư mục, Claude Code có thể hỏi bạn có tin cậy thư mục này không: hãy chọn đồng ý, nếu không cấu hình sẽ không chạy. Sau khi ghép xong, thoát Claude Code rồi mở lại trong thư mục này để cấu hình có hiệu lực.
+          Lần đầu mở một thư mục, Claude Code hỏi bạn có tin cậy thư mục này không. Lựa chọn được chọn sẵn là <b>"No, exit"</b>: nếu bấm Enter ngay, Claude Code sẽ <b>thoát</b>. Hãy chọn <b>"Yes, I trust this folder"</b>, nếu không cấu hình sẽ không chạy. Sau khi ghép xong, thoát Claude Code rồi mở lại trong thư mục này để cấu hình có hiệu lực.
         </Callout>
       </Step>
 
@@ -81,8 +81,8 @@ export function InstallScreen({ config, configStatus, onRetryConfig, showHint, o
           <Callout tone="warn" icon="circle-alert" title="Chưa thấy tín hiệu sau 1 phút. Thử kiểm tra:">
             <ul style={{ margin: '4px 0 0', paddingLeft: 20, listStyle: 'disc', display: 'grid', gap: 4 }}>
               <li>Claude Code có đang mở <b>đúng thư mục bài tập</b> (nơi có <Mono>{SETTINGS_LOCAL_PATH}</Mono>) không?</li>
-              <li>Bạn đã <b>thoát và mở lại</b> Claude Code sau khi ghép cấu hình chưa, và đã chọn đồng ý hộp thoại tin cậy thư mục chưa?</li>
-              <li>Gõ <Mono>/hooks</Mono> trong Claude Code: có thấy 3 mục <Mono>UserPromptSubmit</Mono>, <Mono>PostToolUse</Mono>, <Mono>PostToolUseFailure</Mono> không?</li>
+              <li>Bạn đã <b>thoát và mở lại</b> Claude Code sau khi ghép cấu hình chưa, và đã chọn <b>"Yes, I trust this folder"</b> ở hộp thoại tin cậy thư mục chưa?</li>
+              <li>Gõ <Mono>/hooks</Mono> trong Claude Code: có thấy các mục <Mono>UserPromptSubmit</Mono>, <Mono>PostToolUse</Mono>, <Mono>PostToolUseFailure</Mono>, <Mono>PermissionRequest</Mono>, <Mono>Notification</Mono>, <Mono>PreCompact</Mono>, <Mono>SessionEnd</Mono>, <Mono>PostModelSwitch</Mono> (8 mục) không?</li>
               <li>Máy có <b>proxy hoặc phần mềm của công ty</b> chặn kết nối tới máy mentor không? Máy công ty có thể chặn hook gửi tới địa chỉ trong mạng nội bộ.</li>
               <li>Laptop có đang chung mạng Wi-Fi/LAN với máy mentor không?</li>
             </ul>

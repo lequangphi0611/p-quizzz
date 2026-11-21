@@ -3,7 +3,7 @@ import { Button } from '../../../shared/ui/Button.js';
 import { ErrorMessage } from '../../../shared/ui/ErrorMessage.js';
 import { TextField } from '../../../shared/ui/TextField.js';
 import { PageCard, mText } from '../../../shared/ui/member/member-shell.js';
-import { HANDLING_ITEMS, NOT_SENT_ITEMS, OTHER_FOLDER_CAVEAT, SECRET_WARNING, SENT_ITEMS } from '../domain/consent-copy.js';
+import { HANDLING_ITEMS, NOT_SENT_ITEMS, OTHER_FOLDER_CAVEAT, PERMISSION_RISK, PERMISSION_RISK_TITLE, SECRET_WARNING, SENT_ITEMS } from '../domain/consent-copy.js';
 import type { TrainingJoinFailure } from '../domain/join-failure.js';
 import { Callout, FactList, Heading } from './parts.js';
 
@@ -62,6 +62,7 @@ export function ConsentScreen({ desk, title, busy, error, onJoin, onDecline }: {
           <Heading>Những gì được gửi về máy mentor</Heading>
           <FactList items={SENT_ITEMS} label="Những gì được gửi về máy mentor" />
           <Callout tone="warn" icon="shield-alert" title="Có thể chứa bí mật">{SECRET_WARNING}</Callout>
+          <Callout tone="warn" icon="triangle-alert" title={PERMISSION_RISK_TITLE}>{PERMISSION_RISK}</Callout>
         </section>
 
         <section style={{ display: 'grid', gap: 12 }}>

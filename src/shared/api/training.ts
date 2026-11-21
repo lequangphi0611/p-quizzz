@@ -97,8 +97,13 @@ export interface HookConfig {
   mergePrompt: string;
 }
 
+export const HOOK_EVENT_NAMES = [
+  'UserPromptSubmit', 'PostToolUse', 'PostToolUseFailure', 'PermissionRequest', 'Notification', 'PreCompact', 'SessionEnd', 'PostModelSwitch',
+] as const;
+export type HookEventName = (typeof HOOK_EVENT_NAMES)[number];
+
 export interface HookSettings {
-  hooks: Record<'UserPromptSubmit' | 'PostToolUse' | 'PostToolUseFailure', HookEntry[]>;
+  hooks: Record<HookEventName, HookEntry[]>;
 }
 
 export interface HookEntry {

@@ -81,7 +81,7 @@ export function CheckFailedScreen({ host, busy, onRetry }: { host: string; busy:
       <Stack>
         <h1 style={mText.h1}>Tìm chỗ còn sót, rồi kiểm tra lại</h1>
         <ol style={{ margin: 0, paddingLeft: 22, listStyle: 'decimal', display: 'grid', gap: 10, font: 'var(--type-body)', fontSize: 15, color: 'var(--text-body)' }}>
-          <li>Mở Claude Code trong thư mục bài tập rồi gõ <Mono>/hooks</Mono>. Xem các mục <Mono>UserPromptSubmit</Mono>, <Mono>PostToolUse</Mono>, <Mono>PostToolUseFailure</Mono>: còn mục nào có địa chỉ <Mono>{ingestUrl(host)}</Mono> không?</li>
+          <li>Mở Claude Code trong thư mục bài tập rồi gõ <Mono>/hooks</Mono>. Xem các mục hook (<Mono>UserPromptSubmit</Mono>, <Mono>PostToolUse</Mono>, <Mono>PermissionRequest</Mono>, …): còn mục nào có địa chỉ <Mono>{ingestUrl(host)}</Mono> không?</li>
           <li>Xoá các mục đó khỏi <Mono>{SETTINGS_LOCAL_PATH}</Mono>. Nếu bạn từng đặt cấu hình ở chỗ khác, kiểm tra cả <Mono>.claude/settings.json</Mono> và <Mono>~/.claude/settings.json</Mono>.</li>
           <li>Đóng mọi cửa sổ Claude Code đang mở ở thư mục bài tập (cửa sổ cũ vẫn giữ cấu hình cũ), rồi mở lại một cửa sổ mới.</li>
           <li>Bấm "Kiểm tra lại" và làm lại như lần trước.</li>

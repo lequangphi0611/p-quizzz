@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, sql } from 'drizzle-orm';
 import {
   OUTPUT_END_CHARS, type EventDetail, type LightEvent, type MemberCounts, type NewTrainingEvent, type TrainingEventRepository,
 } from '../../application/ports/training-event-repository.js';
@@ -13,25 +13,41 @@ export class DrizzleTrainingEventRepository implements TrainingEventRepository {
   constructor(private readonly access: DbAccess) {}
 
   async append(event: NewTrainingEvent): Promise<void> {
-    const common = { memberId: event.memberId, claudeSessionId: event.claudeSessionId, receivedAt: event.receivedAt };
+    const common = {
+      memberId: event.memberId,
+      claudeSessionId: event.claudeSessionId,
+      receivedAt: event.receivedAt,
+      permissionMode: event.permissionMode,
+      promptId: event.promptId,
+    };
+    const clips = (output: Clip | null, change: Clip | null) => ({
+      outputHead: output?.head ?? null,
+      outputTail: output?.tail ?? null,
+      outputOmittedLines: output?.omittedLines ?? null,
+      changeHead: change?.head ?? null,
+      changeTail: change?.tail ?? null,
+      changeOmittedLines: change?.omittedLines ?? null,
+    });
     const row =
       event.kind === 'prompt'
         ? { ...common, kind: 'prompt' as const, prompt: event.prompt }
-        : {
-            ...common,
-            kind: 'tool' as const,
-            toolName: event.toolName,
-            toolTarget: event.toolTarget,
-            ok: event.ok,
-            durationMs: event.durationMs,
-            errorExcerpt: event.errorExcerpt,
-            outputHead: event.output?.head ?? null,
-            outputTail: event.output?.tail ?? null,
-            outputOmittedLines: event.output?.omittedLines ?? null,
-            changeHead: event.change?.head ?? null,
-            changeTail: event.change?.tail ?? null,
-            changeOmittedLines: event.change?.omittedLines ?? null,
-          };
+        : event.kind === 'tool'
+          ? {
+              ...common,
+              kind: 'tool' as const,
+              toolName: event.toolName,
+              toolTarget: event.toolTarget,
+              ok: event.ok,
+              durationMs: event.durationMs,
+              errorExcerpt: event.errorExcerpt,
+              note: event.note,
+              ...clips(event.output, event.change),
+            }
+          : event.kind === 'permission'
+            ? { ...common, kind: 'permission' as const, toolName: event.toolName, toolTarget: event.toolTarget, ...clips(null, event.change) }
+            : event.kind === 'session'
+              ? { ...common, kind: 'session' as const, subtype: event.subtype, note: event.note }
+              : { ...common, kind: 'notice' as const, subtype: event.subtype };
     await this.access(db => db.insert(trainingEvents).values(row).run());
   }
 
@@ -55,11 +71,11 @@ export class DrizzleTrainingEventRepository implements TrainingEventRepository {
           hasChange: sql<number>`${trainingEvents.changeHead} is not null`,
         })
         .from(trainingEvents)
-        .where(and(eq(trainingEvents.memberId, memberId), gt(trainingEvents.id, afterId)))
+        .where(and(eq(trainingEvents.memberId, memberId), gt(trainingEvents.id, afterId), inArray(trainingEvents.kind, ['prompt', 'tool'])))
         .orderBy(asc(trainingEvents.id))
         .limit(limit)
         .all()
-        .map(r => ({ ...r, hasOutput: Boolean(r.hasOutput), hasChange: Boolean(r.hasChange) })),
+        .map(r => ({ ...r, kind: r.kind as 'prompt' | 'tool', hasOutput: Boolean(r.hasOutput), hasChange: Boolean(r.hasChange) })),
     );
   }
 

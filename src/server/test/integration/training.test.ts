@@ -162,7 +162,7 @@ describe('member: resolve, join, me', () => {
 });
 
 describe('hook-config', () => {
-  it('has the three hooks (http, timeout 1, token header, URL from the request Host) and no Stop', async () => {
+  it('has the eight hooks (http, timeout 1, token header, URL from the request Host) and no Stop', async () => {
     const s = await setup();
     const t = await s.create();
     const token = await s.joined(t, 'Lan');
@@ -172,7 +172,9 @@ describe('hook-config', () => {
     const res = await s.me(token, '/hook-config', 'GET', '192.168.1.5:3000');
     expect(res.statusCode).toBe(200);
     const cfg = res.json<HookConfig>();
-    expect(Object.keys(cfg.settings.hooks).sort()).toEqual(['PostToolUse', 'PostToolUseFailure', 'UserPromptSubmit']);
+    expect(Object.keys(cfg.settings.hooks).sort()).toEqual([
+      'Notification', 'PermissionRequest', 'PostModelSwitch', 'PostToolUse', 'PostToolUseFailure', 'PreCompact', 'SessionEnd', 'UserPromptSubmit',
+    ]);
     for (const entries of Object.values(cfg.settings.hooks)) {
       expect(entries[0]!.hooks).toEqual([{ type: 'http', url: 'http://192.168.1.5:3000/api/training/ingest', headers: { 'X-Training-Token': ingest }, timeout: 1 }]);
     }
