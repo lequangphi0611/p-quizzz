@@ -456,6 +456,52 @@ Thu prompt và hoạt động công cụ của Claude Code qua hook HTTP. Kết 
 - **Web**: `features/training-admin/{domain,application,infrastructure,ui}` (mentor), `features/training-member/{…}` (member). `features/member-join` chỉ thêm: `resolve` trả `kind: 'training'` → chuyển tới `/training/:id` kèm mã. Hai feature không import nhau; component dùng chung (nếu có) vào `shared/ui/`. Liên kết "Buổi training AI" trong khung `/admin/*`.
 - **Test**: domain `filterHookEvent` dùng các payload thật đã ghi trong spike (`PostToolUse` Bash/PowerShell/Write, `PostToolUseFailure`, `UserPromptSubmit`, `Stop` → null); tích hợp HTTP ingest + quét key cấm ở route member; không chạy Claude Code thật trong `npm test`/`npm run e2e` (e2e gửi JSON hook giả tới ingest).
 
+### 11.9 Mở rộng `training` (S37–S40, PRODUCT.md §7.35, **chưa làm**)
+
+Contract dự kiến; story nào chạm thì chốt lại tại đây. Payload thật: [spikes/claude-code-hooks.md](spikes/claude-code-hooks.md) §6.
+
+- **Hook thêm vào `buildHookSettings`** (S37):
+  - `PermissionRequest` (matcher `*`).
+  - `Notification` (matcher `permission_prompt|idle_prompt`).
+  - `PreCompact`, `SessionEnd`, `PostModelSwitch`.
+
+  Vẫn **không** đăng ký `Stop` (câu trả lời của Claude) và `PostCompact` (`compact_summary` là tóm tắt do Claude viết). `SessionStart` không hỗ trợ HTTP.
+- **Bất biến an toàn** (S37): ingest **không bao giờ** trả `hookSpecificOutput` hay `decision`. Với `PermissionRequest`, mọi trạng thái của buổi đều trả 204 body rỗng; buổi `stopped` không kèm `systemMessage` cho loại này. Có test HTTP khẳng định điều này. Lý do: body `{"hookSpecificOutput":{"decision":{"behavior":"allow"}}}` làm Claude tự duyệt trên máy member (spike §6.2).
+- **`filterHookEvent` mở rộng** (S37):
+  - Giữ thêm `permission_mode` và `prompt_id` (chỉ để gom theo lượt, không hiển thị).
+  - Bỏ `scratchpad_dir`, và thay nó trong mọi chuỗi giữ lại giống như `cwd`.
+  - Kind mới:
+    - `permission` từ `PermissionRequest`: `toolName`, `toolTarget` và `change`, lọc như công cụ.
+    - `session` từ các hook phiên: `subtype` là `clear` | `exit` (các `reason` khác của `SessionEnd`) | `compact_manual` | `compact_auto` | `model_switch`; `note` là `custom_instructions` của `/compact` hoặc `"<from> → <to>"`.
+    - `notice` từ `Notification`: `subtype` là `waiting_permission` | `idle`. Bỏ `message`.
+  - `AskUserQuestion` (kind `tool`): `toolTarget` = các câu hỏi, `note` = các cặp "câu hỏi → lựa chọn" lấy từ `tool_input.answers`.
+  - `ExitPlanMode` (kind `tool`): `output` = `tool_response.plan`, chỉ tải khi mentor bấm "Xem".
+- **Bảng `training_events`** thêm cột:
+  - `permission_mode?`, `prompt_id?`, `subtype?`;
+  - `note?`, giới hạn 2 000 ký tự.
+
+  `kind` thêm các giá trị `permission`, `session`, `notice`. Migration bằng `npm run db:generate`.
+- **Dừng gửi cần mentor duyệt xoá** (S38, §7.35j):
+  - `training_members` thêm `stopped_sending_at?`.
+  - `WithdrawTrainingConsent` (buổi `open`) không xoá dòng nữa, chỉ ghi `stopped_sending_at`. Từ lúc đó ingest với token này bị đối xử như buổi `stopped`: không lưu, trả lời nhắc gỡ, ghi `seen_after_stop_at`.
+  - Buổi `stopped`: không có nút dừng gửi.
+  - `connection` thêm giá trị `stopped_sending`.
+  - Route mentor mới `POST /api/admin/trainings/:id/members/:memberId/purge` xoá dòng member (cascade sự kiện), chỉ khi member có `stopped_sending_at`, khác thì trả 409.
+  - Sau khi xoá, `GET /api/training/me` trả 404 và màn member hiện "Đã xoá dữ liệu".
+- **Cờ gợi ý** (S39):
+  - Domain thuần `domain/training/flags/`, mỗi cờ một hàm `(events, ctx) → { code, eventIds[] } | null`. Hằng ngưỡng đặt cạnh từng hàm.
+  - `isVerifyCommand(command)` nhận lệnh kiểm tra theo mẫu phổ biến; mentor không cấu hình.
+  - `inferPermissionDecision(events)` suy ra cho mỗi sự kiện `permission`: `allowed` (có `tool` khớp `toolName` và `toolTarget` trước prompt kế tiếp), `denied`, hoặc `pending`, kèm `decisionMs` ước lượng.
+  - `trainings` thêm `allow_auto_accept` (boolean, mặc định false, đặt khi tạo buổi).
+  - `TrainingMemberRow` thêm `flags: FlagCode[]` và số đếm `clearCount`, `compactCount`, `permissionCount`.
+  - Trang dòng thời gian trả thêm `flags: { code, eventIds }[]`; mỗi dòng `permission` có `decision` và `decisionMs`.
+  - Tổng hợp lớp: `GET /trainings/:id` trả `flagCounts: Record<FlagCode, number>`, chỉ là số, không có tên.
+- **Báo cáo** (S40):
+  - Bảng `training_event_marks (event_id PK, cascade)`; `training_members` thêm `mentor_note?`; `trainings` thêm `report_exported_at?`.
+  - `GET /api/admin/trainings/:id/report.md` trả `text/markdown` dạng file đính kèm, theo nội dung §7.35e.
+  - `maskSecrets(text)` (domain) che chuỗi giống khoá hoặc mật khẩu.
+  - Dấu, ghi chú và báo cáo đều bị xoá khi Kết thúc.
+
 ## 12. Web: hạ tầng dùng chung (P4-1, issue #18)
 
 Các port phía web nằm ở `src/web/shared/`, implementation được chọn tại `src/web/app/composition.ts` (composition root phía web).
