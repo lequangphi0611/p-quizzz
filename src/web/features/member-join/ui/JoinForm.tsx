@@ -6,14 +6,18 @@ import { Button } from '../../../shared/ui/Button.js';
 import { ErrorMessage } from '../../../shared/ui/ErrorMessage.js';
 import { TextField } from '../../../shared/ui/TextField.js';
 import { InfoBox, InfoRow, PageCard, mText } from '../../../shared/ui/member/member-shell.js';
-import { selectRoom, type MemberHomeController, type MemberHomeState } from '../application/member-home-controller.js';
+import { selectRoom, selectTrainingRoom, type MemberHomeController, type MemberHomeState } from '../application/member-home-controller.js';
 import { classifyJoinError, classifyRoomLookupError } from '../domain/join-error.js';
 import { TakenConfirm } from './RejoinPanels.js';
 
 // ── 1 · Join ────────────────────────────────────────────────────────────────────────────────────
 // Step 1: the room code (several sessions may be open, so the code is how the server knows which one).
 // Step 2, once the code found a session: the member's name.
-export function JoinForm({ desk, state, linkRoom, ctrl }: { desk: boolean; state: MemberHomeState; linkRoom: string; ctrl: MemberHomeController }) {
+export function JoinForm({ desk, state, linkRoom, ctrl, onTraining }: {
+  desk: boolean; state: MemberHomeState; linkRoom: string; ctrl: MemberHomeController;
+  /** The code opens an AI training (S36): the page moves to that training's own route, carrying the code. */
+  onTraining: (trainingId: number, roomCode: string) => void;
+}) {
   const [code, setCode] = useState(() => linkRoom || state.lookup?.code || '');
   const [prefilled, setPrefilled] = useState(() => !!linkRoom);
   const [name, setName] = useState('');
@@ -27,11 +31,14 @@ export function JoinForm({ desk, state, linkRoom, ctrl }: { desk: boolean; state
   const [askError, setAskError] = useState('');
   const [lockedFor, setLockedFor] = useState(0); // seconds left after too many wrong codes (server 429)
   const room = selectRoom(state);
+  const trainingRoom = selectTrainingRoom(state);
   const needsEmail = room?.access === 'roster';
   const lookupFailure = state.lookup?.status === 'error' && state.lookup.code === code ? classifyRoomLookupError(state.lookup.error!.status, state.lookup.error!.message) : null;
 
   // Look the room up as soon as the code is complete (a join link arrives complete).
   useEffect(() => { void ctrl.lookUpRoom(code); }, [code, ctrl]);
+  // A training's code leaves for its own page (the consent step is there), so the exam form never shows for it.
+  useEffect(() => { if (trainingRoom && state.lookup?.code === code) onTraining(trainingRoom.id, code); }, [trainingRoom, state.lookup?.code, code]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (lookupFailure?.kind === 'locked') setLockedFor(lookupFailure.seconds); }, [state.lookup]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (lockedFor <= 0) return;
@@ -94,7 +101,7 @@ export function JoinForm({ desk, state, linkRoom, ctrl }: { desk: boolean; state
         <TextField label="Mã phòng" size="lg" mono inputMode="numeric" value={formatRoomCode(code)} disabled={locked}
           onChange={v => { setCode(cleanRoomCode(v)); setPrefilled(false); setNameError(''); }}
           placeholder="6 chữ số" maxLength={7} autoComplete="off" autoFocus={code.length !== ROOM_CODE_LENGTH} error={roomError}
-          hint={roomError ? undefined : state.lookup?.status === 'checking' ? 'Đang tìm phòng…' : prefilled && code.length === ROOM_CODE_LENGTH ? 'Đã điền sẵn từ đường link' : '6 chữ số'} />
+          hint={roomError ? undefined : state.lookup?.status === 'checking' ? 'Đang tìm phòng…' : trainingRoom ? 'Đây là buổi training AI, đang chuyển trang…' : prefilled && code.length === ROOM_CODE_LENGTH ? 'Đã điền sẵn từ đường link' : '6 chữ số'} />
         {room && (
           <>
             <InfoBox><InfoRow icon="file-text" k="Đề" v={room.title} /></InfoBox>

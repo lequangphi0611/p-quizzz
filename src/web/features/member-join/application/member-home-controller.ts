@@ -6,11 +6,18 @@ import { decideScreen, type MeState, type MemberScreen, type RejoinState } from 
 import { findMySessionByCode, forgetMySession, recentMySessions, rememberMySession, type MySession } from '../domain/my-sessions.js';
 import type { MemberGateway, MySessionsStore, RoomCodeMemory } from './member-gateway.js';
 
-/** What looking up a room code produced. `error.status` is the HTTP status (0 = no connection). */
+/** A room code that opens an AI training instead of an exam session: the member continues at `/training/:id` (S36). */
+export interface TrainingRoom {
+  id: number;
+  title: string;
+}
+
+/** What looking up a room code produced. `error.status` is the HTTP status (0 = no connection). `session` and `training` are never both set. */
 export interface RoomLookup {
   code: string;
   status: 'checking' | 'ok' | 'error';
   session: ActiveSession | null;
+  training: TrainingRoom | null;
   error: { status: number; message: string } | null;
 }
 
@@ -36,6 +43,8 @@ export interface MemberHomeState {
 export const POLL_MS = 5000;
 
 export const selectRoom = (s: MemberHomeState): ActiveSession | null => (s.lookup?.status === 'ok' ? s.lookup.session : null);
+/** The code found an AI training: the page leaves for its own route instead of asking for a name here. */
+export const selectTrainingRoom = (s: MemberHomeState): TrainingRoom | null => (s.lookup?.status === 'ok' ? s.lookup.training : null);
 export const selectScreen = (s: MemberHomeState): MemberScreen => decideScreen({ followId: s.followId, room: selectRoom(s), me: s.me, meState: s.meState, rejoin: s.rejoin });
 /** The session whose events and `/api/me` this page follows. */
 export const selectFollowedId = (s: MemberHomeState): number | null => s.followId;
@@ -165,19 +174,24 @@ export class MemberHomeController {
     const cur = this.state.lookup;
     if (cur && cur.code === code && cur.status !== 'error') return;
     const n = ++this.lookupSeq;
-    this.set({ lookup: { code, status: 'checking', session: null, error: null } });
+    this.set({ lookup: { code, status: 'checking', session: null, training: null, error: null } });
     try {
-      const session = await this.gateway.resolveRoom(code);
+      const found = await this.gateway.resolveRoom(code);
       if (n !== this.lookupSeq) return;
+      if (found.kind === 'training') { // not an exam: nothing to remember or follow here, the training page takes over
+        this.set({ lookup: { code, status: 'ok', session: null, training: { id: found.id, title: found.title }, error: null }, followId: null });
+        return;
+      }
+      const session = found;
       this.rooms.remember(session.id, code);
       if (this.tokens.getToken(session.id)) { // already in this session from this browser
         this.tokens.setCurrentSessionId(session.id);
-        this.set({ lookup: { code, status: 'ok', session, error: null }, followId: session.id });
-      } else this.set({ lookup: { code, status: 'ok', session, error: null }, followId: null });
+        this.set({ lookup: { code, status: 'ok', session, training: null, error: null }, followId: session.id });
+      } else this.set({ lookup: { code, status: 'ok', session, training: null, error: null }, followId: null });
     } catch (err) {
       if (n !== this.lookupSeq) return;
       const error = err instanceof ApiError ? { status: err.status, message: err.message } : { status: 0, message: '' };
-      this.set({ lookup: { code, status: 'error', session: null, error } });
+      this.set({ lookup: { code, status: 'error', session: null, training: null, error } });
     }
   }
 
