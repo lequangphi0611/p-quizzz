@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import { Button } from './Button.js';
 import { Icon } from './Icon.js';
 
@@ -8,15 +8,16 @@ export function ConfirmDialog({ open = true, title, children, confirmLabel = 'XÃ
   open?: boolean; title: ReactNode; children?: ReactNode; confirmLabel?: string; cancelLabel?: string; tone?: 'primary' | 'danger'; busy?: boolean;
   confirmDisabled?: boolean; disabledReason?: ReactNode; size?: 'md' | 'screen'; /** Max width in px of the light dialog (default 420), for forms that need room. */ width?: number; onConfirm: () => void; onCancel: () => void;
 }) {
+  const titleId = useId();
   if (!open) return null;
   const scr = size === 'screen';
   const btnTone = scr ? 'screen' : 'light';
   return (
     <div onClick={e => { if (e.target === e.currentTarget && !busy) onCancel(); }} style={{ position: 'fixed', inset: 0, zIndex: 50, background: scr ? 'var(--screen-scrim)' : 'var(--scrim)', display: 'grid', placeItems: 'center', padding: 16, animation: 'pq-fade var(--dur-base) var(--ease-standard)' }}>
-      <div role="dialog" aria-modal="true" style={scr
+      <div role="dialog" aria-modal="true" aria-labelledby={titleId} style={scr
         ? { width: '100%', maxWidth: 920, background: 'var(--screen-panel)', border: '2px solid var(--screen-line-strong)', borderRadius: 'var(--radius-xl)', boxShadow: '0 24px 80px rgba(0,0,0,.6)', padding: 44, color: 'var(--screen-text)', animation: 'pq-pop-in var(--dur-slow) var(--ease-standard)' }
         : { width: '100%', maxWidth: width ?? 420, maxHeight: 'calc(100vh - 32px)', overflowY: 'auto', background: 'var(--paper)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-dialog)', padding: 24, animation: 'pq-pop-in var(--dur-slow) var(--ease-standard)' }}>
-        <h3 style={{ margin: 0, font: scr ? '700 44px/1.2 var(--font-sans)' : 'var(--type-h2)', color: scr ? 'var(--screen-text)' : 'var(--text-title)' }}>{title}</h3>
+        <h3 id={titleId} style={{ margin: 0, font: scr ? '700 44px/1.2 var(--font-sans)' : 'var(--type-h2)', color: scr ? 'var(--screen-text)' : 'var(--text-title)' }}>{title}</h3>
         {children && <div style={{ font: scr ? '400 28px/1.5 var(--font-sans)' : 'var(--type-body)', fontSize: scr ? 28 : 15, color: scr ? 'var(--screen-text)' : 'var(--text-body)', marginTop: scr ? 16 : 8, textWrap: 'pretty' }}>{children}</div>}
         {confirmDisabled && disabledReason && (
           <div style={{ display: 'flex', alignItems: 'center', gap: scr ? 14 : 8, marginTop: scr ? 28 : 16, padding: scr ? '16px 20px' : '10px 12px', borderRadius: 'var(--radius-md)', background: scr ? 'var(--screen-pending-surface)' : 'var(--warn-surface)', color: scr ? 'var(--sun-400)' : 'var(--warn-600)', font: scr ? '600 26px/1.3 var(--font-sans)' : 'var(--type-meta)', fontWeight: 600 }}>

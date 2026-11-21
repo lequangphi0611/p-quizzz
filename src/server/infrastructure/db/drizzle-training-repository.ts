@@ -112,6 +112,10 @@ export class DrizzleTrainingMemberRepository implements TrainingMemberRepository
     await this.access(db => db.update(trainingMembers).set({ uninstallCheckAt: at }).where(eq(trainingMembers.id, id)).run());
   }
 
+  async setNote(id: number, note: string | null): Promise<void> {
+    await this.access(db => db.update(trainingMembers).set({ mentorNote: note }).where(eq(trainingMembers.id, id)).run());
+  }
+
   async finishUninstall(id: number, at: Date): Promise<void> {
     await this.access(db => db.update(trainingMembers).set({ uninstalledAt: at }).where(eq(trainingMembers.id, id)).run());
   }

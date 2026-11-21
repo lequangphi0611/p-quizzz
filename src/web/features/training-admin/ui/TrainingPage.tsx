@@ -99,6 +99,7 @@ function Header({ state, ctrl, onBack }: { state: TrainingState; ctrl: TrainingC
           {detail.status !== 'ended' && (
             <Button variant="secondary" icon={hidden ? 'eye' : 'eye-off'} pressed={hidden} shortcut="H" onClick={() => ctrl.toggleHidden()}>{hidden ? 'Hiện nội dung' : 'Ẩn nội dung'}</Button>
           )}
+          {detail.status !== 'ended' && detail.members.length > 0 && <Button variant="secondary" icon="download" onClick={() => void ctrl.openReport()}>Xuất báo cáo</Button>}
           {open && <Button variant="secondary" icon="square" onClick={() => ctrl.askStop()}>Dừng thu</Button>}
           {stopped && <Button variant="danger" icon="trash-2" onClick={() => ctrl.askEnd()}>Kết thúc</Button>}
         </div>
@@ -187,7 +188,7 @@ function EndedCard({ state, onBack }: { state: TrainingState; onBack: () => void
 // Members on one side, the picked member's timeline on the other; with the output panel open the members shrink to names.
 // The workspace has a fixed height so the timeline scrolls inside it (new events follow the end while the mentor is there).
 function Workspace({ state, ctrl, closePanel }: { state: TrainingState; ctrl: TrainingController; closePanel: () => void }) {
-  const { detail, selectedId, timeline, panel, hidden } = state;
+  const { detail, selectedId, timeline, panel, hidden, markError } = state;
   const member = detail.members.find(m => m.id === selectedId);
   const panelOpen = panel !== null && !hidden;
   const panelEvent = panel ? timeline?.events.find(e => e.id === panel.eventId) : undefined;
@@ -196,7 +197,7 @@ function Workspace({ state, ctrl, closePanel }: { state: TrainingState; ctrl: Tr
     <div style={{ display: 'grid', gap: 16, height: 'clamp(520px, calc(100vh - 330px), 860px)', gridTemplateColumns: panelOpen ? '220px minmax(0, 1fr) minmax(380px, 430px)' : 'minmax(0, 1.2fr) minmax(0, 1fr)' }}>
       <MembersTable members={detail.members} selectedId={selectedId} onSelect={id => ctrl.select(id)} onPurge={id => ctrl.askPurge(id)} compact={panelOpen} now={now} />
       {member && timeline ? (
-        <Timeline member={member} timeline={timeline} panel={hidden ? null : panel} hidden={hidden} ctrl={ctrl} now={now} canRemove={detail.status !== 'ended'}
+        <Timeline member={member} timeline={timeline} panel={hidden ? null : panel} hidden={hidden} markError={markError} ctrl={ctrl} now={now} canRemove={detail.status !== 'ended'}
           onOpen={(id, kind) => void ctrl.openDetail(id, kind)} onRemove={() => ctrl.askRemove(member.id)} />
       ) : (
         <Card style={{ display: 'grid', placeItems: 'center', textAlign: 'center', height: '100%', boxSizing: 'border-box' }}>

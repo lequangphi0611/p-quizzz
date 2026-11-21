@@ -16,6 +16,16 @@ export const rowBox = (active: boolean, focused: boolean): CSSProperties => ({
   boxShadow: active ? 'inset 3px 0 0 var(--brand-600)' : focused ? 'inset 3px 0 0 var(--sun-ink)' : undefined,
 });
 
+/** Picks a row as an example for the report (or drops it). A bookmark with a tick when it is picked. */
+export function MarkButton({ id, marked, onToggle }: { id: number; marked: boolean; onToggle: (id: number) => void }) {
+  return (
+    <button type="button" data-mark={id} aria-pressed={marked} title={marked ? 'Bỏ đánh dấu ví dụ' : 'Đánh dấu làm ví dụ cho báo cáo'} aria-label={marked ? 'Bỏ đánh dấu ví dụ' : 'Đánh dấu làm ví dụ cho báo cáo'} onClick={() => onToggle(id)}
+      style={{ display: 'inline-grid', placeItems: 'center', width: 28, height: 28, padding: 0, border: 0, borderRadius: 'var(--radius-sm)', cursor: 'pointer', flex: 'none', background: marked ? 'var(--brand-050)' : 'transparent', color: marked ? 'var(--brand-700)' : 'var(--ink-500)' }}>
+      <Icon name={marked ? 'bookmark-check' : 'bookmark-plus'} size={16} />
+    </button>
+  );
+}
+
 export function PanelButton({ id, kind, label, icon, on, onOpen }: { id: number; kind: PanelKind; label: string; icon: string; on: boolean; onOpen: (id: number, kind: PanelKind) => void }) {
   return (
     <button type="button" data-trigger={`${id}-${kind}`} aria-pressed={on} onClick={() => onOpen(id, kind)}
@@ -32,7 +42,7 @@ const TONE = {
 } as const;
 
 /** Claude asked for permission. What the member answered is inferred from what ran next, and the words say so. */
-export function PermissionRow({ event: e, panel, focused, onOpen }: { event: TrainingEventRow; panel: PanelState | null; focused: boolean; onOpen: (id: number, kind: PanelKind) => void }) {
+export function PermissionRow({ event: e, panel, focused, onOpen, onMark }: { event: TrainingEventRow; panel: PanelState | null; focused: boolean; onOpen: (id: number, kind: PanelKind) => void; onMark: (id: number) => void }) {
   const d = decisionText(e);
   const t = TONE[d.tone];
   const active = panel?.eventId === e.id;
@@ -43,8 +53,11 @@ export function PermissionRow({ event: e, panel, focused, onOpen }: { event: Tra
       <span title={e.toolTarget} style={{ minWidth: 0, font: `500 13.5px/1.45 ${mono}`, color: 'var(--ink-900)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         <span style={{ font: 'var(--type-label)', fontSize: 12, color: 'var(--text-meta)', marginRight: 8 }}>Claude xin quyền</span>{e.toolTarget}
       </span>
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 9px 2px 7px', borderRadius: 'var(--radius-pill)', background: t.bg, color: t.fg, border: `1px ${d.tone === 'wait' ? 'dashed' : 'solid'} ${t.bd}`, font: 'var(--type-label)', fontSize: 12, whiteSpace: 'nowrap' }}>
-        <Icon name={t.icon} size={13} />{d.text}
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 9px 2px 7px', borderRadius: 'var(--radius-pill)', background: t.bg, color: t.fg, border: `1px ${d.tone === 'wait' ? 'dashed' : 'solid'} ${t.bd}`, font: 'var(--type-label)', fontSize: 12, whiteSpace: 'nowrap' }}>
+          <Icon name={t.icon} size={13} />{d.text}
+        </span>
+        <MarkButton id={e.id} marked={e.marked} onToggle={onMark} />
       </span>
       {e.hasChange && (
         <div style={{ gridColumn: '2 / -1', display: 'flex', gap: 4, marginLeft: -8 }}>

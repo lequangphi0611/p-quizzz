@@ -2,6 +2,7 @@ import type { Clip, FlagCode, MemberFlag, TrainingDetail, TrainingEventRow } fro
 import { ApiError } from '../../../shared/api-client/http-client.js';
 import { announcementFor } from '../domain/announcements.js';
 import { evidenceOf } from '../domain/flags.js';
+import { reportFileName } from '../domain/report.js';
 import { stepEvent } from '../domain/timeline.js';
 import type { TrainingAdminGateway } from './training-admin-gateway.js';
 
@@ -38,6 +39,17 @@ export interface PanelState {
   error: string;
 }
 
+/** The "Xuất báo cáo" dialog: a preview of the Markdown, then the file. */
+export interface ReportState {
+  phase: 'loading' | 'ready' | 'error';
+  text: string;
+  error: string;
+  /** The file is being fetched (this is also what records the export on the server). */
+  saving: boolean;
+  /** The file was handed to the browser at least once while this dialog was open. */
+  saved: boolean;
+}
+
 export type Confirm = { kind: 'stop' } | { kind: 'end' } | { kind: 'remove'; memberId: number; name: string } | { kind: 'purge'; memberId: number; name: string };
 
 export interface TrainingState {
@@ -58,6 +70,9 @@ export interface TrainingState {
   announcement: string;
   /** Members of an ended training, from the list (the detail no longer carries them); null until known. */
   endedMemberCount: number | null;
+  report: ReportState | null;
+  /** Why the last mark / unmark failed (the row went back to how it was). Cleared by the next one that works. */
+  markError: string;
 }
 
 export interface TrainingControllerOptions {
@@ -65,6 +80,8 @@ export interface TrainingControllerOptions {
   initialMemberId?: number | null;
   /** Pages of 500 events fetched in a row before "Tải thêm" is offered. */
   maxPages?: number;
+  /** Hands a text file to the browser's download (the page supplies it; the controller stays free of the DOM). */
+  saveFile?: (filename: string, text: string) => void;
 }
 
 interface Fetched {
@@ -89,6 +106,8 @@ export class TrainingController {
   private state: TrainingState;
   private listeners = new Set<() => void>();
   private maxPages: number;
+  private saveFile: (filename: string, text: string) => void;
+  private reportToken = 0; // bumped on every open / close of the report dialog
   private started = false;
   private atBottom = true;
   private detailGen = 0; // bumped when an action's own answer is newer than any reload in flight
@@ -99,11 +118,12 @@ export class TrainingController {
 
   constructor(private gateway: TrainingAdminGateway, initial: TrainingDetail, opts: TrainingControllerOptions = {}) {
     this.maxPages = opts.maxPages ?? 10;
+    this.saveFile = opts.saveFile ?? (() => {});
     const id = opts.initialMemberId ?? null;
     const known = id !== null && initial.status !== 'ended' && initial.members.some(m => m.id === id);
     this.state = {
       detail: initial, selectedId: known ? id : null, timeline: known ? this.freshTimeline(id) : null, panel: null, confirm: null,
-      working: false, actionError: '', hidden: gateway.readHideContent(), offline: false, announcement: '', endedMemberCount: null,
+      working: false, actionError: '', hidden: gateway.readHideContent(), offline: false, announcement: '', endedMemberCount: null, report: null, markError: '',
     };
   }
 
@@ -169,7 +189,7 @@ export class TrainingController {
       patch.timeline = null;
       patch.panel = null;
     }
-    if (next.status === 'ended') { this.panelToken++; patch.panel = null; }
+    if (next.status === 'ended') { this.panelToken++; this.reportToken++; patch.panel = null; patch.report = null; }
     if (this.state.confirm && !this.state.working && !confirmStillMakesSense(this.state.confirm, next)) patch.confirm = null;
     this.set(patch);
     if (next.status === 'ended' && prev.status !== 'ended') void this.loadEndedCount();
@@ -346,6 +366,91 @@ export class TrainingController {
     if (!target) return;
     const kind: PanelKind = p.kind === 'output' ? (target.hasOutput ? 'output' : 'change') : (target.hasChange ? 'change' : 'output');
     void this.openDetail(target.id, kind);
+  }
+
+  // ── Marks, notes and the report (S40) ─────────────────────────────────────────────────────────────
+
+  /** Picks or drops a row as an example for the report. The row changes at once; if the server says no it goes back and `markError` says why. */
+  async toggleMark(eventId: number): Promise<void> {
+    const tl = this.state.timeline;
+    const event = tl?.events.find(e => e.id === eventId);
+    if (!tl || !event || this.state.detail.status === 'ended') return;
+    const marked = !event.marked;
+    const memberId = tl.memberId;
+    const setMarked = (value: boolean) => {
+      const now = this.state.timeline;
+      if (!now || now.memberId !== memberId) return;
+      this.set({ timeline: { ...now, events: now.events.map(e => (e.id === eventId ? { ...e, marked: value } : e)) } });
+    };
+    setMarked(marked);
+    try {
+      await this.gateway.mark(this.state.detail.id, eventId, marked);
+      if (this.state.markError) this.set({ markError: '' });
+      void this.refresh(); // the member's marked count is on the training
+    } catch (err) {
+      setMarked(!marked);
+      this.set({ markError: errorText(err, marked ? 'Không đánh dấu được' : 'Không bỏ đánh dấu được') });
+    }
+  }
+
+  /** The mentor's note for a member. Answers with the reason it failed, or null when it was saved. */
+  async saveNote(memberId: number, note: string): Promise<string | null> {
+    if (this.state.detail.status === 'ended') return 'Buổi training đã kết thúc';
+    try {
+      await this.gateway.saveNote(this.state.detail.id, memberId, note);
+    } catch (err) {
+      return errorText(err, 'Không lưu được ghi chú');
+    }
+    // The row on screen shows the new note without waiting for the reload.
+    const members = this.state.detail.members.map(m => (m.id === memberId ? { ...m, mentorNote: note.trim() === '' ? null : note.trim() } : m));
+    this.set({ detail: { ...this.state.detail, members } });
+    void this.refresh();
+    return null;
+  }
+
+  /** Opens the report dialog with the preview. The preview is the text the file will carry; it is not an export. */
+  async openReport(): Promise<void> {
+    if (this.state.detail.status === 'ended') return;
+    const token = ++this.reportToken;
+    this.set({ report: { phase: 'loading', text: '', error: '', saving: false, saved: false } });
+    try {
+      const text = await this.gateway.reportPreview(this.state.detail.id);
+      if (token !== this.reportToken) return;
+      this.set({ report: { phase: 'ready', text, error: '', saving: false, saved: false } });
+    } catch (err) {
+      if (token !== this.reportToken) return;
+      this.set({ report: { phase: 'error', text: '', error: errorText(err, 'Không dựng được báo cáo'), saving: false, saved: false } });
+    }
+  }
+
+  closeReport(): void {
+    this.reportToken++;
+    if (this.state.report) this.set({ report: null });
+  }
+
+  /** "Tải file": asks the server for the file (it records the export), then hands it to the browser. */
+  async downloadReport(): Promise<void> {
+    const r = this.state.report;
+    if (!r || r.phase !== 'ready' || r.saving) return;
+    const token = this.reportToken;
+    this.set({ report: { ...r, saving: true, error: '' } });
+    try {
+      const text = await this.gateway.exportReport(this.state.detail.id);
+      if (token !== this.reportToken) return;
+      this.saveFile(reportFileName(this.state.detail.name), text);
+      this.set({ report: { phase: 'ready', text, error: '', saving: false, saved: true } });
+      void this.refresh(); // `reportExportedAt` changed
+    } catch (err) {
+      if (token !== this.reportToken) return;
+      const now = this.state.report;
+      if (now) this.set({ report: { ...now, saving: false, error: errorText(err, 'Không tải được file') } });
+    }
+  }
+
+  /** From the "Kết thúc" prompt: back out of it and open the report instead. */
+  exportBeforeEnding(): void {
+    this.cancelConfirm();
+    void this.openReport();
   }
 
   // ── Hiding content ──────────────────────────────────────────────────────────────────────────────

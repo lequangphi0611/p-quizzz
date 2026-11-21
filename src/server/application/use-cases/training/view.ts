@@ -31,6 +31,7 @@ export interface TimelineEvent {
   decisionMs: number | null;
   /** Only when it is not `default`. */
   permissionMode: string | null;
+  marked: boolean;
 }
 
 export interface TimelinePage {
@@ -58,6 +59,7 @@ const toTimelineEvent = (e: LightEvent, decision: PermissionDecisionInfo | undef
   decision: e.kind === 'permission' ? (decision?.decision ?? 'pending') : null,
   decisionMs: decision?.decisionMs ?? null,
   permissionMode: e.permissionMode === null || e.permissionMode === 'default' ? null : e.permissionMode,
+  marked: e.marked,
 });
 
 /** Once ended the members and their events are gone for good: reviewing is a conflict, not a "not found". */

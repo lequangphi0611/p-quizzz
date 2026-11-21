@@ -23,6 +23,16 @@ export const CreateTrainingBody = z.object({
   allowAutoAccept: z.boolean().optional().default(false),
 });
 
+export const MENTOR_NOTE_MAX = 2000;
+
+// PUT /api/admin/trainings/:id/members/:memberId/note. An empty note clears it.
+export const MemberNoteBody = z.object({
+  note: z
+    .string({ error: 'Nhập ghi chú' })
+    .transform(s => s.trim())
+    .refine(s => [...s].length <= MENTOR_NOTE_MAX, `Ghi chú tối đa ${MENTOR_NOTE_MAX} ký tự`),
+});
+
 // POST /api/trainings/:id/join. `consent` must be literally true: a member only exists once they agreed.
 export const JoinTrainingBody = DisplayNameBody.extend({
   roomCode: z
@@ -61,6 +71,20 @@ export const FLAG_CODES = [
 ] as const;
 export type FlagCode = (typeof FLAG_CODES)[number];
 
+/** Names a behaviour, never the person, and never a verdict. Shared by the mentor's screen and the exported report. */
+export const FLAG_LABELS: Record<FlagCode, string> = {
+  repeated_failure: 'Lặp lệnh lỗi',
+  long_without_verify: 'Lâu chưa qua kiểm tra',
+  edited_not_verified: 'Sửa xong chưa chạy kiểm tra',
+  auto_accept: 'Chế độ tự chấp nhận',
+  fast_approvals: 'Đồng ý quyền rất nhanh',
+  repeated_request: 'Lặp yêu cầu',
+  auto_compact_repeated: 'Hội thoại tự nén nhiều lần',
+  dangerous_command: 'Lệnh nguy hiểm',
+  touches_tests: 'Đụng vào test',
+  possible_secret: 'Có thể lộ bí mật',
+};
+
 /** A flag that is up, with the events that justify it (oldest first, capped), so the mentor can jump to them. */
 export interface MemberFlag {
   code: FlagCode;
@@ -85,6 +109,10 @@ export interface TrainingMemberRow {
   clearCount: number;
   compactCount: number;
   permissionCount: number;
+  /** The mentor's note for the report; null when there is none (S40). */
+  mentorNote: string | null;
+  /** Events of this member marked as examples for the report. */
+  markedCount: number;
 }
 
 export interface TrainingDetail {
@@ -102,6 +130,8 @@ export interface TrainingDetail {
   allowAutoAccept: boolean;
   /** How many members have each flag. Numbers only: no names, no comparison (PRODUCT.md §7.35d). */
   flagCounts: Record<FlagCode, number>;
+  /** When the mentor last downloaded the report; null if never (the "Kết thúc" prompt asks while it is null). */
+  reportExportedAt: number | null;
   members: TrainingMemberRow[];
 }
 
@@ -179,6 +209,8 @@ export interface TrainingEventRow {
   decisionMs?: number;
   /** The `permission_mode` at that moment, when it is not `default`. */
   permissionMode?: string;
+  /** The mentor picked this row as an example for the report. */
+  marked: boolean;
 }
 
 export interface TrainingEventsPage {

@@ -25,6 +25,13 @@ export class HttpTrainingAdminGateway implements TrainingAdminGateway {
     return this.http.get<TrainingEventsPage>(`/api/admin/trainings/${trainingId}/members/${memberId}/events${after > 0 ? `?after=${after}` : ''}`);
   }
   eventDetail(trainingId: number, eventId: number): Promise<TrainingEventDetail> { return this.http.get<TrainingEventDetail>(`/api/admin/trainings/${trainingId}/events/${eventId}/detail`); }
+  async mark(trainingId: number, eventId: number, marked: boolean): Promise<void> {
+    const path = `/api/admin/trainings/${trainingId}/events/${eventId}/mark`;
+    await (marked ? this.http.put(path) : this.http.delete(path));
+  }
+  async saveNote(trainingId: number, memberId: number, note: string): Promise<void> { await this.http.put(`/api/admin/trainings/${trainingId}/members/${memberId}/note`, { note }); }
+  reportPreview(trainingId: number): Promise<string> { return this.http.get<string>(`/api/admin/trainings/${trainingId}/report.md?preview=1`, { as: 'text' }); }
+  exportReport(trainingId: number): Promise<string> { return this.http.get<string>(`/api/admin/trainings/${trainingId}/report.md`, { as: 'text' }); }
   async getJoinHosts(): Promise<string[]> { return (await this.http.get<NetworkInfo>('/api/network')).joinHosts; }
   readHideContent(): boolean {
     try { return this.storage?.getItem(HIDE_CONTENT_KEY) === '1'; } catch { return false; }

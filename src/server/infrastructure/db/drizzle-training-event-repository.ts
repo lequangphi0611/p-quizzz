@@ -1,14 +1,42 @@
 import { and, asc, desc, eq, gt, sql } from 'drizzle-orm';
 import {
-  FLAG_TEXT_CHARS, OUTPUT_END_CHARS, type EventDetail, type LightEvent, type MemberCounts, type NewTrainingEvent, type TrainingEventRepository,
+  FLAG_TEXT_CHARS, OUTPUT_END_CHARS, type EventDetail, type LightEvent, type MarkedEvent, type MemberCounts, type NewTrainingEvent, type TrainingEventRepository,
 } from '../../application/ports/training-event-repository.js';
 import type { FlagEvent } from '../../domain/training/flags/flag-event.js';
 import type { Clip } from '../../domain/training/clip.js';
 import type { ToolOutcome } from '../../domain/training/is-stuck.js';
 import type { DbAccess } from './drizzle-exam-repository.js';
-import { trainingEvents, trainingMembers } from './schema.js';
+import { trainingEventMarks, trainingEvents, trainingMembers } from './schema.js';
 
 const clipOf = (head: string | null, tail: string | null, omitted: number | null): Clip | null => (head === null ? null : { head, tail, omittedLines: omitted ?? 0 });
+
+const LIGHT_COLUMNS = {
+  id: trainingEvents.id,
+  kind: trainingEvents.kind,
+  receivedAt: trainingEvents.receivedAt,
+  claudeSessionId: trainingEvents.claudeSessionId,
+  prompt: trainingEvents.prompt,
+  toolName: trainingEvents.toolName,
+  toolTarget: trainingEvents.toolTarget,
+  ok: trainingEvents.ok,
+  durationMs: trainingEvents.durationMs,
+  errorExcerpt: trainingEvents.errorExcerpt,
+  note: trainingEvents.note,
+  subtype: trainingEvents.subtype,
+  permissionMode: trainingEvents.permissionMode,
+  outputEnd: sql<string | null>`substr(coalesce(${trainingEvents.outputTail}, ${trainingEvents.outputHead}), ${-OUTPUT_END_CHARS})`,
+  hasOutput: sql<number>`${trainingEvents.outputHead} is not null`,
+  hasChange: sql<number>`${trainingEvents.changeHead} is not null`,
+  marked: sql<number>`exists (select 1 from ${trainingEventMarks} where ${trainingEventMarks.eventId} = ${trainingEvents.id})`,
+};
+
+const toLight = (r: { kind: string; hasOutput: number; hasChange: number; marked: number } & Omit<LightEvent, 'kind' | 'hasOutput' | 'hasChange' | 'marked'>): LightEvent => ({
+  ...r,
+  kind: r.kind as LightEvent['kind'],
+  hasOutput: Boolean(r.hasOutput),
+  hasChange: Boolean(r.hasChange),
+  marked: Boolean(r.marked),
+});
 
 export class DrizzleTrainingEventRepository implements TrainingEventRepository {
   constructor(private readonly access: DbAccess) {}
@@ -56,30 +84,35 @@ export class DrizzleTrainingEventRepository implements TrainingEventRepository {
   listLight(memberId: number, afterId: number, limit: number): Promise<LightEvent[]> {
     return this.access(db =>
       db
-        .select({
-          id: trainingEvents.id,
-          kind: trainingEvents.kind,
-          receivedAt: trainingEvents.receivedAt,
-          claudeSessionId: trainingEvents.claudeSessionId,
-          prompt: trainingEvents.prompt,
-          toolName: trainingEvents.toolName,
-          toolTarget: trainingEvents.toolTarget,
-          ok: trainingEvents.ok,
-          durationMs: trainingEvents.durationMs,
-          errorExcerpt: trainingEvents.errorExcerpt,
-          note: trainingEvents.note,
-          subtype: trainingEvents.subtype,
-          permissionMode: trainingEvents.permissionMode,
-          outputEnd: sql<string | null>`substr(coalesce(${trainingEvents.outputTail}, ${trainingEvents.outputHead}), ${-OUTPUT_END_CHARS})`,
-          hasOutput: sql<number>`${trainingEvents.outputHead} is not null`,
-          hasChange: sql<number>`${trainingEvents.changeHead} is not null`,
-        })
+        .select(LIGHT_COLUMNS)
         .from(trainingEvents)
         .where(and(eq(trainingEvents.memberId, memberId), gt(trainingEvents.id, afterId)))
         .orderBy(asc(trainingEvents.id))
         .limit(limit)
         .all()
-        .map(r => ({ ...r, kind: r.kind as LightEvent['kind'], hasOutput: Boolean(r.hasOutput), hasChange: Boolean(r.hasChange) })),
+        .map(toLight),
+    );
+  }
+
+  listMarked(trainingId: number): Promise<MarkedEvent[]> {
+    return this.access(db =>
+      db
+        .select({ ...LIGHT_COLUMNS, memberId: trainingEvents.memberId })
+        .from(trainingEvents)
+        .innerJoin(trainingEventMarks, eq(trainingEventMarks.eventId, trainingEvents.id))
+        .innerJoin(trainingMembers, eq(trainingMembers.id, trainingEvents.memberId))
+        .where(eq(trainingMembers.trainingId, trainingId))
+        .orderBy(asc(trainingEvents.id))
+        .all()
+        .map(r => ({ ...toLight(r), memberId: r.memberId })),
+    );
+  }
+
+  async setMark(eventId: number, marked: boolean): Promise<void> {
+    await this.access(db =>
+      marked
+        ? db.insert(trainingEventMarks).values({ eventId }).onConflictDoNothing().run()
+        : db.delete(trainingEventMarks).where(eq(trainingEventMarks.eventId, eventId)).run(),
     );
   }
 
@@ -159,6 +192,7 @@ export class DrizzleTrainingEventRepository implements TrainingEventRepository {
           clearCount: sql<number>`sum(${trainingEvents.kind} = 'session' and ${trainingEvents.subtype} = 'clear')`,
           compactCount: sql<number>`sum(${trainingEvents.kind} = 'session' and ${trainingEvents.subtype} like 'compact%')`,
           permissionCount: sql<number>`sum(${trainingEvents.kind} = 'permission')`,
+          markedCount: sql<number>`sum(exists (select 1 from ${trainingEventMarks} where ${trainingEventMarks.eventId} = ${trainingEvents.id}))`,
           lastEventId: sql<number>`max(${trainingEvents.id})`,
         })
         .from(trainingEvents)
@@ -172,7 +206,7 @@ export class DrizzleTrainingEventRepository implements TrainingEventRepository {
         r.memberId,
         {
           promptCount: Number(r.promptCount), toolCount: Number(r.toolCount), failedCount: Number(r.failedCount),
-          clearCount: Number(r.clearCount), compactCount: Number(r.compactCount), permissionCount: Number(r.permissionCount), lastEventId: Number(r.lastEventId),
+          clearCount: Number(r.clearCount), compactCount: Number(r.compactCount), permissionCount: Number(r.permissionCount), markedCount: Number(r.markedCount), lastEventId: Number(r.lastEventId),
         },
       ]),
     );

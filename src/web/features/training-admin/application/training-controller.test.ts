@@ -7,11 +7,11 @@ import { TrainingController } from './training-controller.js';
 const ZERO_COUNTS: TrainingDetail['flagCounts'] = { auto_accept: 0, auto_compact_repeated: 0, dangerous_command: 0, edited_not_verified: 0, fast_approvals: 0, long_without_verify: 0, possible_secret: 0, repeated_failure: 0, repeated_request: 0, touches_tests: 0 };
 
 const member = (id: number, displayName: string, over: Partial<TrainingMemberRow> = {}): TrainingMemberRow =>
-  ({ id, displayName, connection: 'connected', lastSeenAt: 1, promptCount: 1, toolCount: 1, failedCount: 0, stuck: false, stillSending: false, stoppedSending: false, flags: [], clearCount: 0, compactCount: 0, permissionCount: 0, ...over });
+  ({ id, displayName, connection: 'connected', lastSeenAt: 1, promptCount: 1, toolCount: 1, failedCount: 0, stuck: false, stillSending: false, stoppedSending: false, flags: [], clearCount: 0, compactCount: 0, permissionCount: 0, mentorNote: null, markedCount: 0, ...over });
 const detail = (over: Partial<TrainingDetail> = {}): TrainingDetail =>
-  ({ id: 5, name: 'Buổi 1', status: 'open', roomCode: '482913', createdAt: 0, stoppedAt: null, endedAt: null, uninstalled: null, allowAutoAccept: false, flagCounts: ZERO_COUNTS, members: [member(1, 'An'), member(2, 'Bình')], ...over });
+  ({ id: 5, name: 'Buổi 1', status: 'open', roomCode: '482913', createdAt: 0, stoppedAt: null, endedAt: null, uninstalled: null, allowAutoAccept: false, reportExportedAt: null, flagCounts: ZERO_COUNTS, members: [member(1, 'An'), member(2, 'Bình')], ...over });
 const ev = (id: number, over: Partial<TrainingEventRow> = {}): TrainingEventRow =>
-  ({ id, kind: 'tool', receivedAt: id, claudeSessionId: 's', toolName: 'Bash', toolTarget: 'ls', ok: true, hasOutput: false, hasChange: false, ...over });
+  ({ id, kind: 'tool', receivedAt: id, claudeSessionId: 's', toolName: 'Bash', toolTarget: 'ls', ok: true, hasOutput: false, hasChange: false, marked: false, ...over });
 const page = (ids: number[], hasMore = false): TrainingEventsPage => ({ events: ids.map(i => ev(i)), hasMore, flags: [] });
 
 const deferred = <T,>() => { let resolve!: (v: T) => void; let reject!: (e: unknown) => void; const promise = new Promise<T>((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };
@@ -29,6 +29,10 @@ function make(over: Partial<TrainingAdminGateway> = {}, initial = detail(), opts
     purgeMember: vi.fn(async () => {}),
     events: vi.fn(async () => page([10, 11, 12])),
     eventDetail: vi.fn(async (): Promise<TrainingEventDetail> => ({ output: { head: 'out', tail: null, omittedLines: 0 }, change: { head: '+ x', tail: null, omittedLines: 0 } })),
+    mark: vi.fn(async () => {}),
+    saveNote: vi.fn(async () => {}),
+    reportPreview: vi.fn(async () => '# Báo cáo'),
+    exportReport: vi.fn(async () => '# Báo cáo\nđầy đủ'),
     getJoinHosts: vi.fn(async () => ['192.168.1.5:3000']),
     readHideContent: () => hide,
     writeHideContent: vi.fn((h: boolean) => { hide = h; }),
@@ -539,5 +543,139 @@ describe('TrainingController: flags and rows that change', () => {
     const rows = ctrl.getState().timeline!.events;
     expect(rows.map(e => e.id)).toEqual([10, 11, 12]);
     expect(rows[1]).toMatchObject({ decision: 'allowed', decisionMs: 900 });
+  });
+});
+
+describe('TrainingController: marks, notes and the report (S40)', () => {
+  const picked = async (over: Partial<TrainingAdminGateway> = {}, initial = detail(), opts: ConstructorParameters<typeof TrainingController>[2] = {}) => {
+    const m = make(over, initial, { initialMemberId: 1, ...opts });
+    m.ctrl.start();
+    await flush();
+    return m;
+  };
+  const marked = (ctrl: TrainingController) => ctrl.getState().timeline!.events.map(e => e.marked);
+
+  it('marks a row at once, tells the server, and unmarks it the same way', async () => {
+    const mark = deferred<void>();
+    const { ctrl, gateway } = await picked({ mark: vi.fn(() => mark.promise) });
+    const done = ctrl.toggleMark(11);
+    expect(marked(ctrl)).toEqual([false, true, false]); // before the server answered
+    mark.resolve();
+    await done;
+    expect(gateway.mark).toHaveBeenCalledWith(5, 11, true);
+    await ctrl.toggleMark(11);
+    expect(gateway.mark).toHaveBeenLastCalledWith(5, 11, false);
+    expect(marked(ctrl)).toEqual([false, false, false]);
+  });
+
+  it('puts the row back and says why when the server refuses', async () => {
+    const { ctrl } = await picked({ mark: vi.fn(async () => { throw new ApiError(409, 'Buổi training đã kết thúc'); }) });
+    await ctrl.toggleMark(10);
+    expect(marked(ctrl)).toEqual([false, false, false]);
+    expect(ctrl.getState().markError).toBe('Buổi training đã kết thúc');
+  });
+
+  it('clears the error once a mark works', async () => {
+    let fail = true;
+    const { ctrl } = await picked({ mark: vi.fn(async () => { if (fail) throw new ApiError(500, 'Lỗi 500'); }) });
+    await ctrl.toggleMark(10);
+    expect(ctrl.getState().markError).not.toBe('');
+    fail = false;
+    await ctrl.toggleMark(10);
+    expect(ctrl.getState().markError).toBe('');
+  });
+
+  it('ignores an event that is not on screen', async () => {
+    const { ctrl, gateway } = await picked();
+    await ctrl.toggleMark(999);
+    expect(gateway.mark).not.toHaveBeenCalled();
+  });
+
+  it('saves a note, shows it on the member row at once, and answers null', async () => {
+    // The reload that follows never answers here, so what the row shows is what the controller put there.
+    const { ctrl, gateway } = await picked({ get: vi.fn(() => new Promise<TrainingDetail>(() => {})) });
+    expect(await ctrl.saveNote(1, '  Nhắc chạy test  ')).toBeNull();
+    expect(gateway.saveNote).toHaveBeenCalledWith(5, 1, '  Nhắc chạy test  ');
+    expect(ctrl.getState().detail.members.find(m => m.id === 1)!.mentorNote).toBe('Nhắc chạy test');
+    expect(await ctrl.saveNote(1, '   ')).toBeNull();
+    expect(ctrl.getState().detail.members.find(m => m.id === 1)!.mentorNote).toBeNull();
+  });
+
+  it('answers with the reason when the note cannot be saved, and leaves the row alone', async () => {
+    const { ctrl } = await picked({ saveNote: vi.fn(async () => { throw new ApiError(400, 'Ghi chú tối đa 2000 ký tự'); }) });
+    expect(await ctrl.saveNote(1, 'x')).toBe('Ghi chú tối đa 2000 ký tự');
+    expect(ctrl.getState().detail.members.find(m => m.id === 1)!.mentorNote).toBeNull();
+  });
+
+  it('opens the report with a preview that is not an export', async () => {
+    const { ctrl, gateway } = make();
+    await ctrl.openReport();
+    expect(ctrl.getState().report).toEqual({ phase: 'ready', text: '# Báo cáo', error: '', saving: false, saved: false });
+    expect(gateway.reportPreview).toHaveBeenCalledWith(5);
+    expect(gateway.exportReport).not.toHaveBeenCalled();
+  });
+
+  it('shows why the preview failed and can be retried', async () => {
+    const { ctrl } = make({ reportPreview: vi.fn().mockRejectedValueOnce(new ApiError(500, 'Lỗi 500')).mockResolvedValue('# ok') });
+    await ctrl.openReport();
+    expect(ctrl.getState().report).toMatchObject({ phase: 'error', error: 'Lỗi 500' });
+    await ctrl.openReport();
+    expect(ctrl.getState().report).toMatchObject({ phase: 'ready', text: '# ok' });
+  });
+
+  it('downloads the file under a safe name, once per press, and reloads to learn it was exported', async () => {
+    const saveFile = vi.fn();
+    const exported = deferred<string>();
+    const { ctrl, gateway } = make({ exportReport: vi.fn(() => exported.promise) }, detail(), { saveFile });
+    await ctrl.openReport();
+    const first = ctrl.downloadReport();
+    void ctrl.downloadReport(); // a second press while it runs
+    expect(ctrl.getState().report!.saving).toBe(true);
+    exported.resolve('# nội dung file');
+    await first;
+    expect(gateway.exportReport).toHaveBeenCalledTimes(1);
+    expect(saveFile).toHaveBeenCalledExactlyOnceWith('bao-cao-buoi-1.md', '# nội dung file');
+    expect(ctrl.getState().report).toMatchObject({ saving: false, saved: true });
+    await flush();
+    expect(gateway.get).toHaveBeenCalled();
+  });
+
+  it('keeps the dialog open with the reason when the download fails', async () => {
+    const saveFile = vi.fn();
+    const { ctrl } = make({ exportReport: vi.fn(async () => { throw new ApiError(0, 'Không kết nối được tới máy chủ'); }) }, detail(), { saveFile });
+    await ctrl.openReport();
+    await ctrl.downloadReport();
+    expect(saveFile).not.toHaveBeenCalled();
+    expect(ctrl.getState().report).toMatchObject({ phase: 'ready', saving: false, saved: false, error: 'Không kết nối được tới máy chủ' });
+  });
+
+  it('drops a preview that comes back after the dialog was closed', async () => {
+    const late = deferred<string>();
+    const { ctrl } = make({ reportPreview: vi.fn(() => late.promise) });
+    const opening = ctrl.openReport();
+    ctrl.closeReport();
+    late.resolve('# muộn');
+    await opening;
+    expect(ctrl.getState().report).toBeNull();
+  });
+
+  it('backing out of "Kết thúc" to export closes the prompt and opens the report', async () => {
+    const { ctrl } = make({}, detail({ status: 'stopped', roomCode: null, uninstalled: { count: 0, total: 2 } }));
+    ctrl.askEnd();
+    expect(ctrl.getState().confirm).toEqual({ kind: 'end' });
+    ctrl.exportBeforeEnding();
+    expect(ctrl.getState().confirm).toBeNull();
+    await flush();
+    expect(ctrl.getState().report).toMatchObject({ phase: 'ready' });
+  });
+
+  it('opens no report, and closes an open one, once the training has ended', async () => {
+    const { ctrl } = make({ get: vi.fn(async () => detail({ status: 'ended', roomCode: null, members: [] })) });
+    await ctrl.openReport();
+    expect(ctrl.getState().report).not.toBeNull();
+    await ctrl.refresh();
+    expect(ctrl.getState().report).toBeNull();
+    await ctrl.openReport();
+    expect(ctrl.getState().report).toBeNull();
   });
 });

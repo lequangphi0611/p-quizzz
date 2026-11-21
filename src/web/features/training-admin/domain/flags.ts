@@ -1,5 +1,5 @@
 import type { FlagCode, MemberFlag, TrainingDetail, TrainingMemberRow, TrainingEventRow } from '../../../../shared/api/index.js';
-import { FLAG_CODES } from '../../../../shared/api/index.js';
+import { FLAG_CODES, FLAG_LABELS } from '../../../../shared/api/index.js';
 
 export interface FlagInfo {
   /** Names a behaviour, never the person, and never a verdict (PRODUCT.md §7.35c). */
@@ -10,16 +10,16 @@ export interface FlagInfo {
 }
 
 export const FLAG_INFO: Record<FlagCode, FlagInfo> = {
-  repeated_failure: { label: 'Lặp lệnh lỗi', hint: 'Cùng một lệnh lỗi từ 3 lần liên tiếp.', icon: 'rotate-ccw' },
-  long_without_verify: { label: 'Lâu chưa qua kiểm tra', hint: 'Sửa nhiều file trong hơn 10 phút mà chưa có lần chạy test, build hay lint nào thành công.', icon: 'hourglass' },
-  edited_not_verified: { label: 'Sửa xong chưa chạy kiểm tra', hint: 'Gợi ý mờ: nhiều lượt có sửa file mà không chạy test, build hay lint. Có thể bạn ấy chạy ở cửa sổ khác, app không thấy.', icon: 'list-checks' },
-  auto_accept: { label: 'Chế độ tự chấp nhận', hint: 'Claude Code chạy ở chế độ không hỏi lại trước khi sửa file hoặc chạy lệnh.', icon: 'shield-alert' },
-  fast_approvals: { label: 'Đồng ý quyền rất nhanh', hint: 'Từ 3 lần đồng ý trong chưa đầy 2 giây (suy ra, sai số vài trăm mili giây).', icon: 'clock' },
-  repeated_request: { label: 'Lặp yêu cầu', hint: 'Từ 3 prompt liên tiếp gần giống nhau, hoặc chỉ báo "vẫn lỗi".', icon: 'refresh-cw' },
-  auto_compact_repeated: { label: 'Hội thoại tự nén nhiều lần', hint: 'Claude Code tự nén hội thoại từ 2 lần mà chưa có lần /clear nào.', icon: 'shuffle' },
-  dangerous_command: { label: 'Lệnh nguy hiểm', hint: 'Lệnh có thể xoá hoặc ghi đè công việc, hoặc bỏ qua bước kiểm tra an toàn (gồm cả lệnh được xin quyền nhưng không chạy).', icon: 'triangle-alert' },
-  touches_tests: { label: 'Đụng vào test', hint: 'Thêm skip, xoá ca test hoặc xoá file test.', icon: 'pencil' },
-  possible_secret: { label: 'Có thể lộ bí mật', hint: 'Prompt, lệnh, nội dung sửa hoặc output có chuỗi giống khoá hay mật khẩu.', icon: 'key-round' },
+  repeated_failure: { label: FLAG_LABELS.repeated_failure, hint: 'Cùng một lệnh lỗi từ 3 lần liên tiếp.', icon: 'rotate-ccw' },
+  long_without_verify: { label: FLAG_LABELS.long_without_verify, hint: 'Sửa nhiều file trong hơn 10 phút mà chưa có lần chạy test, build hay lint nào thành công.', icon: 'hourglass' },
+  edited_not_verified: { label: FLAG_LABELS.edited_not_verified, hint: 'Gợi ý mờ: nhiều lượt có sửa file mà không chạy test, build hay lint. Có thể bạn ấy chạy ở cửa sổ khác, app không thấy.', icon: 'list-checks' },
+  auto_accept: { label: FLAG_LABELS.auto_accept, hint: 'Claude Code chạy ở chế độ không hỏi lại trước khi sửa file hoặc chạy lệnh.', icon: 'shield-alert' },
+  fast_approvals: { label: FLAG_LABELS.fast_approvals, hint: 'Từ 3 lần đồng ý trong chưa đầy 2 giây (suy ra, sai số vài trăm mili giây).', icon: 'clock' },
+  repeated_request: { label: FLAG_LABELS.repeated_request, hint: 'Từ 3 prompt liên tiếp gần giống nhau, hoặc chỉ báo "vẫn lỗi".', icon: 'refresh-cw' },
+  auto_compact_repeated: { label: FLAG_LABELS.auto_compact_repeated, hint: 'Claude Code tự nén hội thoại từ 2 lần mà chưa có lần /clear nào.', icon: 'shuffle' },
+  dangerous_command: { label: FLAG_LABELS.dangerous_command, hint: 'Lệnh có thể xoá hoặc ghi đè công việc, hoặc bỏ qua bước kiểm tra an toàn (gồm cả lệnh được xin quyền nhưng không chạy).', icon: 'triangle-alert' },
+  touches_tests: { label: FLAG_LABELS.touches_tests, hint: 'Thêm skip, xoá ca test hoặc xoá file test.', icon: 'pencil' },
+  possible_secret: { label: FLAG_LABELS.possible_secret, hint: 'Prompt, lệnh, nội dung sửa hoặc output có chuỗi giống khoá hay mật khẩu.', icon: 'key-round' },
 };
 
 /**

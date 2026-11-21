@@ -456,7 +456,7 @@ Thu prompt và hoạt động công cụ của Claude Code qua hook HTTP. Kết 
 - **Web**: `features/training-admin/{domain,application,infrastructure,ui}` (mentor), `features/training-member/{…}` (member). `features/member-join` chỉ thêm: `resolve` trả `kind: 'training'` → chuyển tới `/training/:id` kèm mã. Hai feature không import nhau; component dùng chung (nếu có) vào `shared/ui/`. Liên kết "Buổi training AI" trong khung `/admin/*`.
 - **Test**: domain `filterHookEvent` dùng các payload thật đã ghi trong spike (`PostToolUse` Bash/PowerShell/Write, `PostToolUseFailure`, `UserPromptSubmit`, `Stop` → null); tích hợp HTTP ingest + quét key cấm ở route member; không chạy Claude Code thật trong `npm test`/`npm run e2e` (e2e gửi JSON hook giả tới ingest).
 
-### 11.9 Mở rộng `training` (S37–S40, PRODUCT.md §7.35; S37–S39 xong, S40 chưa làm)
+### 11.9 Mở rộng `training` (S37–S40, PRODUCT.md §7.35; S37–S40 xong)
 
 Contract dự kiến; story nào chạm thì chốt lại tại đây. Payload thật: [spikes/claude-code-hooks.md](spikes/claude-code-hooks.md) §6.
 
@@ -499,8 +499,9 @@ Contract dự kiến; story nào chạm thì chốt lại tại đây. Payload t
   - Tổng hợp lớp: `GET /trainings/:id` trả `flagCounts: Record<FlagCode, number>`, chỉ là số, không có tên.
 - **Báo cáo** (S40):
   - Bảng `training_event_marks (event_id PK, cascade)`; `training_members` thêm `mentor_note?`; `trainings` thêm `report_exported_at?`.
-  - `GET /api/admin/trainings/:id/report.md` trả `text/markdown` dạng file đính kèm, theo nội dung §7.35e.
-  - `maskSecrets(text)` (domain) che chuỗi giống khoá hoặc mật khẩu.
+  - `PUT|DELETE /api/admin/trainings/:id/events/:eventId/mark` (idempotent) và `PUT .../members/:memberId/note` (≤ 2000 ký tự); 409 khi buổi đã kết thúc. `TrainingEventRow.marked`, `TrainingMemberRow.mentorNote` và `markedCount`, `TrainingDetail.reportExportedAt`.
+  - `GET /api/admin/trainings/:id/report.md` trả `text/markdown`: có `?preview=1` thì chỉ xem trước (không ghi `report_exported_at`), không có thì là file đính kèm và ghi lại lần xuất. Nội dung theo §7.35e; ví dụ đã đánh dấu chỉ có prompt, công cụ và đích, không có output, lỗi hay nội dung sửa.
+  - `maskSecrets(text)` (domain, cùng `SECRET_PATTERNS` với cờ `possible_secret`) che chuỗi giống khoá hoặc mật khẩu; `buildReport` chạy nó trên toàn bộ văn bản ở bước cuối.
   - Dấu, ghi chú và báo cáo đều bị xoá khi Kết thúc.
 
 ## 12. Web: hạ tầng dùng chung (P4-1, issue #18)

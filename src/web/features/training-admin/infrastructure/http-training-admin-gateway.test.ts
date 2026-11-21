@@ -27,6 +27,28 @@ describe('HttpTrainingAdminGateway', () => {
     expect(JSON.parse((f.mock.calls[10]![1] as RequestInit).body as string)).toEqual({ name: 'Buổi 2', allowAutoAccept: true });
   });
 
+  it('marks, notes and the report (S40): the right verbs and paths, and the file comes back as text', async () => {
+    const f = vi.fn(async (url: string, _init?: RequestInit) => (url.includes('report.md') ? new Response('# Báo cáo\n- 1/2 bạn', { status: 200 }) : new Response(null, { status: 204 })));
+    const g = new HttpTrainingAdminGateway(createHttpClient({ fetch: f as unknown as typeof fetch }));
+    await g.mark(3, 41, true);
+    await g.mark(3, 41, false);
+    await g.saveNote(3, 8, 'Nhắc chạy test');
+    expect(await g.reportPreview(3)).toBe('# Báo cáo\n- 1/2 bạn');
+    expect(await g.exportReport(3)).toBe('# Báo cáo\n- 1/2 bạn');
+    expect(f.mock.calls.map(c => [(c[1] as RequestInit).method, c[0]])).toEqual([
+      ['PUT', '/api/admin/trainings/3/events/41/mark'], ['DELETE', '/api/admin/trainings/3/events/41/mark'],
+      ['PUT', '/api/admin/trainings/3/members/8/note'],
+      ['GET', '/api/admin/trainings/3/report.md?preview=1'], ['GET', '/api/admin/trainings/3/report.md'],
+    ]);
+    expect(JSON.parse((f.mock.calls[2]![1] as RequestInit).body as string)).toEqual({ note: 'Nhắc chạy test' });
+  });
+
+  it('a failed report still reports the server message', async () => {
+    const f = vi.fn(async () => new Response(JSON.stringify({ error: 'Buổi training đã kết thúc, dữ liệu đã bị xoá' }), { status: 409 }));
+    const g = new HttpTrainingAdminGateway(createHttpClient({ fetch: f as unknown as typeof fetch }));
+    await expect(g.exportReport(3)).rejects.toMatchObject({ status: 409, message: 'Buổi training đã kết thúc, dữ liệu đã bị xoá' });
+  });
+
   describe('the "hide content" choice', () => {
     const http = createHttpClient({ fetch: vi.fn() as unknown as typeof fetch });
     const memory = () => { const m = new Map<string, string>(); return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => { m.set(k, v); } }; };

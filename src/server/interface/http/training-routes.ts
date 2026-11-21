@@ -1,8 +1,9 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { CreateTrainingBody, JoinTrainingBody, type HookConfig, type JoinTrainingResponse, type MyTraining, type TrainingDetail, type TrainingEventDetail, type TrainingEventsPage, type UninstallCheckResult } from '../../../shared/api/training.js';
+import { CreateTrainingBody, JoinTrainingBody, MemberNoteBody, type HookConfig, type JoinTrainingResponse, type MyTraining, type TrainingDetail, type TrainingEventDetail, type TrainingEventsPage, type UninstallCheckResult } from '../../../shared/api/training.js';
 import { WrongRoomCodeError } from '../../domain/participant/errors.js';
 import { TrainingEventNotFoundError, TrainingMemberNotFoundError, TrainingNotFoundError } from '../../domain/training/errors.js';
-import type { CreateTraining, EndTraining, GetTrainingDetail, ListTrainings, PurgeTrainingMember, RemoveTrainingMember, StopTraining } from '../../application/use-cases/training/admin.js';
+import type { CreateTraining, EndTraining, GetTrainingDetail, ListTrainings, MarkTrainingEvent, PurgeTrainingMember, RemoveTrainingMember, SaveMemberNote, StopTraining } from '../../application/use-cases/training/admin.js';
+import type { ExportTrainingReport } from '../../application/use-cases/training/report.js';
 import type { GetTrainingEventDetail, ListMemberEvents } from '../../application/use-cases/training/view.js';
 import type { IngestHookEvent } from '../../application/use-cases/training/ingest.js';
 import type { FinishUninstallCheck, GetHookConfig, GetMyTraining, JoinTraining, ResumeTrainingMember, StartUninstallCheck, WithdrawTrainingConsent } from '../../application/use-cases/training/member.js';
@@ -22,6 +23,9 @@ export interface TrainingUseCases {
   end: EndTraining;
   removeMember: RemoveTrainingMember;
   purgeMember: PurgeTrainingMember;
+  markEvent: MarkTrainingEvent;
+  saveNote: SaveMemberNote;
+  report: ExportTrainingReport;
   memberEvents: ListMemberEvents;
   eventDetail: GetTrainingEventDetail;
   join: JoinTraining;
@@ -37,7 +41,7 @@ export interface TrainingUseCases {
 const badBody = (issue: { message: string } | undefined) => ({ error: issue?.message ?? 'Dữ liệu không hợp lệ' });
 
 // Mentor routes (PRODUCT.md §7.34). Registered inside the requireMentor scope of /api/admin, so they only answer on the mentor's machine.
-export const trainingAdminRoutes = (uc: Pick<TrainingUseCases, 'create' | 'list' | 'detail' | 'stop' | 'end' | 'removeMember' | 'purgeMember' | 'memberEvents' | 'eventDetail'>): FastifyPluginAsync =>
+export const trainingAdminRoutes = (uc: Pick<TrainingUseCases, 'create' | 'list' | 'detail' | 'stop' | 'end' | 'removeMember' | 'purgeMember' | 'memberEvents' | 'eventDetail' | 'markEvent' | 'saveNote' | 'report'>): FastifyPluginAsync =>
   async app => {
     app.post('/trainings', async (req, reply) => {
       const body = CreateTrainingBody.safeParse(req.body);
@@ -82,6 +86,52 @@ export const trainingAdminRoutes = (uc: Pick<TrainingUseCases, 'create' | 'list'
         if (!id) throw new TrainingNotFoundError();
         if (!eventId) throw new TrainingEventNotFoundError();
         return await uc.eventDetail.execute(id, eventId);
+      } catch (err) {
+        return sendDomainError(reply, err);
+      }
+    });
+
+    // S40: examples for the report (idempotent), the mentor's note per member, and the report itself.
+    for (const [method, marked] of [['put', true], ['delete', false]] as const) {
+      app[method]<{ Params: { id: string; eventId: string } }>('/trainings/:id/events/:eventId/mark', async (req, reply) => {
+        try {
+          const id = parseId(req.params.id);
+          const eventId = parseId(req.params.eventId);
+          if (!id) throw new TrainingNotFoundError();
+          if (!eventId) throw new TrainingEventNotFoundError();
+          await uc.markEvent.execute(id, eventId, marked);
+          return reply.code(204).send();
+        } catch (err) {
+          return sendDomainError(reply, err);
+        }
+      });
+    }
+
+    app.put<{ Params: { id: string; memberId: string } }>('/trainings/:id/members/:memberId/note', async (req, reply) => {
+      try {
+        const id = parseId(req.params.id);
+        const memberId = parseId(req.params.memberId);
+        if (!id) throw new TrainingNotFoundError();
+        if (!memberId) throw new TrainingMemberNotFoundError();
+        const body = MemberNoteBody.safeParse(req.body);
+        if (!body.success) return reply.code(400).send(badBody(body.error.issues[0]));
+        await uc.saveNote.execute(id, memberId, body.data.note);
+        return reply.code(204).send();
+      } catch (err) {
+        return sendDomainError(reply, err);
+      }
+    });
+
+    // `?preview=1` is the same text shown on screen: it does not count as an export. Without it the file downloads and the export is recorded.
+    app.get<{ Params: { id: string }; Querystring: { preview?: string } }>('/trainings/:id/report.md', async (req, reply) => {
+      try {
+        const id = parseId(req.params.id);
+        if (!id) throw new TrainingNotFoundError();
+        const preview = req.query.preview === '1';
+        const text = await uc.report.execute(id, { preview });
+        reply.header('Content-Type', 'text/markdown; charset=utf-8').header('Cache-Control', 'no-store');
+        if (!preview) reply.header('Content-Disposition', `attachment; filename="bao-cao-training-${id}.md"`);
+        return reply.send(text);
       } catch (err) {
         return sendDomainError(reply, err);
       }

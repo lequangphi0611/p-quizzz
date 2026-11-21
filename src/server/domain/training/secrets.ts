@@ -9,7 +9,14 @@ export const SECRET_PATTERNS: readonly RegExp[] = [
   /\bxox[abprs]-[A-Za-z0-9-]{10,}/,
   /-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----/,
   /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/,
-  /\b(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key)\b["']?\s*[:=]\s*["']?[^\s"',;]{8,}/i,
+  /(?<![A-Za-z0-9])(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key)\b["']?\s*[:=]\s*["']?[^\s"',;]{8,}/i,
 ];
 
 export const looksLikeSecret = (text: string): boolean => SECRET_PATTERNS.some(p => p.test(text));
+
+export const MASK = '[đã che]';
+
+const GLOBAL_PATTERNS = SECRET_PATTERNS.map(p => new RegExp(p.source, p.flags.includes('g') ? p.flags : `${p.flags}g`));
+
+/** Replaces every string that looks like a key, token or password. The report runs everything it carries through this (PRODUCT.md §7.35e). */
+export const maskSecrets = (text: string): string => GLOBAL_PATTERNS.reduce((out, p) => out.replace(p, MASK), text);

@@ -28,7 +28,12 @@ export interface LightEvent {
   outputEnd: string | null;
   hasOutput: boolean;
   hasChange: boolean;
+  /** The mentor picked it as an example for the report. */
+  marked: boolean;
 }
+
+/** A marked event with the member it belongs to. */
+export type MarkedEvent = LightEvent & { memberId: number };
 
 /** What the mentor opens with "Xem". `trainingId` lets the caller check the event belongs to the training in the URL. */
 export interface EventDetail {
@@ -44,6 +49,8 @@ export interface MemberCounts {
   clearCount: number;
   compactCount: number;
   permissionCount: number;
+  /** Events of the member the mentor marked as examples. */
+  markedCount: number;
   /** Id of the member's newest event: a cheap "did anything change" key for what is derived from the whole timeline. */
   lastEventId: number;
 }
@@ -62,9 +69,13 @@ export interface TrainingEventReader {
   recentTools(memberId: number, n: number): Promise<ToolOutcome[]>;
   /** Counts per member of the training; members with no events are absent. */
   countsByMember(trainingId: number): Promise<Map<number, MemberCounts>>;
+  /** The events of the training the mentor marked, oldest first (no output and no change: the report never carries them). */
+  listMarked(trainingId: number): Promise<MarkedEvent[]>;
 }
 
 /** Write side: only reachable inside a unit of work (see `TrainingUnitContext`). */
 export interface TrainingEventRepository extends TrainingEventReader {
   append(event: NewTrainingEvent): Promise<void>;
+  /** Marks or unmarks an event; doing it twice changes nothing. */
+  setMark(eventId: number, marked: boolean): Promise<void>;
 }

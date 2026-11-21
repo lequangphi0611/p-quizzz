@@ -40,6 +40,7 @@ export const toTrainingDetailDto = ({ training, uninstalled, flagCounts, members
   uninstalled,
   allowAutoAccept: training.allowAutoAccept,
   flagCounts,
+  reportExportedAt: ms(training.reportExportedAt),
   members: members.map(m => ({
     id: m.id,
     displayName: m.displayName,
@@ -55,6 +56,8 @@ export const toTrainingDetailDto = ({ training, uninstalled, flagCounts, members
     clearCount: m.clearCount,
     compactCount: m.compactCount,
     permissionCount: m.permissionCount,
+    mentorNote: m.mentorNote,
+    markedCount: m.markedCount,
   })),
 });
 
@@ -72,6 +75,7 @@ const toEventRowDto = (e: TimelineEvent): TrainingEventRow => ({
   ...(e.summary !== null ? { summary: e.summary } : {}),
   hasOutput: e.hasOutput,
   hasChange: e.hasChange,
+  marked: e.marked,
   ...(e.note !== null ? { note: e.note } : {}),
   ...(e.subtype !== null ? { subtype: e.subtype } : {}),
   ...(e.decision !== null ? { decision: e.decision } : {}),

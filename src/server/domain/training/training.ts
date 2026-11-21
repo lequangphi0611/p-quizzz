@@ -18,6 +18,8 @@ export interface Training {
   memberCount: number | null;
   /** The mentor expects auto-accept / bypass in this training: that flag never goes up (PRODUCT.md §7.35c). */
   allowAutoAccept: boolean;
+  /** When the mentor last downloaded the report (S40). */
+  reportExportedAt: Date | null;
 }
 
 export interface TrainingMember {
@@ -36,6 +38,8 @@ export interface TrainingMember {
   seenAfterStopAt: Date | null;
   uninstallCheckAt: Date | null;
   uninstalledAt: Date | null;
+  /** The mentor's note for the report (S40). */
+  mentorNote: string | null;
 }
 
 const ACTIONS = { stop: ['open', 'stopped'], end: ['stopped', 'ended'] } as const;

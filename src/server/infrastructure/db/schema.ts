@@ -262,6 +262,8 @@ export const trainings = sqliteTable(
     memberCount: integer('member_count'),
     // S39: the mentor expects auto-accept / bypass here, so the flag for it stays down.
     allowAutoAccept: integer('allow_auto_accept', { mode: 'boolean' }).notNull().default(false),
+    // S40: when the mentor last downloaded the report (the prompt before "Kết thúc" asks while this is empty).
+    reportExportedAt: ts('report_exported_at'),
   },
   t => [uniqueIndex('trainings_room_code_uq').on(t.roomCode)],
 );
@@ -286,6 +288,8 @@ export const trainingMembers = sqliteTable(
     seenAfterStopAt: ts('seen_after_stop_at'),
     uninstallCheckAt: ts('uninstall_check_at'),
     uninstalledAt: ts('uninstalled_at'),
+    // S40: the mentor's own words about this member, for the report.
+    mentorNote: text('mentor_note'),
   },
   // Case-insensitive for ASCII only (SQLite); the domain rule covers all of Unicode.
   t => [uniqueIndex('training_members_name_uq').on(t.trainingId, sql`lower(${t.displayName})`)],
@@ -320,6 +324,11 @@ export const trainingEvents = sqliteTable(
   },
   t => [index('training_events_member_idx').on(t.memberId, t.id)],
 );
+
+// S40: events the mentor picked as examples for the report. Gone with the event (and so with the member) by cascade.
+export const trainingEventMarks = sqliteTable('training_event_marks', {
+  eventId: integer('event_id').primaryKey().references(() => trainingEvents.id, { onDelete: 'cascade' }),
+});
 
 export const examsRelations = relations(exams, ({ many }) => ({ questions: many(questions), sessions: many(sessions) }));
 export const questionsRelations = relations(questions, ({ one, many }) => ({

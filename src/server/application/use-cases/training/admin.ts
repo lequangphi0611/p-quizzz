@@ -1,4 +1,4 @@
-import { TrainingMemberNotFoundError, TrainingNotFoundError, TrainingStateError } from '../../../domain/training/errors.js';
+import { TrainingEventNotFoundError, TrainingMemberNotFoundError, TrainingNotFoundError, TrainingStateError } from '../../../domain/training/errors.js';
 import { analyzeEvents } from '../../../domain/training/flags/index.js';
 import { FLAG_CODES, type FlagCode } from '../../../../shared/api/training.js';
 import { isStuck, STUCK_REPEAT } from '../../../domain/training/is-stuck.js';
@@ -59,6 +59,8 @@ export interface TrainingMemberView {
   clearCount: number;
   compactCount: number;
   permissionCount: number;
+  mentorNote: string | null;
+  markedCount: number;
 }
 
 export interface TrainingDetailView {
@@ -124,6 +126,8 @@ const memberView = (training: Training, m: TrainingMember, counts: MemberCounts 
   clearCount: counts?.clearCount ?? 0,
   compactCount: counts?.compactCount ?? 0,
   permissionCount: counts?.permissionCount ?? 0,
+  mentorNote: m.mentorNote,
+  markedCount: counts?.markedCount ?? 0,
 });
 
 /** "Dừng thu": the code stops working at once; reviewing stays possible. */
@@ -193,6 +197,39 @@ export class PurgeTrainingMember {
       if (!member || member.trainingId !== trainingId) throw new TrainingMemberNotFoundError();
       assertCanPurge(training, member);
       await members.delete(memberId);
+    });
+    await this.deps.signals.signal(trainingId);
+  }
+}
+
+/** The mentor picks (or drops) an event as an example for the report. Both are idempotent. */
+export class MarkTrainingEvent {
+  constructor(private readonly deps: Pick<WriteDeps, 'unitOfWork'>) {}
+
+  async execute(trainingId: number, eventId: number, marked: boolean): Promise<void> {
+    await this.deps.unitOfWork.run(async ({ trainings, events }) => {
+      const training = await trainings.findById(trainingId);
+      if (!training) throw new TrainingNotFoundError();
+      if (training.status === 'ended') throw new TrainingStateError('Buổi training đã kết thúc, dữ liệu đã bị xoá');
+      const detail = await events.getDetail(eventId);
+      if (!detail || detail.trainingId !== trainingId) throw new TrainingEventNotFoundError();
+      await events.setMark(eventId, marked);
+    });
+  }
+}
+
+/** The mentor's note for one member, kept for the report. An empty note clears it. */
+export class SaveMemberNote {
+  constructor(private readonly deps: Pick<WriteDeps, 'unitOfWork' | 'signals'>) {}
+
+  async execute(trainingId: number, memberId: number, note: string): Promise<void> {
+    await this.deps.unitOfWork.run(async ({ trainings, members }) => {
+      const training = await trainings.findById(trainingId);
+      if (!training) throw new TrainingNotFoundError();
+      if (training.status === 'ended') throw new TrainingStateError('Buổi training đã kết thúc, dữ liệu đã bị xoá');
+      const member = await members.findById(memberId);
+      if (!member || member.trainingId !== trainingId) throw new TrainingMemberNotFoundError();
+      await members.setNote(memberId, note === '' ? null : note);
     });
     await this.deps.signals.signal(trainingId);
   }

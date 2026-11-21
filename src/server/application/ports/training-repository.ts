@@ -16,7 +16,7 @@ export interface NewTrainingMember {
   consentedAt: Date;
 }
 
-export type TrainingPatch = Partial<Pick<Training, 'status' | 'roomCode' | 'stoppedAt' | 'endedAt' | 'memberCount'>>;
+export type TrainingPatch = Partial<Pick<Training, 'status' | 'roomCode' | 'stoppedAt' | 'endedAt' | 'memberCount' | 'reportExportedAt'>>;
 
 /** A training in the list, with how many members it has (counted live until it ends). */
 export interface TrainingListItem extends Training {
@@ -66,6 +66,8 @@ export interface TrainingMemberRepository extends TrainingMemberReader {
   /** The member began the removal check (asking again starts over). */
   startUninstallCheck(id: number, at: Date): Promise<void>;
   finishUninstall(id: number, at: Date): Promise<void>;
+  /** The mentor's note for the report; null clears it. */
+  setNote(id: number, note: string | null): Promise<void>;
 }
 
 export interface TrainingUnitContext {
