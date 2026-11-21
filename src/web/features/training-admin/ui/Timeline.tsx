@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import type { TrainingEventRow, TrainingMemberRow } from '../../../../shared/api/index.js';
 import { formatClock } from '../../../shared/format/date.js';
 import { Button } from '../../../shared/ui/Button.js';
@@ -9,9 +9,9 @@ import type { PanelKind, PanelState, TimelineState, TrainingController } from '.
 import { formatDuration } from '../domain/duration.js';
 import { memberCountsText, formatLastSeen } from '../domain/members.js';
 import { isNearBottom } from '../domain/scroll.js';
-import { shortenTarget } from '../domain/shorten.js';
+import { toolLabel } from '../domain/tool-label.js';
 import { buildTimeline, type TimelineItem, type TimelineTool } from '../domain/timeline.js';
-import { ConnectionChip, StuckChip, visuallyHidden } from './chips.js';
+import { ConnectionChip, StuckChip, ToolName, visuallyHidden } from './chips.js';
 
 const mono = 'var(--font-mono)';
 
@@ -40,20 +40,21 @@ function PromptBlock({ event, number }: { event: TrainingEventRow; number: numbe
   );
 }
 
-function ToolRow({ tool, expanded, onToggle, panel, onOpen }: { tool: TimelineTool; expanded: boolean; onToggle: () => void; panel: PanelState | null; onOpen: (id: number, kind: PanelKind) => void }) {
+function ToolRow({ tool, panel, onOpen }: { tool: TimelineTool; panel: PanelState | null; onOpen: (id: number, kind: PanelKind) => void }) {
   const { event: e, run } = tool;
   const failed = e.ok === false;
-  const short = shortenTarget(e.toolTarget ?? '');
+  const name = toolLabel(e.toolName ?? '');
   const active = panel?.eventId === e.id;
   const open = (kind: PanelKind) => active && panel?.kind === kind;
   return (
-    <li id={`ev-${e.id}`} style={{ display: 'grid', gridTemplateColumns: '18px minmax(52px, auto) minmax(0, 1fr) auto', columnGap: 10, rowGap: 6, alignItems: 'center', padding: '8px 10px', borderRadius: 'var(--radius-sm)', background: active ? 'var(--selected-bg)' : undefined, boxShadow: active ? 'inset 3px 0 0 var(--brand-600)' : undefined }}>
+    <li id={`ev-${e.id}`} style={{ display: 'grid', gridTemplateColumns: '18px 64px minmax(0, 1fr) auto', columnGap: 10, rowGap: 6, alignItems: 'center', padding: '8px 10px', borderRadius: 'var(--radius-sm)', background: active ? 'var(--selected-bg)' : undefined, boxShadow: active ? 'inset 3px 0 0 var(--brand-600)' : undefined }}>
       <Icon name={failed ? 'circle-x' : 'circle-check'} size={18} color={failed ? 'var(--wrong-600)' : 'var(--correct-600)'} />
       <span style={visuallyHidden}>{failed ? 'Lỗi' : 'Thành công'}</span>
-      <span style={{ font: `700 13px/1 ${mono}`, color: 'var(--text-title)' }}>{e.toolName}</span>
-      {e.toolTarget === undefined ? <span /> : short.truncated ? (
-        <button type="button" onClick={onToggle} aria-expanded={expanded} title="Bấm để xem đầy đủ" style={{ minWidth: 0, textAlign: 'left', padding: 0, border: 0, background: 'none', cursor: 'pointer', font: `500 13.5px/1.45 ${mono}`, color: 'var(--ink-900)', overflowWrap: 'anywhere', whiteSpace: expanded ? 'pre-wrap' : 'nowrap', overflow: expanded ? 'visible' : 'hidden', textOverflow: 'ellipsis' }}>{expanded ? e.toolTarget : short.text}</button>
-      ) : <span style={{ minWidth: 0, font: `500 13.5px/1.45 ${mono}`, color: 'var(--ink-900)', overflowWrap: 'anywhere' }}>{short.text}</span>}
+      <ToolName name={name} />
+      {e.toolTarget === undefined ? <span /> : (
+        // One line; the end is cut with "…" when the column runs out, and hovering shows the whole command (also its line breaks).
+        <span title={e.toolTarget} style={{ minWidth: 0, font: `500 13.5px/1.45 ${mono}`, color: 'var(--ink-900)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.toolTarget}</span>
+      )}
       <span style={{ font: `500 13px/1 ${mono}`, fontVariantNumeric: 'tabular-nums', color: 'var(--text-meta)', whiteSpace: 'nowrap' }}>{e.durationMs !== undefined ? formatDuration(e.durationMs) : ''}</span>
 
       {e.summary && (
@@ -92,7 +93,6 @@ export function Timeline({ member, timeline, panel, hidden, ctrl, canRemove, now
   onOpen: (id: number, kind: PanelKind) => void; onRemove: () => void;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
-  const [expanded, setExpanded] = useState<ReadonlySet<number>>(new Set());
   const items: TimelineItem[] = hidden ? [] : buildTimeline(timeline.events, { memberStuck: member.stuck });
 
   // Follow the end when the controller says so (first load, or new lines while the mentor is at the end).
@@ -107,7 +107,6 @@ export function Timeline({ member, timeline, panel, hidden, ctrl, canRemove, now
     if (activeId !== undefined) document.getElementById(`ev-${activeId}`)?.scrollIntoView({ block: 'nearest' });
   }, [activeId]);
 
-  const toggle = (id: number) => setExpanded(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
   return (
     <section aria-label={`Dòng thời gian của ${member.displayName}`} style={{ position: 'relative', display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0, height: '100%', background: 'var(--surface-card)', border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-card)', overflow: 'hidden' }}>
@@ -148,7 +147,7 @@ export function Timeline({ member, timeline, panel, hidden, ctrl, canRemove, now
                 {item.prompt && <PromptBlock event={item.prompt} number={item.promptNumber} />}
                 {item.tools.length > 0 && (
                   <ol style={{ listStyle: 'none', margin: '0 0 0 14px', padding: '0 0 0 12px', borderLeft: '2px solid var(--ink-200)', display: 'grid', gap: 2 }}>
-                    {item.tools.map(t => <ToolRow key={t.event.id} tool={t} expanded={expanded.has(t.event.id)} onToggle={() => toggle(t.event.id)} panel={panel} onOpen={onOpen} />)}
+                    {item.tools.map(t => <ToolRow key={t.event.id} tool={t} panel={panel} onOpen={onOpen} />)}
                   </ol>
                 )}
               </div>

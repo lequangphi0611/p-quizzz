@@ -4,7 +4,7 @@ import { connectionLabel } from './connection-label.js';
 import { formatDuration } from './duration.js';
 import { BOTTOM_THRESHOLD_PX, isNearBottom } from './scroll.js';
 import { isTypingTarget, shortcutFor } from './shortcuts.js';
-import { shortenTarget } from './shorten.js';
+import { toolLabel } from './tool-label.js';
 import { memberCountLabel, trainingStatusIcon, trainingStatusLabel } from './training-ui.js';
 
 describe('connectionLabel', () => {
@@ -47,25 +47,14 @@ describe('formatDuration', () => {
   });
 });
 
-describe('shortenTarget', () => {
-  it('keeps a short command whole', () => {
-    expect(shortenTarget('npm test')).toEqual({ text: 'npm test', truncated: false });
+describe('toolLabel', () => {
+  it('abbreviates PowerShell to PS in any letter case, and keeps the full name for hover', () => {
+    expect(toolLabel('PowerShell')).toEqual({ label: 'PS', full: 'PowerShell' });
+    expect(toolLabel('powershell')).toEqual({ label: 'PS', full: 'powershell' });
   });
 
-  it('cuts a long command to the limit with an ellipsis', () => {
-    const r = shortenTarget('x'.repeat(200), 20);
-    expect([...r.text]).toHaveLength(20);
-    expect(r.text.endsWith('…')).toBe(true);
-    expect(r.truncated).toBe(true);
-  });
-
-  it('shows the first line of a multi-line command and marks it as cut', () => {
-    expect(shortenTarget('cat <<EOF\nhello\nEOF')).toEqual({ text: 'cat <<EOF …', truncated: true });
-  });
-
-  it('does not split an emoji in the middle', () => {
-    const r = shortenTarget('😀'.repeat(30), 10);
-    expect([...r.text]).toHaveLength(10);
+  it('leaves every other tool as it is', () => {
+    for (const name of ['Bash', 'Edit', 'Write', 'Read', 'NotebookEdit', 'mcp__x__y']) expect(toolLabel(name)).toEqual({ label: name, full: name });
   });
 });
 

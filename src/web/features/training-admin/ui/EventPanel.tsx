@@ -8,7 +8,8 @@ import { Spinner } from '../../../shared/ui/Spinner.js';
 import type { PanelKind, PanelState } from '../application/training-controller.js';
 import { changeLines, clipView } from '../domain/clip-view.js';
 import { formatDuration } from '../domain/duration.js';
-import { shortenTarget } from '../domain/shorten.js';
+import { toolLabel } from '../domain/tool-label.js';
+import { ToolName } from './chips.js';
 
 const codeFont = '400 13px/1.6 var(--font-mono)';
 const pre = { margin: 0, font: codeFont, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', color: 'var(--ink-900)' } as const;
@@ -38,7 +39,7 @@ export function EventPanel({ panel, event, onKind, onClose, onRetry, onStep }: {
   // Opening (or stepping to another command) puts the focus on the text, so the arrow keys scroll it and Esc is heard.
   useEffect(() => { body.current?.focus({ preventScroll: true }); body.current?.scrollTo({ top: 0 }); }, [eventId, panel.kind]);
 
-  const target = shortenTarget(event?.toolTarget ?? '', 60);
+  const name = toolLabel(event?.toolName ?? '');
   const both = !!event?.hasOutput && !!event?.hasChange;
   const view = panel.clip ? clipView(panel.clip) : null;
   // An Edit is stored as `- old` / `+ new` lines; a written file is plain text (its own "- item" lines must not turn red).
@@ -57,8 +58,8 @@ export function EventPanel({ panel, event, onKind, onClose, onRetry, onStep }: {
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
-          <span style={{ font: '700 13px/1 var(--font-mono)', color: 'var(--text-title)' }}>{event?.toolName}</span>
-          <span title={event?.toolTarget} style={{ font: '500 13px/1.4 var(--font-mono)', color: 'var(--ink-800)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{target.text}</span>
+          <ToolName name={name} />
+          <span title={event?.toolTarget} style={{ font: '500 13px/1.4 var(--font-mono)', color: 'var(--ink-800)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{event?.toolTarget}</span>
           {event?.durationMs !== undefined && <span style={{ marginLeft: 'auto', font: '500 12px/1 var(--font-mono)', color: 'var(--text-meta)', whiteSpace: 'nowrap' }}>{formatDuration(event.durationMs)}</span>}
         </div>
         {both && <SegmentedControl size="sm" ariaLabel="Nội dung cần xem" value={panel.kind} onChange={onKind} items={[{ value: 'output', label: 'Output' }, { value: 'change', label: 'Thay đổi' }]} />}

@@ -8,12 +8,16 @@ const shot = async (p: Page, name: string, fullPage = false) => { await p.waitFo
 
 const CWD = '/home/lan/bai-tap';
 const common = (sid: string) => ({ session_id: sid, transcript_path: '/home/lan/.claude/projects/x/t.jsonl', cwd: CWD, permission_mode: 'default' });
+// A command far wider than the timeline column: it must stay on ONE line, end with "…", and show in full on hover (the title).
+const LONG_COMMAND = `find src -type f -name "*.ts" -not -path "*/node_modules/*" -not -path "*/dist/*" -newer package.json -exec grep -l "describe(" {} + | sort | uniq -c | sort -rn | head -n 50 | tee /tmp/${'long-'.repeat(8)}result.txt`;
+
 const hook = {
   prompt: (text: string, sid: string) => ({ ...common(sid), hook_event_name: 'UserPromptSubmit', prompt: text }),
   bash: (command: string, stdout: string, ms: number, sid: string) => ({ ...common(sid), hook_event_name: 'PostToolUse', tool_name: 'Bash', tool_input: { command }, tool_response: { stdout, stderr: '', interrupted: false }, duration_ms: ms }),
   bashFail: (command: string, error: string, ms: number, sid: string) => ({ ...common(sid), hook_event_name: 'PostToolUseFailure', tool_name: 'Bash', tool_input: { command }, error, duration_ms: ms }),
   read: (file: string, sid: string) => ({ ...common(sid), hook_event_name: 'PostToolUse', tool_name: 'Read', tool_input: { file_path: `${CWD}/${file}` }, tool_response: { type: 'text', file: { filePath: `${CWD}/${file}`, content: 'export const total = 1;', numLines: 1, startLine: 1, totalLines: 1 } }, duration_ms: 12 }),
   write: (file: string, content: string, sid: string) => ({ ...common(sid), hook_event_name: 'PostToolUse', tool_name: 'Write', tool_input: { file_path: `${CWD}/${file}`, content }, tool_response: { type: 'create', filePath: `${CWD}/${file}` }, duration_ms: 8 }),
+  powershell: (command: string, ms: number, sid: string) => ({ ...common(sid), hook_event_name: 'PostToolUse', tool_name: 'PowerShell', tool_input: { command }, tool_response: { stdout: '', stderr: '' }, duration_ms: ms }),
   edit: (file: string, from: string, to: string, sid: string) => ({ ...common(sid), hook_event_name: 'PostToolUse', tool_name: 'Edit', tool_input: { file_path: `${CWD}/${file}`, old_string: from, new_string: to }, tool_response: { filePath: `${CWD}/${file}` }, duration_ms: 6 }),
 };
 
@@ -91,6 +95,8 @@ test('mentor runs an AI training: room code, members, timeline, output, stop, en
   expect((await binh.send(hook.prompt('viết test cho hàm tính tổng giỏ hàng, chạy test luôn', s1))).status).toBe(204);
   await expect(page.locator('tr', { hasText: 'Bình' }).getByText('Đã nhận tín hiệu')).toBeVisible({ timeout: 3_000 });
   await binh.send(hook.read('src/cart.ts', s1));
+  await binh.send(hook.powershell('Get-ChildItem -Recurse src', 412, s1));
+  await binh.send(hook.bash(LONG_COMMAND, '', 130, s1));
   await binh.send(hook.write('src/cart.test.ts', testFile, s1));
   await binh.send(hook.bash('cat build.log', long, 65_000, s1));
   await binh.send(hook.edit('src/cart.test.ts', 'toBe(90)', 'toBe(100)', s1));
@@ -125,6 +131,18 @@ test('mentor runs an AI training: room code, members, timeline, output, stop, en
   await expect(timeline.getByText('3,4 s')).toBeVisible();
   await expect(timeline.getByText('Expected: 90').first()).toBeVisible(); // the summary line of a failed command
   expect(detailRequests).toHaveLength(0); // no output loaded until a button is pressed
+
+  // PowerShell is shown as "PS" (hover and screen readers still get the full name); a long command stays on one line with "…" and its whole text on hover.
+  const psRow = timeline.locator('li', { hasText: 'Get-ChildItem -Recurse src' });
+  await expect(psRow.locator('abbr')).toHaveText('PS');
+  await expect(psRow.locator('abbr')).toHaveAttribute('title', 'PowerShell');
+  const longTarget = timeline.locator('li', { hasText: 'find src -type f' }).locator('span[title]').filter({ hasText: 'find src -type f' });
+  await expect(longTarget).toHaveAttribute('title', LONG_COMMAND);
+  const fit = await longTarget.evaluate(el => ({ cut: el.scrollWidth > el.clientWidth, oneLine: el.getBoundingClientRect().height < 24, overflow: getComputedStyle(el).textOverflow, wrap: getComputedStyle(el).whiteSpace }));
+  expect(fit).toEqual({ cut: true, oneLine: true, overflow: 'ellipsis', wrap: 'nowrap' });
+  const left = async (loc: typeof psRow) => (await loc.locator('span[title]').first().boundingBox())!.x;
+  expect(Math.abs((await left(psRow)) - (await left(timeline.locator('li', { hasText: 'find src -type f' }))))).toBeLessThan(1); // commands line up whatever the tool's name
+  await expect(timeline.getByRole('button', { name: /xem đầy đủ/i })).toHaveCount(0); // no click-to-expand any more
   await shot(page, 'M13-dong-thoi-gian');
 
   // F5 keeps the choice

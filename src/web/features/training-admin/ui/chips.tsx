@@ -41,3 +41,10 @@ export function TrainingStatusBadge({ status, size = 'md' }: { status: TrainingS
 }
 
 export const visuallyHidden = { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' } as const;
+
+/** The tool's name in a fixed-width cell; `PowerShell` shows as `PS` (hover and screen readers get the full name). */
+export function ToolName({ name }: { name: { label: string; full: string } }) {
+  return (
+    <abbr title={name.full} style={{ font: `700 13px/1 var(--font-mono)`, color: 'var(--text-title)', textDecoration: 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{name.label}</abbr>
+  );
+}
