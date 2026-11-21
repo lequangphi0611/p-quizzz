@@ -29,6 +29,8 @@ export interface TrainingMember {
   consentedAt: Date;
   firstSeenAt: Date | null;
   lastSeenAt: Date | null;
+  /** The member pressed "Dừng gửi" while the training was open: no new data is accepted from then on. */
+  stoppedSendingAt: Date | null;
   seenAfterStopAt: Date | null;
   uninstallCheckAt: Date | null;
   uninstalledAt: Date | null;
@@ -64,14 +66,29 @@ const removalHolds = (m: Seen): m is Seen & { uninstalledAt: Date } =>
  * What the mentor sees for one member. Only what the member's own machine proves: `waiting` until the first event
  * arrives, `connected` after, `uninstalled` once they passed the removal check and nothing came after it (PRODUCT.md §7.34e).
  */
-export function connectionState(m: Pick<TrainingMember, 'firstSeenAt'> & Seen): TrainingConnection {
+export function connectionState(m: Pick<TrainingMember, 'firstSeenAt'> & Partial<Pick<TrainingMember, 'stoppedSendingAt'>> & Seen): TrainingConnection {
   if (removalHolds(m)) return 'uninstalled';
+  if (m.stoppedSendingAt) return 'stopped_sending';
   return m.firstSeenAt ? 'connected' : 'waiting';
 }
 
-/** Events after "Dừng thu" mean the hook is still installed on that machine (until a later passed check says otherwise). */
-export const stillSending = (training: Pick<Training, 'status'>, m: Seen): boolean =>
-  training.status === 'stopped' && m.seenAfterStopAt !== null && !removalHolds(m);
+/**
+ * Events after "Dừng thu", or after the member's own "Dừng gửi", mean the hook is still installed on that machine
+ * (until a later passed check says otherwise).
+ */
+export const stillSending = (training: Pick<Training, 'status'>, m: Seen & Partial<Pick<TrainingMember, 'stoppedSendingAt'>>): boolean =>
+  (training.status === 'stopped' || Boolean(m.stoppedSendingAt)) && m.seenAfterStopAt !== null && !removalHolds(m);
+
+/** The member's "Dừng gửi" (only while open) and what the mentor may do about it (delete it), checked in one place. */
+export function assertCanStopSending(training: Pick<Training, 'status'>): void {
+  if (training.status === 'stopped') throw new TrainingStateError('Buổi training đã dừng thu, không cần dừng gửi nữa');
+  if (training.status !== 'open') throw new TrainingStateError('Buổi training đã kết thúc');
+}
+
+export function assertCanPurge(training: Pick<Training, 'status'>, m: Pick<TrainingMember, 'stoppedSendingAt'>): void {
+  if (training.status === 'ended') throw new TrainingStateError('Buổi training đã kết thúc');
+  if (!m.stoppedSendingAt) throw new TrainingStateError('Chỉ xoá được dữ liệu của người đã dừng gửi');
+}
 
 /** The member's view of the removal check: `failed` is an event that arrived after the check began (or after it passed). */
 export function uninstallCheckState(m: Pick<TrainingMember, 'uninstallCheckAt'> & Seen): UninstallCheckState {

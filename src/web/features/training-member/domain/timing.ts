@@ -26,8 +26,8 @@ export const checkSecondsLeft = (readyAt: number | null, now: number): number =>
  * An unreachable mentor's machine is retried fast, whatever the screen.
  */
 export function pollDelayMs(screen: TrainingScreen, offline: boolean): number | null {
-  if (screen === 'consent' || screen === 'lost' || screen === 'ended' || screen === 'removed') return null;
+  if (screen === 'consent' || screen === 'lost' || screen === 'ended' || screen === 'removed' || screen === 'deleted') return null;
   if (offline || screen === 'offline') return FAST_POLL_MS;
   if (screen === 'install' || screen === 'check' || screen === 'loading') return FAST_POLL_MS;
-  return SLOW_POLL_MS; // recording, remove, check-failed
+  return SLOW_POLL_MS; // recording, sending-stopped (waiting for the mentor's decision), remove, check-failed
 }

@@ -5,7 +5,7 @@ import { FakeClock, FakeRandom, FakeTokenGenerator, RecordingTrainingSignals } f
 import { InMemoryTrainingEventRepository } from '../../testing/in-memory-training-event-repository.js';
 import { InMemoryTrainingMemberRepository, InMemoryTrainingRepository } from '../../testing/in-memory-training-repository.js';
 import { InMemoryUnitOfWork } from '../../testing/in-memory-unit-of-work.js';
-import { CreateTraining, EndTraining, GetTrainingDetail, ListTrainings, RemoveTrainingMember, StopTraining } from './admin.js';
+import { CreateTraining, EndTraining, GetTrainingDetail, ListTrainings, PurgeTrainingMember, RemoveTrainingMember, StopTraining } from './admin.js';
 import { GetHookConfig, GetMyTraining, JoinTraining, ResumeTrainingMember, WithdrawTrainingConsent } from './member.js';
 import { ResolveAnyRoom } from './resolve-any-room.js';
 
@@ -25,6 +25,7 @@ function build(randoms = [111111, 222222]) {
     stop: new StopTraining(deps),
     end: new EndTraining(deps),
     remove: new RemoveTrainingMember(deps),
+    purge: new PurgeTrainingMember(deps),
     join: new JoinTraining({ ...deps, tokens: new FakeTokenGenerator() }),
     resume: new ResumeTrainingMember({ members, trainings }),
     me: new GetMyTraining(),
@@ -134,7 +135,7 @@ describe('GetTrainingDetail', () => {
     await uc.join.execute({ trainingId: t.id, displayName: 'Lan', roomCode: '111111' });
     let detail = await uc.detail.execute(t.id);
     expect(detail.uninstalled).toBeNull();
-    expect(detail.members).toEqual([{ id: 1, displayName: 'Lan', connection: 'waiting', lastSeenAt: null, promptCount: 0, toolCount: 0, failedCount: 0, stuck: false, stillSending: false }]);
+    expect(detail.members).toEqual([{ id: 1, displayName: 'Lan', connection: 'waiting', lastSeenAt: null, promptCount: 0, toolCount: 0, failedCount: 0, stuck: false, stillSending: false, stoppedSending: false }]);
     await uc.stop.execute(t.id);
     detail = await uc.detail.execute(t.id);
     expect(detail.uninstalled).toEqual({ count: 0, total: 1 });
@@ -159,14 +160,82 @@ describe('RemoveTrainingMember / WithdrawTrainingConsent', () => {
     await expect(uc.remove.execute(t.id, member.id)).rejects.toBeInstanceOf(TrainingStateError);
   });
 
-  it('withdrawing deletes the member; their old token stops working', async () => {
+  it('"Dừng gửi" (withdraw) keeps the member and their events, records the time once and signals the mentor', async () => {
+    const uc = build();
+    const t = await uc.create.execute('T');
+    const { token, member } = await uc.join.execute({ trainingId: t.id, displayName: 'Lan', roomCode: '111111' });
+    await events.append({ kind: 'prompt', claudeSessionId: 's', permissionMode: null, promptId: null, prompt: 'hi', memberId: member.id, receivedAt: clock.now() });
+    signals.signals.length = 0;
+    clock.advance(500);
+    await uc.withdraw.execute(await uc.resume.execute(token));
+    expect((await members.findById(member.id))!.stoppedSendingAt).toEqual(new Date(1500));
+    expect(await events.all()).toHaveLength(1);
+    expect(signals.signals).toEqual([t.id]);
+    clock.advance(500);
+    await uc.withdraw.execute(await uc.resume.execute(token)); // asking again keeps the first time
+    expect((await members.findById(member.id))!.stoppedSendingAt).toEqual(new Date(1500));
+    // the token still works, so the member can see their state
+    expect((await uc.resume.execute(token)).member.id).toBe(member.id);
+  });
+
+  it('the mentor sees the name of who stopped sending, as `stopped_sending`', async () => {
     const uc = build();
     const t = await uc.create.execute('T');
     const { token } = await uc.join.execute({ trainingId: t.id, displayName: 'Lan', roomCode: '111111' });
-    const ctx = await uc.resume.execute(token);
-    await uc.withdraw.execute(ctx);
-    await expect(uc.resume.execute(token)).rejects.toBeInstanceOf(TrainingNotJoinedError);
-    await expect(uc.resume.execute(undefined)).rejects.toBeInstanceOf(TrainingNotJoinedError);
+    await uc.join.execute({ trainingId: t.id, displayName: 'Mai', roomCode: '111111' });
+    await uc.withdraw.execute(await uc.resume.execute(token));
+    const rows = (await uc.detail.execute(t.id)).members;
+    expect(rows.map(r => [r.displayName, r.connection, r.stoppedSending])).toEqual([['Lan', 'stopped_sending', true], ['Mai', 'waiting', false]]);
+  });
+
+  it('"Dừng gửi" is refused (409) once the training is stopped or ended', async () => {
+    const uc = build();
+    const t = await uc.create.execute('T');
+    const { token } = await uc.join.execute({ trainingId: t.id, displayName: 'Lan', roomCode: '111111' });
+    await uc.stop.execute(t.id);
+    await expect(uc.withdraw.execute(await uc.resume.execute(token))).rejects.toBeInstanceOf(TrainingStateError);
+  });
+
+  it('purge deletes only a member who stopped sending (and their events); others are refused', async () => {
+    const uc = build();
+    const t = await uc.create.execute('T');
+    const lan = await uc.join.execute({ trainingId: t.id, displayName: 'Lan', roomCode: '111111' });
+    const mai = await uc.join.execute({ trainingId: t.id, displayName: 'Mai', roomCode: '111111' });
+    await events.append({ kind: 'prompt', claudeSessionId: 's', permissionMode: null, promptId: null, prompt: 'hi', memberId: lan.member.id, receivedAt: clock.now() });
+    await expect(uc.purge.execute(t.id, lan.member.id)).rejects.toBeInstanceOf(TrainingStateError); // has not stopped sending
+    await uc.withdraw.execute(await uc.resume.execute(lan.token));
+    await expect(uc.purge.execute(99, lan.member.id)).rejects.toBeInstanceOf(TrainingNotFoundError);
+    await expect(uc.purge.execute(t.id, 99)).rejects.toBeInstanceOf(TrainingMemberNotFoundError);
+    signals.signals.length = 0;
+    await uc.purge.execute(t.id, lan.member.id);
+    expect(await members.findById(lan.member.id)).toBeNull();
+    expect(await events.all()).toEqual([]);
+    expect(signals.signals).toEqual([t.id]);
+    await expect(uc.resume.execute(lan.token)).rejects.toBeInstanceOf(TrainingNotJoinedError);
+    expect(await members.findById(mai.member.id)).not.toBeNull();
+  });
+
+  it('purge still works after "Dừng thu" (the member stays until Kết thúc), not after the end', async () => {
+    const uc = build();
+    const t = await uc.create.execute('T');
+    const lan = await uc.join.execute({ trainingId: t.id, displayName: 'Lan', roomCode: '111111' });
+    await uc.withdraw.execute(await uc.resume.execute(lan.token));
+    await uc.stop.execute(t.id);
+    await uc.purge.execute(t.id, lan.member.id);
+    expect(await members.findById(lan.member.id)).toBeNull();
+    await uc.end.execute(t.id);
+    await expect(uc.purge.execute(t.id, lan.member.id)).rejects.toBeInstanceOf(TrainingStateError);
+  });
+
+  it('Kết thúc deletes everyone, including a member who stopped sending', async () => {
+    const uc = build();
+    const t = await uc.create.execute('T');
+    const lan = await uc.join.execute({ trainingId: t.id, displayName: 'Lan', roomCode: '111111' });
+    await uc.withdraw.execute(await uc.resume.execute(lan.token));
+    await uc.stop.execute(t.id);
+    await uc.end.execute(t.id);
+    expect(await members.findById(lan.member.id)).toBeNull();
+    expect((await trainings.findById(t.id))!.memberCount).toBe(1);
   });
 });
 

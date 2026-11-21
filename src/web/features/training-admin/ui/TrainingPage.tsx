@@ -170,7 +170,7 @@ function Workspace({ state, ctrl, closePanel }: { state: TrainingState; ctrl: Tr
   const now = Date.now();
   return (
     <div style={{ display: 'grid', gap: 16, height: 'clamp(520px, calc(100vh - 330px), 860px)', gridTemplateColumns: panelOpen ? '220px minmax(0, 1fr) minmax(380px, 430px)' : 'minmax(0, 1.2fr) minmax(0, 1fr)' }}>
-      <MembersTable members={detail.members} selectedId={selectedId} onSelect={id => ctrl.select(id)} compact={panelOpen} now={now} />
+      <MembersTable members={detail.members} selectedId={selectedId} onSelect={id => ctrl.select(id)} onPurge={id => ctrl.askPurge(id)} compact={panelOpen} now={now} />
       {member && timeline ? (
         <Timeline member={member} timeline={timeline} panel={hidden ? null : panel} hidden={hidden} ctrl={ctrl} now={now} canRemove={detail.status !== 'ended'}
           onOpen={(id, kind) => void ctrl.openDetail(id, kind)} onRemove={() => ctrl.askRemove(member.id)} />

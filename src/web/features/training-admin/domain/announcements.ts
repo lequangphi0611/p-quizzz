@@ -14,7 +14,8 @@ export function announcementFor(prev: TrainingDetail, next: TrainingDetail): str
   for (const m of next.members) {
     const old = before.get(m.id);
     if (!old) { lines.push(`${m.displayName} đã vào buổi`); continue; }
-    if (m.stillSending && !old.stillSending) lines.push(`${m.displayName} vẫn gửi dữ liệu sau khi dừng thu`);
+    if (m.stoppedSending && !old.stoppedSending) lines.push(`${m.displayName} đã dừng gửi dữ liệu`);
+    else if (m.stillSending && !old.stillSending) lines.push(`${m.displayName} vẫn gửi dữ liệu sau khi dừng thu`);
     else if (m.connection === 'uninstalled' && old.connection !== 'uninstalled' && !m.stillSending) lines.push(`${m.displayName} đã gỡ kết nối`);
     else if (m.connection === 'connected' && old.connection === 'waiting') lines.push(`${m.displayName} đã nhận tín hiệu`);
   }

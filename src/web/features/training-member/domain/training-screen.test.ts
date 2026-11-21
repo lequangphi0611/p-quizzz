@@ -71,6 +71,20 @@ describe('decideTrainingScreen: the mentor stopped recording', () => {
   });
 });
 
+describe('decideTrainingScreen: "Dừng gửi" (S38)', () => {
+  it('a member who stopped sending while open sees the sending-stopped screen, not recording or install', () => {
+    expect(screen({ me: me('open', 'stopped_sending') })).toBe('sending-stopped');
+  });
+  it('once the mentor stops the training the removal steps take over, as for everyone', () => {
+    expect(screen({ me: me('stopped', 'stopped_sending', 'none') })).toBe('remove');
+    expect(screen({ me: me('stopped', 'stopped_sending', 'waiting') })).toBe('check');
+  });
+  it('gone after stopping sending is "deleted"; gone otherwise stays "ended"', () => {
+    expect(screen({ gone: true, deleted: true, hasToken: false })).toBe('deleted');
+    expect(screen({ gone: true, hasToken: false })).toBe('ended');
+  });
+});
+
 describe('decideTrainingScreen: it is over', () => {
   it('401 (gone) is the ended screen whatever else is known', () => {
     expect(screen({ gone: true, me: me('open', 'connected') })).toBe('ended');

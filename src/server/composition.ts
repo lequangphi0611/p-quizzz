@@ -89,7 +89,7 @@ import { GetShareLink, RotateShareLink } from './application/use-cases/sharing/s
 import { GetSharedSession, ListSharedSessions } from './application/use-cases/sharing/shared-sessions.js';
 import { DrizzleShareTokenStore } from './infrastructure/db/drizzle-share-token-store.js';
 import type { TrainingUnitContext } from './application/ports/training-repository.js';
-import { CreateTraining, EndTraining, GetTrainingDetail, ListTrainings, RemoveTrainingMember, StopTraining } from './application/use-cases/training/admin.js';
+import { CreateTraining, EndTraining, GetTrainingDetail, ListTrainings, PurgeTrainingMember, RemoveTrainingMember, StopTraining } from './application/use-cases/training/admin.js';
 import { FinishUninstallCheck, GetHookConfig, GetMyTraining, JoinTraining, ResumeTrainingMember, StartUninstallCheck, WithdrawTrainingConsent } from './application/use-cases/training/member.js';
 import { ResolveAnyRoom } from './application/use-cases/training/resolve-any-room.js';
 import { DrizzleTrainingEventRepository } from './infrastructure/db/drizzle-training-event-repository.js';
@@ -279,6 +279,7 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}, aiOptions:
       stop: new StopTraining(trainingDeps),
       end: new EndTraining(trainingDeps),
       removeMember: new RemoveTrainingMember(trainingDeps),
+      purgeMember: new PurgeTrainingMember(trainingDeps),
       join: new JoinTraining({ ...trainingDeps, tokens: ports.tokens }),
       resume: new ResumeTrainingMember({ members: trainingMemberReader, trainings: trainingReader }),
       me: new GetMyTraining(),

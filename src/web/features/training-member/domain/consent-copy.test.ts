@@ -19,6 +19,12 @@ describe('consent copy holds to the contract (PRODUCT.md §7.34)', () => {
   it('says the compaction summary is not sent', () => {
     expect(all(NOT_SENT_ITEMS)).toMatch(/bản tóm tắt/);
   });
+  it('says stopping does not delete at once: only the mentor\'s approval or the end does, and the mentor knows who stopped', () => {
+    const h = all(HANDLING_ITEMS);
+    expect(h).toMatch(/Dữ liệu đã gửi chỉ bị xoá khi mentor duyệt xoá hoặc khi mentor bấm "Kết thúc"/);
+    expect(h).toMatch(/mentor biết tên người đã dừng/);
+    expect(h).not.toMatch(/bị xoá ngay/);
+  });
   it('says the mentor can export a named report', () => {
     expect(all(HANDLING_ITEMS)).toMatch(/xuất báo cáo có tên bạn/);
   });
@@ -38,7 +44,7 @@ describe('consent copy holds to the contract (PRODUCT.md §7.34)', () => {
   });
   it('says who sees it, that the member cannot look back, when it is deleted, that consent can be withdrawn and that the network is not encrypted', () => {
     const h = all(HANDLING_ITEMS);
-    for (const must of ['Chỉ mentor xem', 'không xem lại được', 'Kết thúc', 'Rút lại đồng ý bất cứ lúc nào', 'không mã hoá', 'Không tham gia vẫn học bình thường']) expect(h).toContain(must);
+    for (const must of ['Chỉ mentor xem', 'không xem lại được', 'Kết thúc', 'Dừng gửi bất cứ lúc nào', 'không mã hoá', 'Không tham gia vẫn học bình thường']) expect(h).toContain(must);
   });
   it('uses only icons that exist in the app', async () => {
     const { readdirSync } = await import('node:fs');

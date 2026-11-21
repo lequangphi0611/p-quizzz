@@ -1,7 +1,7 @@
 import { WrongRoomCodeError } from '../../../domain/participant/errors.js';
 import { TrainingNotJoinedError, TrainingStateError } from '../../../domain/training/errors.js';
 import { buildHookSettings, buildMergePrompt } from '../../../domain/training/hook-settings.js';
-import { assertTrainingNameFree, connectionState, uninstallCheckState, uninstallCheckVerdict, type Training, type TrainingMember } from '../../../domain/training/training.js';
+import { assertCanStopSending, assertTrainingNameFree, connectionState, uninstallCheckState, uninstallCheckVerdict, type Training, type TrainingMember } from '../../../domain/training/training.js';
 import { roomCodeMatches } from '../../../domain/session/room-code.js';
 import type { HookConfig, UninstallCheckResult } from '../../../../shared/api/training.js';
 import type { Clock } from '../../ports/clock.js';
@@ -68,12 +68,17 @@ export class GetHookConfig {
   }
 }
 
-/** The member withdraws consent: they and everything collected from them are deleted. */
+/**
+ * The member's "Dừng gửi" (PRODUCT.md §7.34b, §7.35j): from now on nothing new is accepted from them, but what was already
+ * collected stays until the mentor approves deleting it (`PurgeTrainingMember`) or ends the training. Only while the training
+ * is open; once it is stopped there is nothing left to stop (409). Asking twice keeps the first time.
+ */
 export class WithdrawTrainingConsent {
-  constructor(private readonly deps: { unitOfWork: UnitOfWork<TrainingUnitContext>; signals: TrainingSignals }) {}
+  constructor(private readonly deps: { unitOfWork: UnitOfWork<TrainingUnitContext>; clock: Clock; signals: TrainingSignals }) {}
 
   async execute({ member, training }: TrainingMemberContext): Promise<void> {
-    await this.deps.unitOfWork.run(({ members }) => members.delete(member.id));
+    assertCanStopSending(training);
+    await this.deps.unitOfWork.run(({ members }) => members.stopSending(member.id, this.deps.clock.now()));
     await this.deps.signals.signal(training.id);
   }
 }

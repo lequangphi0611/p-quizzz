@@ -11,7 +11,7 @@ export function EndedScreen({ desk, onHome }: { desk: boolean; onHome: () => voi
       <StatusMark icon="door-open" tone="neutral" />
       <div style={{ display: 'grid', gap: 8 }}>
         <h1 style={mText.h1}>Buổi training đã kết thúc</h1>
-        <p style={{ ...mText.meta, fontSize: 15 }}>Buổi này không còn dữ liệu của bạn: mentor đã kết thúc buổi và xoá dữ liệu, hoặc bạn đã rút lại đồng ý, hoặc mentor đã mời bạn ra.</p>
+        <p style={{ ...mText.meta, fontSize: 15 }}>Buổi này không còn dữ liệu của bạn: mentor đã kết thúc buổi và xoá dữ liệu, hoặc đã duyệt xoá dữ liệu sau khi bạn dừng gửi, hoặc đã mời bạn ra.</p>
       </div>
       <p style={mText.meta}>Nếu cấu hình vẫn còn trong thư mục bài tập, hãy xoá các mục hook gửi tới máy mentor khỏi <Mono>.claude/settings.local.json</Mono>.</p>
       <Button size="lg" icon="arrow-left" block={!desk} onClick={onHome}>Về trang đầu</Button>

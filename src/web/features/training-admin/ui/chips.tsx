@@ -23,6 +23,20 @@ export function ConnectionChip({ row, iconOnly = false }: { row: Parameters<type
   );
 }
 
+/**
+ * "Đã dừng gửi": the member stopped sending themselves (PRODUCT.md §7.35j). Shown next to the name whenever it is true, even if the
+ * connection chip says something else (still sending, removed), because the mentor has a pending decision about their data.
+ */
+export function StoppedSendingChip({ iconOnly = false }: { iconOnly?: boolean }) {
+  const label = 'Đã dừng gửi';
+  return (
+    <span title={iconOnly ? label : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: iconOnly ? '3px 5px' : '2px 9px 2px 7px', borderRadius: 'var(--radius-pill)', background: 'var(--ink-100)', color: 'var(--ink-700)', border: '1px solid var(--ink-300)', font: 'var(--type-label)', fontSize: 12, whiteSpace: 'nowrap' }}>
+      <Icon name="log-out" size={13} />
+      {iconOnly ? <span style={visuallyHidden}>{label}</span> : label}
+    </span>
+  );
+}
+
 /** "Có thể đang kẹt": a hint to the mentor, pale yellow with a flag, never red and never a verdict. */
 export function StuckChip({ label = 'Có thể đang kẹt', iconOnly = false }: { label?: string; iconOnly?: boolean }) {
   return (

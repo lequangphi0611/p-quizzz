@@ -33,7 +33,8 @@ export const JoinTrainingBody = DisplayNameBody.extend({
 /** POST /api/rooms/resolve: a room code now leads to a session or to a training. */
 export type ResolvedRoom = ({ kind: 'session' } & ActiveSession) | { kind: 'training'; id: number; title: string };
 
-export type TrainingConnection = 'waiting' | 'connected' | 'uninstalled';
+/** `stopped_sending`: the member pressed "Dừng gửi" while the training was open (PRODUCT.md §7.35j); what they sent stays until the mentor approves its deletion. */
+export type TrainingConnection = 'waiting' | 'connected' | 'uninstalled' | 'stopped_sending';
 export type UninstallCheckState = 'none' | 'waiting' | 'passed' | 'failed';
 
 export interface TrainingSummary {
@@ -61,6 +62,8 @@ export interface TrainingMemberRow {
   failedCount: number;
   stuck: boolean;
   stillSending: boolean;
+  /** The member pressed "Dừng gửi" while open: their data stays until the mentor approves deleting it (POST .../members/:memberId/purge). */
+  stoppedSending: boolean;
 }
 
 export interface TrainingDetail {

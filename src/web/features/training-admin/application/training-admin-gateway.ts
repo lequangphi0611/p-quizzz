@@ -12,6 +12,8 @@ export interface TrainingAdminGateway {
   /** "Kết thúc": deletes everything collected. Answers with the training as it now is. */
   end(id: number): Promise<TrainingDetail>;
   removeMember(trainingId: number, memberId: number): Promise<void>;
+  /** "Duyệt xoá": deletes the data of a member who stopped sending (409 for anyone else). */
+  purgeMember(trainingId: number, memberId: number): Promise<void>;
   /** A member's timeline, oldest first, at most 500 per call; `after` = the last event id already shown. */
   events(trainingId: number, memberId: number, after?: number): Promise<TrainingEventsPage>;
   /** Output and change of one event, fetched only when the mentor opens them. */

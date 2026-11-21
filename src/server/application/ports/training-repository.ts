@@ -58,7 +58,9 @@ export interface TrainingMemberRepository extends TrainingMemberReader {
   count(trainingId: number): Promise<number>;
   /** An event arrived while open: `first_seen_at` is set once, `last_seen_at` moves. */
   recordSeen(id: number, at: Date): Promise<void>;
-  /** An event arrived after "Dừng thu": the hook is still installed. */
+  /** The member pressed "Dừng gửi": set once, later calls keep the first time. */
+  stopSending(id: number, at: Date): Promise<void>;
+  /** An event arrived after "Dừng thu" or "Dừng gửi": the hook is still installed. */
   recordSeenAfterStop(id: number, at: Date): Promise<void>;
   /** The member began the removal check (asking again starts over). */
   startUninstallCheck(id: number, at: Date): Promise<void>;

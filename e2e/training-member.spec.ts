@@ -94,7 +94,7 @@ test('the whole member flow: code → consent → install → recording → stop
   // ── 1 · Consent ──────────────────────────────────────────────────────────────────────────────────
   await enterCode(page, training);
   await expect(page.getByRole('heading', { name: 'Claude Code buổi 2: viết test' })).toBeVisible();
-  for (const must of ['Những gì được gửi về máy mentor', 'Những gì không gửi', 'Có thể chứa bí mật', 'mật khẩu hoặc mã bí mật', 'Chỉ mentor xem', 'Kết thúc', 'Rút lại đồng ý bất cứ lúc nào']) {
+  for (const must of ['Những gì được gửi về máy mentor', 'Những gì không gửi', 'Có thể chứa bí mật', 'mật khẩu hoặc mã bí mật', 'Chỉ mentor xem', 'Kết thúc', 'Dừng gửi bất cứ lúc nào']) {
     await expect(page.getByText(must).first()).toBeVisible();
   }
   await expect(page.getByText('chỉ gửi tên file và số dòng')).toBeVisible(); // Read: file name and line count only
@@ -173,17 +173,19 @@ test('the whole member flow: code → consent → install → recording → stop
   const phoneRecording = await phoneView(an.context, `/training/${training.id}`);
   await expect(phoneRecording.getByRole('heading', { name: 'Đã nhận tín hiệu' })).toBeVisible();
   await phoneRecording.screenshot({ path: shotPath('S36', '5-recording-phone'), fullPage: true });
-  const phoneWithdraw = await phoneRecording.getByRole('button', { name: 'Rút lại đồng ý' }).boundingBox();
+  const phoneWithdraw = await phoneRecording.getByRole('button', { name: 'Dừng gửi' }).boundingBox();
   expect(phoneWithdraw!.height).toBeGreaterThanOrEqual(48);
 
   // ── 6 · Withdraw dialog (cancelled) ───────────────────────────────────────────────────────────────
-  await page.getByRole('button', { name: 'Rút lại đồng ý' }).click();
+  await page.getByRole('button', { name: 'Dừng gửi' }).click();
   const dialog = page.getByRole('dialog');
-  await expect(dialog).toContainText('xoá ngay');
-  await expect(dialog).toContainText('gỡ cấu hình');
+  await expect(dialog).toContainText('không nhận thêm');
+  await expect(dialog).toContainText('Dữ liệu đã gửi không bị xoá ngay'); // S38: said before the button works
+  await expect(dialog).toContainText('mentor duyệt xoá');
+  await expect(dialog).toContainText('thấy tên bạn');
   await page.waitForTimeout(500); // let the dialog's pop-in animation finish
   await page.screenshot({ path: shotPath('S36', '6-withdraw-dialog-desktop') });
-  await dialog.getByRole('button', { name: 'Giữ lại' }).click();
+  await dialog.getByRole('button', { name: 'Tiếp tục gửi' }).click();
   await expect(dialog).toBeHidden();
   expect(await memberToken(page, training.id)).toBe(token); // nothing was withdrawn
 
@@ -289,31 +291,65 @@ test('a removal check that still receives a signal fails, with /hooks guidance, 
   await finishTraining(mentor.context.request, training.id);
 });
 
-test('withdrawing consent deletes the member, clears the token and goes back to the first page', async ({ browser, baseURL, request }) => {
+test('"Dừng gửi": intake stops at once, the data stays, the mentor sees the name and approves the delete, the member sees "Đã xoá dữ liệu"', async ({ browser, baseURL, request }) => {
   const mentor = await mentorContext(browser, baseURL!);
-  const training = await createTraining(mentor.context.request, 'Buổi rút lại đồng ý');
+  const training = await createTraining(mentor.context.request, 'Buổi dừng gửi');
   const chi = await memberContext(browser, baseURL!);
   await joinAs(chi.page, training, 'Chi');
   const token = (await memberToken(chi.page, training.id))!;
   const cfg = await hookConfigOf(request, token);
-  expect(((await (await mentor.context.request.get(`/api/admin/trainings/${training.id}`)).json()) as { members: unknown[] }).members).toHaveLength(1);
+  expect((await ingest(request, cfg.ingestToken, promptEvent)).status()).toBe(204);
+  await expect(chi.page.getByRole('heading', { name: 'Đã nhận tín hiệu' })).toBeVisible({ timeout: 15_000 });
+  const detail = async () => (await (await mentor.context.request.get(`/api/admin/trainings/${training.id}`)).json()) as { members: { connection: string; stoppedSending: boolean; promptCount: number }[] };
 
   // A broken connection leaves everything as it was and says so.
-  await chi.page.getByRole('button', { name: 'Rút lại đồng ý' }).click();
+  await chi.page.getByRole('button', { name: 'Dừng gửi' }).click();
   await chi.context.setOffline(true);
-  await chi.page.getByRole('dialog').getByRole('button', { name: 'Rút lại và xoá dữ liệu của tôi' }).click();
-  await expect(chi.page.getByRole('dialog')).toContainText('chưa rút lại được');
+  await chi.page.getByRole('dialog').getByRole('button', { name: 'Dừng gửi' }).click();
+  await expect(chi.page.getByRole('dialog')).toContainText('chưa dừng gửi được');
   expect(await memberToken(chi.page, training.id)).toBe(token);
   await chi.context.setOffline(false);
 
-  await chi.page.getByRole('dialog').getByRole('button', { name: 'Rút lại và xoá dữ liệu của tôi' }).click();
-  await expect(chi.page).toHaveURL(/\/$/);
-  await expect(chi.page.getByLabel('Mã phòng')).toBeVisible();
+  // Stop: the page stays and explains what happens to the data and how to remove the config.
+  await chi.page.getByRole('dialog').getByRole('button', { name: 'Dừng gửi' }).click();
+  await expect(chi.page.getByRole('heading', { name: 'Gỡ cấu hình khỏi thư mục bài tập' })).toBeVisible();
+  await expect(chi.page.getByText('Bạn đã dừng gửi').first()).toBeVisible();
+  await expect(chi.page.getByText('mentor duyệt xoá', { exact: false }).first()).toBeVisible();
+  expect(await memberToken(chi.page, training.id)).toBe(token); // the member keeps their token
+  await expectNoCollectedContent(chi.page);
+  await tallShot(chi.page, shotPath('S38', '1-member-sending-stopped-desktop'));
+
+  // Intake stopped at once, the data stays, and the hook that still fires is told to remove itself.
+  const late = await ingest(request, cfg.ingestToken, promptEvent);
+  expect(late.status()).toBe(200);
+  expect(await late.json()).toEqual({ systemMessage: expect.stringContaining('dừng gửi') });
+  expect((await detail()).members[0]).toMatchObject({ connection: 'stopped_sending', stoppedSending: true, promptCount: 1 });
+
+  // The mentor sees the name with "Đã dừng gửi" and a pending "Duyệt xoá".
+  await mentor.page.goto(`/admin/trainings/${training.id}`);
+  const row = mentor.page.getByRole('row', { name: /Chi/ });
+  await expect(row.getByText('Đã dừng gửi')).toBeVisible({ timeout: 15_000 });
+  await mentor.page.screenshot({ path: shotPath('S38', '2-mentor-stopped-sending-desktop') });
+  await row.getByRole('button', { name: 'Duyệt xoá' }).click();
+  const confirm = mentor.page.getByRole('dialog');
+  await expect(confirm).toContainText('Chi đã bấm "Dừng gửi"');
+  await expect(confirm).toContainText('chỉ bị xoá khi bạn bấm Kết thúc');
+  await mentor.page.waitForTimeout(500);
+  await mentor.page.screenshot({ path: shotPath('S38', '3-mentor-purge-dialog-desktop') });
+  await confirm.getByRole('button', { name: 'Hủy' }).or(confirm.getByRole('button', { name: 'Huỷ' })).first().click();
+  expect((await detail()).members).toHaveLength(1); // cancelling deleted nothing
+
+  await row.getByRole('button', { name: 'Duyệt xoá' }).click();
+  await mentor.page.getByRole('dialog').getByRole('button', { name: 'Duyệt xoá' }).click();
+  await expect(mentor.page.getByRole('row', { name: /Chi/ })).toHaveCount(0);
+  expect((await detail()).members).toHaveLength(0); // nothing of Chi is left on the mentor's side
+
+  // The member's page notices and says the data is deleted (slow poll, at most ~10 s).
+  await expect(chi.page.getByRole('heading', { name: 'Đã xoá dữ liệu' })).toBeVisible({ timeout: 20_000 });
+  await tallShot(chi.page, shotPath('S38', '4-member-deleted-desktop'));
   expect(await memberToken(chi.page, training.id)).toBeNull();
-  const after = (await (await mentor.context.request.get(`/api/admin/trainings/${training.id}`)).json()) as { members: unknown[] };
-  expect(after.members).toHaveLength(0); // nothing of Chi is left on the mentor's side
   expect((await request.get('/api/training/me', { headers: { 'x-training-member-token': token } })).status()).toBe(401);
-  expect((await ingest(request, cfg.ingestToken, promptEvent)).status()).toBe(404); // the hook on Chi's machine now reaches nothing
+  expect((await ingest(request, cfg.ingestToken, promptEvent)).status()).toBe(404);
 
   await finishTraining(mentor.context.request, training.id);
 });

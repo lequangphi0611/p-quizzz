@@ -5,7 +5,7 @@ import type { TrainingAdminGateway } from './training-admin-gateway.js';
 import { TrainingController } from './training-controller.js';
 
 const member = (id: number, displayName: string, over: Partial<TrainingMemberRow> = {}): TrainingMemberRow =>
-  ({ id, displayName, connection: 'connected', lastSeenAt: 1, promptCount: 1, toolCount: 1, failedCount: 0, stuck: false, stillSending: false, ...over });
+  ({ id, displayName, connection: 'connected', lastSeenAt: 1, promptCount: 1, toolCount: 1, failedCount: 0, stuck: false, stillSending: false, stoppedSending: false, ...over });
 const detail = (over: Partial<TrainingDetail> = {}): TrainingDetail =>
   ({ id: 5, name: 'Buổi 1', status: 'open', roomCode: '482913', createdAt: 0, stoppedAt: null, endedAt: null, uninstalled: null, members: [member(1, 'An'), member(2, 'Bình')], ...over });
 const ev = (id: number, over: Partial<TrainingEventRow> = {}): TrainingEventRow =>
@@ -24,6 +24,7 @@ function make(over: Partial<TrainingAdminGateway> = {}, initial = detail(), opts
     stop: vi.fn(async () => detail({ status: 'stopped', roomCode: null, uninstalled: { count: 0, total: 2 } })),
     end: vi.fn(async () => detail({ status: 'ended', roomCode: null, members: [] })),
     removeMember: vi.fn(async () => {}),
+    purgeMember: vi.fn(async () => {}),
     events: vi.fn(async () => page([10, 11, 12])),
     eventDetail: vi.fn(async (): Promise<TrainingEventDetail> => ({ output: { head: 'out', tail: null, omittedLines: 0 }, change: { head: '+ x', tail: null, omittedLines: 0 } })),
     getJoinHosts: vi.fn(async () => ['192.168.1.5:3000']),
@@ -437,6 +438,40 @@ describe('TrainingController: stop, end, remove', () => {
     await ctrl.confirm();
     expect(gateway.removeMember).toHaveBeenCalledWith(5, 2);
     expect(ctrl.getState()).toMatchObject({ confirm: null, selectedId: null, timeline: null, detail: { members: [{ id: 1 }] } });
+  });
+
+  it('"Duyệt xoá" asks by name for a member who stopped sending, calls purge (not remove) and reloads', async () => {
+    const stopped = detail({ members: [member(1, 'An'), member(2, 'Bình', { connection: 'stopped_sending', stoppedSending: true })] });
+    const { ctrl, gateway } = make({}, stopped);
+    ctrl.select(2);
+    await flush();
+    ctrl.askPurge(2);
+    expect(ctrl.getState().confirm).toEqual({ kind: 'purge', memberId: 2, name: 'Bình' });
+    (gateway.get as ReturnType<typeof vi.fn>).mockResolvedValue(detail({ members: [member(1, 'An')] }));
+    await ctrl.confirm();
+    expect(gateway.purgeMember).toHaveBeenCalledWith(5, 2);
+    expect(gateway.removeMember).not.toHaveBeenCalled();
+    expect(ctrl.getState()).toMatchObject({ confirm: null, selectedId: null, detail: { members: [{ id: 1 }] } });
+  });
+
+  it('"Duyệt xoá" is only for a member who stopped sending, and not once ended', () => {
+    const { ctrl } = make({}, detail({ members: [member(1, 'An'), member(2, 'Bình', { stoppedSending: true })] }));
+    ctrl.askPurge(1);
+    expect(ctrl.getState().confirm).toBeNull();
+    ctrl.askPurge(2);
+    expect(ctrl.getState().confirm).toMatchObject({ kind: 'purge' });
+    const ended = make({}, detail({ status: 'ended', roomCode: null, members: [member(2, 'Bình', { stoppedSending: true })] }));
+    ended.ctrl.askPurge(2);
+    expect(ended.ctrl.getState().confirm).toBeNull();
+  });
+
+  it('a purge the server refuses (409) shows the error and looks again', async () => {
+    const { ctrl, gateway } = make({ purgeMember: vi.fn(async () => { throw new Error('Chỉ xoá được dữ liệu của người đã dừng gửi'); }) }, detail({ members: [member(2, 'Bình', { stoppedSending: true })] }));
+    ctrl.askPurge(2);
+    await ctrl.confirm();
+    expect(ctrl.getState().confirm).toMatchObject({ kind: 'purge' });
+    expect(ctrl.getState().actionError).not.toBe('');
+    expect(gateway.get).toHaveBeenCalled();
   });
 
   it('cannot remove someone who is not in the training, nor anyone once ended', () => {

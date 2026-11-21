@@ -1,6 +1,6 @@
 import { TrainingMemberNotFoundError, TrainingNotFoundError, TrainingStateError } from '../../../domain/training/errors.js';
 import { isStuck, STUCK_REPEAT } from '../../../domain/training/is-stuck.js';
-import { connectionState, nextTrainingStatus, stillSending, type Training, type TrainingMember } from '../../../domain/training/training.js';
+import { assertCanPurge, connectionState, nextTrainingStatus, stillSending, type Training, type TrainingMember } from '../../../domain/training/training.js';
 import type { Clock } from '../../ports/clock.js';
 import type { MemberCounts, TrainingEventReader } from '../../ports/training-event-repository.js';
 import type { Random } from '../../ports/random.js';
@@ -47,6 +47,7 @@ export interface TrainingMemberView {
   failedCount: number;
   stuck: boolean;
   stillSending: boolean;
+  stoppedSending: boolean;
 }
 
 export interface TrainingDetailView {
@@ -87,6 +88,7 @@ const memberView = (training: Training, m: TrainingMember, counts: MemberCounts 
   failedCount: counts?.failedCount ?? 0,
   stuck,
   stillSending: stillSending(training, m),
+  stoppedSending: m.stoppedSendingAt !== null,
 });
 
 /** "Dừng thu": the code stops working at once; reviewing stays possible. */
@@ -134,6 +136,27 @@ export class RemoveTrainingMember {
       if (training.status === 'ended') throw new TrainingStateError('Buổi training đã kết thúc');
       const member = await members.findById(memberId);
       if (!member || member.trainingId !== trainingId) throw new TrainingMemberNotFoundError();
+      await members.delete(memberId);
+    });
+    await this.deps.signals.signal(trainingId);
+  }
+}
+
+/**
+ * The mentor approves deleting what a member who pressed "Dừng gửi" had sent (PRODUCT.md §7.35j): the member and, by cascade,
+ * every event of theirs go. Anyone else is refused (409): this is not a second "remove" button.
+ */
+export class PurgeTrainingMember {
+  constructor(private readonly deps: Pick<WriteDeps, 'unitOfWork' | 'signals'>) {}
+
+  async execute(trainingId: number, memberId: number): Promise<void> {
+    await this.deps.unitOfWork.run(async ({ trainings, members }) => {
+      const training = await trainings.findById(trainingId);
+      if (!training) throw new TrainingNotFoundError();
+      if (training.status === 'ended') throw new TrainingStateError('Buổi training đã kết thúc'); // the members are gone: a conflict, not "not found"
+      const member = await members.findById(memberId);
+      if (!member || member.trainingId !== trainingId) throw new TrainingMemberNotFoundError();
+      assertCanPurge(training, member);
       await members.delete(memberId);
     });
     await this.deps.signals.signal(trainingId);

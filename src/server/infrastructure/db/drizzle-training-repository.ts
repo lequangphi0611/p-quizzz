@@ -98,6 +98,12 @@ export class DrizzleTrainingMemberRepository implements TrainingMemberRepository
     );
   }
 
+  async stopSending(id: number, at: Date): Promise<void> {
+    await this.access(db =>
+      db.update(trainingMembers).set({ stoppedSendingAt: sql`coalesce(${trainingMembers.stoppedSendingAt}, ${at.getTime()})` }).where(eq(trainingMembers.id, id)).run(),
+    );
+  }
+
   async recordSeenAfterStop(id: number, at: Date): Promise<void> {
     await this.access(db => db.update(trainingMembers).set({ seenAfterStopAt: at }).where(eq(trainingMembers.id, id)).run());
   }

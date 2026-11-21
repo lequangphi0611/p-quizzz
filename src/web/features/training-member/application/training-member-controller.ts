@@ -25,6 +25,8 @@ export interface TrainingMemberState {
   offline: boolean;
   /** 401: training ended, member withdrew or was removed, or the server forgot the token. The token is already cleared. */
   gone: boolean;
+  /** `gone` after this member had stopped sending: the mentor deleted their data ("Đã xoá dữ liệu"). */
+  deleted: boolean;
   join: { busy: boolean; error: TrainingJoinFailure | null };
   hookConfig: { status: 'idle' | 'loading' | 'ok' | 'error'; value: HookConfig | null };
   /** When the install screen began waiting for the first signal (for the "maybe check this" hint). */
@@ -47,7 +49,7 @@ export interface TrainingMemberDeps {
 }
 
 export const selectScreen = (s: TrainingMemberState): TrainingScreen =>
-  decideTrainingScreen({ hasToken: s.token !== null, gone: s.gone, me: s.me, offline: s.offline, room: { status: s.room.status, errorStatus: s.room.error?.status }, check: s.check });
+  decideTrainingScreen({ hasToken: s.token !== null, gone: s.gone, deleted: s.deleted, me: s.me, offline: s.offline, room: { status: s.room.status, errorStatus: s.room.error?.status }, check: s.check });
 export const selectWaitingHint = (s: TrainingMemberState, now: number): boolean => selectScreen(s) === 'install' && showWaitingHint(s.installSince, now);
 export const selectCheckSecondsLeft = (s: TrainingMemberState, now: number): number => checkSecondsLeft(s.check.readyAt, now);
 
@@ -85,6 +87,7 @@ export class TrainingMemberController {
       me: null,
       offline: false,
       gone: false,
+      deleted: false,
       join: { busy: false, error: null },
       hookConfig: { status: 'idle', value: null },
       installSince: null,
@@ -217,7 +220,8 @@ export class TrainingMemberController {
   /** The server does not know this member any more: forget the token, show "đã kết thúc". */
   private dropToken(): void {
     this.deps.tokens.clear(this.state.trainingId);
-    this.set({ token: null, me: null, gone: true, offline: false });
+    const deleted = this.state.me?.member.connection === 'stopped_sending' && this.state.me.training.status !== 'ended';
+    this.set({ token: null, me: null, gone: true, deleted, offline: false });
   }
 
   private loadHookConfig = async (): Promise<void> => {
@@ -293,9 +297,10 @@ export class TrainingMemberController {
   // ── Leaving ────────────────────────────────────────────────────────────────────────────────────
 
   /**
-   * "Rút lại đồng ý": the member and everything collected from them are deleted, the token is forgotten.
-   * Resolves true when done (the page then goes to `/`); false when the mentor's machine could not be reached
-   * (nothing changed, `state.withdraw.error` says so, and the member can try again).
+   * "Dừng gửi": the server stops taking data from this member at once, but what was already sent stays until the mentor approves
+   * deleting it or ends the training. The member stays on the page (now the "sending-stopped" screen) and keeps their token.
+   * Resolves true when done; false when the mentor's machine could not be reached or the training had just stopped
+   * (`state.withdraw.error` says so, and the member can try again).
    */
   withdraw = async (): Promise<boolean> => {
     const token = this.state.token;
@@ -304,13 +309,18 @@ export class TrainingMemberController {
     try {
       await this.deps.gateway.withdraw(token);
     } catch (err) {
-      if (errorStatus(err) !== 401) { // 401: already gone, which is what was asked for
-        this.set({ withdraw: { busy: false, error: 'Mất kết nối tới máy mentor nên chưa rút lại được. Thử lại sau ít giây.' } });
-        return false;
+      const status = errorStatus(err);
+      if (status === 401) { this.set({ withdraw: { busy: false, error: null } }); this.dropToken(); return true; } // already gone
+      if (status === 409) { // the mentor stopped the training meanwhile: nothing left to stop, the screen moves on to removal
+        this.set({ withdraw: { busy: false, error: null } });
+        await this.fetchMe();
+        return true;
       }
+      this.set({ withdraw: { busy: false, error: 'Mất kết nối tới máy mentor nên chưa dừng gửi được. Thử lại sau ít giây.' } });
+      return false;
     }
-    this.deps.tokens.clear(this.state.trainingId);
-    this.set({ token: null, me: null, withdraw: { busy: false, error: null } });
+    this.set({ withdraw: { busy: false, error: null } });
+    await this.fetchMe(); // the server now says `stopped_sending`
     return true;
   };
 

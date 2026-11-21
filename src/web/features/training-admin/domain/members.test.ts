@@ -4,7 +4,7 @@ import { announcementFor } from './announcements.js';
 import { formatLastSeen, memberCountsText, sortMembers, stillSendingCount, uninstallProgress } from './members.js';
 
 const row = (id: number, displayName: string, over: Partial<TrainingMemberRow> = {}): TrainingMemberRow =>
-  ({ id, displayName, connection: 'waiting', lastSeenAt: null, promptCount: 0, toolCount: 0, failedCount: 0, stuck: false, stillSending: false, ...over });
+  ({ id, displayName, connection: 'waiting', lastSeenAt: null, promptCount: 0, toolCount: 0, failedCount: 0, stuck: false, stillSending: false, stoppedSending: false, ...over });
 const detail = (members: TrainingMemberRow[], over: Partial<TrainingDetail> = {}): TrainingDetail =>
   ({ id: 1, name: 'T', status: 'open', roomCode: '482913', createdAt: 0, stoppedAt: null, endedAt: null, uninstalled: null, members, ...over });
 
@@ -68,5 +68,20 @@ describe('announcementFor', () => {
   it('announces the stop and the end', () => {
     expect(announcementFor(detail([]), detail([], { status: 'stopped' }))).toBe('Đã dừng thu');
     expect(announcementFor(detail([], { status: 'stopped' }), detail([], { status: 'ended' }))).toBe('Buổi training đã kết thúc, dữ liệu đã xoá');
+  });
+});
+
+describe('connectionLabel and announcements for "Dừng gửi"', () => {
+  it('a member who stopped sending reads "Đã dừng gửi", but still sending after that is the louder state', async () => {
+    const { connectionLabel } = await import('./connection-label.js');
+    expect(connectionLabel({ connection: 'stopped_sending', stillSending: false }).text).toBe('Đã dừng gửi');
+    expect(connectionLabel({ connection: 'stopped_sending', stillSending: true }).key).toBe('still-sending');
+  });
+
+  it('announces the name of who stopped sending', async () => {
+    const { announcementFor } = await import('./announcements.js');
+    const before = detail([row(1, 'An', { connection: 'connected' })]);
+    const after = detail([row(1, 'An', { connection: 'stopped_sending', stoppedSending: true })]);
+    expect(announcementFor(before, after)).toBe('An đã dừng gửi dữ liệu');
   });
 });

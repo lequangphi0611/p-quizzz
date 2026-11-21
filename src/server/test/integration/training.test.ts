@@ -233,7 +233,7 @@ describe('stop and end', () => {
 });
 
 describe('withdraw and remove', () => {
-  it('withdrawing deletes the member and their events; the old token is 401', async () => {
+  it('"Dừng gửi" keeps the member and their events; the mentor sees the name as stopped_sending; the token still works', async () => {
     const s = await setup();
     const t = await s.create();
     const token = await s.joined(t, 'Lan');
@@ -241,12 +241,66 @@ describe('withdraw and remove', () => {
     s.db.insert(trainingEvents).values({ memberId, kind: 'prompt', claudeSessionId: 'c1', receivedAt: new Date(), prompt: 'hi' }).run();
 
     expect((await s.me(token, '', 'DELETE')).statusCode).toBe(204);
+    expect(s.db.select().from(trainingMembers).all()).toHaveLength(1);
+    expect(s.db.select().from(trainingEvents).all()).toHaveLength(1);
+    const mine = await s.me(token);
+    expect(mine.statusCode).toBe(200);
+    expect(mine.json<{ member: { connection: string } }>().member.connection).toBe('stopped_sending');
+    const row = (await s.detail(t.id)).members[0]!;
+    expect(row).toMatchObject({ displayName: 'Lan', connection: 'stopped_sending', stoppedSending: true });
+    // the name stays taken until the mentor purges
+    expect((await s.join(t.id, { displayName: 'Lan', roomCode: t.roomCode, consent: true })).statusCode).toBe(409);
+  });
+
+  it('"Dừng gửi" is 409 once the training is stopped', async () => {
+    const s = await setup();
+    const t = await s.create();
+    const token = await s.joined(t, 'Lan');
+    await s.admin('POST', `/trainings/${t.id}/stop`);
+    expect((await s.me(token, '', 'DELETE')).statusCode).toBe(409);
+  });
+
+  it('"Duyệt xoá": purge deletes member and events (cascade); the token is 401; the mentor row is gone', async () => {
+    const s = await setup();
+    const t = await s.create();
+    const token = await s.joined(t, 'Lan');
+    const memberId = s.db.select().from(trainingMembers).get()!.id;
+    s.db.insert(trainingEvents).values({ memberId, kind: 'prompt', claudeSessionId: 'c1', receivedAt: new Date(), prompt: 'hi' }).run();
+    await s.me(token, '', 'DELETE');
+
+    expect((await s.admin('POST', `/trainings/${t.id}/members/${memberId}/purge`)).statusCode).toBe(204);
     expect(s.db.select().from(trainingMembers).all()).toEqual([]);
     expect(s.db.select().from(trainingEvents).all()).toEqual([]);
     expect((await s.me(token)).statusCode).toBe(401);
     expect((await s.detail(t.id)).members).toEqual([]);
     // the name is free again
     expect((await s.join(t.id, { displayName: 'Lan', roomCode: t.roomCode, consent: true })).statusCode).toBe(201);
+  });
+
+  it('purge is 409 for a member who did not stop sending, 404 for another training or an unknown member, 409 after the end', async () => {
+    const s = await setup();
+    const t = await s.create('A');
+    const other = await s.create('B');
+    await s.joined(t, 'Lan');
+    const memberId = s.db.select().from(trainingMembers).get()!.id;
+    expect((await s.admin('POST', `/trainings/${t.id}/members/${memberId}/purge`)).statusCode).toBe(409);
+    expect(s.db.select().from(trainingMembers).all()).toHaveLength(1);
+    expect((await s.admin('POST', `/trainings/${other.id}/members/${memberId}/purge`)).statusCode).toBe(404);
+    expect((await s.admin('POST', `/trainings/${t.id}/members/9999/purge`)).statusCode).toBe(404);
+    expect((await s.admin('POST', `/trainings/99999/members/${memberId}/purge`)).statusCode).toBe(404);
+    await s.admin('POST', `/trainings/${t.id}/stop`);
+    await s.admin('POST', `/trainings/${t.id}/end`);
+    expect((await s.admin('POST', `/trainings/${t.id}/members/${memberId}/purge`)).statusCode).toBe(409);
+  });
+
+  it('purge needs the mentor: a member token cannot reach it', async () => {
+    const s = await setup();
+    const t = await s.create();
+    const token = await s.joined(t, 'Lan');
+    const memberId = s.db.select().from(trainingMembers).get()!.id;
+    const res = await s.app.inject({ method: 'POST', url: `/api/admin/trainings/${t.id}/members/${memberId}/purge`, headers: { 'x-training-member-token': token }, remoteAddress: '192.168.1.50' });
+    expect([401, 403]).toContain(res.statusCode);
+    expect(s.db.select().from(trainingMembers).all()).toHaveLength(1);
   });
 
   it('the mentor can send a member away: member and events deleted, token 401; 404 for a member of another training', async () => {

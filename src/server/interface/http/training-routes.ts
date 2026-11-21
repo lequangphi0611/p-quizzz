@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { CreateTrainingBody, JoinTrainingBody, type HookConfig, type JoinTrainingResponse, type MyTraining, type TrainingDetail, type TrainingEventDetail, type TrainingEventsPage, type UninstallCheckResult } from '../../../shared/api/training.js';
 import { WrongRoomCodeError } from '../../domain/participant/errors.js';
 import { TrainingEventNotFoundError, TrainingMemberNotFoundError, TrainingNotFoundError } from '../../domain/training/errors.js';
-import type { CreateTraining, EndTraining, GetTrainingDetail, ListTrainings, RemoveTrainingMember, StopTraining } from '../../application/use-cases/training/admin.js';
+import type { CreateTraining, EndTraining, GetTrainingDetail, ListTrainings, PurgeTrainingMember, RemoveTrainingMember, StopTraining } from '../../application/use-cases/training/admin.js';
 import type { GetTrainingEventDetail, ListMemberEvents } from '../../application/use-cases/training/view.js';
 import type { IngestHookEvent } from '../../application/use-cases/training/ingest.js';
 import type { FinishUninstallCheck, GetHookConfig, GetMyTraining, JoinTraining, ResumeTrainingMember, StartUninstallCheck, WithdrawTrainingConsent } from '../../application/use-cases/training/member.js';
@@ -21,6 +21,7 @@ export interface TrainingUseCases {
   stop: StopTraining;
   end: EndTraining;
   removeMember: RemoveTrainingMember;
+  purgeMember: PurgeTrainingMember;
   memberEvents: ListMemberEvents;
   eventDetail: GetTrainingEventDetail;
   join: JoinTraining;
@@ -36,7 +37,7 @@ export interface TrainingUseCases {
 const badBody = (issue: { message: string } | undefined) => ({ error: issue?.message ?? 'Dữ liệu không hợp lệ' });
 
 // Mentor routes (PRODUCT.md §7.34). Registered inside the requireMentor scope of /api/admin, so they only answer on the mentor's machine.
-export const trainingAdminRoutes = (uc: Pick<TrainingUseCases, 'create' | 'list' | 'detail' | 'stop' | 'end' | 'removeMember' | 'memberEvents' | 'eventDetail'>): FastifyPluginAsync =>
+export const trainingAdminRoutes = (uc: Pick<TrainingUseCases, 'create' | 'list' | 'detail' | 'stop' | 'end' | 'removeMember' | 'purgeMember' | 'memberEvents' | 'eventDetail'>): FastifyPluginAsync =>
   async app => {
     app.post('/trainings', async (req, reply) => {
       const body = CreateTrainingBody.safeParse(req.body);
@@ -99,6 +100,20 @@ export const trainingAdminRoutes = (uc: Pick<TrainingUseCases, 'create' | 'list'
         }
       });
     }
+
+    // "Duyệt xoá": only for a member who pressed "Dừng gửi" (409 for anyone else).
+    app.post<{ Params: { id: string; memberId: string } }>('/trainings/:id/members/:memberId/purge', async (req, reply) => {
+      try {
+        const id = parseId(req.params.id);
+        const memberId = parseId(req.params.memberId);
+        if (!id) throw new TrainingNotFoundError();
+        if (!memberId) throw new TrainingMemberNotFoundError();
+        await uc.purgeMember.execute(id, memberId);
+        return reply.code(204).send();
+      } catch (err) {
+        return sendDomainError(reply, err);
+      }
+    });
 
     app.delete<{ Params: { id: string; memberId: string } }>('/trainings/:id/members/:memberId', async (req, reply) => {
       try {
@@ -172,9 +187,14 @@ export const trainingMemberRoutes = (uc: Pick<TrainingUseCases, 'join' | 'resume
         }
       });
 
+      // "Dừng gửi": stops intake now; the data stays until the mentor approves deleting it (409 once the training is stopped).
       scope.delete('/api/training/me', async (req, reply) => {
-        await uc.withdraw.execute(req.trainingMember!);
-        return reply.code(204).send();
+        try {
+          await uc.withdraw.execute(req.trainingMember!);
+          return reply.code(204).send();
+        } catch (err) {
+          return sendDomainError(reply, err);
+        }
       });
     });
   };
@@ -182,6 +202,10 @@ export const trainingMemberRoutes = (uc: Pick<TrainingUseCases, 'join' | 'resume
 /** What a machine that still sends after "Dừng thu" is told (Claude Code may show it). Plain text: nothing collected is in it. */
 export const STOPPED_REMINDER =
   'Buổi training AI đã dừng thu. Hãy xoá phần cấu hình hook mà buổi training thêm vào file .claude/settings.local.json của thư mục bài tập, để Claude Code không gửi gì nữa.';
+
+/** What a machine that still sends after the member's own "Dừng gửi" is told. */
+export const STOPPED_SENDING_REMINDER =
+  'Bạn đã dừng gửi dữ liệu cho buổi training AI. Hãy xoá phần cấu hình hook mà buổi training thêm vào file .claude/settings.local.json của thư mục bài tập, để Claude Code không gửi gì nữa.';
 
 /** The hooks' bodies can be large (tool output): a bigger limit than the rest of the API, and never above this. */
 export const INGEST_BODY_LIMIT = 2 * 1024 * 1024;
@@ -215,6 +239,7 @@ export const trainingIngestRoute = (uc: Pick<TrainingUseCases, 'ingest'>): Fasti
       if (isPermissionRequest(req.body)) return reply.code(204).send();
       if (result === 'unknown') return reply.code(404).send();
       if (result === 'stopped') return reply.code(200).send({ systemMessage: STOPPED_REMINDER });
+      if (result === 'stopped_sending') return reply.code(200).send({ systemMessage: STOPPED_SENDING_REMINDER });
       return reply.code(204).send();
     });
   };

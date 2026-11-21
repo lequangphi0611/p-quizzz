@@ -92,7 +92,7 @@ export function InstallScreen({ config, configStatus, onRetryConfig, showHint, o
 
       <div style={{ borderTop: '1px solid var(--border-hairline)', paddingTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <span style={mText.meta}>Không muốn tham gia nữa? Bạn rút lại đồng ý được bất cứ lúc nào.</span>
-        <Button variant="secondary" size="lg" icon="log-out" onClick={onWithdraw}>Rút lại đồng ý</Button>
+        <Button variant="secondary" size="lg" icon="log-out" onClick={onWithdraw}>Dừng gửi</Button>
       </div>
     </div>
   );

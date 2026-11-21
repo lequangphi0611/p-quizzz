@@ -9,9 +9,33 @@ import { Callout, Mono, Paragraph, Stack, StatusMark, Step } from './parts.js';
 
 type Way = 'ask' | 'manual';
 
+/** Step "Gỡ đúng đoạn đã thêm": ask Claude Code to remove it, or do it by hand. Shared by the stop-sending and stopped screens. */
+function RemoveHowTo({ host }: { host: string }) {
+  const [way, setWay] = useState<Way>('ask');
+  return (
+    <Step n={1} title="Gỡ đúng đoạn đã thêm">
+      <div style={{ overflowX: 'auto' }}>
+        <SegmentedControl<Way> ariaLabel="Cách gỡ cấu hình" value={way} onChange={setWay}
+          items={[{ value: 'ask', label: 'A. Nhờ Claude Code gỡ', icon: 'sparkles' }, { value: 'manual', label: 'B. Tự xoá', icon: 'pencil' }]} />
+      </div>
+      {way === 'ask' ? (
+        <div style={{ display: 'grid', gap: 12 }}>
+          <Paragraph>Cách này dễ nhất. Mở Claude Code trong thư mục bài tập, sao chép câu bên dưới rồi dán vào.</Paragraph>
+          <CodeBlock label="Câu nhờ Claude Code gỡ cấu hình" code={buildRemovalPrompt(host)} maxHeight={240} />
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gap: 10 }}>
+          <Paragraph>Mở <Mono>{SETTINGS_LOCAL_PATH}</Mono> trong thư mục bài tập. Xoá các mục hook có địa chỉ <Mono>{ingestUrl(host)}</Mono> trong {HOOK_EVENTS.map((e, i) => <span key={e}>{i > 0 && ', '}<Mono>{e}</Mono></span>)}.</Paragraph>
+          <Paragraph>Chỉ xoá đúng đoạn đã thêm, giữ nguyên các cấu hình và hook khác. Nếu một mục hook hoặc cả khối <Mono>"hooks"</Mono> bị trống sau khi xoá, xoá luôn phần trống đó.</Paragraph>
+        </div>
+      )}
+      <Callout tone="neutral" icon="info">Bạn đã mở Claude Code ở nhiều thư mục bài tập? Gỡ ở từng thư mục.</Callout>
+    </Step>
+  );
+}
+
 /** Screen 7: the mentor stopped recording. Loud notice, how to remove the config, then "Kiểm tra đã gỡ". */
 export function RemoveScreen({ host, busy, message, onCheck }: { host: string; busy: boolean; message: string | null; onCheck: () => void }) {
-  const [way, setWay] = useState<Way>('ask');
   return (
     <div style={{ display: 'grid', gap: 28 }}>
       <Callout tone="warn" icon="triangle-alert" alert title="Mentor đã dừng thu">
@@ -23,24 +47,7 @@ export function RemoveScreen({ host, busy, message, onCheck }: { host: string; b
         <h1 style={mText.h1}>Gỡ cấu hình khỏi thư mục bài tập</h1>
       </div>
 
-      <Step n={1} title="Gỡ đúng đoạn đã thêm">
-        <div style={{ overflowX: 'auto' }}>
-          <SegmentedControl<Way> ariaLabel="Cách gỡ cấu hình" value={way} onChange={setWay}
-            items={[{ value: 'ask', label: 'A. Nhờ Claude Code gỡ', icon: 'sparkles' }, { value: 'manual', label: 'B. Tự xoá', icon: 'pencil' }]} />
-        </div>
-        {way === 'ask' ? (
-          <div style={{ display: 'grid', gap: 12 }}>
-            <Paragraph>Cách này dễ nhất. Mở Claude Code trong thư mục bài tập, sao chép câu bên dưới rồi dán vào.</Paragraph>
-            <CodeBlock label="Câu nhờ Claude Code gỡ cấu hình" code={buildRemovalPrompt(host)} maxHeight={240} />
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gap: 10 }}>
-            <Paragraph>Mở <Mono>{SETTINGS_LOCAL_PATH}</Mono> trong thư mục bài tập. Xoá các mục hook có địa chỉ <Mono>{ingestUrl(host)}</Mono> trong {HOOK_EVENTS.map((e, i) => <span key={e}>{i > 0 && ', '}<Mono>{e}</Mono></span>)}.</Paragraph>
-            <Paragraph>Chỉ xoá đúng đoạn đã thêm, giữ nguyên các cấu hình và hook khác. Nếu một mục hook hoặc cả khối <Mono>"hooks"</Mono> bị trống sau khi xoá, xoá luôn phần trống đó.</Paragraph>
-          </div>
-        )}
-        <Callout tone="neutral" icon="info">Bạn đã mở Claude Code ở nhiều thư mục bài tập? Gỡ ở từng thư mục.</Callout>
-      </Step>
+      <RemoveHowTo host={host} />
 
       <Step n={2} title="Kiểm tra đã gỡ">
         <Paragraph>Sau khi gỡ, thoát Claude Code rồi mở lại trong thư mục bài tập. Bấm nút dưới đây, gõ một prompt bất kỳ, rồi bấm "Xong". Nếu máy mentor không nhận được gì thì cấu hình đã gỡ.</Paragraph>
@@ -103,6 +110,48 @@ export function RemovedScreen({ desk, onHome }: { desk: boolean; onHome: () => v
       </div>
       <p style={mText.meta}>Kết quả này là tự kiểm tra: nếu bạn quên gõ prompt trong lúc kiểm tra, kết quả cũng ra "Đã gỡ". Nếu không chắc, gõ <Mono>/hooks</Mono> trong Claude Code để xem còn hook nào không.</p>
       <Button variant="secondary" size="lg" icon="arrow-left" block={!desk} onClick={onHome}>Về trang đầu</Button>
+    </PageCard>
+  );
+}
+
+/**
+ * Screen 10: the member pressed "Dừng gửi" while the training is open. Says plainly what happens to the data already sent (it stays
+ * until the mentor approves deleting it or ends the training; the mentor sees their name) and how to remove the config.
+ */
+export function SendingStoppedScreen({ host }: { host: string }) {
+  return (
+    <div style={{ display: 'grid', gap: 28 }}>
+      <Callout tone="warn" icon="log-out" alert title="Bạn đã dừng gửi">
+        Máy mentor không nhận thêm dữ liệu từ bạn nữa. Nhưng cấu hình vẫn còn trên máy bạn: Claude Code sẽ tiếp tục thử gửi tới <Mono>{ingestUrl(host)}</Mono> cho tới khi bạn gỡ nó.
+      </Callout>
+
+      <Callout tone="neutral" icon="eye" title="Dữ liệu đã gửi trước đó">
+        Dữ liệu bạn đã gửi vẫn nằm trên máy mentor. Nó chỉ bị xoá khi <b>mentor duyệt xoá</b> hoặc khi mentor bấm "Kết thúc". Mentor biết bạn đã dừng gửi và thấy tên bạn. Bạn không xem lại được dữ liệu này.
+      </Callout>
+
+      <div style={{ display: 'grid', gap: 6 }}>
+        <span style={mText.label}>Gỡ kết nối</span>
+        <h1 style={mText.h1}>Gỡ cấu hình khỏi thư mục bài tập</h1>
+      </div>
+
+      <RemoveHowTo host={host} />
+
+      <Paragraph>Khi mentor bấm "Dừng thu", trang này sẽ cho bạn kiểm tra đã gỡ xong chưa.</Paragraph>
+    </div>
+  );
+}
+
+/** Screen 11: the mentor approved deleting this member's data after they stopped sending. */
+export function DeletedScreen({ desk, onHome }: { desk: boolean; onHome: () => void }) {
+  return (
+    <PageCard desk={desk} center>
+      <StatusMark icon="trash-2" tone="neutral" />
+      <div style={{ display: 'grid', gap: 8 }}>
+        <h1 style={mText.h1}>Đã xoá dữ liệu</h1>
+        <p style={{ ...mText.meta, fontSize: 15 }}>Mentor đã duyệt xoá dữ liệu bạn gửi trước khi dừng. Bạn không còn ở trong buổi training này.</p>
+      </div>
+      <p style={mText.meta}>Nếu cấu hình vẫn còn trong thư mục bài tập, hãy xoá các mục hook gửi tới máy mentor khỏi <Mono>.claude/settings.local.json</Mono>.</p>
+      <Button size="lg" icon="arrow-left" block={!desk} onClick={onHome}>Về trang đầu</Button>
     </PageCard>
   );
 }

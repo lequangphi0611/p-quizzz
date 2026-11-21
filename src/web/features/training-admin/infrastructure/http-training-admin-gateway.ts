@@ -17,6 +17,7 @@ export class HttpTrainingAdminGateway implements TrainingAdminGateway {
   get(id: number): Promise<TrainingDetail> { return this.http.get<TrainingDetail>(`/api/admin/trainings/${id}`); }
   stop(id: number): Promise<TrainingDetail> { return this.http.post<TrainingDetail>(`/api/admin/trainings/${id}/stop`); }
   end(id: number): Promise<TrainingDetail> { return this.http.post<TrainingDetail>(`/api/admin/trainings/${id}/end`); }
+  async purgeMember(trainingId: number, memberId: number): Promise<void> { await this.http.post(`/api/admin/trainings/${trainingId}/members/${memberId}/purge`); }
   async removeMember(trainingId: number, memberId: number): Promise<void> { await this.http.delete(`/api/admin/trainings/${trainingId}/members/${memberId}`); }
   events(trainingId: number, memberId: number, after = 0): Promise<TrainingEventsPage> {
     return this.http.get<TrainingEventsPage>(`/api/admin/trainings/${trainingId}/members/${memberId}/events${after > 0 ? `?after=${after}` : ''}`);

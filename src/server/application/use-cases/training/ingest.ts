@@ -10,8 +10,9 @@ import type { UnitOfWork } from '../../ports/unit-of-work.js';
  * - `ignored`: not one of our three hooks, or malformed → nothing stored.
  * - `stored`: filtered and kept.
  * - `stopped`: the training stopped, so nothing is kept, but the hook is still installed on that machine → a reminder goes back.
+ * - `stopped_sending`: the member pressed "Dừng gửi": same, nothing is kept and a reminder (their own) goes back.
  */
-export type IngestResult = 'unknown' | 'ignored' | 'stored' | 'stopped';
+export type IngestResult = 'unknown' | 'ignored' | 'stored' | 'stopped' | 'stopped_sending';
 
 /**
  * Takes one hook call from a member's machine. Does no network I/O and writes once (the event and the member's
@@ -35,6 +36,13 @@ export class IngestHookEvent {
       await this.deps.unitOfWork.run(({ members }) => members.recordSeenAfterStop(member.id, now));
       await this.deps.signals.signal(training.id);
       return 'stopped';
+    }
+
+    if (member.stoppedSendingAt) {
+      if (!isHookEvent(raw)) return 'ignored';
+      await this.deps.unitOfWork.run(({ members }) => members.recordSeenAfterStop(member.id, now));
+      await this.deps.signals.signal(training.id);
+      return 'stopped_sending';
     }
 
     const draft = filterHookEvent(raw);

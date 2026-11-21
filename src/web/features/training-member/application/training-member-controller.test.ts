@@ -365,15 +365,20 @@ describe('TrainingMemberController: the install screen', () => {
   });
 });
 
-describe('TrainingMemberController: withdrawing consent', () => {
-  it('deletes on the server, forgets the token and reports done (the page then goes to the first page)', async () => {
-    const { ctrl, gateway, tokens } = make({}, { token: 'tok' });
+describe('TrainingMemberController: "Dừng gửi" (withdraw)', () => {
+  const meStoppedSending = () => me('open', 'stopped_sending');
+
+  it('tells the server, keeps the token and the page, and moves to the sending-stopped screen', async () => {
+    let stopped = false;
+    const { ctrl, gateway, tokens } = make({ me: vi.fn(async () => (stopped ? meStoppedSending() : me('open', 'connected'))), withdraw: vi.fn(async () => { stopped = true; }) }, { token: 'tok' });
     ctrl.start();
     await settle();
+    expect(screen(ctrl)).toBe('recording');
     expect(await ctrl.withdraw()).toBe(true);
     expect(gateway.withdraw).toHaveBeenCalledWith('tok');
-    expect(tokens.get(ID)).toBeNull();
-    expect(ctrl.getState().token).toBeNull();
+    expect(tokens.get(ID)).toBe('tok'); // the member stays: they need the removal steps and the mentor's decision
+    expect(ctrl.getState().token).toBe('tok');
+    expect(screen(ctrl)).toBe('sending-stopped');
   });
 
   it('a mentor machine that cannot be reached leaves everything as it was, and says so', async () => {
@@ -387,7 +392,17 @@ describe('TrainingMemberController: withdrawing consent', () => {
     expect(ctrl.getState().withdraw.error).toBeNull();
   });
 
-  it('401 (already gone) still counts as withdrawn', async () => {
+  it('409 (the mentor just stopped the training) looks again and the screen moves on to removal, without an error', async () => {
+    let status: 'open' | 'stopped' = 'open';
+    const { ctrl } = make({ me: vi.fn(async () => me(status, 'connected')), withdraw: vi.fn(async () => { status = 'stopped'; throw new ApiError(409, 'x'); }) }, { token: 'tok' });
+    ctrl.start();
+    await settle();
+    expect(await ctrl.withdraw()).toBe(true);
+    expect(ctrl.getState().withdraw.error).toBeNull();
+    expect(screen(ctrl)).toBe('remove');
+  });
+
+  it('401 (already gone) drops the token', async () => {
     const { ctrl, tokens } = make({ withdraw: vi.fn(async () => { throw new ApiError(401, 'x'); }) }, { token: 'tok' });
     ctrl.start();
     await settle();
@@ -399,6 +414,23 @@ describe('TrainingMemberController: withdrawing consent', () => {
     const { ctrl, gateway } = make();
     expect(await ctrl.withdraw()).toBe(false);
     expect(gateway.withdraw).not.toHaveBeenCalled();
+  });
+
+  it('after stopping, the mentor approving the delete (401) shows "Đã xoá dữ liệu"; a plain 401 stays "ended"', async () => {
+    let gone = false;
+    const { ctrl, tokens } = make({ me: vi.fn(async () => { if (gone) throw new ApiError(401, 'x'); return meStoppedSending(); }) }, { token: 'tok' });
+    ctrl.start();
+    await settle();
+    expect(screen(ctrl)).toBe('sending-stopped');
+    gone = true;
+    await ctrl.refresh();
+    expect(screen(ctrl)).toBe('deleted');
+    expect(tokens.get(ID)).toBeNull();
+
+    const other = make({ me: vi.fn(async () => { throw new ApiError(401, 'x'); }) }, { token: 'tok' });
+    other.ctrl.start();
+    await settle();
+    expect(screen(other.ctrl)).toBe('ended');
   });
 });
 

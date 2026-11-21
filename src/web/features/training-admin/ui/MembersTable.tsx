@@ -2,8 +2,10 @@ import { useRef } from 'react';
 import type { TrainingMemberRow } from '../../../../shared/api/index.js';
 import { Card } from '../../../shared/ui/Card.js';
 import { td, th } from '../../../shared/ui/tableStyles.js';
+import { connectionLabel } from '../domain/connection-label.js';
 import { formatLastSeen, sortMembers } from '../domain/members.js';
-import { ConnectionChip, StuckChip } from './chips.js';
+import { Button } from '../../../shared/ui/Button.js';
+import { ConnectionChip, StoppedSendingChip, StuckChip } from './chips.js';
 
 const tight = { padding: '10px 10px' } as const;
 const num = { ...td, ...tight, textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' } as const;
@@ -13,7 +15,7 @@ const num = { ...td, ...tight, textAlign: 'right', fontVariantNumeric: 'tabular-
  * Choosing a member (click, or ↑ / ↓ then Enter) opens their timeline. `compact` = the output panel is open: names only.
  * The table is not a live region; changes are announced separately (see `announcementFor`).
  */
-export function MembersTable({ members, selectedId, onSelect, compact, now }: { members: readonly TrainingMemberRow[]; selectedId: number | null; onSelect: (id: number) => void; compact: boolean; now: number }) {
+export function MembersTable({ members, selectedId, onSelect, onPurge, compact, now }: { members: readonly TrainingMemberRow[]; selectedId: number | null; onSelect: (id: number) => void; onPurge: (id: number) => void; compact: boolean; now: number }) {
   const body = useRef<HTMLTableSectionElement>(null);
   const rows = sortMembers(members);
 
@@ -46,8 +48,14 @@ export function MembersTable({ members, selectedId, onSelect, compact, now }: { 
                       <button type="button" data-member={m.id} aria-pressed={on} onClick={e => { e.stopPropagation(); onSelect(m.id); }}
                         style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', font: 'var(--type-ui)', fontWeight: 600, color: 'var(--text-title)', textAlign: 'left', overflowWrap: 'anywhere' }}>{m.displayName}</button>
                       {m.stuck && <StuckChip iconOnly={compact} />}
+                      {m.stoppedSending && connectionLabel(m).key !== 'stopped-sending' && <StoppedSendingChip iconOnly={compact} />}
                       {compact && <ConnectionChip row={m} iconOnly />}
                     </div>
+                    {m.stoppedSending && (
+                      <div style={{ marginTop: 4 }} onClick={e => e.stopPropagation()}>
+                        <Button variant="ghost" size="sm" icon="trash-2" onClick={() => onPurge(m.id)}>Duyệt xoá</Button>
+                      </div>
+                    )}
                   </td>
                   {!compact && (
                     <>

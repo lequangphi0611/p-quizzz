@@ -2,8 +2,7 @@ import { Button } from '../../../shared/ui/Button.js';
 import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog.js';
 import { ErrorMessage } from '../../../shared/ui/ErrorMessage.js';
 import { InfoBox, InfoRow, PageCard, mText } from '../../../shared/ui/member/member-shell.js';
-import { buildRemovalPrompt, ingestUrl, SETTINGS_LOCAL_PATH } from '../domain/removal.js';
-import { CodeBlock } from './CodeBlock.js';
+import { SETTINGS_LOCAL_PATH } from '../domain/removal.js';
 import { Callout, Mono, StatusMark } from './parts.js';
 
 /** Screen 5: "Đã nhận tín hiệu". Says briefly what is being sent, and offers to withdraw. The announcement for screen readers is made by the page. */
@@ -23,22 +22,25 @@ export function RecordingScreen({ desk, trainingName, displayName, onWithdraw }:
       <Callout tone="neutral" icon="eye" title="Đang được gửi về máy mentor">
         Prompt bạn gõ; công cụ Claude dùng, câu lệnh hoặc tên file, pass/fail, thời gian; output của lệnh và nội dung thay đổi file (có thể chứa bí mật). <b>Không</b> gửi câu trả lời của Claude. Bạn không xem lại được dữ liệu này.
       </Callout>
-      <p style={mText.meta}>Khi mentor bấm "Dừng thu", trang này sẽ hướng dẫn bạn gỡ cấu hình.</p>
-      <Button variant="secondary" size="lg" icon="log-out" block={!desk} onClick={onWithdraw}>Rút lại đồng ý</Button>
+      <p style={mText.meta}>Khi mentor bấm "Dừng thu", trang này sẽ hướng dẫn bạn gỡ cấu hình. Bạn cũng có thể dừng gửi bất cứ lúc nào.</p>
+      <Button variant="secondary" size="lg" icon="log-out" block={!desk} onClick={onWithdraw}>Dừng gửi</Button>
     </PageCard>
   );
 }
 
-/** Screen 6: what withdrawing deletes, and what is left for the member to do (the hooks stay on their machine until removed). */
-export function WithdrawDialog({ open, host, busy, error, onConfirm, onCancel }: { open: boolean; host: string; busy: boolean; error: string | null; onConfirm: () => void; onCancel: () => void }) {
+/**
+ * Screen 6: what "Dừng gửi" does. Said before the button works: nothing new is sent, but what was already sent is NOT deleted now;
+ * it waits for the mentor's approval (or the end of the training), and the mentor sees this member's name (PRODUCT.md §7.35j).
+ */
+export function WithdrawDialog({ open, busy, error, onConfirm, onCancel }: { open: boolean; busy: boolean; error: string | null; onConfirm: () => void; onCancel: () => void }) {
   return (
-    <ConfirmDialog open={open} title="Rút lại đồng ý?" tone="danger" confirmLabel="Rút lại và xoá dữ liệu của tôi" cancelLabel="Giữ lại" busy={busy} width={560} onConfirm={onConfirm} onCancel={onCancel}>
+    <ConfirmDialog open={open} title="Dừng gửi dữ liệu?" tone="danger" confirmLabel="Dừng gửi" cancelLabel="Tiếp tục gửi" busy={busy} width={560} onConfirm={onConfirm} onCancel={onCancel}>
       <div style={{ display: 'grid', gap: 12 }}>
-        <span>Dữ liệu của bạn trên máy mentor (mọi prompt, lệnh và output đã gửi) sẽ bị <b>xoá ngay</b> và bạn ra khỏi buổi training. Không hoàn tác được.</span>
-        <Callout tone="warn" icon="triangle-alert" title="Sau đó, hãy gỡ cấu hình khỏi máy bạn">
-          Cấu hình vẫn nằm trong <Mono>{SETTINGS_LOCAL_PATH}</Mono> của thư mục bài tập cho tới khi bạn xoá. Nhờ Claude Code gỡ bằng câu dưới đây, hoặc tự xoá các mục hook có địa chỉ <Mono>{ingestUrl(host)}</Mono>.
+        <span>Máy mentor sẽ <b>không nhận thêm</b> dữ liệu nào từ bạn nữa. Không hoàn tác được: bạn không gửi lại được trong buổi này.</span>
+        <Callout tone="warn" icon="triangle-alert" title="Dữ liệu đã gửi không bị xoá ngay">
+          Dữ liệu bạn đã gửi vẫn nằm trên máy mentor, và chỉ bị xoá khi <b>mentor duyệt xoá</b> hoặc khi mentor bấm "Kết thúc". Mentor biết bạn đã dừng gửi và thấy tên bạn.
         </Callout>
-        <CodeBlock label="Câu nhờ Claude Code gỡ cấu hình" code={buildRemovalPrompt(host)} maxHeight={170} />
+        <span>Sau đó, trang sẽ hướng dẫn bạn gỡ cấu hình khỏi thư mục bài tập <Mono>{SETTINGS_LOCAL_PATH}</Mono>.</span>
         {error && <ErrorMessage message={error} />}
       </div>
     </ConfirmDialog>

@@ -2,7 +2,7 @@ import type { TrainingController, TrainingState } from '../application/training-
 import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog.js';
 import { ErrorMessage } from '../../../shared/ui/ErrorMessage.js';
 
-/** The three confirmations: Dừng thu (cannot reopen), Kết thúc (deletes everything), Mời ra (deletes one person's data). */
+/** The confirmations: Dừng thu (cannot reopen), Kết thúc (deletes everything), Mời ra and Duyệt xoá (delete one person's data). */
 export function TrainingDialogs({ state, ctrl }: { state: TrainingState; ctrl: TrainingController }) {
   const { confirm, working, actionError, detail } = state;
   if (!confirm) return null;
@@ -22,6 +22,15 @@ export function TrainingDialogs({ state, ctrl }: { state: TrainingState; ctrl: T
       <ConfirmDialog title="Kết thúc và xoá dữ liệu?" tone="danger" confirmLabel="Kết thúc và xoá" busy={working} width={480} onConfirm={() => void ctrl.confirm()} onCancel={() => ctrl.cancelConfirm()}>
         <p style={{ margin: 0 }}>Toàn bộ prompt, lệnh và output của {detail.members.length} học viên sẽ bị <b>xoá vĩnh viễn</b>. Chỉ còn tên buổi, thời gian và số người. Không khôi phục được.</p>
         <p style={{ margin: '10px 0 0' }}>Hãy xem lại những gì cần góp ý trước khi bấm.</p>
+        {error}
+      </ConfirmDialog>
+    );
+  }
+  if (confirm.kind === 'purge') {
+    return (
+      <ConfirmDialog title={`Xoá dữ liệu của ${confirm.name}?`} tone="danger" confirmLabel="Duyệt xoá" busy={working} onConfirm={() => void ctrl.confirm()} onCancel={() => ctrl.cancelConfirm()}>
+        <p style={{ margin: 0 }}>{confirm.name} đã bấm "Dừng gửi". Prompt, lệnh và output đã thu của bạn ấy sẽ bị xoá vĩnh viễn và bạn ấy ra khỏi buổi. Không khôi phục được.</p>
+        <p style={{ margin: '10px 0 0' }}>Nếu không duyệt, dữ liệu vẫn xem được và chỉ bị xoá khi bạn bấm Kết thúc.</p>
         {error}
       </ConfirmDialog>
     );

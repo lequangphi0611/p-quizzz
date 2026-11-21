@@ -9,7 +9,7 @@ import type { TrainingScreen } from '../domain/training-screen.js';
 import { ConsentScreen } from './ConsentScreen.js';
 import { InstallScreen } from './InstallScreen.js';
 import { RecordingScreen, WithdrawDialog } from './RecordingScreen.js';
-import { CheckFailedScreen, CheckScreen, RemoveScreen, RemovedScreen } from './RemovalScreens.js';
+import { CheckFailedScreen, CheckScreen, DeletedScreen, RemoveScreen, RemovedScreen, SendingStoppedScreen } from './RemovalScreens.js';
 import { EndedScreen, LoadingScreen, LostScreen, OfflineBanner, OfflineScreen } from './StatusScreens.js';
 
 // `/training/:id` — an AI training from the member's side (S36): consent, install, recording, removal.
@@ -18,12 +18,14 @@ import { EndedScreen, LoadingScreen, LostScreen, OfflineBanner, OfflineScreen } 
 
 /** Wider column for the steps that carry code blocks; the status screens stay narrow. */
 const WIDTH: Record<TrainingScreen, number> = {
-  loading: 640, offline: 640, lost: 640, consent: 640, install: 800, recording: 640, remove: 800, check: 640, 'check-failed': 800, removed: 640, ended: 640,
+  loading: 640, offline: 640, lost: 640, consent: 640, install: 800, recording: 640, remove: 800, check: 640, 'check-failed': 800, removed: 640, 'sending-stopped': 800, deleted: 640, ended: 640,
 };
 
 /** Said to screen readers when the state changes (a live region that exists before its text does, so the change is announced). */
 const ANNOUNCEMENT: Partial<Record<TrainingScreen, string>> = {
   recording: 'Đã nhận tín hiệu: máy mentor đang nhận dữ liệu từ Claude Code của bạn.',
+  'sending-stopped': 'Bạn đã dừng gửi: máy mentor không nhận thêm dữ liệu từ bạn. Dữ liệu đã gửi chờ mentor duyệt xoá.',
+  deleted: 'Mentor đã xoá dữ liệu của bạn.',
   removed: 'Kiểm tra xong: đã gỡ, máy mentor không còn nhận được tín hiệu.',
   'check-failed': 'Kiểm tra xong: vẫn còn nhận được tín hiệu, cấu hình chưa được gỡ hết.',
 };
@@ -52,7 +54,6 @@ function TrainingMemberView({ trainingId, roomCode }: { trainingId: number; room
   const host = window.location.host;
   const now = useNow(screen === 'install' || screen === 'check');
   const [withdrawing, setWithdrawing] = useState(false);
-  const [leaving, setLeaving] = useState(false);
   const goHome = () => nav('/', { replace: true });
 
   // The code in the address has done its job once the member is in (like the exam join form does).
@@ -70,20 +71,21 @@ function TrainingMemberView({ trainingId, roomCode }: { trainingId: number; room
   const name = state.me?.training.name ?? state.room.title ?? undefined;
   const displayName = state.me?.member.displayName;
 
+  // "Dừng gửi" keeps the member on this page (the "sending-stopped" screen explains what happens next).
   const withdraw = async () => {
-    if (await ctrl.withdraw()) { setLeaving(true); goHome(); }
+    if (await ctrl.withdraw()) setWithdrawing(false);
   };
   const closeWithdraw = () => { ctrl.clearWithdrawError(); setWithdrawing(false); };
 
   const status = ((): ReactNode => {
     if (screen === 'install') return <Chip tone="ink" icon="circle-dot">Chưa nhận tín hiệu</Chip>;
     if (screen === 'recording') return <Chip tone="brand" icon="wifi">Đã nhận tín hiệu</Chip>;
+    if (screen === 'sending-stopped') return <Chip tone="ink" icon="log-out">Đã dừng gửi</Chip>;
     if (screen === 'removed') return <Chip tone="ink" icon="check">Đã gỡ</Chip>;
     return undefined;
   })();
 
   const body = ((): ReactNode => {
-    if (leaving) return <LoadingScreen host={host} />;
     switch (screen) {
       case 'loading': return <LoadingScreen host={host} />;
       case 'offline': return <OfflineScreen desk={desk} host={host} onRetry={() => void ctrl.refresh()} />;
@@ -94,6 +96,8 @@ function TrainingMemberView({ trainingId, roomCode }: { trainingId: number; room
       case 'remove': return <RemoveScreen host={host} busy={state.check.phase === 'starting'} message={state.check.message} onCheck={() => void ctrl.startCheck()} />;
       case 'check': return <CheckScreen desk={desk} secondsLeft={selectCheckSecondsLeft(state, now)} busy={state.check.phase === 'finishing'} message={state.check.message} onDone={() => void ctrl.finishCheck()} />;
       case 'check-failed': return <CheckFailedScreen host={host} busy={state.check.phase === 'starting'} onRetry={() => void ctrl.startCheck()} />;
+      case 'sending-stopped': return <SendingStoppedScreen host={host} />;
+      case 'deleted': return <DeletedScreen desk={desk} onHome={goHome} />;
       case 'removed': return <RemovedScreen desk={desk} onHome={goHome} />;
       case 'ended': return <EndedScreen desk={desk} onHome={goHome} />;
     }
@@ -101,12 +105,12 @@ function TrainingMemberView({ trainingId, roomCode }: { trainingId: number; room
 
   return (
     <MemberPage desk={desk} title={name} name={displayName} status={status} maxW={WIDTH[screen]}>
-      <div aria-live="polite" style={hidden}>{leaving ? '' : ANNOUNCEMENT[screen] ?? ''}</div>
+      <div aria-live="polite" style={hidden}>{ANNOUNCEMENT[screen] ?? ''}</div>
       <div ref={main} tabIndex={-1} data-pq-focus style={{ outline: 'none', boxShadow: 'none', display: 'grid', gap: 16, minWidth: 0 }}>
-        {state.offline && screen !== 'offline' && screen !== 'loading' && screen !== 'ended' && <OfflineBanner />}
+        {state.offline && screen !== 'offline' && screen !== 'loading' && screen !== 'ended' && screen !== 'deleted' && <OfflineBanner />}
         {body}
       </div>
-      <WithdrawDialog open={withdrawing && !leaving} host={host} busy={state.withdraw.busy} error={state.withdraw.error} onConfirm={() => void withdraw()} onCancel={closeWithdraw} />
+      <WithdrawDialog open={withdrawing} busy={state.withdraw.busy} error={state.withdraw.error} onConfirm={() => void withdraw()} onCancel={closeWithdraw} />
     </MemberPage>
   );
 }

@@ -278,7 +278,9 @@ export const trainingMembers = sqliteTable(
     consentedAt: ts('consented_at').notNull(),
     firstSeenAt: ts('first_seen_at'),
     lastSeenAt: ts('last_seen_at'),
-    // An event arrived after "Dừng thu": the hook is still installed on that machine.
+    // The member pressed "Dừng gửi" while open (S38): nothing new is accepted, what was sent stays until the mentor approves deleting it.
+    stoppedSendingAt: ts('stopped_sending_at'),
+    // An event arrived after "Dừng thu" or "Dừng gửi": the hook is still installed on that machine.
     seenAfterStopAt: ts('seen_after_stop_at'),
     uninstallCheckAt: ts('uninstall_check_at'),
     uninstalledAt: ts('uninstalled_at'),

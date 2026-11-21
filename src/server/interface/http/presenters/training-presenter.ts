@@ -48,6 +48,7 @@ export const toTrainingDetailDto = ({ training, uninstalled, members }: Training
     failedCount: m.failedCount,
     stuck: m.stuck,
     stillSending: m.stillSending,
+    stoppedSending: m.stoppedSending,
   })),
 });
 

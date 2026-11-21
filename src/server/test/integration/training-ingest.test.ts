@@ -12,7 +12,7 @@ import {
 import { bus } from '../../infrastructure/events/event-bus.js';
 import { trainingEvents, trainingMembers } from '../../infrastructure/db/schema.js';
 import { UNINSTALL_CHECK_MIN_MS } from '../../domain/training/training.js';
-import { STOPPED_REMINDER } from '../../interface/http/training-routes.js';
+import { STOPPED_REMINDER, STOPPED_SENDING_REMINDER } from '../../interface/http/training-routes.js';
 import { createTestApp, loginAsMentor } from '../helpers.js';
 
 const LAN = '192.168.1.50';
@@ -332,16 +332,74 @@ describe('after "Dừng thu"', () => {
     expect((await s.detail(t.id)).members[0]!.stillSending).toBe(false);
   });
 
-  it('once ended, or after withdrawing, the token is unknown (404)', async () => {
+  it('once ended, or after the mentor purged the member, the token is unknown (404)', async () => {
     const s = await setup();
     const t = await s.training();
     const lan = await s.member(t, 'Lan');
     const mai = await s.member(t, 'Mai');
-    expect((await s.app.inject({ method: 'DELETE', url: '/api/training/me', headers: { 'x-training-member-token': mai.token }, remoteAddress: LAN })).statusCode).toBe(204);
+    await s.app.inject({ method: 'DELETE', url: '/api/training/me', headers: { 'x-training-member-token': mai.token }, remoteAddress: LAN });
+    expect((await s.admin('POST', `/trainings/${t.id}/members/${mai.id}/purge`)).statusCode).toBe(204);
     expect((await s.ingest(mai.ingestToken, userPromptSubmit)).statusCode).toBe(404);
     await s.admin('POST', `/trainings/${t.id}/stop`);
     await s.admin('POST', `/trainings/${t.id}/end`);
     expect((await s.ingest(lan.ingestToken, userPromptSubmit)).statusCode).toBe(404);
+  });
+});
+
+describe('after the member\'s own "Dừng gửi" (S38)', () => {
+  const stopSending = (s: Awaited<ReturnType<typeof setup>>, token: string) =>
+    s.app.inject({ method: 'DELETE', url: '/api/training/me', headers: { 'x-training-member-token': token }, remoteAddress: LAN });
+
+  it('new events are not stored and get their own reminder; what was stored stays; others keep being stored', async () => {
+    const s = await setup();
+    const t = await s.training();
+    const lan = await s.member(t, 'Lan');
+    const mai = await s.member(t, 'Mai');
+    await s.ingest(lan.ingestToken, userPromptSubmit);
+    expect(s.events()).toHaveLength(1);
+    expect((await stopSending(s, lan.token)).statusCode).toBe(204);
+
+    for (const p of [userPromptSubmit, postToolUseBash]) {
+      const res = await s.ingest(lan.ingestToken, p);
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ systemMessage: STOPPED_SENDING_REMINDER });
+    }
+    expect(STOPPED_SENDING_REMINDER).toMatch(/dừng gửi/);
+    expect(s.events()).toHaveLength(1); // only the one from before
+    expect((await s.ingest(mai.ingestToken, userPromptSubmit)).statusCode).toBe(204);
+    expect(s.events()).toHaveLength(2);
+  });
+
+  it('a hook that is not ours still gets 204, and a PermissionRequest gets an empty 204 (safety invariant)', async () => {
+    const s = await setup();
+    const lan = await s.member(await s.training(), 'Lan');
+    await stopSending(s, lan.token);
+    expect((await s.ingest(lan.ingestToken, stop)).statusCode).toBe(204);
+    const res = await s.ingest(lan.ingestToken, permissionRequestBash);
+    expect(res.statusCode).toBe(204);
+    expect(res.body).toBe('');
+    expect(s.events()).toEqual([]);
+  });
+
+  it('the mentor sees the member still sending after stopping (stillSending), with the name and stopped_sending', async () => {
+    const s = await setup();
+    const t = await s.training();
+    const lan = await s.member(t, 'Lan');
+    await stopSending(s, lan.token);
+    expect((await s.detail(t.id)).members[0]).toMatchObject({ displayName: 'Lan', connection: 'stopped_sending', stoppedSending: true, stillSending: false });
+    await s.ingest(lan.ingestToken, userPromptSubmit);
+    expect((await s.detail(t.id)).members[0]).toMatchObject({ connection: 'stopped_sending', stoppedSending: true, stillSending: true });
+  });
+
+  it('after "Dừng thu" a member who stopped sending still takes the removal check', async () => {
+    const s = await setup();
+    const t = await s.training();
+    const lan = await s.member(t, 'Lan');
+    await stopSending(s, lan.token);
+    await s.admin('POST', `/trainings/${t.id}/stop`);
+    expect((await s.me(lan.token, '/uninstall-check', 'POST')).statusCode).toBe(204);
+    s.clock.advance(UNINSTALL_CHECK_MIN_MS + 1);
+    expect((await s.me(lan.token, '/uninstall-check/finish', 'POST')).json<UninstallCheckResult>()).toEqual({ result: 'passed' });
   });
 });
 

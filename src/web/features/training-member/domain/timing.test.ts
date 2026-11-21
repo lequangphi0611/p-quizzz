@@ -37,6 +37,8 @@ describe('pollDelayMs', () => {
   it('is slow while recording and while following the removal steps (only "Dừng thu" / "Kết thúc" are waited for)', () => {
     expect(pollDelayMs('recording', false)).toBe(SLOW_POLL_MS);
     expect(pollDelayMs('remove', false)).toBe(SLOW_POLL_MS);
+    expect(pollDelayMs('sending-stopped', false)).toBe(SLOW_POLL_MS); // waiting for the mentor to approve deleting
+    expect(pollDelayMs('deleted', false)).toBeNull();
     expect(pollDelayMs('check-failed', false)).toBe(SLOW_POLL_MS);
   });
   it('stops when nothing more can change', () => {

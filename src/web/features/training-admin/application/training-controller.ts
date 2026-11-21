@@ -32,7 +32,7 @@ export interface PanelState {
   error: string;
 }
 
-export type Confirm = { kind: 'stop' } | { kind: 'end' } | { kind: 'remove'; memberId: number; name: string };
+export type Confirm = { kind: 'stop' } | { kind: 'end' } | { kind: 'remove'; memberId: number; name: string } | { kind: 'purge'; memberId: number; name: string };
 
 export interface TrainingState {
   detail: TrainingDetail;
@@ -334,6 +334,11 @@ export class TrainingController {
     const m = this.state.detail.members.find(x => x.id === memberId);
     if (m && this.state.detail.status !== 'ended') this.set({ confirm: { kind: 'remove', memberId, name: m.displayName }, actionError: '' });
   }
+  /** "Duyệt xoá": only for a member who stopped sending themselves. */
+  askPurge(memberId: number): void {
+    const m = this.state.detail.members.find(x => x.id === memberId);
+    if (m?.stoppedSending && this.state.detail.status !== 'ended') this.set({ confirm: { kind: 'purge', memberId, name: m.displayName }, actionError: '' });
+  }
   cancelConfirm(): void { if (!this.state.working) this.set({ confirm: null, actionError: '' }); }
 
   /** Runs the confirmed action once. A second call while it runs does nothing. */
@@ -343,8 +348,8 @@ export class TrainingController {
     const id = this.state.detail.id;
     this.set({ working: true, actionError: '' });
     try {
-      if (c.kind === 'remove') {
-        await this.gateway.removeMember(id, c.memberId);
+      if (c.kind === 'remove' || c.kind === 'purge') {
+        await (c.kind === 'remove' ? this.gateway.removeMember(id, c.memberId) : this.gateway.purgeMember(id, c.memberId));
         if (this.state.selectedId === c.memberId) this.select(null);
         this.set({ working: false, confirm: null });
         await this.refresh();
@@ -356,7 +361,7 @@ export class TrainingController {
       this.applyDetail(detail);
       if (this.state.offline) this.set({ offline: false });
     } catch (err) {
-      this.set({ working: false, actionError: errorText(err, c.kind === 'stop' ? 'Không dừng thu được' : c.kind === 'end' ? 'Không kết thúc được' : 'Không mời ra được') });
+      this.set({ working: false, actionError: errorText(err, c.kind === 'stop' ? 'Không dừng thu được' : c.kind === 'end' ? 'Không kết thúc được' : c.kind === 'purge' ? 'Không xoá được dữ liệu' : 'Không mời ra được') });
       void this.refresh(); // a 409 means the training is not what the page thought: look again
     }
   }
