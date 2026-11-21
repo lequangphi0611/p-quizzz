@@ -21,6 +21,10 @@ import { useDesktopNotify } from '../features/mentor-notices/ui/useDesktopNotify
 import { ScreenPage } from '../features/screen/ui/ScreenPage.js';
 import { SharedListPage } from '../features/shared-sessions/ui/SharedListPage.js';
 import { SharedSessionPage } from '../features/shared-sessions/ui/SharedSessionPage.js';
+import { createTrainingAdminLoaders } from '../features/training-admin/application/training-admin-loaders.js';
+import { TrainingListPage } from '../features/training-admin/ui/TrainingListPage.js';
+import { TrainingPage } from '../features/training-admin/ui/TrainingPage.js';
+import { TrainingMemberPage } from '../features/training-member/ui/TrainingMemberPage.js';
 import { createGroupLoaders } from '../features/groups/application/groups-loaders.js';
 import { GroupsPage } from '../features/groups/ui/GroupsPage.js';
 import { createSessionAdminLoaders } from '../features/session-admin/application/session-admin-loaders.js';
@@ -31,18 +35,19 @@ import { ErrorMessage } from '../shared/ui/ErrorMessage.js';
 import { SessionStrip } from '../shared/ui/SessionStrip.js';
 import { Spinner } from '../shared/ui/Spinner.js';
 import { AdminLayout } from './AdminLayout.js';
-import { adminAuthGateway, examLibraryGateway, gradingGateway, groupsGateway, sessionAdminGateway } from './composition.js';
+import { adminAuthGateway, examLibraryGateway, gradingGateway, groupsGateway, sessionAdminGateway, trainingAdminGateway } from './composition.js';
 
 const examLoaders = createExamLoaders(examLibraryGateway);
 const sessionLoaders = createSessionAdminLoaders(sessionAdminGateway);
 const gradingLoader = createGradingLoader(gradingGateway);
 const groupLoaders = createGroupLoaders(groupsGateway);
 const authLoaders = createAdminAuthLoaders(adminAuthGateway);
+const trainingLoaders = createTrainingAdminLoaders(trainingAdminGateway);
 
 function AdminShell() {
   const nav = useNavigate();
   const { pathname } = useLocation();
-  const active = pathname.startsWith('/admin/sessions') ? 'sessions' : pathname.startsWith('/admin/groups') ? 'groups' : 'exams';
+  const active = pathname.startsWith('/admin/sessions') ? 'sessions' : pathname.startsWith('/admin/groups') ? 'groups' : pathname.startsWith('/admin/trainings') ? 'trainings' : 'exams';
   const auth = useAdminAuthGateway();
   const notices = useMentorNotices(pathname);
   const openSession = (id: number) => nav(`/admin/sessions/${id}`);
@@ -96,6 +101,8 @@ export const router = createBrowserRouter([
   // Share page of finished sessions (PRODUCT.md §7.33): anyone holding the link; questions, key and class counts only.
   { path: '/shared/:token', element: <SharedListPage />, errorElement: <RouteError /> },
   { path: '/shared/:token/sessions/:sessionId', element: <SharedSessionPage />, errorElement: <RouteError /> },
+  // AI training (PRODUCT.md §7.34): the member's flow lives outside the admin chrome; the token is in localStorage `pq:training:<id>`.
+  { path: '/training/:id', element: <TrainingMemberPage />, errorElement: <RouteError /> },
   { path: '/screen', element: <ScreenPage />, errorElement: <RouteError /> }, // the mentor's machine: opens the only open session, or asks which
   { path: '/screen/:sessionId', element: <ScreenPage />, errorElement: <RouteError /> }, // public projector page for ONE session; scales its own 1920×1080 stage
   { path: '/admin/login', loader: authLoaders.login, element: <AdminLoginPage />, errorElement: <RouteError />, hydrateFallbackElement: loading },
@@ -115,6 +122,8 @@ export const router = createBrowserRouter([
       { path: '/admin/sessions/:id', loader: sessionLoaders.detail, element: <SessionDetailPage /> },
       { path: '/admin/sessions/:id/review', loader: sessionLoaders.review, element: <SessionReviewPage /> },
       { path: '/admin/sessions/:id/grading', loader: gradingLoader, element: <GradingPage /> },
+      { path: '/admin/trainings', loader: trainingLoaders.list, element: <TrainingListPage /> },
+      { path: '/admin/trainings/:id', loader: trainingLoaders.detail, element: <TrainingPage /> },
       { path: '/admin/ai-grader-help', element: <AiGraderHelpPage /> },
     ],
   },

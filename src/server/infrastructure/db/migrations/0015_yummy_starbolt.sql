@@ -1,0 +1,1 @@
+ALTER TABLE `training_members` ADD `stopped_sending_at` integer;

@@ -45,6 +45,13 @@ export function connectAdminEvents(getHandlers: () => AdminEventHandlers, create
       } catch { /* a malformed signal is ignored; the next resync repairs any gap */ }
     });
   }
+  // The same stream also carries `training` signals, `{"trainingId":N}`, which have their own id space.
+  es.addEventListener('training', event => {
+    try {
+      const trainingId = Number((JSON.parse(event.data ?? '{}') as { trainingId?: unknown }).trainingId);
+      if (Number.isInteger(trainingId) && trainingId > 0) getHandlers().onTraining?.(trainingId);
+    } catch { /* ignored; the next resync repairs any gap */ }
+  });
   es.addEventListener('error', () => { dropped = true; });
   es.addEventListener('open', () => {
     if (!dropped) return;
@@ -69,6 +76,7 @@ export function createSessionEventHub(create?: EventSourceFactory): EventStream 
         admin.close = connectAdminEvents(() => ({
           onEvent: (type, sessionId) => { for (const get of [...admin.subscribers]) get().onEvent(type, sessionId); },
           onResync: () => { for (const get of [...admin.subscribers]) get().onResync(); },
+          onTraining: trainingId => { for (const get of [...admin.subscribers]) get().onTraining?.(trainingId); },
         }), create);
       }
       admin.subscribers.add(getHandlers);

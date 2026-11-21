@@ -88,6 +88,18 @@ import { SetSessionShared } from './application/use-cases/sharing/set-session-sh
 import { GetShareLink, RotateShareLink } from './application/use-cases/sharing/share-link.js';
 import { GetSharedSession, ListSharedSessions } from './application/use-cases/sharing/shared-sessions.js';
 import { DrizzleShareTokenStore } from './infrastructure/db/drizzle-share-token-store.js';
+import type { TrainingUnitContext } from './application/ports/training-repository.js';
+import { CreateTraining, EndTraining, GetTrainingDetail, ListTrainings, PurgeTrainingMember, RemoveTrainingMember, SaveMemberNote, StopTraining, MarkTrainingEvent } from './application/use-cases/training/admin.js';
+import { FinishUninstallCheck, GetHookConfig, GetMyTraining, JoinTraining, ResumeTrainingMember, StartUninstallCheck, WithdrawTrainingConsent } from './application/use-cases/training/member.js';
+import { ExportTrainingReport } from './application/use-cases/training/report.js';
+import { ResolveAnyRoom } from './application/use-cases/training/resolve-any-room.js';
+import { DrizzleTrainingEventRepository } from './infrastructure/db/drizzle-training-event-repository.js';
+import { DrizzleTrainingMemberRepository, DrizzleTrainingRepository } from './infrastructure/db/drizzle-training-repository.js';
+import { ThrottledTrainingSignals } from './infrastructure/events/throttled-training-signals.js';
+import { IngestHookEvent } from './application/use-cases/training/ingest.js';
+import { GetTrainingEventDetail, ListMemberEvents } from './application/use-cases/training/view.js';
+import { BusTrainingSignals } from './infrastructure/events/bus-training-signals.js';
+import type { TrainingUseCases } from './interface/http/training-routes.js';
 
 /** Ports every module shares. Tests pass fakes for any of them (see `application/testing`). */
 export interface SharedPorts {
@@ -114,8 +126,10 @@ export interface Composition {
   grading: GradingUseCases;
   leaderboard: { leaderboard: GetLeaderboard };
   screen: { projectorRoom: GetProjectorRoom; screenSessions: ListScreenSessions };
-  /** Members find their session by room code. */
-  rooms: { resolve: ResolveRoom; clock: Clock };
+  /** Members find their session or training by room code. */
+  rooms: { resolve: ResolveAnyRoom; clock: Clock };
+  /** AI training sessions (PRODUCT.md §7.34). */
+  training: TrainingUseCases;
   /** Resolves a member from a token: backs the `/api/me` hook. */
   resumeParticipant: ResumeParticipant;
   admin: AdminUseCases;
@@ -215,6 +229,18 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}, aiOptions:
     tokens: ports.tokens,
   };
 
+  const trainingReader = new DrizzleTrainingRepository(fn => database.read(fn));
+  const trainingMemberReader = new DrizzleTrainingMemberRepository(fn => database.read(fn));
+  const trainingEventReader = new DrizzleTrainingEventRepository(fn => database.read(fn));
+  const trainingUnitOfWork = new SqliteUnitOfWork<TrainingUnitContext>(database, tx => {
+    const access = async <T>(fn: (db: Db) => T) => fn(tx);
+    return { trainings: new DrizzleTrainingRepository(access), members: new DrizzleTrainingMemberRepository(access), events: new DrizzleTrainingEventRepository(access) };
+  });
+  const trainingSignals = new BusTrainingSignals(bus);
+  const trainingDeps = { unitOfWork: trainingUnitOfWork, clock: ports.clock, signals: trainingSignals };
+  // Ingest is dense (every prompt and tool call): the mentor's screen is refreshed at most every 2 s per training. Other changes are rare and go out at once.
+  const ingestSignals = new ThrottledTrainingSignals(trainingSignals);
+
   const lifecycle = { unitOfWork: sessionUnitOfWork, sessions: sessionReader, clock: ports.clock, random: ports.random, events: ports.events, modes: defaultSessionModes() };
 
   const attemptReads = { attempts: attemptReader, sessions: sessionLookup, exams: examReader };
@@ -244,7 +270,29 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}, aiOptions:
     ai: { failUnfinished: new FailUnfinishedSuggestions(aiDeps), idle: () => aiQueue.idle() },
     leaderboard: { leaderboard: new GetLeaderboard(gradingReads) },
     screen: { projectorRoom: new GetProjectorRoom(sessionReader), screenSessions: new ListScreenSessions(sessionReader) },
-    rooms: { resolve: new ResolveRoom(sessionReader), clock: ports.clock },
+    rooms: { resolve: new ResolveAnyRoom({ session: new ResolveRoom(sessionReader), trainings: trainingReader }), clock: ports.clock },
+    training: {
+      create: new CreateTraining({ ...trainingDeps, random: ports.random }),
+      list: new ListTrainings(trainingReader),
+      detail: new GetTrainingDetail({ trainings: trainingReader, members: trainingMemberReader, events: trainingEventReader }),
+      memberEvents: new ListMemberEvents({ trainings: trainingReader, members: trainingMemberReader, events: trainingEventReader }),
+      eventDetail: new GetTrainingEventDetail({ trainings: trainingReader, events: trainingEventReader }),
+      stop: new StopTraining(trainingDeps),
+      end: new EndTraining(trainingDeps),
+      removeMember: new RemoveTrainingMember(trainingDeps),
+      purgeMember: new PurgeTrainingMember(trainingDeps),
+      markEvent: new MarkTrainingEvent(trainingDeps),
+      saveNote: new SaveMemberNote(trainingDeps),
+      report: new ExportTrainingReport({ ...trainingDeps, trainings: trainingReader, members: trainingMemberReader, events: trainingEventReader }),
+      join: new JoinTraining({ ...trainingDeps, tokens: ports.tokens }),
+      resume: new ResumeTrainingMember({ members: trainingMemberReader, trainings: trainingReader }),
+      me: new GetMyTraining(),
+      hookConfig: new GetHookConfig(),
+      withdraw: new WithdrawTrainingConsent(trainingDeps),
+      startUninstallCheck: new StartUninstallCheck(trainingDeps),
+      finishUninstallCheck: new FinishUninstallCheck(trainingDeps),
+      ingest: new IngestHookEvent({ ...trainingDeps, members: trainingMemberReader, trainings: trainingReader, signals: ingestSignals }),
+    },
     attempts: {
       start: new StartAttempt({ unitOfWork: attemptUnitOfWork, clock: ports.clock, random: ports.random, events: ports.events }),
       view: new GetAttemptView(attemptReads),

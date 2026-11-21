@@ -128,6 +128,33 @@ describe('the mentor stream', () => {
     expect(handlers.onResync).toHaveBeenCalledOnce();
   });
 
+  it('reports a training signal with its own id, and ignores a malformed one; handlers without onTraining are fine', () => {
+    const src = fakeSource();
+    const handlers = { onEvent: vi.fn(), onResync: vi.fn(), onTraining: vi.fn() };
+    connectAdminEvents(() => handlers, () => src.es);
+    src.fire('training', '{"trainingId":4}');
+    src.fire('training', 'not json');
+    src.fire('training', '{"sessionId":4}');
+    src.fire('training', '{"trainingId":0}');
+    expect(handlers.onTraining.mock.calls).toEqual([[4]]);
+    expect(handlers.onEvent).not.toHaveBeenCalled();
+
+    const plain = fakeSource();
+    connectAdminEvents(() => ({ onEvent: vi.fn(), onResync: vi.fn() }), () => plain.es);
+    expect(() => plain.fire('training', '{"trainingId":4}')).not.toThrow();
+  });
+
+  it('the hub passes training signals to every subscriber over the one connection', () => {
+    const sources: ReturnType<typeof fakeSource>[] = [];
+    const hub = createSessionEventHub(() => { const s = fakeSource(); sources.push(s); return s.es; });
+    const a = { onEvent: vi.fn(), onResync: vi.fn(), onTraining: vi.fn() }, b = { onEvent: vi.fn(), onResync: vi.fn() };
+    hub.subscribeAdmin(() => a);
+    hub.subscribeAdmin(() => b);
+    sources[0]!.fire('training', '{"trainingId":2}');
+    expect(a.onTraining).toHaveBeenCalledWith(2);
+    expect(sources).toHaveLength(1);
+  });
+
   it('the hub shares ONE connection among all subscribers and closes it with the last one', () => {
     const sources: ReturnType<typeof fakeSource>[] = [];
     const hub = createSessionEventHub(() => { const s = fakeSource(); sources.push(s); return s.es; });

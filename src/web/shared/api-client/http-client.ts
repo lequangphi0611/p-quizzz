@@ -22,12 +22,19 @@ export interface OutgoingRequest {
 }
 export type RequestInterceptor = (request: OutgoingRequest) => void;
 
+/** Per-call extras. `headers` are added after the interceptors (a call that carries its own credential, e.g. a training member token). */
+export interface RequestOptions {
+  headers?: Record<string, string>;
+  /** `text`: a successful answer is returned as the raw body, not parsed as JSON (a Markdown file). Errors are still `{ error }` JSON. */
+  as?: 'json' | 'text';
+}
+
 export interface HttpClient {
-  get<T>(path: string): Promise<T>;
-  post<T>(path: string, body?: unknown): Promise<T>;
-  put<T>(path: string, body?: unknown): Promise<T>;
-  patch<T>(path: string, body?: unknown): Promise<T>;
-  delete<T>(path: string, body?: unknown): Promise<T>;
+  get<T>(path: string, options?: RequestOptions): Promise<T>;
+  post<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T>;
+  put<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T>;
+  patch<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T>;
+  delete<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T>;
 }
 
 export interface HttpClientOptions {
@@ -40,10 +47,11 @@ export function createHttpClient(options: HttpClientOptions = {}): HttpClient {
   const interceptors = options.interceptors ?? [];
   const doFetch: typeof fetch = options.fetch ?? ((input, init) => fetch(input, init));
 
-  async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  async function request<T>(method: string, path: string, body?: unknown, options?: RequestOptions): Promise<T> {
     const outgoing: OutgoingRequest = { method, path, headers: {} };
     if (body !== undefined) outgoing.headers['Content-Type'] = 'application/json';
     for (const intercept of interceptors) intercept(outgoing);
+    if (options?.headers) Object.assign(outgoing.headers, options.headers);
 
     let res: Response;
     try {
@@ -53,6 +61,7 @@ export function createHttpClient(options: HttpClientOptions = {}): HttpClient {
     }
 
     const text = await res.text();
+    if (res.ok && options?.as === 'text') return text as T;
     let data: unknown;
     try { data = text ? JSON.parse(text) : undefined; } catch { data = undefined; }
     if (!res.ok) {
@@ -64,10 +73,10 @@ export function createHttpClient(options: HttpClientOptions = {}): HttpClient {
   }
 
   return {
-    get: <T>(path: string) => request<T>('GET', path),
-    post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
-    put: <T>(path: string, body?: unknown) => request<T>('PUT', path, body),
-    patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body),
-    delete: <T>(path: string, body?: unknown) => request<T>('DELETE', path, body),
+    get: <T>(path: string, options?: RequestOptions) => request<T>('GET', path, undefined, options),
+    post: <T>(path: string, body?: unknown, options?: RequestOptions) => request<T>('POST', path, body, options),
+    put: <T>(path: string, body?: unknown, options?: RequestOptions) => request<T>('PUT', path, body, options),
+    patch: <T>(path: string, body?: unknown, options?: RequestOptions) => request<T>('PATCH', path, body, options),
+    delete: <T>(path: string, body?: unknown, options?: RequestOptions) => request<T>('DELETE', path, body, options),
   };
 }

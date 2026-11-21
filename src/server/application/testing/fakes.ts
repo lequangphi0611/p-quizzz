@@ -1,3 +1,4 @@
+import type { TrainingSignals } from '../ports/training-signals.js';
 import type { SessionEventType } from '../../../shared/api/index.js';
 import type { Clock } from '../ports/clock.js';
 import type { EventPublisher } from '../ports/event-publisher.js';
@@ -52,5 +53,14 @@ export class RecordingEventPublisher implements EventPublisher {
 
   async publish(sessionId: number, type: SessionEventType): Promise<void> {
     this.events.push({ sessionId, type });
+  }
+}
+
+/** Remembers every training signal instead of sending it. */
+export class RecordingTrainingSignals implements TrainingSignals {
+  readonly signals: number[] = [];
+
+  async signal(trainingId: number): Promise<void> {
+    this.signals.push(trainingId);
   }
 }

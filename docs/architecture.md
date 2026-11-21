@@ -41,6 +41,9 @@ exams ──< questions ──< options
 | `attempts` | id, participant_id, attempt_no, question_order (JSON `number[]`), option_order (JSON `Record<questionId, optionId[]>`), started_at, submitted_at?, auto_score?, manual_score?, edit_status? (`pending`\|`approved`\|`rejected`\|`done`), edit_reason?, edit_requested_at?, edit_resolved_at? | Thứ tự trộn sinh **lúc tạo attempt**. Mỗi participant có đúng 1 attempt mỗi phiên (`attempt_no` luôn là 1). `edit_*` = yêu cầu sửa bài tự luận (PRODUCT.md §7.21): tối đa một yêu cầu sống, `rejected` được gửi lại (ghi đè), `approved`/`done` thì không xin thêm. `NULL` = chưa từng xin. |
 | `answers` | id, attempt_id, question_id, selected_option_ids (JSON `number[]`)?, text_answer?, reason_text?, auto_score?, manual_score?, feedback?, graded_at? | Unique (attempt_id, question_id). Upsert khi autosave. `reason_text`: lý do của câu `{reason}` (đã trim, ≤ 500 ký tự), **không tính điểm** (PRODUCT.md §7.32). |
 | `ai_suggestions` | id, answer_id (unique, cascade), status (`queued`\|`running`\|`done`\|`failed`), score?, feedback?, criteria (JSON `{ label, score, max, note }[]`)?, suspicious (bool, mặc định false), suspicious_reason?, suspicious_lines (JSON `number[]`, số dòng 1-based của bài)?, error?, model?, used (`accepted`\|`edited`)?, requested_at, finished_at? | Gợi ý chấm của AI cho **một** bài tự luận (PRODUCT.md §7.28). **Không phải điểm**: không đọc vào `manual_score`, tổng điểm, bảng xếp hạng hay `canFinalize`. `score` là `real` (bước 0,5). Một dòng mỗi answer; thử lại = ghi đè dòng `failed`; "Dừng" xoá các dòng `queued`. `used`: mentor đã lưu điểm bằng "Dùng gợi ý" (`accepted`) hoặc "Sửa rồi lưu" (`edited`); chấm tay hoặc huỷ điểm thì về `null`. Giữ lại sau khi mentor chấm để so độ lệch với `manual_score` (§7.28i). |
+| `trainings` | id, name, status (`open`\|`stopped`\|`ended`), room_code?, created_at, stopped_at?, ended_at?, member_count? | Buổi training AI (PRODUCT.md §7.34). Tạo là mở (`open`, không có nháp). `room_code` 6 chữ số, **duy nhất chung với `sessions.room_code`** (cấp mã kiểm cả hai bảng); về `null` khi `stopped`. `member_count` chỉ ghi lúc Kết thúc. |
+| `training_members` | id, training_id (cascade), display_name, token (unique, token trình duyệt), ingest_token (unique, nằm trong cấu hình hook trên máy member), consented_at, first_seen_at?, last_seen_at?, seen_after_stop_at?, uninstall_check_at?, uninstalled_at? | Chỉ tạo khi member đã đồng ý. Rút đồng ý / mentor mời ra = xoá dòng (cascade sự kiện). Tên duy nhất trong một buổi, so không phân biệt hoa thường (domain). Hai token khác nhau: lộ file cấu hình chỉ cho phép gửi sự kiện giả, không đọc được gì. |
+| `training_events` | id, member_id (cascade), kind (`prompt`\|`tool`), claude_session_id, received_at, prompt?, tool_name?, tool_target?, ok? (bool), duration_ms?, error_excerpt?, output_head?, output_tail?, output_omitted_lines?, change_head?, change_tail?, change_omitted_lines? | Chỉ trường đã lọc (§11.8), **không bao giờ** lưu JSON thô của hook. Index (member_id, id). Danh sách chỉ đọc cột nhẹ; `output_*`/`change_*` chỉ đọc khi mentor bấm "Xem". |
 | `app_meta` | key, value, updated_at | Đã có. Lưu `admin_password_hash` và `share_token` (token của link trang chia sẻ, 32 byte base64url, sinh lần đầu mentor lấy link, thay khi "Đổi link", PRODUCT.md §7.33). |
 
 ## 3. State machine phiên thi
@@ -142,6 +145,34 @@ Mọi body/response là JSON. Lỗi: `{ error: string, code?: string }` (tiếng
 | POST | `/api/me/attempts/:id/edit-request/finish` | participant | Kết thúc việc sửa (yêu cầu `approved` → `done`) |
 | GET | `/api/me/attempts/:id/review` | participant | Chỉ khi session `closed`/`finalized`: đáp án đúng, giải thích, điểm, nhận xét; mỗi câu có `requireReason` và `reasonText` = lý do **của chính member** (không bao giờ của người khác). Mỗi câu có thêm `aiAssisted: boolean` = câu tự luận đó có ít nhất một gợi ý AI `done` trong phiên (để hiện dòng thông báo §7.28f); không bao giờ trả nội dung gợi ý Có thêm `shared: boolean` = phiên đang được chia sẻ (PRODUCT.md §7.33f). |
 
+### Buổi training AI (PRODUCT.md §7.34, S32–S34)
+
+Mentor (trong `/api/admin`, chỉ máy mentor như §4):
+
+| Method | Path | Mô tả |
+|---|---|---|
+| POST | `/trainings` | `{ name }` (1–100 ký tự) → 201, training `open` kèm `roomCode`: `{ id, name, status, roomCode, createdAt, stoppedAt, endedAt, memberCount }` |
+| GET | `/trainings` | Mới nhất trước: `{ id, name, status, createdAt, stoppedAt, endedAt, memberCount }[]` (`memberCount` đếm sống khi chưa `ended`) |
+| GET | `/trainings/:id` | `{ id, name, status, roomCode (chỉ khi open), createdAt, stoppedAt, endedAt, uninstalled: { count, total } \| null (chỉ khi stopped), members: TrainingMemberRow[] }`; `TrainingMemberRow = { id, displayName, connection: 'waiting'\|'connected'\|'uninstalled', lastSeenAt, promptCount, toolCount, failedCount, stuck: boolean, stillSending: boolean }`. Học viên sắp theo thứ tự vào buổi (cố định, không sắp theo số lỗi). `uninstalled.count` đếm member có `connection = 'uninstalled'` (đã qua kiểm tra gỡ và không có gì gửi sau đó). Khi `ended`: `members = []` |
+| GET | `/trainings/:id/members/:memberId/events` | `?after=<eventId>` (tối đa 500 dòng mỗi lần, cũ trước) → `{ events: TrainingEventRow[], hasMore }`; `TrainingEventRow = { id, kind, receivedAt, claudeSessionId, prompt?, toolName?, toolTarget?, ok?, durationMs?, summary?, hasOutput, hasChange }`; `summary` = `error_excerpt` (lệnh lỗi) hoặc dòng cuối có chữ của `output` (lệnh thành công). **Không** có `output_*`/`change_*`. Trường tuỳ chọn bị bỏ khi không áp dụng (dòng `prompt` không có `toolName`, dòng `tool` không có `prompt`). `after` không phải số nguyên ≥ 0 → 400; buổi hoặc học viên không có (kể cả học viên của buổi khác) → 404; `ended` → 409; `stopped` vẫn xem được. `summary` dựng ở server từ **hậu tố ≤ 1000 ký tự** của `coalesce(output_tail, output_head)` (cột output không bao giờ được đọc nguyên khi liệt kê), mỗi dòng cắt ở 200 ký tự, không thêm cột |
+| GET | `/trainings/:id/events/:eventId/detail` | `{ output: Clip \| null, change: Clip \| null }`, `Clip = { head: string, tail: string \| null, omittedLines: number }`. Sự kiện không có hoặc của buổi khác → 404; `ended` → 409 |
+| POST | `/trainings/:id/stop` | "Dừng thu": `open` → `stopped`, `room_code` = null. Khác → 409. Trả lại chi tiết buổi như `GET /trainings/:id` |
+| POST | `/trainings/:id/end` | "Kết thúc": `stopped` → `ended`; trong **một** unit: ghi `member_count`, xoá mọi `training_members` (cascade sự kiện). Khác → 409. Trả lại chi tiết buổi như `GET /trainings/:id` |
+| DELETE | `/trainings/:id/members/:memberId` | Mời ra: xoá member + sự kiện. `ended` → 409 |
+
+Member và hook (công khai trong LAN):
+
+| Method | Path | Auth | Mô tả |
+|---|---|---|---|
+| POST | `/api/rooms/resolve` (bổ sung) | — | Mã của training `open` → `{ kind: 'training', id, title }` (title = tên buổi). Phiên thi trả thêm `kind: 'session'`. Mã sai: như cũ, chung giới hạn |
+| POST | `/api/trainings/:id/join` | — | `{ displayName, roomCode, consent: true }` → 201 `{ token, member: { displayName } }`. Kiểm mã như `join` của phiên (chung bộ giới hạn 5 lần/phút/IP). `consent` khác `true` → 400. Chỉ khi `open` (khác, kể cả `:id` không tồn tại → 403 trung tính như mã sai, tính vào giới hạn). Trùng tên → 409 `identity_in_use` (không có luồng xin vào lại; chọn tên khác) |
+| GET | `/api/training/me` | `X-Training-Member-Token` | `{ training: { id, name, status }, member: { displayName, connection, uninstallCheck: 'none'\|'waiting'\|'passed'\|'failed' } }`. **Không bao giờ** có dữ liệu đã thu hay `ingest_token`. Token lạ (kể cả sau `ended`) → 401 |
+| GET | `/api/training/me/hook-config` | `X-Training-Member-Token` | `{ settings, mergePrompt }`: `settings` = object để ghép vào `.claude/settings.local.json` (§11.8 `buildHookSettings`, URL lấy theo Host của chính request này); `mergePrompt` = câu nhờ Claude Code ghép (tiếng Việt, chứa `settings`). Chỉ khi `open`, khác → 409 |
+| POST | `/api/training/me/uninstall-check` | `X-Training-Member-Token` | Bắt đầu kiểm tra gỡ: `uninstall_check_at = now` → 204. Chỉ khi `stopped`, khác → 409. Gọi lại được (đặt lại mốc), kể cả sau `failed` |
+| POST | `/api/training/me/uninstall-check/finish` | `X-Training-Member-Token` | `seen_after_stop_at > uninstall_check_at` → `{ result: 'failed' }`; ngược lại ghi `uninstalled_at = now` → `{ result: 'passed' }`. Phải gọi ≥ 5 giây sau khi bắt đầu (sớm hơn → 409 `too_early`); chưa bắt đầu hoặc buổi không `stopped` → 409. Kết quả `passed` phát tín hiệu `training`. `uninstallCheck` của `GET /me` suy ra từ dữ liệu, không có cột riêng: `passed` khi đã `uninstalled_at` và không có sự kiện muộn hơn; `failed` khi có `seen_after_stop_at` muộn hơn mốc bắt đầu hoặc muộn hơn `uninstalled_at`; `waiting` khi đã bắt đầu mà chưa có gì; còn lại `none` |
+| DELETE | `/api/training/me` | `X-Training-Member-Token` | Rút đồng ý: xoá member + sự kiện → 204. `ended` → 401 (đã xoá) |
+| POST | `/api/training/ingest` | `X-Training-Token` (ingest token) | Body = JSON hook của Claude Code. `bodyLimit` 2 MB (quá → 413). Token lạ → 404 body rỗng. Training `open`: lọc (§11.8), lưu, cập nhật `first_seen_at`/`last_seen_at` → 204. `stopped`: **không lưu**, ghi `seen_after_stop_at` → 200 `{ "systemMessage": "<nhắc gỡ hook, tiếng Việt>" }`. Event ngoài `UserPromptSubmit`/`PostToolUse`/`PostToolUseFailure`, thân không phải JSON hợp lệ, thân rỗng hoặc content-type khác JSON → 204, không lưu, không cập nhật `last_seen_at` (hook báo lỗi sẽ làm ồn màn hình member, nên không bao giờ trả 4xx/5xx vì nội dung). Ở buổi `stopped` chỉ ba loại event trên mới tính là "vẫn gửi" (`seen_after_stop_at`). Không gọi mạng, chỉ một lần ghi DB: mục tiêu < 50 ms |
+
 ### ⚠️ Quy tắc không lộ đáp án (bắt buộc có test)
 Trước khi session `closed`, **không response nào gửi cho member** được chứa `is_correct`, `explanation`, hay điểm từng câu. Dùng type DTO riêng cho member (`MemberQuestion`, `MemberOption`) — không trả thẳng row DB. Chỉ `GET /api/me/attempts/:id/review` được mang đáp án, và trả 403 cho tới khi session `closed`/`finalized`.
 
@@ -150,7 +181,8 @@ Phòng thủ nhiều lớp:
 2. **Chốt chặn `src/server/interface/http/leak-guard.ts`** (hook `onSend` toàn cục): response JSON nào ngoài `/api/admin/*` và route review mà chứa các key đó sẽ bị thay bằng 500 và ghi log — bắt lỗi trả nhầm row DB trong tương lai. Key `email`/`emails` bị chặn **cả ở route review** (email chỉ mentor thấy, PRODUCT.md §7.24). Key `aiSuggestion` bị chặn ở mọi response ngoài `/api/admin/*` (gợi ý AI chỉ mentor thấy, PRODUCT.md §7.28f). Key `reasons` (lý do của cả lớp) cũng vậy, kể cả route review (PRODUCT.md §7.32e); member chỉ nhận `reasonText` của mình.
 3. **`/api/admin/*` chỉ mở trên máy mentor** (§4), nên member không đọc được đề qua API mentor.
 4. **Trang chia sẻ** (`/api/shared/*`, PRODUCT.md §7.33) mang đáp án và lời giải có chủ đích nên được miễn chặn `isCorrect`/`explanation` (chỉ khi phiên `closed`/`finalized` và có `shared_at`, kiểm trong use case). Đổi lại, ở các route này leak-guard **chặn thêm** key định danh và bài làm: `displayName`, `name`, `email`, `participant`, `selectedOptionIds`, `textAnswer`, `reasonText`, `feedback`, `score`, `aiSuggestion` (tên đề dùng key `examTitle`). Có test quét key trên cả hai route.
-5. **Vite dev server** (`npm run dev`) mở ra LAN và mặc định phục vụ mọi file trong repo qua `/@fs/` (gồm `exams/`, `data/`). `vite.config.ts` đặt `server.fs.allow` chỉ gồm `src/web`, `src/shared`, `node_modules` và `deny` cho `exams/`, `data/`, `docs/`, `*.db`. Không nới lỏng mục này.
+5. **Buổi training AI** (PRODUCT.md §7.34): nội dung đã thu (`prompt`, `toolTarget`, `summary`, `output`, `change`, `events`) chỉ đi qua `/api/admin/trainings/*`. leak-guard chặn các key đó trên mọi route `/api/training/*` và `/api/trainings/*`, và chặn key `ingestToken` ở mọi nơi (token ingest chỉ xuất hiện bên trong `settings` của `hook-config`, dưới dạng giá trị header). Test quét key cho các route member.
+6. **Vite dev server** (`npm run dev`) mở ra LAN và mặc định phục vụ mọi file trong repo qua `/@fs/` (gồm `exams/`, `data/`). `vite.config.ts` đặt `server.fs.allow` chỉ gồm `src/web`, `src/shared`, `node_modules` và `deny` cho `exams/`, `data/`, `docs/`, `*.db`. Không nới lỏng mục này.
 
 ## 6. Chấm điểm & xếp hạng
 
@@ -164,6 +196,7 @@ Hàm thuần trong `src/shared/scoring.ts`:
 - Event bus trong process: `src/server/infrastructure/events/event-bus.ts` — `publish(sessionId, type)`, `subscribe(sessionId, listener)` (use case phát qua port `EventPublisher`, SSE nghe qua `EventSubscriber`).
 - `GET /api/sessions/:id/events` → `text/event-stream`, gửi `event: <type>\ndata: {}\n\n`; heartbeat comment mỗi 20s.
 - Event types: `session` (đổi status), `participants` (join/kick/rename/approve), `leaderboard` (có bài nộp/chấm điểm).
+- **Buổi training AI** (§11.8): kênh mentor `/api/admin/events` mang thêm event type `training` với `data: {"trainingId":N}` khi có member vào/ra, có sự kiện mới, đổi trạng thái kết nối hoặc trạng thái buổi. Bus trong tiến trình có kênh riêng cho tín hiệu training (`publishTraining`/`subscribeTraining`, không dùng chung kênh theo `sessionId` vì hai loại id không liên quan nhau); `EventSubscriber.subscribeTraining` là cổng nghe. Ingest rất dày nên tín hiệu của ingest được **gộp** (`ThrottledTrainingSignals`, `TRAINING_SIGNAL_THROTTLE_MS` = 2000): tín hiệu đầu gửi ngay, mọi tín hiệu trong 2 giây kế tiếp gộp thành **một** tín hiệu khi hết cửa sổ (nên màn mentor không kẹt ở dữ liệu cũ); tối đa 1 tín hiệu mỗi 2 giây mỗi buổi. Chỉ ingest dùng bộ gộp; vào/ra, dừng, kết thúc và kết quả kiểm tra gỡ gửi ngay. Client hiện có chỉ đăng ký các event type của phiên nên tự bỏ qua `training`; `connectAdminEvents` nghe thêm event `training` và gọi `AdminEventHandlers.onTraining?(trainingId)` (tuỳ chọn, trang không hiện buổi training không cần quan tâm); `useAdminEvents` truyền xuống như cũ. UI dùng nó là S35. Member **không** dùng SSE: trang member poll `/api/training/me` mỗi 3 giây, chỉ khi đang chờ tín hiệu đầu tiên hoặc đang kiểm tra gỡ.
 - **Kênh của mentor** `GET /api/admin/events` (trong vùng `/api/admin`, chỉ máy mentor): **một** kết nối mang tín hiệu của **mọi** phiên, payload `data: {"sessionId":N}` (vẫn chỉ là tín hiệu, client gọi lại REST). Lý do: trình duyệt chỉ cho ~6 kết nối HTTP/1.1 mỗi địa chỉ, chuông không thể mở một `EventSource` cho mỗi phiên đang mở. Web: `EventStream.subscribeAdmin`, hook `useAdminEvents`.
 - **Event chỉ là tín hiệu "có thay đổi"** — client nhận event thì gọi lại API REST tương ứng. Không đẩy dữ liệu qua SSE (tránh lộ đáp án, đơn giản hoá).
 - Web: hook `useSessionEvents(sessionId, handlers)` dùng `EventSource`, tự kết nối lại. **Mỗi tab chỉ mở 1 `EventSource` cho mỗi phiên**, dùng chung cho mọi component (đếm người đăng ký, người cuối rời thì đóng): mỗi `EventSource` giữ một kết nối HTTP/1.1 và trình duyệt chỉ cho 6 kết nối/địa chỉ, mở thừa sẽ làm treo mọi request khác. Không tạo `EventSource` trực tiếp ngoài hook này.
@@ -183,6 +216,8 @@ Hàm thuần trong `src/shared/scoring.ts`:
 | `/admin/ai-grader-help` | mentor | Hướng dẫn bật AI chấm nháp (tĩnh) |
 | `/admin/sessions/:id/review` | mentor | Xem lại phiên: ai tham gia, bài từng người |
 | `/admin/sessions/:id/discuss` | mentor | Chế độ thảo luận: chiếu từng câu, chấm tự luận cùng lớp (S17) |
+| `/training/:id` | member | Buổi training AI (S36): nhập tên + đồng ý → hướng dẫn cài hook + chờ tín hiệu → đang thu → (sau Dừng thu) hướng dẫn gỡ + kiểm tra. Vào từ `/` bằng mã: `resolve` trả `kind: 'training'` thì `member-join` chuyển tới `/training/:id?room=<mã>` (`replace`, cùng quy ước `/?room=`; trang tự bỏ query sau khi vào). Token ở `localStorage` key `pq:training:<id>`; 401 → xoá token và hiện màn "đã kết thúc". Poll `/api/training/me`: 3 giây khi chờ tín hiệu đầu, đang kiểm tra gỡ hoặc mất kết nối, 10 giây khi đang thu hoặc xem hướng dẫn gỡ; tab ẩn không poll |
+| `/admin/trainings` · `/admin/trainings/:id` | mentor | Danh sách + tạo buổi training · trang buổi training: member, trạng thái kết nối, cờ kẹt, dòng thời gian, xem output khi cần, Dừng thu / Kết thúc (S35). `?hv=<memberId>` giữ học viên đang chọn |
 
 Chuông thông báo mentor (PRODUCT.md §7.20) nằm trong khung `/admin/*`: `useMentorNotices` (`features/mentor-notices/application`) lấy `/api/admin/sessions?active=true`, rồi `/api/admin/sessions/:id` của từng phiên đang mở và nghe **một** kênh `/api/admin/events` (mỗi thông báo gắn tên + slot của phiên); danh sách dựng bằng hàm thuần `features/mentor-notices/domain/mentor-notices.ts` từ `joinedAt`/`progress.submittedAt`; mốc đã xem ở `localStorage` key `pq:mentor:notices-seen:<sessionId>` (từng phiên một). Thanh "Đang mở" (`shared/ui/SessionStrip`, `Alt+1…9` theo slot) và phím `N` mở chuông nằm cùng khung. Thông báo desktop: `useDesktopNotify` (Notification API, cần secure context nên chỉ chạy trên `localhost`), lựa chọn bật/tắt ở `localStorage` key `pq:mentor:desktop-notify`, `tag` theo participant để nhiều tab không hiện trùng. Loại thông báo "xin sửa bài" (§7.21) dựng từ `progress.editRequest` của chính response đó; event `participants` có sẵn đủ để làm mới, không thêm event mới.
 
@@ -403,6 +438,71 @@ Gợi ý chấm tự luận bằng cách gọi Claude CLI trên máy mentor. UI 
 - **Use case** `application/use-cases/sharing/`: `SetSessionShared`, `GetShareLink`, `RotateShareLink`, `ListSharedSessions`, `GetSharedSession`. Đếm lựa chọn dùng lại port đọc của thảo luận (§11.5) nếu đủ, không thì thêm một port đọc riêng; **không** đọc tên hay bài làm.
 - **Route** `interface/http/sharing-routes.ts`, gồm hai plugin `sharingAdminRoutes` (trong `/api/admin`) và `sharedPublicRoutes` (công khai, `/api/shared`). Không phát event SSE (trang chia sẻ không cần realtime).
 - **Web** `features/shared-sessions/{domain,application,infrastructure,ui}`; mentor bật/tắt và lấy link trong `features/session-admin`; dòng thông báo trong `features/member-review`.
+
+### 11.8 Module `training` (S32–S36, PRODUCT.md §7.34)
+
+Thu prompt và hoạt động công cụ của Claude Code qua hook HTTP. Kết quả thử kỹ thuật: [spikes/claude-code-hooks.md](spikes/claude-code-hooks.md).
+
+- **Domain** `domain/training/` (thuần):
+  - `nextTrainingStatus(status, action: 'stop' \| 'end')`: `open → stopped → ended`, không đi ngược.
+  - `filterHookEvent(raw: unknown): TrainingEventDraft \| null`: whitelist, mọi trường khác bị bỏ (`transcript_path`, `cwd`, `scratchpad_dir`, `permission_mode`, `last_assistant_message`, …). `UserPromptSubmit` → `{ kind: 'prompt', prompt }`. `PostToolUse` / `PostToolUseFailure` → `{ kind: 'tool', toolName, ok, durationMs, toolTarget, errorExcerpt?, output?, change? }`. `toolTarget`: công cụ chạy lệnh (`Bash`, `PowerShell`, không phân biệt hoa thường, và mọi công cụ có `tool_input.command` là chuỗi) → `tool_input.command`; tool có `file_path`/`notebook_path`/`path` → đường dẫn **tương đối** so với `cwd` của hook (nằm ngoài `cwd` → chỉ tên file); tool khác → null. `output`: công cụ chạy lệnh → `stdout` + `stderr` (nếu `tool_response` không có cả hai thì giữ JSON gọn, không bỏ mất); **`Read` → không có output** (nội dung file bị bỏ ngay sau khi đếm số dòng; `toolTarget` thành `<đường dẫn> · N dòng`, PRODUCT.md §7.34c); tool khác → `tool_response` dạng chuỗi (JSON gọn nếu là object). `change`: `Edit` → khối `- <old_string>` / `+ <new_string>`; `Write` → `content`; tool khác → null. `errorExcerpt` = 20 dòng đầu của `error`. JSON sai dạng → null. Chốt khi cài (S33): loại sự kiện lấy từ `hook_event_name`, và suy ra từ các trường có mặt khi thiếu (`prompt` → prompt; `tool_name` + `error` → lỗi; `tool_name` → thành công; còn lại như `Stop` → null). `Write`/`Edit`/`MultiEdit`/`NotebookEdit` **không lưu output** (chỉ là xác nhận kèm đường dẫn tuyệt đối; việc đã làm nằm ở `change`). Mọi chuỗi giữ lại (`toolTarget`, `errorExcerpt`, output) bị thay phần `cwd` bằng đường dẫn tương đối (`cd /home/x/bai && ls` → `cd . && ls`), hiểu cả đường dẫn Windows. `isHookEvent(raw)` là kiểm tra rẻ cho buổi `stopped`.
+  - `clip(text): Clip`: `CLIP_HEAD_LINES = 200`, `CLIP_TAIL_LINES = 200`, mỗi phần tối đa `CLIP_PART_BYTES = 32 KB`, dòng dài hơn 2 000 ký tự bị cắt. Ngắn hơn tổng hai phần → `tail = null`, `omittedLines = 0`. Áp cho `output` và `change` trước khi lưu. Hằng số chốt lại sau khi đo trên máy thật (checklist mục 8 của spike). Một phần quá 32 KB bị bỏ bớt dòng từ phía trong và phần bỏ được cộng vào `omittedLines`.
+  - `isStuck(events)`: các sự kiện `tool` gần nhất của member có ≥ `STUCK_REPEAT = 3` lần **liên tiếp** thất bại với cùng `toolTarget` (prompt xen giữa không cắt chuỗi; một lần thành công thì cắt). Chỉ là cờ gợi ý, không phải điểm.
+  - `connectionState(member)`: `uninstalled` nếu có `uninstalled_at` và không có `seen_after_stop_at` muộn hơn; `connected` nếu có `first_seen_at`; còn lại `waiting`. `stillSending` = `seen_after_stop_at` khác null và (chưa `uninstalled_at` hoặc `seen_after_stop_at` muộn hơn).
+  - `buildHookSettings(baseUrl, ingestToken)`: object `{ hooks: { UserPromptSubmit, PostToolUse (matcher "*"), PostToolUseFailure (matcher "*") } }`, mỗi hook `{ type: 'http', url: baseUrl + '/api/training/ingest', headers: { 'X-Training-Token': ingestToken }, timeout: 1 }`. **Không** có `Stop` (chứa câu trả lời của Claude), không có hook `command`.
+- **Ports** `application/ports/`: `TrainingRepository`, `TrainingMemberRepository`, `TrainingEventRepository` (S33 làm `append`, nằm trong `TrainingUnitContext.events` để ghi sự kiện và cập nhật `last_seen_at` trong **một** unit; S34 thêm phía đọc `TrainingEventReader`: `listLight(memberId, afterId, limit)`, `getDetail(eventId)` (kèm `trainingId` để kiểm sự kiện thuộc buổi trong URL), `recentTools(memberId, n)` (cũ → mới, `n = STUCK_REPEAT`), `countsByMember(trainingId)`). `isStuck` coi `toolTarget = null` là không bao giờ lặp lại (không biết có cùng việc hay không). `TrainingMemberRepository` thêm `findByIngestToken`, `recordSeen`, `recordSeenAfterStop`, `startUninstallCheck`, `finishUninstall`. Cấp mã phòng dùng chung với phiên: bộ cấp mã hiện có phải kiểm cả `trainings.room_code`.
+- **Use case** `application/use-cases/training/`: `CreateTraining`, `ListTrainings`, `GetTrainingDetail`, `StopTraining`, `EndTraining`, `RemoveTrainingMember`, `JoinTraining`, `GetMyTraining`, `GetHookConfig`, `WithdrawTrainingConsent`, `StartUninstallCheck`, `FinishUninstallCheck`, `IngestHookEvent`, `ListMemberEvents`, `GetTrainingEventDetail`.
+- **Route** `interface/http/training-routes.ts`: `trainingAdminRoutes` (trong `/api/admin`), `trainingMemberRoutes` (`/api/trainings/:id/join`, `/api/training/me*`, hook `requireTrainingMember` đọc `X-Training-Member-Token`), `trainingIngestRoute` (`bodyLimit` riêng 2 MB; không áp giới hạn lần sai của mã phòng). Ingest phát tín hiệu SSE qua bộ gộp `TRAINING_SIGNAL_THROTTLE_MS` (§7).
+- **Web**: `features/training-admin/{domain,application,infrastructure,ui}` (mentor), `features/training-member/{…}` (member). `features/member-join` chỉ thêm: `resolve` trả `kind: 'training'` → chuyển tới `/training/:id` kèm mã. Hai feature không import nhau; component dùng chung (nếu có) vào `shared/ui/`. Liên kết "Buổi training AI" trong khung `/admin/*`.
+- **Test**: domain `filterHookEvent` dùng các payload thật đã ghi trong spike (`PostToolUse` Bash/PowerShell/Write, `PostToolUseFailure`, `UserPromptSubmit`, `Stop` → null); tích hợp HTTP ingest + quét key cấm ở route member; không chạy Claude Code thật trong `npm test`/`npm run e2e` (e2e gửi JSON hook giả tới ingest).
+
+### 11.9 Mở rộng `training` (S37–S40, PRODUCT.md §7.35; S37–S40 xong)
+
+Contract dự kiến; story nào chạm thì chốt lại tại đây. Payload thật: [spikes/claude-code-hooks.md](spikes/claude-code-hooks.md) §6.
+
+- **Hook thêm vào `buildHookSettings`** (S37, xong):
+  - `PermissionRequest` (matcher `*`).
+  - `Notification` (matcher `permission_prompt|idle_prompt`).
+  - `PreCompact`, `SessionEnd`, `PostModelSwitch`.
+
+  Vẫn **không** đăng ký `Stop` (câu trả lời của Claude) và `PostCompact` (`compact_summary` là tóm tắt do Claude viết). `SessionStart` không hỗ trợ HTTP.
+- **Bất biến an toàn** (S37): ingest **không bao giờ** trả `hookSpecificOutput` hay `decision`. Với `PermissionRequest`, mọi trạng thái của buổi đều trả 204 body rỗng; buổi `stopped` không kèm `systemMessage` cho loại này. Có test HTTP khẳng định điều này. Lý do: body `{"hookSpecificOutput":{"decision":{"behavior":"allow"}}}` làm Claude tự duyệt trên máy member (spike §6.2).
+- **`filterHookEvent` mở rộng** (S37):
+  - Giữ thêm `permission_mode` và `prompt_id` (chỉ để gom theo lượt, không hiển thị).
+  - Bỏ `scratchpad_dir`, và thay nó trong mọi chuỗi giữ lại giống như `cwd`.
+  - Kind mới:
+    - `permission` từ `PermissionRequest`: `toolName`, `toolTarget` và `change`, lọc như công cụ.
+    - `session` từ các hook phiên: `subtype` là `clear` | `exit` (các `reason` khác của `SessionEnd`) | `compact_manual` | `compact_auto` | `model_switch`; `note` là `custom_instructions` của `/compact` hoặc `"<from> → <to>"`.
+    - `notice` từ `Notification`: `subtype` là `waiting_permission` | `idle`. Bỏ `message`.
+  - `AskUserQuestion` (kind `tool`): `toolTarget` = các câu hỏi, `note` = các cặp "câu hỏi → lựa chọn" lấy từ `tool_input.answers`.
+  - `ExitPlanMode` (kind `tool`): `output` = `tool_response.plan`, chỉ tải khi mentor bấm "Xem".
+- **Bảng `training_events`** thêm cột:
+  - `permission_mode?`, `prompt_id?`, `subtype?`;
+  - `note?`, giới hạn 2 000 ký tự.
+
+  `kind` thêm các giá trị `permission`, `session`, `notice`. Migration bằng `npm run db:generate`.
+- **Dừng gửi cần mentor duyệt xoá** (S38, §7.35j, xong):
+  - `training_members` thêm `stopped_sending_at?`.
+  - `WithdrawTrainingConsent` (buổi `open`) không xoá dòng nữa, chỉ ghi `stopped_sending_at`. Từ lúc đó ingest với token này bị đối xử như buổi `stopped`: không lưu, trả lời nhắc gỡ, ghi `seen_after_stop_at`.
+  - Buổi `stopped`: không có nút dừng gửi.
+  - `connection` thêm giá trị `stopped_sending`.
+  - Route mentor mới `POST /api/admin/trainings/:id/members/:memberId/purge` xoá dòng member (cascade sự kiện), chỉ khi member có `stopped_sending_at`, khác thì trả 409.
+  - Sau khi xoá, `GET /api/training/me` trả 401 (như mọi member đã bị xoá); màn member hiện "Đã xoá dữ liệu" nếu lần cuối biết họ đang ở `stopped_sending`.
+  - `TrainingMemberRow.stoppedSending: boolean` để mentor luôn thấy ai đã dừng gửi.
+- **Cờ gợi ý** (S39, xong; ngưỡng và ghi chú trong story S39):
+  - Domain thuần `domain/training/flags/`, mỗi cờ một hàm `(events, ctx) → { code, eventIds[] } | null`. Hằng ngưỡng đặt cạnh từng hàm.
+  - `isVerifyCommand(command)` nhận lệnh kiểm tra theo mẫu phổ biến; mentor không cấu hình.
+  - `inferPermissionDecision(events)` suy ra cho mỗi sự kiện `permission`: `allowed` (có `tool` khớp `toolName` và `toolTarget` trước prompt kế tiếp), `denied`, hoặc `pending`, kèm `decisionMs` ước lượng.
+  - `trainings` thêm `allow_auto_accept` (boolean, mặc định false, đặt khi tạo buổi).
+  - `TrainingMemberRow` thêm `flags: FlagCode[]` và số đếm `clearCount`, `compactCount`, `permissionCount`.
+  - Trang dòng thời gian trả thêm `flags: { code, eventIds }[]`; mỗi dòng `permission` có `decision` và `decisionMs`.
+  - Tổng hợp lớp: `GET /trainings/:id` trả `flagCounts: Record<FlagCode, number>`, chỉ là số, không có tên.
+- **Báo cáo** (S40):
+  - Bảng `training_event_marks (event_id PK, cascade)`; `training_members` thêm `mentor_note?`; `trainings` thêm `report_exported_at?`.
+  - `PUT|DELETE /api/admin/trainings/:id/events/:eventId/mark` (idempotent) và `PUT .../members/:memberId/note` (≤ 2000 ký tự); 409 khi buổi đã kết thúc. `TrainingEventRow.marked`, `TrainingMemberRow.mentorNote` và `markedCount`, `TrainingDetail.reportExportedAt`.
+  - `GET /api/admin/trainings/:id/report.md` trả `text/markdown`: có `?preview=1` thì chỉ xem trước (không ghi `report_exported_at`), không có thì là file đính kèm và ghi lại lần xuất. Nội dung theo §7.35e; ví dụ đã đánh dấu chỉ có prompt, công cụ và đích, không có output, lỗi hay nội dung sửa.
+  - `maskSecrets(text)` (domain, cùng `SECRET_PATTERNS` với cờ `possible_secret`) che chuỗi giống khoá hoặc mật khẩu; `buildReport` chạy nó trên toàn bộ văn bản ở bước cuối.
+  - Dấu, ghi chú và báo cáo đều bị xoá khi Kết thúc.
 
 ## 12. Web: hạ tầng dùng chung (P4-1, issue #18)
 

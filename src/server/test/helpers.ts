@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { buildApp } from '../app.js';
-import { compose, type AiOptions } from '../composition.js';
+import { compose, type AiOptions, type SharedPorts } from '../composition.js';
 import type { JoinLimiter } from '../interface/http/join-limiter.js';
 import { createDb, type Db } from '../infrastructure/db/client.js';
 import { eq } from 'drizzle-orm';
@@ -10,9 +10,9 @@ import { exams, options, participants, questions, sessions } from '../infrastruc
 // Tests never reach the mentor's real AI command: without `ai`, the grader points at a config file that does not exist.
 export const NO_AI_CONFIG = 'config/__tests_have_no_ai__.json';
 
-export async function createTestApp({ ai, ...opts }: { adminRoutes?: FastifyPluginAsync[]; allowRemoteAdmin?: boolean; lanIps?: () => string[]; joinLimiter?: JoinLimiter; ai?: AiOptions } = {}) {
+export async function createTestApp({ ai, ports, ...opts }: { adminRoutes?: FastifyPluginAsync[]; allowRemoteAdmin?: boolean; lanIps?: () => string[]; joinLimiter?: JoinLimiter; ai?: AiOptions; /** Swap shared ports (e.g. a fake clock). */ ports?: Partial<SharedPorts> } = {}) {
   const db = createDb(':memory:');
-  const composition = compose(db, {}, ai ?? { configPath: NO_AI_CONFIG });
+  const composition = compose(db, ports ?? {}, ai ?? { configPath: NO_AI_CONFIG });
   const app = await buildApp({ db, composition, ...opts });
   return { app, db, composition };
 }

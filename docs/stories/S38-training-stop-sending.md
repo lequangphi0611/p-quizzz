@@ -1,0 +1,45 @@
+# S38: Training: member dừng gửi, mentor duyệt xoá dữ liệu
+
+**Phụ thuộc:** S35, S36 · **Trạng thái:** ✅ xong (2026-11-21)
+
+## Bối cảnh
+PO đổi quy tắc (2026-11-21). Member không còn tự xoá dữ liệu khi buổi đang mở. Member bấm "Dừng gửi" thì app ngừng nhận ngay; dữ liệu đã thu được giữ cho tới khi mentor duyệt xoá hoặc bấm Kết thúc; mentor thấy tên người đã dừng. Business: [PRODUCT.md §7.34](../PRODUCT.md) (b) và §7.35 (j).
+
+## Phạm vi
+Contract: `architecture.md` §11.9 (Dừng gửi).
+
+- **Server**
+  - Cột `stopped_sending_at`.
+  - `WithdrawTrainingConsent` đổi sang ghi `stopped_sending_at` thay vì xoá dòng.
+  - Ingest với token đã dừng xử lý như buổi `stopped`.
+  - `connection` thêm giá trị `stopped_sending`.
+  - Route `purge` và use case `PurgeTrainingMember`.
+- **Web mentor**
+  - Hàng member có chip "Đã dừng gửi" và nút "Duyệt xoá", kèm hộp thoại xác nhận.
+- **Web member**
+  - Đổi nút "Rút lại đồng ý" thành "Dừng gửi".
+  - Hộp thoại nói rõ dữ liệu đã gửi chỉ bị xoá khi mentor duyệt hoặc khi buổi kết thúc.
+  - Trạng thái "Đã dừng gửi, chờ mentor xoá" rồi "Đã xoá dữ liệu".
+  - Hướng dẫn gỡ hook như khi buổi dừng thu.
+  - Câu chữ màn đồng ý cập nhật theo §7.34b.
+
+## Acceptance criteria
+- [x] Buổi `open`: dừng gửi thì sự kiện mới không được lưu và nhận lời nhắc gỡ; dữ liệu cũ còn nguyên; mentor thấy tên kèm `stopped_sending`.
+- [x] Buổi `stopped`: không có hành động dừng gửi; API trả 409.
+- [x] `purge` chỉ chạy được với member đã dừng gửi, khác thì trả 409. Sau `purge`: sự kiện bị xoá (cascade), `me` của member trả 401 (xem ghi chú cuối), bảng mentor không còn dòng đó.
+- [x] Kết thúc vẫn xoá mọi member, kể cả người đã dừng gửi.
+- [x] Người chưa từng đồng ý vẫn không xuất hiện ở đâu.
+
+## Test
+- Use case và tích hợp HTTP: dừng gửi rồi ingest, purge, các trường hợp 409, kết thúc.
+- E2E: member dừng gửi, mentor thấy tên và duyệt xoá, member thấy "Đã xoá dữ liệu".
+
+## Giới hạn đã biết
+- Member vẫn tự gỡ hook được bất kỳ lúc nào; app chỉ quản lý dữ liệu đã nhận.
+
+## Đã làm (ghi chú)
+- **Khác contract ban đầu:** sau khi mentor duyệt xoá, `GET /api/training/me` trả **401** (như mọi member đã bị xoá), không phải 404. Màn member phân biệt "Đã xoá dữ liệu" với "Đã kết thúc" bằng việc lần cuối biết member đang ở trạng thái `stopped_sending`.
+- `TrainingMemberRow.stoppedSending` (thêm vào API mentor) để nút "Duyệt xoá" hiện cả khi chip kết nối đang là "Vẫn gửi sau khi dừng" hay "Đã gỡ".
+- Ingest của member đã dừng gửi trả 200 `{systemMessage}` với lời nhắc riêng (`STOPPED_SENDING_REMINDER`); riêng `PermissionRequest` vẫn là 204 body rỗng.
+- Member đã dừng gửi vẫn làm được kiểm tra gỡ sau khi mentor "Dừng thu".
+- Ảnh: `docs/design/S38-assets/`.

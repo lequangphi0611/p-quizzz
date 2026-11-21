@@ -1,10 +1,10 @@
 import type { MySession } from '../domain/my-sessions.js';
-import type { ActiveSession, JoinResponse, MeResponse, RejoinRequestResponse, RejoinStatusResponse } from '../../../../shared/api/index.js';
+import type { ActiveSession, JoinResponse, MeResponse, RejoinRequestResponse, RejoinStatusResponse, ResolvedRoom } from '../../../../shared/api/index.js';
 
 /** Port: what the member's home needs from the server. Failures reject with `ApiError`. */
 export interface MemberGateway {
-  /** Finds the open session for a room code (403 wrong code or not open, 429 too many wrong codes). */
-  resolveRoom(roomCode: string): Promise<ActiveSession>;
+  /** Finds what a room code opens: an open exam session or an AI training (403 wrong code or not open, 429 too many wrong codes). */
+  resolveRoom(roomCode: string): Promise<ResolvedRoom>;
   /** The member's own state for the session in TokenStore's "current session" (401 unknown token, 403 kicked). */
   getMe(): Promise<MeResponse>;
   /** `email` only for a roster session (the server ignores it otherwise). */
