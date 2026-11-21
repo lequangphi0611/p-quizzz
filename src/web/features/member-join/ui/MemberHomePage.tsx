@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router';
 import type { MeResponse } from '../../../../shared/api/index.js';
 import { Leaderboard } from '../../../shared/leaderboard/Leaderboard.js';
 import { roomFromSearch } from '../../../shared/room/room-code.js';
@@ -30,6 +31,10 @@ export function MemberHomePage({ examScreen }: { examScreen: ExamScreen }) {
   const title = me?.session.title ?? selectRoom(state)?.title;
   const name = me && (screen === 'pending' || screen === 'lobby') ? me.participant.displayName : undefined;
   const desk = useIsDesk();
+  const nav = useNavigate();
+  // A training's code continues at /training/:id with the code in the address (`?room=`, like a join link): joining needs it.
+  // `replace`, so Back from the training page does not land on a link that bounces forward again.
+  const openTraining = (trainingId: number, roomCode: string) => nav(`/training/${trainingId}?room=${roomCode}`, { replace: true });
 
   if (screen === 'running') {
     return examScreen({ me: me!, onChanged: ctrl.refreshMe, leaderboard: <Leaderboard sessionId={me!.session.id} highlightName={me!.participant.displayName} /> });
@@ -54,7 +59,7 @@ export function MemberHomePage({ examScreen }: { examScreen: ExamScreen }) {
     case 'code':
     case 'join':
       return page(<>
-        <JoinForm desk={desk} state={state} linkRoom={linkRoom} ctrl={ctrl} />
+        <JoinForm desk={desk} state={state} linkRoom={linkRoom} ctrl={ctrl} onTraining={openTraining} />
         {screen === 'code' && <MySessionsList desk={desk} sessions={state.mine} ctrl={ctrl} />}
       </>);
     case 'pending':

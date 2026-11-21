@@ -1,7 +1,9 @@
-import type { HookConfig, JoinTrainingResponse, MyTraining, UninstallCheckResult } from '../../../../shared/api/index.js';
+import type { HookConfig, JoinTrainingResponse, MyTraining, ResolvedRoom, UninstallCheckResult } from '../../../../shared/api/index.js';
 
 /** Port: what a member of an AI training may do. The member's token is passed on every call after `join`. Nothing here returns what was collected. */
 export interface TrainingMemberGateway {
+  /** What a room code opens (shared with exam sessions; 403 wrong code or not open, 429 too many wrong codes). Gives the consent screen the training's title. */
+  resolveRoom(roomCode: string): Promise<ResolvedRoom>;
   /** Joins with the room code; `consent` is always `true` (the server refuses anything else). */
   join(trainingId: number, input: { displayName: string; roomCode: string }): Promise<JoinTrainingResponse>;
   me(token: string): Promise<MyTraining>;
