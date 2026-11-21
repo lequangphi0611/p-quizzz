@@ -679,3 +679,57 @@ describe('TrainingController: marks, notes and the report (S40)', () => {
     expect(ctrl.getState().report).toBeNull();
   });
 });
+
+describe('TrainingController: folding the commands of a turn', () => {
+  const twoTurns = (): TrainingEventsPage => ({
+    events: [ev(1, { kind: 'prompt', prompt: 'một', toolName: undefined, toolTarget: undefined, ok: undefined }), ev(2), ev(3, { ok: false }),
+      ev(4, { kind: 'prompt', prompt: 'hai', toolName: undefined, toolTarget: undefined, ok: undefined }), ev(5)],
+    hasMore: false, flags: [{ code: 'repeated_failure', eventIds: [3] }],
+  });
+  const picked = async () => {
+    const m = make({ events: vi.fn(async () => twoTurns()) }, detail(), { initialMemberId: 1 });
+    m.ctrl.start();
+    await flush();
+    return m.ctrl;
+  };
+  const folded = (c: TrainingController) => [...c.getState().timeline!.collapsed].sort();
+
+  it('starts with every turn open; a turn folds and opens on its own', async () => {
+    const c = await picked();
+    expect(folded(c)).toEqual([]);
+    c.toggleTurn('t1');
+    expect(folded(c)).toEqual(['t1']);
+    c.toggleTurn('t1');
+    expect(folded(c)).toEqual([]);
+  });
+
+  it('"thu gọn tất cả" folds every turn that has commands, and "mở tất cả" opens them', async () => {
+    const c = await picked();
+    c.setAllCollapsed(true);
+    expect(folded(c)).toEqual(['t1', 't4']);
+    c.setAllCollapsed(false);
+    expect(folded(c)).toEqual([]);
+  });
+
+  it('a flag chip opens the folded turn it jumps into, and leaves the others folded', async () => {
+    const c = await picked();
+    c.setAllCollapsed(true);
+    c.jumpToFlag('repeated_failure');
+    expect(folded(c)).toEqual(['t4']);
+    expect(c.getState().timeline!.focusId).toBe(3);
+  });
+
+  it('keeps the folded turns when new events arrive', async () => {
+    const c = await picked();
+    c.toggleTurn('t1');
+    await c.refresh();
+    expect(folded(c)).toEqual(['t1']);
+  });
+
+  it('forgets the folds when another member is picked', async () => {
+    const c = await picked();
+    c.toggleTurn('t1');
+    c.select(2);
+    expect(folded(c)).toEqual([]);
+  });
+});

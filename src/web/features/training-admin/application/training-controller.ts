@@ -3,7 +3,7 @@ import { ApiError } from '../../../shared/api-client/http-client.js';
 import { announcementFor } from '../domain/announcements.js';
 import { evidenceOf } from '../domain/flags.js';
 import { reportFileName } from '../domain/report.js';
-import { stepEvent } from '../domain/timeline.js';
+import { buildTimeline, stepEvent, turnKeyOf, turnKeys } from '../domain/timeline.js';
 import type { TrainingAdminGateway } from './training-admin-gateway.js';
 
 /** A member's timeline as loaded so far (oldest first). */
@@ -26,6 +26,8 @@ export interface TimelineState {
   /** The event a flag chip last jumped to: drawn highlighted; `focusToken` changes on every jump so the page scrolls even to the same row. */
   focusId: number | null;
   focusToken: number;
+  /** Turns the mentor folded (keys from `buildTimeline`): their commands are hidden until opened again. New turns start open. */
+  collapsed: ReadonlySet<string>;
 }
 
 export type PanelKind = 'output' | 'change';
@@ -134,7 +136,7 @@ export class TrainingController {
     for (const l of [...this.listeners]) l();
   }
   private freshTimeline(memberId: number): TimelineState {
-    return { memberId, events: [], hasMore: false, phase: 'loading', loadingMore: false, error: '', newCount: 0, stickToken: 0, flags: [], focusId: null, focusToken: 0 };
+    return { memberId, events: [], hasMore: false, phase: 'loading', loadingMore: false, error: '', newCount: 0, stickToken: 0, flags: [], focusId: null, focusToken: 0, collapsed: new Set() };
   }
 
   /** Loads what the first render could not: the timeline of the member from the URL, the count of an ended training. Safe to call twice. */
@@ -313,7 +315,36 @@ export class TrainingController {
     const ids = evidenceOf(flag, tl.events);
     if (ids.length === 0) return;
     const at = tl.focusId === null ? -1 : ids.indexOf(tl.focusId);
-    this.set({ timeline: { ...tl, focusId: ids[(at + 1) % ids.length]!, focusToken: tl.focusToken + 1 } });
+    const id = ids[(at + 1) % ids.length]!;
+    this.set({ timeline: { ...tl, collapsed: this.without(tl, id), focusId: id, focusToken: tl.focusToken + 1 } });
+  }
+
+  // ── Folding the commands of a turn ────────────────────────────────────────────────────────────────
+
+  /** The folded set with the turn of `eventId` opened, so a jump never lands on a hidden row. */
+  private without(tl: TimelineState, eventId: number): ReadonlySet<string> {
+    const key = turnKeyOf(tl.events, eventId);
+    if (key === null || !tl.collapsed.has(key)) return tl.collapsed;
+    const next = new Set(tl.collapsed);
+    next.delete(key);
+    return next;
+  }
+
+  /** Folds or opens one turn. */
+  toggleTurn(key: string): void {
+    const tl = this.state.timeline;
+    if (!tl) return;
+    const next = new Set(tl.collapsed);
+    if (!next.delete(key)) next.add(key);
+    this.set({ timeline: { ...tl, collapsed: next } });
+  }
+
+  /** "Thu gọn tất cả" / "Mở tất cả". */
+  setAllCollapsed(collapsed: boolean): void {
+    const tl = this.state.timeline;
+    if (!tl) return;
+    const keys = collapsed ? turnKeys(buildTimeline(tl.events, { memberStuck: false })) : [];
+    this.set({ timeline: { ...tl, collapsed: new Set(keys) } });
   }
 
   /** The page reports whether the timeline is at its end (within 80px) after every scroll. */
@@ -365,6 +396,7 @@ export class TrainingController {
     const target = stepEvent(tl.events, p.eventId, direction);
     if (!target) return;
     const kind: PanelKind = p.kind === 'output' ? (target.hasOutput ? 'output' : 'change') : (target.hasChange ? 'change' : 'output');
+    this.set({ timeline: { ...tl, collapsed: this.without(tl, target.id) } });
     void this.openDetail(target.id, kind);
   }
 

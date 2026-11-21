@@ -12,7 +12,7 @@ import { evidenceOf, visibleFlags } from '../domain/flags.js';
 import { decisionText, isAutoMode, modeLabel, noteLines, noticeTitle, sessionTitle } from '../domain/row-text.js';
 import { isNearBottom } from '../domain/scroll.js';
 import { toolLabel } from '../domain/tool-label.js';
-import { buildTimeline, type TimelineItem, type TimelineTool } from '../domain/timeline.js';
+import { buildTimeline, turnKeys, type TimelineItem, type TimelineTool } from '../domain/timeline.js';
 import { ConnectionChip, FlagChip, StuckChip, ToolName, visuallyHidden } from './chips.js';
 import { MarkButton, NoticeRow, PanelButton, PermissionRow, SessionRow, rowBox } from './TimelineRows.js';
 import { NoteBox } from './NoteBox.js';
@@ -31,7 +31,20 @@ function SessionDivider({ index, startedAt }: { index: number; startedAt: number
   );
 }
 
-function PromptBlock({ event, number, focused, onMark }: { event: TrainingEventRow; number: number | null; focused: boolean; onMark: (id: number) => void }) {
+interface Fold { open: boolean; commands: number; failed: number; onToggle: () => void }
+
+/** Folds or opens the commands under a prompt. */
+function FoldButton({ fold }: { fold: Fold }) {
+  const label = fold.open ? 'Thu gọn các lệnh của prompt này' : 'Mở các lệnh của prompt này';
+  return (
+    <button type="button" aria-expanded={fold.open} title={label} aria-label={label} onClick={fold.onToggle}
+      style={{ display: 'inline-grid', placeItems: 'center', width: 28, height: 28, padding: 0, border: 0, borderRadius: 'var(--radius-sm)', cursor: 'pointer', flex: 'none', background: 'transparent', color: 'var(--ink-700)' }}>
+      <Icon name={fold.open ? 'chevron-up' : 'chevron-down'} size={16} />
+    </button>
+  );
+}
+
+function PromptBlock({ event, number, focused, onMark, fold }: { event: TrainingEventRow; number: number | null; focused: boolean; onMark: (id: number) => void; fold: Fold | null }) {
   const mode = modeLabel(event.permissionMode);
   return (
     <div id={`ev-${event.id}`} style={{ display: 'grid', gridTemplateColumns: '18px minmax(0, 1fr) auto', gap: 10, alignItems: 'start', padding: '12px 14px', borderRadius: 'var(--radius-md)', background: focused ? 'var(--sun-100)' : 'var(--brand-050)', border: `1px solid ${focused ? 'var(--sun-200)' : 'var(--brand-200)'}` }}>
@@ -42,9 +55,15 @@ function PromptBlock({ event, number, focused, onMark }: { event: TrainingEventR
           {mode && <span title="Chế độ quyền của Claude Code lúc bạn ấy gõ prompt" style={{ textTransform: 'none', letterSpacing: 0, padding: '1px 8px', borderRadius: 'var(--radius-pill)', font: 'var(--type-label)', fontSize: 12, background: isAutoMode(event.permissionMode) ? 'var(--sun-100)' : 'var(--paper)', color: isAutoMode(event.permissionMode) ? 'var(--sun-ink)' : 'var(--ink-700)', border: `1px solid ${isAutoMode(event.permissionMode) ? 'var(--sun-200)' : 'var(--ink-300)'}` }}>{mode}</span>}
         </span>
         <p style={{ margin: 0, font: '500 16px/1.5 var(--font-sans)', color: 'var(--text-title)', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{event.prompt}</p>
+        {fold && !fold.open && (
+          <button type="button" onClick={fold.onToggle} style={{ justifySelf: 'start', padding: 0, border: 0, background: 'none', cursor: 'pointer', font: 'var(--type-meta)', fontWeight: 600, color: 'var(--text-link)', textDecoration: 'underline' }}>
+            {fold.commands} lệnh đã thu gọn{fold.failed > 0 ? ` · ${fold.failed} lỗi` : ''}
+          </button>
+        )}
       </div>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
         <span style={{ font: `500 13px/1 ${mono}`, color: 'var(--text-meta)' }}>{formatClock(event.receivedAt)}</span>
+        {fold && <FoldButton fold={fold} />}
         <MarkButton id={event.id} marked={event.marked} onToggle={onMark} />
       </span>
     </div>
@@ -112,6 +131,8 @@ export function Timeline({ member, timeline, panel, hidden, markError, ctrl, can
   const [noteOpen, setNoteOpen] = useState(false);
   const onMark = (id: number) => void ctrl.toggleMark(id);
   const items: TimelineItem[] = hidden ? [] : buildTimeline(timeline.events, { memberStuck: member.stuck });
+  const foldable = turnKeys(items);
+  const allFolded = foldable.length > 0 && foldable.every(k => timeline.collapsed.has(k));
   const flags = timeline.flags.filter(f => visibleFlags({ flags: [f.code], stuck: member.stuck }).length > 0).map(f => ({ code: f.code, ids: evidenceOf(f, timeline.events) })).filter(f => f.ids.length > 0);
 
   // Follow the end when the controller says so (first load, or new lines while the mentor is at the end).
@@ -151,6 +172,7 @@ export function Timeline({ member, timeline, panel, hidden, markError, ctrl, can
         </div>
         {canRemove && (
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+            {!hidden && foldable.length > 0 && <Button variant="ghost" size="sm" icon={allFolded ? 'chevron-down' : 'chevron-up'} onClick={() => ctrl.setAllCollapsed(!allFolded)}>{allFolded ? 'Mở tất cả' : 'Thu gọn tất cả'}</Button>}
             {!hidden && <Button variant="ghost" size="sm" icon="pencil" pressed={noteOpen} onClick={() => setNoteOpen(o => !o)}>{member.mentorNote ? 'Ghi chú ✓' : 'Ghi chú'}</Button>}
             <Button variant="ghost" size="sm" icon="user-x" onClick={onRemove}>Mời ra</Button>
           </div>
@@ -179,22 +201,33 @@ export function Timeline({ member, timeline, panel, hidden, markError, ctrl, can
           </div>
         ) : (
           <>
-            {items.map(item => item.kind === 'session' ? <SessionDivider key={item.key} index={item.index} startedAt={item.startedAt} /> : (
-              <div key={item.key} style={{ display: 'grid', gap: 6 }}>
-                {item.prompt && <PromptBlock event={item.prompt} number={item.promptNumber} focused={timeline.focusId === item.prompt.id} onMark={onMark} />}
-                {item.tools.length > 0 && (
-                  <ol style={{ listStyle: 'none', margin: '0 0 0 14px', padding: '0 0 0 12px', borderLeft: '2px solid var(--ink-200)', display: 'grid', gap: 2 }}>
-                    {item.tools.map(t => {
-                      const focused = timeline.focusId === t.event.id;
-                      return t.event.kind === 'permission' ? <PermissionRow key={t.event.id} event={t.event} panel={panel} focused={focused} onOpen={onOpen} onMark={onMark} />
-                        : t.event.kind === 'session' ? <SessionRow key={t.event.id} event={t.event} focused={focused} />
-                        : t.event.kind === 'notice' ? <NoticeRow key={t.event.id} event={t.event} focused={focused} />
-                        : <ToolRow key={t.event.id} tool={t} panel={panel} focused={focused} onOpen={onOpen} onMark={onMark} />;
-                    })}
-                  </ol>
-                )}
-              </div>
-            ))}
+            {items.map(item => {
+              if (item.kind === 'session') return <SessionDivider key={item.key} index={item.index} startedAt={item.startedAt} />;
+              const foldable = item.tools.length > 0;
+              const open = !foldable || !timeline.collapsed.has(item.key);
+              const fold: Fold | null = foldable ? { open, commands: item.tools.length, failed: item.tools.filter(t => t.event.kind === 'tool' && t.event.ok === false).length, onToggle: () => ctrl.toggleTurn(item.key) } : null;
+              return (
+                <div key={item.key} style={{ display: 'grid', gap: 6 }}>
+                  {item.prompt ? <PromptBlock event={item.prompt} number={item.promptNumber} focused={timeline.focusId === item.prompt.id} onMark={onMark} fold={fold} />
+                    : fold && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, font: 'var(--type-meta)', color: 'var(--text-meta)' }}>
+                        <FoldButton fold={fold} />{open ? 'Lệnh chạy trước prompt đầu tiên' : `${fold.commands} lệnh đã thu gọn`}
+                      </div>
+                    )}
+                  {open && item.tools.length > 0 && (
+                    <ol style={{ listStyle: 'none', margin: '0 0 0 14px', padding: '0 0 0 12px', borderLeft: '2px solid var(--ink-200)', display: 'grid', gap: 2 }}>
+                      {item.tools.map(t => {
+                        const focused = timeline.focusId === t.event.id;
+                        return t.event.kind === 'permission' ? <PermissionRow key={t.event.id} event={t.event} panel={panel} focused={focused} onOpen={onOpen} onMark={onMark} />
+                          : t.event.kind === 'session' ? <SessionRow key={t.event.id} event={t.event} focused={focused} />
+                          : t.event.kind === 'notice' ? <NoticeRow key={t.event.id} event={t.event} focused={focused} />
+                          : <ToolRow key={t.event.id} tool={t} panel={panel} focused={focused} onOpen={onOpen} onMark={onMark} />;
+                      })}
+                    </ol>
+                  )}
+                </div>
+              );
+            })}
             {timeline.hasMore && (
               <div style={{ display: 'grid', justifyItems: 'center', gap: 8 }}>
                 {timeline.error && <ErrorMessage message={timeline.error} />}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TrainingEventRow } from '../../../../shared/api/index.js';
-import { buildTimeline, stepEvent, type TimelineItem } from './timeline.js';
+import { buildTimeline, stepEvent, turnKeyOf, turnKeys, type TimelineItem } from './timeline.js';
 
 let id = 0;
 const prompt = (text: string, session = 's1'): TrainingEventRow => ({ id: ++id, kind: 'prompt', receivedAt: id * 1000, claudeSessionId: session, prompt: text, hasOutput: false, hasChange: false, marked: false });
@@ -106,5 +106,27 @@ describe('rows other than commands', () => {
     const p = row('permission', { toolName: 'Edit', toolTarget: 'x.ts', hasChange: true });
     const events = [a, row('notice', { subtype: 'idle' }), p];
     expect(stepEvent(events, a.id, 1)?.id).toBe(p.id);
+  });
+});
+
+describe('folding turns', () => {
+  it('turnKeys lists only turns that have something under the prompt', () => {
+    const a = prompt('một');
+    const t1 = tool('Bash', 'ls', true);
+    const b = prompt('hai, không lệnh');
+    const keys = turnKeys(buildTimeline([a, t1, b], { memberStuck: false }));
+    expect(keys).toEqual([`t${a.id}`]);
+  });
+
+  it('turnKeyOf finds the turn of a prompt or of a command, and null for an unknown event', () => {
+    const a = prompt('một');
+    const t1 = tool('Bash', 'ls', true);
+    const b = prompt('hai');
+    const t2 = tool('Bash', 'pwd', true);
+    const events = [a, t1, b, t2];
+    expect(turnKeyOf(events, t1.id)).toBe(`t${a.id}`);
+    expect(turnKeyOf(events, a.id)).toBe(`t${a.id}`);
+    expect(turnKeyOf(events, t2.id)).toBe(`t${b.id}`);
+    expect(turnKeyOf(events, 9999)).toBeNull();
   });
 });

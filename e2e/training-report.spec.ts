@@ -76,6 +76,19 @@ test('mark examples, write a note, preview and download the report, and the prom
   await expect(timeline.getByRole('button', { name: 'Bỏ đánh dấu ví dụ' })).toHaveCount(2);
   await expect(page.getByRole('button', { name: 'Ghi chú ✓' })).toBeVisible();
 
+  // ── Fold the commands of a prompt, open them again; fold all / open all ─────────────────────────────
+  const first = timeline.getByRole('button', { name: 'Thu gọn các lệnh của prompt này' }).first();
+  await first.click();
+  await expect(timeline.locator('li', { hasText: 'npm test' })).toHaveCount(0);
+  await expect(timeline.getByText('1 lệnh đã thu gọn')).toBeVisible();
+  await shot(page, 'M27-thu-gon-lenh');
+  await timeline.getByRole('button', { name: 'Mở các lệnh của prompt này' }).click();
+  await expect(timeline.locator('li', { hasText: 'npm test' })).toHaveCount(1);
+  await page.getByRole('button', { name: 'Thu gọn tất cả' }).click();
+  await expect(timeline.locator('li')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Mở tất cả' }).click();
+  await expect(timeline.locator('li', { hasText: 'npm test' })).toHaveCount(1);
+
   // ── Preview, then the file ─────────────────────────────────────────────────────────────────────────
   await page.getByRole('button', { name: 'Xuất báo cáo' }).click();
   await expect(dialog.getByText('Đã đánh dấu 2 ví dụ · 1 ghi chú')).toBeVisible();

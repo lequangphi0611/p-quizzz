@@ -38,6 +38,7 @@ Contract: `architecture.md` §11.9 (Báo cáo).
 - Sửa kèm theo: mẫu `password|token|...=` trước đây bỏ sót `DB_PASSWORD=...` (dấu `_` bị coi là chữ); cờ "Có thể lộ bí mật" cũng được lợi.
 - `ConfirmDialog` giờ có `aria-labelledby`. Hai biểu tượng mới: `bookmark-check`, `download`.
 - Khi bật "Ẩn nội dung", hộp thoại xuất không hiện bản xem trước (có tên và prompt), ghi chú cũng ẩn; tải file vẫn được.
+- Thu gọn lệnh (PO thêm sau khi xem): mỗi prompt có nút thu gọn/mở các lệnh bên dưới, kèm "N lệnh đã thu gọn · M lỗi"; nút "Thu gọn tất cả" / "Mở tất cả" ở header. Chỉ ở phía web, tạm thời (không lưu), mỗi member một trạng thái; chip cờ và J/K tự mở lượt chứa dòng đích.
 - Ảnh chụp: `docs/design/S40-assets/`. Hộp thoại xuất và khối ghi chú chưa qua designer.
 
 ## Chưa làm (để sau)
