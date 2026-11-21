@@ -24,4 +24,29 @@ describe('HttpTrainingAdminGateway', () => {
     ]);
     expect(JSON.parse((f.mock.calls[1]![1] as RequestInit).body as string)).toEqual({ name: 'Buổi 1' });
   });
+
+  describe('the "hide content" choice', () => {
+    const http = createHttpClient({ fetch: vi.fn() as unknown as typeof fetch });
+    const memory = () => { const m = new Map<string, string>(); return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => { m.set(k, v); } }; };
+
+    it('is remembered in the browser storage', () => {
+      const storage = memory();
+      const g = new HttpTrainingAdminGateway(http, storage);
+      expect(g.readHideContent()).toBe(false);
+      g.writeHideContent(true);
+      expect(g.readHideContent()).toBe(true);
+      expect(new HttpTrainingAdminGateway(http, storage).readHideContent()).toBe(true); // survives a reload
+      g.writeHideContent(false);
+      expect(g.readHideContent()).toBe(false);
+    });
+
+    it('works without storage, or when the storage throws', () => {
+      const none = new HttpTrainingAdminGateway(http, null);
+      none.writeHideContent(true);
+      expect(none.readHideContent()).toBe(false);
+      const broken = new HttpTrainingAdminGateway(http, { getItem: () => { throw new Error('blocked'); }, setItem: () => { throw new Error('blocked'); } });
+      expect(() => broken.writeHideContent(true)).not.toThrow();
+      expect(broken.readHideContent()).toBe(false);
+    });
+  });
 });

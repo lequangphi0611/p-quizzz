@@ -18,4 +18,10 @@ export interface TrainingAdminGateway {
   eventDetail(trainingId: number, eventId: number): Promise<TrainingEventDetail>;
   /** LAN addresses members can type (`/api/network`), to show next to the room code. */
   getJoinHosts(): Promise<string[]>;
+  /**
+   * "Ẩn nội dung" (the page may be on a projector): remembered in this mentor's browser only. Synchronous and never
+   * throws; without storage (private window) it answers `false` and forgets.
+   */
+  readHideContent(): boolean;
+  writeHideContent(hide: boolean): void;
 }
