@@ -9,8 +9,9 @@ import { Kbd } from '../../../shared/ui/Kbd.js';
 import { useTraining } from '../application/use-training.js';
 import type { TrainingController, TrainingState } from '../application/training-controller.js';
 import { memberCountLabel } from '../domain/training-ui.js';
+import { flagTotals } from '../domain/flags.js';
 import { uninstallProgress } from '../domain/members.js';
-import { TrainingStatusBadge, visuallyHidden } from './chips.js';
+import { FlagChip, TrainingStatusBadge, visuallyHidden } from './chips.js';
 import { EventPanel } from './EventPanel.js';
 import { MembersTable } from './MembersTable.js';
 import { RoomCodeCard, RoomCodeInline } from './RoomCode.js';
@@ -68,7 +69,12 @@ function TrainingView({ initial }: { initial: TrainingDetail }) {
         detail.status === 'open' && detail.roomCode ? <RoomCodeCard roomCode={detail.roomCode} /> : (
           <Card><p style={{ margin: 0, font: 'var(--type-body)', color: 'var(--text-meta)' }}>Không có học viên nào trong buổi này.</p></Card>
         )
-      ) : <Workspace state={state} ctrl={ctrl} closePanel={closePanel} />}
+      ) : (
+        <>
+          <ClassSummary detail={detail} />
+          <Workspace state={state} ctrl={ctrl} closePanel={closePanel} />
+        </>
+      )}
       <TrainingDialogs state={state} ctrl={ctrl} />
     </div>
   );
@@ -125,6 +131,24 @@ function StoppedBanner({ detail }: { detail: TrainingDetail }) {
         </div>
       )}
     </>
+  );
+}
+
+// How many members have each flag: counts only, no names, no comparison, no ranking (PRODUCT.md §7.35d). Hidden when no flag is up.
+function ClassSummary({ detail }: { detail: TrainingDetail }) {
+  const totals = flagTotals(detail);
+  if (totals.length === 0) return null;
+  return (
+    <section aria-label="Tổng hợp lớp" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 14px', borderRadius: 'var(--radius-md)', background: 'var(--surface-card)', border: '1px solid var(--border-hairline)' }}>
+      <strong style={{ font: 'var(--type-ui)', fontSize: 14, color: 'var(--text-title)' }}>Tổng hợp lớp</strong>
+      {totals.map(t => (
+        <span key={t.code} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <FlagChip code={t.code} />
+          <span style={{ font: 'var(--type-meta)', fontVariantNumeric: 'tabular-nums', color: 'var(--ink-800)', fontWeight: 600 }}>{t.count}/{t.total} bạn</span>
+        </span>
+      ))}
+      <span style={{ font: 'var(--type-meta)', fontSize: 12.5, color: 'var(--text-meta)' }}>Chỉ đếm, không có tên. Cờ là gợi ý, không phải điểm.</span>
+    </section>
   );
 }
 

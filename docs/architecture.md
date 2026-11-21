@@ -456,7 +456,7 @@ Thu prompt và hoạt động công cụ của Claude Code qua hook HTTP. Kết 
 - **Web**: `features/training-admin/{domain,application,infrastructure,ui}` (mentor), `features/training-member/{…}` (member). `features/member-join` chỉ thêm: `resolve` trả `kind: 'training'` → chuyển tới `/training/:id` kèm mã. Hai feature không import nhau; component dùng chung (nếu có) vào `shared/ui/`. Liên kết "Buổi training AI" trong khung `/admin/*`.
 - **Test**: domain `filterHookEvent` dùng các payload thật đã ghi trong spike (`PostToolUse` Bash/PowerShell/Write, `PostToolUseFailure`, `UserPromptSubmit`, `Stop` → null); tích hợp HTTP ingest + quét key cấm ở route member; không chạy Claude Code thật trong `npm test`/`npm run e2e` (e2e gửi JSON hook giả tới ingest).
 
-### 11.9 Mở rộng `training` (S37–S40, PRODUCT.md §7.35; S37, S38 xong, S39–S40 chưa làm)
+### 11.9 Mở rộng `training` (S37–S40, PRODUCT.md §7.35; S37–S39 xong, S40 chưa làm)
 
 Contract dự kiến; story nào chạm thì chốt lại tại đây. Payload thật: [spikes/claude-code-hooks.md](spikes/claude-code-hooks.md) §6.
 
@@ -489,7 +489,7 @@ Contract dự kiến; story nào chạm thì chốt lại tại đây. Payload t
   - Route mentor mới `POST /api/admin/trainings/:id/members/:memberId/purge` xoá dòng member (cascade sự kiện), chỉ khi member có `stopped_sending_at`, khác thì trả 409.
   - Sau khi xoá, `GET /api/training/me` trả 401 (như mọi member đã bị xoá); màn member hiện "Đã xoá dữ liệu" nếu lần cuối biết họ đang ở `stopped_sending`.
   - `TrainingMemberRow.stoppedSending: boolean` để mentor luôn thấy ai đã dừng gửi.
-- **Cờ gợi ý** (S39):
+- **Cờ gợi ý** (S39, xong; ngưỡng và ghi chú trong story S39):
   - Domain thuần `domain/training/flags/`, mỗi cờ một hàm `(events, ctx) → { code, eventIds[] } | null`. Hằng ngưỡng đặt cạnh từng hàm.
   - `isVerifyCommand(command)` nhận lệnh kiểm tra theo mẫu phổ biến; mentor không cấu hình.
   - `inferPermissionDecision(events)` suy ra cho mỗi sự kiện `permission`: `allowed` (có `tool` khớp `toolName` và `toolTarget` trước prompt kế tiếp), `denied`, hoặc `pending`, kèm `decisionMs` ước lượng.

@@ -29,7 +29,7 @@ export const toCreatedTrainingDto = (t: Training): CreatedTraining => ({
   memberCount: 0,
 });
 
-export const toTrainingDetailDto = ({ training, uninstalled, members }: TrainingDetailView): TrainingDetail => ({
+export const toTrainingDetailDto = ({ training, uninstalled, flagCounts, members }: TrainingDetailView): TrainingDetail => ({
   id: training.id,
   name: training.name,
   status: training.status,
@@ -38,6 +38,8 @@ export const toTrainingDetailDto = ({ training, uninstalled, members }: Training
   stoppedAt: ms(training.stoppedAt),
   endedAt: ms(training.endedAt),
   uninstalled,
+  allowAutoAccept: training.allowAutoAccept,
+  flagCounts,
   members: members.map(m => ({
     id: m.id,
     displayName: m.displayName,
@@ -49,6 +51,10 @@ export const toTrainingDetailDto = ({ training, uninstalled, members }: Training
     stuck: m.stuck,
     stillSending: m.stillSending,
     stoppedSending: m.stoppedSending,
+    flags: m.flags,
+    clearCount: m.clearCount,
+    compactCount: m.compactCount,
+    permissionCount: m.permissionCount,
   })),
 });
 
@@ -66,6 +72,11 @@ const toEventRowDto = (e: TimelineEvent): TrainingEventRow => ({
   ...(e.summary !== null ? { summary: e.summary } : {}),
   hasOutput: e.hasOutput,
   hasChange: e.hasChange,
+  ...(e.note !== null ? { note: e.note } : {}),
+  ...(e.subtype !== null ? { subtype: e.subtype } : {}),
+  ...(e.decision !== null ? { decision: e.decision } : {}),
+  ...(e.decisionMs !== null ? { decisionMs: e.decisionMs } : {}),
+  ...(e.permissionMode !== null ? { permissionMode: e.permissionMode } : {}),
 });
 
-export const toEventsPageDto = (page: TimelinePage): TrainingEventsPage => ({ events: page.events.map(toEventRowDto), hasMore: page.hasMore });
+export const toEventsPageDto = (page: TimelinePage): TrainingEventsPage => ({ events: page.events.map(toEventRowDto), hasMore: page.hasMore, flags: page.flags });

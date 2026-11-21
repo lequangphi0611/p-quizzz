@@ -4,13 +4,15 @@ import { ApiError } from '../../../shared/api-client/http-client.js';
 import type { TrainingAdminGateway } from './training-admin-gateway.js';
 import { TrainingController } from './training-controller.js';
 
+const ZERO_COUNTS: TrainingDetail['flagCounts'] = { auto_accept: 0, auto_compact_repeated: 0, dangerous_command: 0, edited_not_verified: 0, fast_approvals: 0, long_without_verify: 0, possible_secret: 0, repeated_failure: 0, repeated_request: 0, touches_tests: 0 };
+
 const member = (id: number, displayName: string, over: Partial<TrainingMemberRow> = {}): TrainingMemberRow =>
-  ({ id, displayName, connection: 'connected', lastSeenAt: 1, promptCount: 1, toolCount: 1, failedCount: 0, stuck: false, stillSending: false, stoppedSending: false, ...over });
+  ({ id, displayName, connection: 'connected', lastSeenAt: 1, promptCount: 1, toolCount: 1, failedCount: 0, stuck: false, stillSending: false, stoppedSending: false, flags: [], clearCount: 0, compactCount: 0, permissionCount: 0, ...over });
 const detail = (over: Partial<TrainingDetail> = {}): TrainingDetail =>
-  ({ id: 5, name: 'Buổi 1', status: 'open', roomCode: '482913', createdAt: 0, stoppedAt: null, endedAt: null, uninstalled: null, members: [member(1, 'An'), member(2, 'Bình')], ...over });
+  ({ id: 5, name: 'Buổi 1', status: 'open', roomCode: '482913', createdAt: 0, stoppedAt: null, endedAt: null, uninstalled: null, allowAutoAccept: false, flagCounts: ZERO_COUNTS, members: [member(1, 'An'), member(2, 'Bình')], ...over });
 const ev = (id: number, over: Partial<TrainingEventRow> = {}): TrainingEventRow =>
   ({ id, kind: 'tool', receivedAt: id, claudeSessionId: 's', toolName: 'Bash', toolTarget: 'ls', ok: true, hasOutput: false, hasChange: false, ...over });
-const page = (ids: number[], hasMore = false): TrainingEventsPage => ({ events: ids.map(i => ev(i)), hasMore });
+const page = (ids: number[], hasMore = false): TrainingEventsPage => ({ events: ids.map(i => ev(i)), hasMore, flags: [] });
 
 const deferred = <T,>() => { let resolve!: (v: T) => void; let reject!: (e: unknown) => void; const promise = new Promise<T>((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };
 const flush = () => new Promise<void>(r => setTimeout(r, 0));
@@ -256,7 +258,7 @@ describe('TrainingController: reloading', () => {
 describe('TrainingController: output and change panel', () => {
   async function withEvents() {
     const events: TrainingEventRow[] = [ev(10, { hasOutput: true }), ev(11), ev(12, { hasChange: true }), ev(13, { hasOutput: true, hasChange: true })];
-    const made = make({ events: vi.fn(async () => ({ events, hasMore: false })) });
+    const made = make({ events: vi.fn(async () => ({ events, hasMore: false, flags: [] })) });
     made.ctrl.select(1);
     await flush();
     return made;
@@ -481,5 +483,61 @@ describe('TrainingController: stop, end, remove', () => {
     const ended = make({}, detail({ status: 'ended', roomCode: null, members: [] }));
     ended.ctrl.askRemove(1);
     expect(ended.ctrl.getState().confirm).toBeNull();
+  });
+});
+
+describe('TrainingController: flags and rows that change', () => {
+  const flagged: TrainingEventsPage = {
+    events: [ev(10), ev(11, { kind: 'permission', toolName: 'Bash', decision: 'pending' }), ev(12), ev(13)],
+    hasMore: false,
+    flags: [{ code: 'touches_tests', eventIds: [10, 13] }, { code: 'dangerous_command', eventIds: [999] }],
+  };
+
+  it('keeps the flags of the whole timeline from the server', async () => {
+    const { ctrl } = make({ events: vi.fn(async () => flagged) });
+    ctrl.select(1);
+    await flush();
+    expect(ctrl.getState().timeline?.flags).toEqual(flagged.flags);
+  });
+
+  it('a flag chip jumps to its events one after another, wrapping round, and skips events that are not loaded', async () => {
+    const { ctrl } = make({ events: vi.fn(async () => flagged) });
+    ctrl.select(1);
+    await flush();
+    const focus = () => ctrl.getState().timeline?.focusId;
+    ctrl.jumpToFlag('touches_tests');
+    expect(focus()).toBe(10);
+    ctrl.jumpToFlag('touches_tests');
+    expect(focus()).toBe(13);
+    ctrl.jumpToFlag('touches_tests');
+    expect(focus()).toBe(10);
+    const token = ctrl.getState().timeline!.focusToken;
+    ctrl.jumpToFlag('dangerous_command'); // its only event is not on this page
+    expect(ctrl.getState().timeline?.focusToken).toBe(token);
+    ctrl.jumpToFlag('possible_secret'); // not a flag of this member
+    expect(ctrl.getState().timeline?.focusToken).toBe(token);
+  });
+
+  it('does not jump while the content is hidden', async () => {
+    const { ctrl } = make({ events: vi.fn(async () => flagged) });
+    ctrl.select(1);
+    await flush();
+    ctrl.setHidden(true);
+    ctrl.jumpToFlag('touches_tests');
+    expect(ctrl.getState().timeline?.focusId).toBeNull();
+  });
+
+  it('a request that was waiting gets its answer on the next refresh, from that request on, without duplicating rows', async () => {
+    const events = vi.fn()
+      .mockResolvedValueOnce({ events: [ev(10), ev(11, { kind: 'permission', toolName: 'Bash', decision: 'pending' })], hasMore: false, flags: [] })
+      .mockResolvedValueOnce({ events: [ev(11, { kind: 'permission', toolName: 'Bash', decision: 'allowed', decisionMs: 900 }), ev(12)], hasMore: false, flags: [] });
+    const { ctrl } = make({ events });
+    ctrl.select(1);
+    await flush();
+    await ctrl.refresh();
+    expect(events).toHaveBeenLastCalledWith(5, 1, 10); // from just before the waiting request
+    const rows = ctrl.getState().timeline!.events;
+    expect(rows.map(e => e.id)).toEqual([10, 11, 12]);
+    expect(rows[1]).toMatchObject({ decision: 'allowed', decisionMs: 900 });
   });
 });

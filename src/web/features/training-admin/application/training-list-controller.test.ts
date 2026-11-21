@@ -27,7 +27,7 @@ describe('TrainingListController', () => {
     const { ctrl, gateway } = make({}, [summary(1, 'Cũ')]);
     ctrl.setName('  Buổi 2  ');
     const made = await ctrl.create();
-    expect(gateway.create).toHaveBeenCalledWith('Buổi 2');
+    expect(gateway.create).toHaveBeenCalledWith('Buổi 2', { allowAutoAccept: false });
     expect(made).toMatchObject({ id: 9, roomCode: '482913' });
     expect(ctrl.getState()).toMatchObject({ name: '', creating: false, createError: '' });
     expect(ctrl.getState().items.map(t => t.id)).toEqual([9, 1]);
@@ -45,6 +45,15 @@ describe('TrainingListController', () => {
     expect(gateway.create).not.toHaveBeenCalled();
     ctrl.setName('ok');
     expect(ctrl.getState().createError).toBe(''); // typing clears the message
+  });
+
+  it('passes the auto-accept switch to the new training and resets it afterwards', async () => {
+    const { ctrl, gateway } = make();
+    ctrl.setName('Buổi 3');
+    ctrl.setAllowAutoAccept(true);
+    await ctrl.create();
+    expect(gateway.create).toHaveBeenCalledWith('Buổi 3', { allowAutoAccept: true });
+    expect(ctrl.getState().allowAutoAccept).toBe(false);
   });
 
   it('a double click creates one training', async () => {

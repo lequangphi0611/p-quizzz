@@ -1,4 +1,6 @@
 import { TrainingMemberNotFoundError, TrainingNotFoundError, TrainingStateError } from '../../../domain/training/errors.js';
+import { analyzeEvents } from '../../../domain/training/flags/index.js';
+import { FLAG_CODES, type FlagCode } from '../../../../shared/api/training.js';
 import { isStuck, STUCK_REPEAT } from '../../../domain/training/is-stuck.js';
 import { assertCanPurge, connectionState, nextTrainingStatus, stillSending, type Training, type TrainingMember } from '../../../domain/training/training.js';
 import type { Clock } from '../../ports/clock.js';
@@ -19,9 +21,14 @@ interface WriteDeps {
 export class CreateTraining {
   constructor(private readonly deps: WriteDeps & { random: Random }) {}
 
-  async execute(name: string): Promise<Training> {
+  async execute(name: string, options: { allowAutoAccept?: boolean } = {}): Promise<Training> {
     const training = await this.deps.unitOfWork.run(async ({ trainings }) =>
-      trainings.create({ name, roomCode: await newRoomCode(this.deps.random, code => trainings.roomCodeInUse(code)), createdAt: this.deps.clock.now() }),
+      trainings.create({
+        name,
+        roomCode: await newRoomCode(this.deps.random, code => trainings.roomCodeInUse(code)),
+        createdAt: this.deps.clock.now(),
+        allowAutoAccept: options.allowAutoAccept ?? false,
+      }),
     );
     await this.deps.signals.signal(training.id);
     return training;
@@ -48,18 +55,38 @@ export interface TrainingMemberView {
   stuck: boolean;
   stillSending: boolean;
   stoppedSending: boolean;
+  flags: FlagCode[];
+  clearCount: number;
+  compactCount: number;
+  permissionCount: number;
 }
 
 export interface TrainingDetailView {
   training: Training;
   /** Only once `stopped`. */
   uninstalled: { count: number; total: number } | null;
+  /** How many members have each flag: numbers only, no names (PRODUCT.md §7.35d). */
+  flagCounts: Record<FlagCode, number>;
   /** Empty once `ended`: the members are gone. */
   members: TrainingMemberView[];
 }
 
 export class GetTrainingDetail {
+  /** Flags are derived from a member's whole timeline, so they are kept until that member's newest event changes. */
+  private readonly flagCache = new Map<number, { key: string; flags: FlagCode[] }>();
+
   constructor(private readonly deps: { trainings: TrainingReader; members: TrainingMemberReader; events: TrainingEventReader }) {}
+
+  private async flagsOf(training: Training, memberId: number, counts: MemberCounts | undefined): Promise<FlagCode[]> {
+    if (!counts) return [];
+    const key = `${counts.lastEventId}:${training.allowAutoAccept}`;
+    const cached = this.flagCache.get(memberId);
+    if (cached?.key === key) return cached.flags;
+    const { flags } = analyzeEvents(await this.deps.events.listForFlags(memberId), { allowAutoAccept: training.allowAutoAccept });
+    const codes = flags.map(f => f.code);
+    this.flagCache.set(memberId, { key, flags: codes });
+    return codes;
+  }
 
   async execute(id: number): Promise<TrainingDetailView> {
     const training = await this.deps.trainings.findById(id);
@@ -67,18 +94,22 @@ export class GetTrainingDetail {
     const members = training.status === 'ended' ? [] : await this.deps.members.listByTraining(id);
     const counts = members.length > 0 ? await this.deps.events.countsByMember(id) : new Map<number, MemberCounts>();
     const views = await Promise.all(
-      members.map(async m => memberView(training, m, counts.get(m.id), isStuck(await this.deps.events.recentTools(m.id, STUCK_REPEAT)))),
+      members.map(async m =>
+        memberView(training, m, counts.get(m.id), isStuck(await this.deps.events.recentTools(m.id, STUCK_REPEAT)), await this.flagsOf(training, m.id, counts.get(m.id))),
+      ),
     );
+    const flagCounts = Object.fromEntries(FLAG_CODES.map(code => [code, views.filter(v => v.flags.includes(code)).length])) as Record<FlagCode, number>;
     return {
       training,
       // A member who passed the removal check counts only while nothing came after it.
       uninstalled: training.status === 'stopped' ? { count: views.filter(v => v.connection === 'uninstalled').length, total: members.length } : null,
+      flagCounts,
       members: views,
     };
   }
 }
 
-const memberView = (training: Training, m: TrainingMember, counts: MemberCounts | undefined, stuck: boolean): TrainingMemberView => ({
+const memberView = (training: Training, m: TrainingMember, counts: MemberCounts | undefined, stuck: boolean, flags: FlagCode[]): TrainingMemberView => ({
   id: m.id,
   displayName: m.displayName,
   connection: connectionState(m),
@@ -89,6 +120,10 @@ const memberView = (training: Training, m: TrainingMember, counts: MemberCounts 
   stuck,
   stillSending: stillSending(training, m),
   stoppedSending: m.stoppedSendingAt !== null,
+  flags,
+  clearCount: counts?.clearCount ?? 0,
+  compactCount: counts?.compactCount ?? 0,
+  permissionCount: counts?.permissionCount ?? 0,
 });
 
 /** "Dừng thu": the code stops working at once; reviewing stays possible. */

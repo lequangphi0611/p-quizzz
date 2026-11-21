@@ -3,9 +3,10 @@ import type { TrainingMemberRow } from '../../../../shared/api/index.js';
 import { Card } from '../../../shared/ui/Card.js';
 import { td, th } from '../../../shared/ui/tableStyles.js';
 import { connectionLabel } from '../domain/connection-label.js';
+import { visibleFlags } from '../domain/flags.js';
 import { formatLastSeen, sortMembers } from '../domain/members.js';
 import { Button } from '../../../shared/ui/Button.js';
-import { ConnectionChip, StoppedSendingChip, StuckChip } from './chips.js';
+import { ConnectionChip, FlagChip, StoppedSendingChip, StuckChip } from './chips.js';
 
 const tight = { padding: '10px 10px' } as const;
 const num = { ...td, ...tight, textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' } as const;
@@ -35,7 +36,7 @@ export function MembersTable({ members, selectedId, onSelect, onPurge, compact, 
         <table aria-label="Học viên" style={{ width: '100%', borderCollapse: 'collapse' }}>
           {!compact && (
             <thead style={{ position: 'sticky', top: 0, background: 'var(--surface-card)', zIndex: 1 }}>
-              <tr><th style={{ ...th, ...tight }}>Học viên</th><th style={{ ...th, ...tight }}>Kết nối</th><th style={{ ...th, ...tight, textAlign: 'right' }}>Prompt</th><th style={{ ...th, ...tight, textAlign: 'right' }}>Lệnh</th><th style={{ ...th, ...tight, textAlign: 'right' }}>Lỗi</th><th style={{ ...th, ...tight }}>Lần cuối</th></tr>
+              <tr><th style={{ ...th, ...tight }}>Học viên</th><th style={{ ...th, ...tight }}>Kết nối</th><th style={{ ...th, ...tight, textAlign: 'right' }}>Prompt</th><th style={{ ...th, ...tight, textAlign: 'right' }}>Lệnh</th><th style={{ ...th, ...tight, textAlign: 'right' }}>Lỗi</th><th style={{ ...th, ...tight }}>Cờ gợi ý</th><th style={{ ...th, ...tight }}>Lần cuối</th></tr>
             </thead>
           )}
           <tbody ref={body} onKeyDown={onKeyDown}>
@@ -50,6 +51,7 @@ export function MembersTable({ members, selectedId, onSelect, onPurge, compact, 
                       {m.stuck && <StuckChip iconOnly={compact} />}
                       {m.stoppedSending && connectionLabel(m).key !== 'stopped-sending' && <StoppedSendingChip iconOnly={compact} />}
                       {compact && <ConnectionChip row={m} iconOnly />}
+                      {compact && visibleFlags(m).map(code => <FlagChip key={code} code={code} iconOnly />)}
                     </div>
                     {m.stoppedSending && (
                       <div style={{ marginTop: 4 }} onClick={e => e.stopPropagation()}>
@@ -63,6 +65,9 @@ export function MembersTable({ members, selectedId, onSelect, onPurge, compact, 
                       <td style={num}>{m.promptCount}</td>
                       <td style={num}>{m.toolCount}</td>
                       <td style={num}>{m.failedCount}</td>
+                      <td style={{ ...td, ...tight, whiteSpace: 'normal' }}>
+                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{visibleFlags(m).map(code => <FlagChip key={code} code={code} />)}</div>
+                      </td>
                       <td style={{ ...td, ...tight, color: 'var(--text-meta)', fontVariantNumeric: 'tabular-nums' }}>{formatLastSeen(m.lastSeenAt, now)}</td>
                     </>
                   )}

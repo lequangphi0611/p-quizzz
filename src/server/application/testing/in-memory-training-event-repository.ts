@@ -1,6 +1,7 @@
 import {
-  OUTPUT_END_CHARS, type EventDetail, type LightEvent, type MemberCounts, type NewTrainingEvent, type TrainingEventRepository,
+  FLAG_TEXT_CHARS, OUTPUT_END_CHARS, type EventDetail, type LightEvent, type MemberCounts, type NewTrainingEvent, type TrainingEventRepository,
 } from '../ports/training-event-repository.js';
+import type { FlagEvent } from '../../domain/training/flags/flag-event.js';
 import type { ToolOutcome } from '../../domain/training/is-stuck.js';
 import type { Snapshottable } from './in-memory-unit-of-work.js';
 import type { InMemoryTrainingMemberRepository } from './in-memory-training-repository.js';
@@ -27,28 +28,53 @@ export class InMemoryTrainingEventRepository implements TrainingEventRepository,
 
   async listLight(memberId: number, afterId: number, limit: number): Promise<LightEvent[]> {
     return (await this.all())
-      .filter(e => e.memberId === memberId && e.id > afterId && (e.kind === 'prompt' || e.kind === 'tool'))
+      .filter(e => e.memberId === memberId && e.id > afterId)
       .slice(0, limit)
       .map(e => {
-        if (e.kind !== 'prompt' && e.kind !== 'tool') throw new Error('unreachable');
         const tool = e.kind === 'tool' ? e : null;
         const text = tool?.output ? (tool.output.tail ?? tool.output.head) : null;
+        const change = e.kind === 'permission' || e.kind === 'tool' ? e.change : null;
         return {
           id: e.id,
           kind: e.kind,
           receivedAt: e.receivedAt,
           claudeSessionId: e.claudeSessionId,
           prompt: e.kind === 'prompt' ? e.prompt : null,
-          toolName: tool?.toolName ?? null,
-          toolTarget: tool?.toolTarget ?? null,
+          toolName: e.kind === 'tool' || e.kind === 'permission' ? e.toolName : null,
+          toolTarget: e.kind === 'tool' || e.kind === 'permission' ? e.toolTarget : null,
           ok: tool?.ok ?? null,
           durationMs: tool?.durationMs ?? null,
           errorExcerpt: tool?.errorExcerpt ?? null,
+          note: e.kind === 'tool' || e.kind === 'session' ? e.note : null,
+          subtype: e.kind === 'session' || e.kind === 'notice' ? e.subtype : null,
+          permissionMode: e.permissionMode,
           outputEnd: text === null ? null : text.slice(-OUTPUT_END_CHARS),
           hasOutput: Boolean(tool?.output),
-          hasChange: Boolean(tool?.change),
+          hasChange: Boolean(change),
         };
       });
+  }
+
+  async listForFlags(memberId: number): Promise<FlagEvent[]> {
+    const text = (clip: { head: string; tail: string | null } | null | undefined, from: 'head' | 'both') =>
+      clip ? (from === 'head' ? clip.head : `${clip.head.slice(0, FLAG_TEXT_CHARS / 2)}${(clip.tail ?? '').slice(-FLAG_TEXT_CHARS / 2)}`) : null;
+    return (await this.all())
+      .filter(e => e.memberId === memberId)
+      .map(e => ({
+        id: e.id,
+        kind: e.kind,
+        at: e.receivedAt.getTime(),
+        claudeSessionId: e.claudeSessionId,
+        permissionMode: e.permissionMode,
+        prompt: e.kind === 'prompt' ? e.prompt : null,
+        toolName: e.kind === 'tool' || e.kind === 'permission' ? e.toolName : null,
+        toolTarget: e.kind === 'tool' || e.kind === 'permission' ? e.toolTarget : null,
+        ok: e.kind === 'tool' ? e.ok : null,
+        durationMs: e.kind === 'tool' ? e.durationMs : null,
+        subtype: e.kind === 'session' || e.kind === 'notice' ? e.subtype : null,
+        changeText: e.kind === 'tool' || e.kind === 'permission' ? (text(e.change, 'head')?.slice(0, FLAG_TEXT_CHARS) ?? null) : null,
+        outputText: e.kind === 'tool' ? text(e.output, 'both') : null,
+      }));
   }
 
   async getDetail(eventId: number): Promise<EventDetail | null> {
@@ -71,12 +97,16 @@ export class InMemoryTrainingEventRepository implements TrainingEventRepository,
     const out = new Map<number, MemberCounts>();
     for (const e of await this.all()) {
       if ((await this.members.findById(e.memberId))?.trainingId !== trainingId) continue;
-      const c = out.get(e.memberId) ?? { promptCount: 0, toolCount: 0, failedCount: 0 };
+      const c = out.get(e.memberId) ?? { promptCount: 0, toolCount: 0, failedCount: 0, clearCount: 0, compactCount: 0, permissionCount: 0, lastEventId: 0 };
+      c.lastEventId = Math.max(c.lastEventId, e.id);
       if (e.kind === 'prompt') c.promptCount++;
       else if (e.kind === 'tool') {
         c.toolCount++;
         if (!e.ok) c.failedCount++;
-      }
+      } else if (e.kind === 'session') {
+        if (e.subtype === 'clear') c.clearCount++;
+        else if (e.subtype.startsWith('compact')) c.compactCount++;
+      } else if (e.kind === 'permission') c.permissionCount++;
       out.set(e.memberId, c);
     }
     return out;

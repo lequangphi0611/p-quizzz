@@ -7,6 +7,8 @@ export interface TrainingListState {
   items: TrainingSummary[];
   /** The create form. */
   name: string;
+  /** "Cho phép chế độ tự chấp nhận": the flag for that mode stays down in this training. */
+  allowAutoAccept: boolean;
   creating: boolean;
   /** Why creating failed (or why the name is not valid yet). */
   createError: string;
@@ -25,7 +27,7 @@ export class TrainingListController {
   private seq = 0; // drops a list that arrives after a newer one
 
   constructor(private gateway: TrainingAdminGateway, initial: TrainingSummary[]) {
-    this.state = { items: initial, name: '', creating: false, createError: '', loading: false, loadError: '' };
+    this.state = { items: initial, name: '', allowAutoAccept: false, creating: false, createError: '', loading: false, loadError: '' };
   }
 
   getState = (): TrainingListState => this.state;
@@ -36,6 +38,7 @@ export class TrainingListController {
   }
 
   setName(name: string): void { this.set({ name, createError: '' }); }
+  setAllowAutoAccept(allowAutoAccept: boolean): void { this.set({ allowAutoAccept }); }
 
   /** Silent refetch on a change signal (member counts move while a training is open); a failure keeps the list as it is. */
   refresh = async (): Promise<void> => {
@@ -66,10 +69,10 @@ export class TrainingListController {
     if ([...name].length > TRAINING_NAME_MAX) { this.set({ createError: `Tên buổi training tối đa ${TRAINING_NAME_MAX} ký tự` }); return null; }
     this.set({ creating: true, createError: '' });
     try {
-      const created = await this.gateway.create(name);
+      const created = await this.gateway.create(name, { allowAutoAccept: this.state.allowAutoAccept });
       const { roomCode: _roomCode, ...summary } = created;
       this.seq++; // a list fetched before this training existed must not wipe it out
-      this.set({ creating: false, name: '', items: [summary, ...this.state.items.filter(t => t.id !== created.id)] });
+      this.set({ creating: false, name: '', allowAutoAccept: false, items: [summary, ...this.state.items.filter(t => t.id !== created.id)] });
       return created;
     } catch (err) {
       this.set({ creating: false, createError: errorText(err, 'Không tạo được buổi training') });

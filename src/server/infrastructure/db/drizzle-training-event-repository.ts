@@ -1,7 +1,8 @@
-import { and, asc, desc, eq, gt, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, sql } from 'drizzle-orm';
 import {
-  OUTPUT_END_CHARS, type EventDetail, type LightEvent, type MemberCounts, type NewTrainingEvent, type TrainingEventRepository,
+  FLAG_TEXT_CHARS, OUTPUT_END_CHARS, type EventDetail, type LightEvent, type MemberCounts, type NewTrainingEvent, type TrainingEventRepository,
 } from '../../application/ports/training-event-repository.js';
+import type { FlagEvent } from '../../domain/training/flags/flag-event.js';
 import type { Clip } from '../../domain/training/clip.js';
 import type { ToolOutcome } from '../../domain/training/is-stuck.js';
 import type { DbAccess } from './drizzle-exam-repository.js';
@@ -66,16 +67,46 @@ export class DrizzleTrainingEventRepository implements TrainingEventRepository {
           ok: trainingEvents.ok,
           durationMs: trainingEvents.durationMs,
           errorExcerpt: trainingEvents.errorExcerpt,
+          note: trainingEvents.note,
+          subtype: trainingEvents.subtype,
+          permissionMode: trainingEvents.permissionMode,
           outputEnd: sql<string | null>`substr(coalesce(${trainingEvents.outputTail}, ${trainingEvents.outputHead}), ${-OUTPUT_END_CHARS})`,
           hasOutput: sql<number>`${trainingEvents.outputHead} is not null`,
           hasChange: sql<number>`${trainingEvents.changeHead} is not null`,
         })
         .from(trainingEvents)
-        .where(and(eq(trainingEvents.memberId, memberId), gt(trainingEvents.id, afterId), inArray(trainingEvents.kind, ['prompt', 'tool'])))
+        .where(and(eq(trainingEvents.memberId, memberId), gt(trainingEvents.id, afterId)))
         .orderBy(asc(trainingEvents.id))
         .limit(limit)
         .all()
-        .map(r => ({ ...r, kind: r.kind as 'prompt' | 'tool', hasOutput: Boolean(r.hasOutput), hasChange: Boolean(r.hasChange) })),
+        .map(r => ({ ...r, kind: r.kind as LightEvent['kind'], hasOutput: Boolean(r.hasOutput), hasChange: Boolean(r.hasChange) })),
+    );
+  }
+
+  /** One query per member; the text columns are cut in SQL so a long output never travels whole. */
+  listForFlags(memberId: number): Promise<FlagEvent[]> {
+    return this.access(db =>
+      db
+        .select({
+          id: trainingEvents.id,
+          kind: trainingEvents.kind,
+          at: trainingEvents.receivedAt,
+          claudeSessionId: trainingEvents.claudeSessionId,
+          permissionMode: trainingEvents.permissionMode,
+          prompt: trainingEvents.prompt,
+          toolName: trainingEvents.toolName,
+          toolTarget: trainingEvents.toolTarget,
+          ok: trainingEvents.ok,
+          durationMs: trainingEvents.durationMs,
+          subtype: trainingEvents.subtype,
+          changeText: sql<string | null>`substr(${trainingEvents.changeHead}, 1, ${FLAG_TEXT_CHARS})`,
+          outputText: sql<string | null>`substr(${trainingEvents.outputHead}, 1, ${FLAG_TEXT_CHARS / 2}) || substr(coalesce(${trainingEvents.outputTail}, ''), ${-FLAG_TEXT_CHARS / 2})`,
+        })
+        .from(trainingEvents)
+        .where(eq(trainingEvents.memberId, memberId))
+        .orderBy(asc(trainingEvents.id))
+        .all()
+        .map(r => ({ ...r, kind: r.kind as FlagEvent['kind'], at: r.at.getTime() })),
     );
   }
 
@@ -125,6 +156,10 @@ export class DrizzleTrainingEventRepository implements TrainingEventRepository {
           promptCount: sql<number>`sum(${trainingEvents.kind} = 'prompt')`,
           toolCount: sql<number>`sum(${trainingEvents.kind} = 'tool')`,
           failedCount: sql<number>`sum(${trainingEvents.kind} = 'tool' and ${trainingEvents.ok} = 0)`,
+          clearCount: sql<number>`sum(${trainingEvents.kind} = 'session' and ${trainingEvents.subtype} = 'clear')`,
+          compactCount: sql<number>`sum(${trainingEvents.kind} = 'session' and ${trainingEvents.subtype} like 'compact%')`,
+          permissionCount: sql<number>`sum(${trainingEvents.kind} = 'permission')`,
+          lastEventId: sql<number>`max(${trainingEvents.id})`,
         })
         .from(trainingEvents)
         .innerJoin(trainingMembers, eq(trainingMembers.id, trainingEvents.memberId))
@@ -132,6 +167,14 @@ export class DrizzleTrainingEventRepository implements TrainingEventRepository {
         .groupBy(trainingEvents.memberId)
         .all(),
     );
-    return new Map(rows.map(r => [r.memberId, { promptCount: Number(r.promptCount), toolCount: Number(r.toolCount), failedCount: Number(r.failedCount) }]));
+    return new Map(
+      rows.map(r => [
+        r.memberId,
+        {
+          promptCount: Number(r.promptCount), toolCount: Number(r.toolCount), failedCount: Number(r.failedCount),
+          clearCount: Number(r.clearCount), compactCount: Number(r.compactCount), permissionCount: Number(r.permissionCount), lastEventId: Number(r.lastEventId),
+        },
+      ]),
+    );
   }
 }

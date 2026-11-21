@@ -19,6 +19,8 @@ export const CreateTrainingBody = z.object({
     .transform(s => s.trim())
     .refine(s => s.length > 0, 'Tên buổi training không được để trống')
     .refine(s => [...s].length <= TRAINING_NAME_MAX, `Tên buổi training tối đa ${TRAINING_NAME_MAX} ký tự`),
+  /** The mentor tells the app that auto-accept / bypass is expected here, so the flag for it stays down. */
+  allowAutoAccept: z.boolean().optional().default(false),
 });
 
 // POST /api/trainings/:id/join. `consent` must be literally true: a member only exists once they agreed.
@@ -52,6 +54,19 @@ export interface CreatedTraining extends TrainingSummary {
   roomCode: string;
 }
 
+/** Behaviour hints for the mentor (PRODUCT.md §7.35c): they describe what happened, never the person, and are not a score. */
+export const FLAG_CODES = [
+  'repeated_failure', 'long_without_verify', 'edited_not_verified', 'auto_accept', 'fast_approvals',
+  'repeated_request', 'auto_compact_repeated', 'dangerous_command', 'touches_tests', 'possible_secret',
+] as const;
+export type FlagCode = (typeof FLAG_CODES)[number];
+
+/** A flag that is up, with the events that justify it (oldest first, capped), so the mentor can jump to them. */
+export interface MemberFlag {
+  code: FlagCode;
+  eventIds: number[];
+}
+
 export interface TrainingMemberRow {
   id: number;
   displayName: string;
@@ -64,6 +79,12 @@ export interface TrainingMemberRow {
   stillSending: boolean;
   /** The member pressed "Dừng gửi" while open: their data stays until the mentor approves deleting it (POST .../members/:memberId/purge). */
   stoppedSending: boolean;
+  /** Flags that are up for this member (S39). */
+  flags: FlagCode[];
+  /** `/clear` (and exit) rows, `/compact` rows and permission requests seen so far. */
+  clearCount: number;
+  compactCount: number;
+  permissionCount: number;
 }
 
 export interface TrainingDetail {
@@ -77,6 +98,10 @@ export interface TrainingDetail {
   endedAt: number | null;
   /** Only once `stopped`: how many members confirmed the hook is gone. */
   uninstalled: { count: number; total: number } | null;
+  /** The mentor allowed auto-accept / bypass for this training: that flag never goes up. */
+  allowAutoAccept: boolean;
+  /** How many members have each flag. Numbers only: no names, no comparison (PRODUCT.md §7.35d). */
+  flagCounts: Record<FlagCode, number>;
   members: TrainingMemberRow[];
 }
 
@@ -130,7 +155,7 @@ export interface Clip {
 /** One line of a member's timeline. No output and no change: those are fetched on demand (`TrainingEventDetail`). */
 export interface TrainingEventRow {
   id: number;
-  kind: 'prompt' | 'tool';
+  kind: 'prompt' | 'tool' | 'permission' | 'session' | 'notice';
   receivedAt: number;
   claudeSessionId: string;
   /** `prompt` events. */
@@ -144,12 +169,24 @@ export interface TrainingEventRow {
   summary?: string;
   hasOutput: boolean;
   hasChange: boolean;
+  /** `AskUserQuestion` tool rows: "question → choice" pairs. `session` rows: the text typed after `/compact`, or "from → to". */
+  note?: string;
+  /** `session` and `notice` rows. */
+  subtype?: string;
+  /** `permission` rows: what the member did, inferred (never sent by Claude Code). */
+  decision?: 'allowed' | 'denied' | 'pending';
+  /** `permission` rows, `allowed` only: estimated milliseconds to decide. */
+  decisionMs?: number;
+  /** The `permission_mode` at that moment, when it is not `default`. */
+  permissionMode?: string;
 }
 
 export interface TrainingEventsPage {
   /** Oldest first, at most 500. */
   events: TrainingEventRow[];
   hasMore: boolean;
+  /** Flags of the member's whole timeline (not only this page), each with the events behind it. */
+  flags: MemberFlag[];
 }
 
 // GET /api/admin/trainings/:id/events/:eventId/detail

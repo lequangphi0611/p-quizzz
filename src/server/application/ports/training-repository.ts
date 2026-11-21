@@ -5,6 +5,7 @@ export interface NewTraining {
   name: string;
   roomCode: string;
   createdAt: Date;
+  allowAutoAccept: boolean;
 }
 
 export interface NewTrainingMember {

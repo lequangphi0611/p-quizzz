@@ -1,7 +1,8 @@
-import type { TrainingStatus } from '../../../../shared/api/index.js';
+import type { FlagCode, TrainingStatus } from '../../../../shared/api/index.js';
 import { Icon } from '../../../shared/ui/Icon.js';
 import { StatusBadge, type SessionStatus } from '../../../shared/ui/StatusBadge.js';
 import { connectionLabel, type ConnectionLabel } from '../domain/connection-label.js';
+import { FLAG_INFO } from '../domain/flags.js';
 import { trainingStatusLabel } from '../domain/training-ui.js';
 
 const TONES: Record<ConnectionLabel['tone'], { bg: string; fg: string; bd: string }> = {
@@ -45,6 +46,26 @@ export function StuckChip({ label = 'Có thể đang kẹt', iconOnly = false }:
       {iconOnly ? <span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>{label}</span> : label}
     </span>
   );
+}
+
+/**
+ * A behaviour flag (PRODUCT.md §7.35c): the same pale yellow as "Có thể đang kẹt", never red, no verdict. With `onClick` it is a button that
+ * jumps to the events behind it; `count` is how many events there are. The hint is the tooltip, so the mentor sees what it can and cannot tell.
+ */
+export function FlagChip({ code, count, onClick, iconOnly = false }: { code: FlagCode; count?: number; onClick?: () => void; iconOnly?: boolean }) {
+  const info = FLAG_INFO[code];
+  const style = { display: 'inline-flex', alignItems: 'center', gap: 5, padding: iconOnly ? '3px 5px' : '2px 9px 2px 7px', borderRadius: 'var(--radius-pill)', background: 'var(--sun-100)', color: 'var(--sun-ink)', border: '1px solid var(--sun-200)', font: 'var(--type-label)', fontSize: 12, whiteSpace: 'nowrap' } as const;
+  const body = (
+    <>
+      <Icon name={info.icon} size={13} />
+      {iconOnly ? <span style={visuallyHidden}>{info.label}</span> : info.label}
+      {count !== undefined && count > 1 && <span aria-hidden="true" style={{ fontVariantNumeric: 'tabular-nums' }}>· {count}</span>}
+    </>
+  );
+  const title = `${info.label}. ${info.hint}${onClick ? ' Bấm để nhảy tới sự kiện căn cứ.' : ''}`;
+  return onClick
+    ? <button type="button" data-flag={code} title={title} onClick={onClick} style={{ ...style, cursor: 'pointer' }}>{body}</button>
+    : <span data-flag={code} title={title} style={style}>{body}</span>;
 }
 
 const BADGE: Record<TrainingStatus, SessionStatus> = { open: 'running', stopped: 'closed', ended: 'finalized' };

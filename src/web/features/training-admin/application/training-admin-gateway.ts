@@ -5,7 +5,7 @@ export interface TrainingAdminGateway {
   /** Newest first. */
   list(): Promise<TrainingSummary[]>;
   /** Opens a training at once; the answer carries the room code. */
-  create(name: string): Promise<CreatedTraining>;
+  create(name: string, options?: { allowAutoAccept?: boolean }): Promise<CreatedTraining>;
   get(id: number): Promise<TrainingDetail>;
   /** "Dừng thu": answers with the training as it now is. */
   stop(id: number): Promise<TrainingDetail>;

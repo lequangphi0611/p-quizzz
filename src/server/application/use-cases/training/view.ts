@@ -1,4 +1,7 @@
 import { TrainingEventNotFoundError, TrainingMemberNotFoundError, TrainingNotFoundError, TrainingStateError } from '../../../domain/training/errors.js';
+import { analyzeEvents } from '../../../domain/training/flags/index.js';
+import type { FlagCode } from '../../../../shared/api/training.js';
+import type { PermissionDecisionInfo } from '../../../domain/training/flags/flag-event.js';
 import { buildSummary } from '../../../domain/training/summary.js';
 import type { Clip } from '../../../domain/training/clip.js';
 import type { LightEvent, TrainingEventReader } from '../../ports/training-event-repository.js';
@@ -10,7 +13,7 @@ export const EVENTS_PAGE_SIZE = 500;
 /** One line of the timeline: what the member asked or ran, with a one-glance summary, and whether there is more to open. */
 export interface TimelineEvent {
   id: number;
-  kind: 'prompt' | 'tool';
+  kind: LightEvent['kind'];
   receivedAt: Date;
   claudeSessionId: string;
   prompt: string | null;
@@ -21,14 +24,23 @@ export interface TimelineEvent {
   summary: string | null;
   hasOutput: boolean;
   hasChange: boolean;
+  note: string | null;
+  subtype: string | null;
+  /** `permission` rows: inferred from what ran afterwards. */
+  decision: PermissionDecisionInfo['decision'] | null;
+  decisionMs: number | null;
+  /** Only when it is not `default`. */
+  permissionMode: string | null;
 }
 
 export interface TimelinePage {
   events: TimelineEvent[];
   hasMore: boolean;
+  /** Over the member's whole timeline, not only this page. */
+  flags: { code: FlagCode; eventIds: number[] }[];
 }
 
-const toTimelineEvent = (e: LightEvent): TimelineEvent => ({
+const toTimelineEvent = (e: LightEvent, decision: PermissionDecisionInfo | undefined): TimelineEvent => ({
   id: e.id,
   kind: e.kind,
   receivedAt: e.receivedAt,
@@ -41,6 +53,11 @@ const toTimelineEvent = (e: LightEvent): TimelineEvent => ({
   summary: e.kind === 'tool' ? buildSummary({ ok: e.ok === true, errorExcerpt: e.errorExcerpt, outputEnd: e.outputEnd }) : null,
   hasOutput: e.hasOutput,
   hasChange: e.hasChange,
+  note: e.note,
+  subtype: e.subtype,
+  decision: e.kind === 'permission' ? (decision?.decision ?? 'pending') : null,
+  decisionMs: decision?.decisionMs ?? null,
+  permissionMode: e.permissionMode === null || e.permissionMode === 'default' ? null : e.permissionMode,
 });
 
 /** Once ended the members and their events are gone for good: reviewing is a conflict, not a "not found". */
@@ -56,11 +73,12 @@ export class ListMemberEvents {
   constructor(private readonly deps: { trainings: TrainingReader; members: TrainingMemberReader; events: TrainingEventReader }) {}
 
   async execute(trainingId: number, memberId: number, after = 0): Promise<TimelinePage> {
-    await openTraining(this.deps.trainings, trainingId);
+    const training = await openTraining(this.deps.trainings, trainingId);
     const member = await this.deps.members.findById(memberId);
     if (!member || member.trainingId !== trainingId) throw new TrainingMemberNotFoundError();
     const rows = await this.deps.events.listLight(memberId, after, EVENTS_PAGE_SIZE + 1);
-    return { events: rows.slice(0, EVENTS_PAGE_SIZE).map(toTimelineEvent), hasMore: rows.length > EVENTS_PAGE_SIZE };
+    const { flags, decisions } = analyzeEvents(await this.deps.events.listForFlags(memberId), { allowAutoAccept: training.allowAutoAccept });
+    return { events: rows.slice(0, EVENTS_PAGE_SIZE).map(e => toTimelineEvent(e, decisions.get(e.id))), hasMore: rows.length > EVENTS_PAGE_SIZE, flags };
   }
 }
 

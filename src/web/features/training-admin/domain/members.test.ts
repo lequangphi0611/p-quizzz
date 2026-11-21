@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { TrainingDetail, TrainingMemberRow } from '../../../../shared/api/index.js';
 import { announcementFor } from './announcements.js';
-import { formatLastSeen, memberCountsText, sortMembers, stillSendingCount, uninstallProgress } from './members.js';
+import { formatLastSeen, memberCountsText, memberExtraCountsText, sortMembers, stillSendingCount, uninstallProgress } from './members.js';
+
+const ZERO_COUNTS: TrainingDetail['flagCounts'] = { auto_accept: 0, auto_compact_repeated: 0, dangerous_command: 0, edited_not_verified: 0, fast_approvals: 0, long_without_verify: 0, possible_secret: 0, repeated_failure: 0, repeated_request: 0, touches_tests: 0 };
 
 const row = (id: number, displayName: string, over: Partial<TrainingMemberRow> = {}): TrainingMemberRow =>
-  ({ id, displayName, connection: 'waiting', lastSeenAt: null, promptCount: 0, toolCount: 0, failedCount: 0, stuck: false, stillSending: false, stoppedSending: false, ...over });
+  ({ id, displayName, connection: 'waiting', lastSeenAt: null, promptCount: 0, toolCount: 0, failedCount: 0, stuck: false, stillSending: false, stoppedSending: false, flags: [], clearCount: 0, compactCount: 0, permissionCount: 0, ...over });
 const detail = (members: TrainingMemberRow[], over: Partial<TrainingDetail> = {}): TrainingDetail =>
-  ({ id: 1, name: 'T', status: 'open', roomCode: '482913', createdAt: 0, stoppedAt: null, endedAt: null, uninstalled: null, members, ...over });
+  ({ id: 1, name: 'T', status: 'open', roomCode: '482913', createdAt: 0, stoppedAt: null, endedAt: null, uninstalled: null, allowAutoAccept: false, flagCounts: ZERO_COUNTS, members, ...over });
 
 describe('sortMembers', () => {
   it('sorts by name (Vietnamese order, case and accents aside) and never by errors', () => {
@@ -83,5 +85,12 @@ describe('connectionLabel and announcements for "Dừng gửi"', () => {
     const before = detail([row(1, 'An', { connection: 'connected' })]);
     const after = detail([row(1, 'An', { connection: 'stopped_sending', stoppedSending: true })]);
     expect(announcementFor(before, after)).toBe('An đã dừng gửi dữ liệu');
+  });
+});
+
+describe('memberExtraCountsText', () => {
+  it('lists /clear, compactions and permission requests, leaving out zeros', () => {
+    expect(memberExtraCountsText({ clearCount: 2, compactCount: 0, permissionCount: 4 })).toBe('2 lần /clear · 4 lần xin quyền');
+    expect(memberExtraCountsText({ clearCount: 0, compactCount: 0, permissionCount: 0 })).toBe('');
   });
 });

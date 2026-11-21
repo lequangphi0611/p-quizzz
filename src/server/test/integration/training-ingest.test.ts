@@ -166,15 +166,77 @@ describe('ingest: session, permission, question and plan (S37)', () => {
     for (const forbidden of [CWD, SCRATCHPAD, TRANSCRIPT, '/home/lan']) expect(json, forbidden).not.toContain(forbidden);
   });
 
-  it('the member timeline lists only prompts and tools until S39 shows the rest', async () => {
+  it('the member timeline lists every kind, in order, and the counts include the new ones', async () => {
     const s = await setup();
     const t = await s.training();
     const lan = await s.member(t, 'Lan');
-    for (const p of [userPromptSubmit, sessionEndClear, permissionRequestEdit, notificationPermission, postToolUseBash]) await s.ingest(lan.ingestToken, p);
+    for (const p of [userPromptSubmit, sessionEndClear, permissionRequestEdit, notificationPermission, postToolUseBash, preCompactAuto]) await s.ingest(lan.ingestToken, p);
     const res = await s.admin('GET', `/trainings/${t.id}/members/${lan.id}/events`);
-    expect(res.json<{ events: { kind: string }[] }>().events.map(e => e.kind)).toEqual(['prompt', 'tool']);
+    expect(res.json<{ events: { kind: string }[] }>().events.map(e => e.kind)).toEqual(['prompt', 'session', 'permission', 'notice', 'tool', 'session']);
     const row = (await s.detail(t.id)).members[0]!;
-    expect([row.promptCount, row.toolCount]).toEqual([1, 1]);
+    expect([row.promptCount, row.toolCount, row.clearCount, row.compactCount, row.permissionCount]).toEqual([1, 1, 1, 1, 1]);
+  });
+});
+
+describe('S39: flags, inferred decisions and the auto-accept switch', () => {
+  const ago = (s: Awaited<ReturnType<typeof setup>>, ms: number) => s.clock.advance(ms);
+
+  it('a permission row gets an inferred decision; denied when the next prompt came without the tool', async () => {
+    const s = await setup();
+    const t = await s.training();
+    const lan = await s.member(t, 'Lan');
+    await s.ingest(lan.ingestToken, permissionRequestBash);
+    await s.ingest(lan.ingestToken, userPromptSubmit);
+    const { events } = (await s.admin('GET', `/trainings/${t.id}/members/${lan.id}/events`)).json<{ events: { kind: string; decision?: string; toolName?: string }[] }>();
+    expect(events[0]).toMatchObject({ kind: 'permission', toolName: 'Bash', decision: 'denied' });
+  });
+
+  it('flags come with the events behind them; the training detail only counts them, with no names', async () => {
+    const s = await setup();
+    const t = await s.training();
+    const lan = await s.member(t, 'Lan');
+    const leak = { ...postToolUseBash, tool_input: { command: 'echo token=abcdefgh12345678' } };
+    await s.ingest(lan.ingestToken, userPromptSubmit);
+    await s.ingest(lan.ingestToken, leak);
+    ago(s, 10);
+    const page = (await s.admin('GET', `/trainings/${t.id}/members/${lan.id}/events`)).json<{ events: { id: number }[]; flags: { code: string; eventIds: number[] }[] }>();
+    expect(page.flags).toEqual([{ code: 'possible_secret', eventIds: [page.events[1]!.id] }]);
+    const d = await s.detail(t.id);
+    expect(d.members[0]!.flags).toEqual(['possible_secret']);
+    expect(d.flagCounts.possible_secret).toBe(1);
+    expect(d.flagCounts.dangerous_command).toBe(0);
+    // aggregate: numbers only
+    expect(Object.values(d.flagCounts).every(v => typeof v === 'number')).toBe(true);
+    expect(JSON.stringify(d.flagCounts)).not.toContain('Lan');
+  });
+
+  it('the auto-accept flag goes up, unless the mentor allowed it when creating the training', async () => {
+    const s = await setup();
+    const bypass = { ...userPromptSubmit, permission_mode: 'bypassPermissions' };
+    const strict = await s.training();
+    const lan = await s.member(strict, 'Lan');
+    await s.ingest(lan.ingestToken, bypass);
+    expect((await s.detail(strict.id)).members[0]!.flags).toEqual(['auto_accept']);
+    expect((await s.detail(strict.id)).allowAutoAccept).toBe(false);
+
+    const res = await s.admin('POST', '/trainings', { name: 'Cho phép', allowAutoAccept: true });
+    const relaxed = res.json<CreatedTraining>();
+    const mai = await s.member(relaxed, 'Mai');
+    await s.ingest(mai.ingestToken, bypass);
+    const d = await s.detail(relaxed.id);
+    expect(d.allowAutoAccept).toBe(true);
+    expect(d.members[0]!.flags).toEqual([]);
+    expect(d.flagCounts.auto_accept).toBe(0);
+  });
+
+  it('flags follow new events (not stuck on a cached answer)', async () => {
+    const s = await setup();
+    const t = await s.training();
+    const lan = await s.member(t, 'Lan');
+    await s.ingest(lan.ingestToken, userPromptSubmit);
+    expect((await s.detail(t.id)).members[0]!.flags).toEqual([]);
+    await s.ingest(lan.ingestToken, { ...postToolUseBash, tool_input: { command: 'git push --force' } });
+    expect((await s.detail(t.id)).members[0]!.flags).toEqual(['dangerous_command']);
   });
 });
 

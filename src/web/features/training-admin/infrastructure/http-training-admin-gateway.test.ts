@@ -22,7 +22,9 @@ describe('HttpTrainingAdminGateway', () => {
       ['GET', '/api/admin/trainings/3/members/8/events'], ['GET', '/api/admin/trainings/3/members/8/events?after=41'],
       ['GET', '/api/admin/trainings/3/events/99/detail'], ['GET', '/api/network'],
     ]);
-    expect(JSON.parse((f.mock.calls[1]![1] as RequestInit).body as string)).toEqual({ name: 'Buổi 1' });
+    expect(JSON.parse((f.mock.calls[1]![1] as RequestInit).body as string)).toEqual({ name: 'Buổi 1', allowAutoAccept: false });
+    await g.create('Buổi 2', { allowAutoAccept: true });
+    expect(JSON.parse((f.mock.calls[10]![1] as RequestInit).body as string)).toEqual({ name: 'Buổi 2', allowAutoAccept: true });
   });
 
   describe('the "hide content" choice', () => {

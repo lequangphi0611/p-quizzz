@@ -135,7 +135,8 @@ describe('GetTrainingDetail', () => {
     await uc.join.execute({ trainingId: t.id, displayName: 'Lan', roomCode: '111111' });
     let detail = await uc.detail.execute(t.id);
     expect(detail.uninstalled).toBeNull();
-    expect(detail.members).toEqual([{ id: 1, displayName: 'Lan', connection: 'waiting', lastSeenAt: null, promptCount: 0, toolCount: 0, failedCount: 0, stuck: false, stillSending: false, stoppedSending: false }]);
+    expect(detail.members).toEqual([{ id: 1, displayName: 'Lan', connection: 'waiting', lastSeenAt: null, promptCount: 0, toolCount: 0, failedCount: 0, stuck: false, stillSending: false, stoppedSending: false, flags: [], clearCount: 0, compactCount: 0, permissionCount: 0 }]);
+    expect(Object.values(detail.flagCounts).every(n => n === 0)).toBe(true);
     await uc.stop.execute(t.id);
     detail = await uc.detail.execute(t.id);
     expect(detail.uninstalled).toEqual({ count: 0, total: 1 });

@@ -17,7 +17,7 @@ export function TrainingListPage() {
   const initial = useLoaderData() as TrainingSummary[];
   const { state, ctrl } = useTrainingList(initial);
   const nav = useNavigate();
-  const { items, name, creating, createError, loading, loadError } = state;
+  const { items, name, allowAutoAccept, creating, createError, loading, loadError } = state;
 
   async function create() {
     const made = await ctrl.create();
@@ -29,13 +29,22 @@ export function TrainingListPage() {
       <h1 style={{ font: 'var(--type-h1)', color: 'var(--text-title)', margin: 0 }}>Buổi training AI</h1>
 
       <Card title="Tạo buổi mới" subtitle="Học viên vào bằng mã phòng, đồng ý rồi mới gửi prompt và lệnh của Claude Code về máy này.">
-        <form onSubmit={e => { e.preventDefault(); void create(); }} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-          <div style={{ flex: '1 1 320px', maxWidth: 520 }}>
-            <TextField label="Tên buổi" value={name} onChange={v => ctrl.setName(v)} placeholder="Ví dụ: Claude Code buổi 2, viết test" maxLength={TRAINING_NAME_MAX} error={createError} disabled={creating} />
+        <form onSubmit={e => { e.preventDefault(); void create(); }} style={{ display: 'grid', gap: 14 }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 320px', maxWidth: 520 }}>
+              <TextField label="Tên buổi" value={name} onChange={v => ctrl.setName(v)} placeholder="Ví dụ: Claude Code buổi 2, viết test" maxLength={TRAINING_NAME_MAX} error={createError} disabled={creating} />
+            </div>
+            <div style={{ paddingTop: 25 }}>
+              <Button type="submit" icon="plus" size="lg" loading={creating}>Tạo buổi</Button>
+            </div>
           </div>
-          <div style={{ paddingTop: 25 }}>
-            <Button type="submit" icon="plus" size="lg" loading={creating}>Tạo buổi</Button>
-          </div>
+          <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', maxWidth: 620, cursor: 'pointer' }}>
+            <input type="checkbox" checked={allowAutoAccept} disabled={creating} onChange={e => ctrl.setAllowAutoAccept(e.target.checked)} style={{ width: 18, height: 18, marginTop: 2, accentColor: 'var(--brand-600)' }} />
+            <span style={{ display: 'grid', gap: 2 }}>
+              <span style={{ font: 'var(--type-ui)', fontSize: 15, color: 'var(--text-title)', fontWeight: 600 }}>Cho phép chế độ tự chấp nhận</span>
+              <span style={{ font: 'var(--type-meta)', color: 'var(--text-meta)' }}>Bài hôm nay cho phép Claude Code tự sửa file hoặc chạy lệnh không hỏi lại. Bỏ trống thì mentor thấy cờ "Chế độ tự chấp nhận" khi có người bật.</span>
+            </span>
+          </label>
         </form>
       </Card>
 

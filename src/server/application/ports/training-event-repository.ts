@@ -1,4 +1,5 @@
 import type { Clip } from '../../domain/training/clip.js';
+import type { FlagEvent } from '../../domain/training/flags/flag-event.js';
 import type { ToolOutcome } from '../../domain/training/is-stuck.js';
 import type { TrainingEventDraft } from '../../domain/training/training-event.js';
 
@@ -8,13 +9,10 @@ export type NewTrainingEvent = TrainingEventDraft & { memberId: number; received
 /** How much of the end of an output the list may read: enough for a one-line summary, never the whole output. */
 export const OUTPUT_END_CHARS = 1000;
 
-/**
- * One line of the timeline, read without `output_*` / `change_*` in full. Only `prompt` and `tool` rows are listed until the
- * timeline can show the others (S39): `permission`, `session` and `notice` rows are stored but not read back yet.
- */
+/** One line of the timeline, read without `output_*` / `change_*` in full. Every kind is listed (S39). */
 export interface LightEvent {
   id: number;
-  kind: 'prompt' | 'tool';
+  kind: 'prompt' | 'tool' | 'permission' | 'session' | 'notice';
   receivedAt: Date;
   claudeSessionId: string;
   prompt: string | null;
@@ -23,6 +21,9 @@ export interface LightEvent {
   ok: boolean | null;
   durationMs: number | null;
   errorExcerpt: string | null;
+  note: string | null;
+  subtype: string | null;
+  permissionMode: string | null;
   /** Last `OUTPUT_END_CHARS` characters of the stored output (null if there is none). */
   outputEnd: string | null;
   hasOutput: boolean;
@@ -40,13 +41,23 @@ export interface MemberCounts {
   promptCount: number;
   toolCount: number;
   failedCount: number;
+  clearCount: number;
+  compactCount: number;
+  permissionCount: number;
+  /** Id of the member's newest event: a cheap "did anything change" key for what is derived from the whole timeline. */
+  lastEventId: number;
 }
+
+/** How much of a change / output the flag rules may read. */
+export const FLAG_TEXT_CHARS = 4000;
 
 /** Read side: usable outside a unit of work. */
 export interface TrainingEventReader {
   /** Events of one member with `id > afterId`, oldest first. */
   listLight(memberId: number, afterId: number, limit: number): Promise<LightEvent[]>;
   getDetail(eventId: number): Promise<EventDetail | null>;
+  /** Every event of the member, oldest first, with bounded text, for the flag rules and the inferred permission decisions. */
+  listForFlags(memberId: number): Promise<FlagEvent[]>;
   /** The member's last `n` tool calls, oldest first. */
   recentTools(memberId: number, n: number): Promise<ToolOutcome[]>;
   /** Counts per member of the training; members with no events are absent. */

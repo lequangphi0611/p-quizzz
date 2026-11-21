@@ -1,6 +1,7 @@
-import type { Clip, TrainingDetail, TrainingEventRow } from '../../../../shared/api/index.js';
+import type { Clip, FlagCode, MemberFlag, TrainingDetail, TrainingEventRow } from '../../../../shared/api/index.js';
 import { ApiError } from '../../../shared/api-client/http-client.js';
 import { announcementFor } from '../domain/announcements.js';
+import { evidenceOf } from '../domain/flags.js';
 import { stepEvent } from '../domain/timeline.js';
 import type { TrainingAdminGateway } from './training-admin-gateway.js';
 
@@ -19,6 +20,11 @@ export interface TimelineState {
   newCount: number;
   /** Changes whenever the timeline should scroll to its end (the page reacts to the change, not the value). */
   stickToken: number;
+  /** The flags of this member's whole timeline, each with the events behind it (from the server). */
+  flags: MemberFlag[];
+  /** The event a flag chip last jumped to: drawn highlighted; `focusToken` changes on every jump so the page scrolls even to the same row. */
+  focusId: number | null;
+  focusToken: number;
 }
 
 export type PanelKind = 'output' | 'change';
@@ -59,6 +65,12 @@ export interface TrainingControllerOptions {
   initialMemberId?: number | null;
   /** Pages of 500 events fetched in a row before "Tải thêm" is offered. */
   maxPages?: number;
+}
+
+interface Fetched {
+  events: TrainingEventRow[];
+  hasMore: boolean;
+  flags: MemberFlag[];
 }
 
 const errorText = (err: unknown, fallback: string) => (err instanceof ApiError ? err.message : fallback);
@@ -102,7 +114,7 @@ export class TrainingController {
     for (const l of [...this.listeners]) l();
   }
   private freshTimeline(memberId: number): TimelineState {
-    return { memberId, events: [], hasMore: false, phase: 'loading', loadingMore: false, error: '', newCount: 0, stickToken: 0 };
+    return { memberId, events: [], hasMore: false, phase: 'loading', loadingMore: false, error: '', newCount: 0, stickToken: 0, flags: [], focusId: null, focusToken: 0 };
   }
 
   /** Loads what the first render could not: the timeline of the member from the URL, the count of an ended training. Safe to call twice. */
@@ -174,29 +186,35 @@ export class TrainingController {
   // ── The timeline of the picked member ────────────────────────────────────────────────────────────
 
   /** Pages of events after `after`, oldest first, up to the page cap. */
-  private async fetchPages(memberId: number, after: number): Promise<{ events: TrainingEventRow[]; hasMore: boolean }> {
+  private async fetchPages(memberId: number, after: number): Promise<Fetched> {
     const events: TrainingEventRow[] = [];
     let cursor = after;
+    let flags: MemberFlag[] = [];
     for (let page = 0; page < this.maxPages; page++) {
       const r = await this.gateway.events(this.state.detail.id, memberId, cursor);
       events.push(...r.events);
+      flags = r.flags ?? flags;
       const last = r.events[r.events.length - 1];
-      if (!last) return { events, hasMore: false };
-      if (!r.hasMore) return { events, hasMore: false };
+      if (!last || !r.hasMore) return { events, hasMore: false, flags };
       cursor = last.id;
     }
-    return { events, hasMore: true };
+    return { events, hasMore: true, flags };
   }
 
-  private appendEvents(memberId: number, fetched: { events: TrainingEventRow[]; hasMore: boolean }): void {
+  /**
+   * Adds what came after the last event, and swaps in the newer version of rows already shown (a permission request that was
+   * "waiting" gets its inferred answer once more events exist).
+   */
+  private appendEvents(memberId: number, fetched: Fetched): void {
     const tl = this.state.timeline;
     if (!tl || tl.memberId !== memberId) return;
     const lastId = tl.events[tl.events.length - 1]?.id ?? 0;
     const fresh = fetched.events.filter(e => e.id > lastId);
+    const updated = new Map(fetched.events.filter(e => e.id <= lastId).map(e => [e.id, e]));
     let { newCount, stickToken } = tl;
     // At the end of the timeline (or empty so far) it follows the new lines; higher up it only counts them.
     if (fresh.length > 0) { if (tl.events.length === 0 || this.atBottom) stickToken++; else newCount += fresh.length; }
-    this.set({ timeline: { ...tl, events: [...tl.events, ...fresh], hasMore: fetched.hasMore, phase: 'ready', loadingMore: false, error: '', newCount, stickToken } });
+    this.set({ timeline: { ...tl, events: [...tl.events.map(e => updated.get(e.id) ?? e), ...fresh], hasMore: fetched.hasMore, flags: fetched.flags, phase: 'ready', loadingMore: false, error: '', newCount, stickToken } });
   }
 
   private async loadInitial(memberId: number, token: number): Promise<void> {
@@ -239,8 +257,10 @@ export class TrainingController {
     if (tl.phase !== 'ready' || tl.loadingMore) return;
     const token = this.timelineToken;
     const lastId = tl.events[tl.events.length - 1]?.id ?? 0;
+    // Start at the oldest request still "waiting": its answer is inferred from what came after it.
+    const waiting = tl.events.find(e => e.kind === 'permission' && e.decision === 'pending');
     try {
-      const fetched = await this.fetchPages(tl.memberId, lastId);
+      const fetched = await this.fetchPages(tl.memberId, waiting ? waiting.id - 1 : lastId);
       const now = this.state.timeline;
       // Drop the answer if another member was picked, or something else already appended after `lastId`.
       if (token !== this.timelineToken || !now || now.memberId !== tl.memberId || (now.events[now.events.length - 1]?.id ?? 0) !== lastId) return;
@@ -263,6 +283,17 @@ export class TrainingController {
       const now = this.state.timeline;
       if (token === this.timelineToken && now) this.set({ timeline: { ...now, loadingMore: false, error: errorText(err, 'Không tải thêm được') } });
     }
+  }
+
+  /** A flag chip: jumps to the next event behind that flag (the first press goes to the first one), highlighting its row. */
+  jumpToFlag(code: FlagCode): void {
+    const tl = this.state.timeline;
+    const flag = tl?.flags.find(f => f.code === code);
+    if (!tl || this.state.hidden) return;
+    const ids = evidenceOf(flag, tl.events);
+    if (ids.length === 0) return;
+    const at = tl.focusId === null ? -1 : ids.indexOf(tl.focusId);
+    this.set({ timeline: { ...tl, focusId: ids[(at + 1) % ids.length]!, focusToken: tl.focusToken + 1 } });
   }
 
   /** The page reports whether the timeline is at its end (within 80px) after every scroll. */

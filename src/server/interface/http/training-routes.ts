@@ -42,7 +42,7 @@ export const trainingAdminRoutes = (uc: Pick<TrainingUseCases, 'create' | 'list'
     app.post('/trainings', async (req, reply) => {
       const body = CreateTrainingBody.safeParse(req.body);
       if (!body.success) return reply.code(400).send(badBody(body.error.issues[0]));
-      return reply.code(201).send(toCreatedTrainingDto(await uc.create.execute(body.data.name)));
+      return reply.code(201).send(toCreatedTrainingDto(await uc.create.execute(body.data.name, { allowAutoAccept: body.data.allowAutoAccept })));
     });
 
     app.get('/trainings', async () => (await uc.list.execute()).map(toTrainingSummaryDto));

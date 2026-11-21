@@ -260,6 +260,8 @@ export const trainings = sqliteTable(
     endedAt: ts('ended_at'),
     // Written when the training ends, because the members are deleted then.
     memberCount: integer('member_count'),
+    // S39: the mentor expects auto-accept / bypass here, so the flag for it stays down.
+    allowAutoAccept: integer('allow_auto_accept', { mode: 'boolean' }).notNull().default(false),
   },
   t => [uniqueIndex('trainings_room_code_uq').on(t.roomCode)],
 );

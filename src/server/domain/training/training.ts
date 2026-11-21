@@ -16,6 +16,8 @@ export interface Training {
   endedAt: Date | null;
   /** Written only when the training ends (members are deleted then). */
   memberCount: number | null;
+  /** The mentor expects auto-accept / bypass in this training: that flag never goes up (PRODUCT.md §7.35c). */
+  allowAutoAccept: boolean;
 }
 
 export interface TrainingMember {

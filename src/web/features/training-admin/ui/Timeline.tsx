@@ -7,11 +7,14 @@ import { Icon } from '../../../shared/ui/Icon.js';
 import { Spinner } from '../../../shared/ui/Spinner.js';
 import type { PanelKind, PanelState, TimelineState, TrainingController } from '../application/training-controller.js';
 import { formatDuration } from '../domain/duration.js';
-import { memberCountsText, formatLastSeen } from '../domain/members.js';
+import { memberCountsText, memberExtraCountsText, formatLastSeen } from '../domain/members.js';
+import { evidenceOf, visibleFlags } from '../domain/flags.js';
+import { decisionText, isAutoMode, modeLabel, noteLines, noticeTitle, sessionTitle } from '../domain/row-text.js';
 import { isNearBottom } from '../domain/scroll.js';
 import { toolLabel } from '../domain/tool-label.js';
 import { buildTimeline, type TimelineItem, type TimelineTool } from '../domain/timeline.js';
-import { ConnectionChip, StuckChip, ToolName, visuallyHidden } from './chips.js';
+import { ConnectionChip, FlagChip, StuckChip, ToolName, visuallyHidden } from './chips.js';
+import { NoticeRow, PanelButton, PermissionRow, SessionRow, rowBox } from './TimelineRows.js';
 
 const mono = 'var(--font-mono)';
 
@@ -27,12 +30,16 @@ function SessionDivider({ index, startedAt }: { index: number; startedAt: number
   );
 }
 
-function PromptBlock({ event, number }: { event: TrainingEventRow; number: number | null }) {
+function PromptBlock({ event, number, focused }: { event: TrainingEventRow; number: number | null; focused: boolean }) {
+  const mode = modeLabel(event.permissionMode);
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '18px minmax(0, 1fr) auto', gap: 10, alignItems: 'start', padding: '12px 14px', borderRadius: 'var(--radius-md)', background: 'var(--brand-050)', border: '1px solid var(--brand-200)' }}>
+    <div id={`ev-${event.id}`} style={{ display: 'grid', gridTemplateColumns: '18px minmax(0, 1fr) auto', gap: 10, alignItems: 'start', padding: '12px 14px', borderRadius: 'var(--radius-md)', background: focused ? 'var(--sun-100)' : 'var(--brand-050)', border: `1px solid ${focused ? 'var(--sun-200)' : 'var(--brand-200)'}` }}>
       <Icon name="message-square" size={18} color="var(--brand-700)" style={{ marginTop: 2 }} />
       <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
-        <span style={{ font: 'var(--type-label)', textTransform: 'uppercase', letterSpacing: 'var(--tracking-label)', color: 'var(--brand-700)' }}>Prompt{number !== null ? ` ${number}` : ''}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', font: 'var(--type-label)', textTransform: 'uppercase', letterSpacing: 'var(--tracking-label)', color: 'var(--brand-700)' }}>
+          Prompt{number !== null ? ` ${number}` : ''}
+          {mode && <span title="Chế độ quyền của Claude Code lúc bạn ấy gõ prompt" style={{ textTransform: 'none', letterSpacing: 0, padding: '1px 8px', borderRadius: 'var(--radius-pill)', font: 'var(--type-label)', fontSize: 12, background: isAutoMode(event.permissionMode) ? 'var(--sun-100)' : 'var(--paper)', color: isAutoMode(event.permissionMode) ? 'var(--sun-ink)' : 'var(--ink-700)', border: `1px solid ${isAutoMode(event.permissionMode) ? 'var(--sun-200)' : 'var(--ink-300)'}` }}>{mode}</span>}
+        </span>
         <p style={{ margin: 0, font: '500 16px/1.5 var(--font-sans)', color: 'var(--text-title)', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{event.prompt}</p>
       </div>
       <span style={{ font: `500 13px/1 ${mono}`, color: 'var(--text-meta)' }}>{formatClock(event.receivedAt)}</span>
@@ -40,14 +47,16 @@ function PromptBlock({ event, number }: { event: TrainingEventRow; number: numbe
   );
 }
 
-function ToolRow({ tool, panel, onOpen }: { tool: TimelineTool; panel: PanelState | null; onOpen: (id: number, kind: PanelKind) => void }) {
+function ToolRow({ tool, panel, focused, onOpen }: { tool: TimelineTool; panel: PanelState | null; focused: boolean; onOpen: (id: number, kind: PanelKind) => void }) {
   const { event: e, run } = tool;
   const failed = e.ok === false;
   const name = toolLabel(e.toolName ?? '');
   const active = panel?.eventId === e.id;
   const open = (kind: PanelKind) => active && panel?.kind === kind;
+  const answers = noteLines(e.note);
+  const isPlan = e.toolName === 'ExitPlanMode';
   return (
-    <li id={`ev-${e.id}`} style={{ display: 'grid', gridTemplateColumns: '18px 64px minmax(0, 1fr) auto', columnGap: 10, rowGap: 6, alignItems: 'center', padding: '8px 10px', borderRadius: 'var(--radius-sm)', background: active ? 'var(--selected-bg)' : undefined, boxShadow: active ? 'inset 3px 0 0 var(--brand-600)' : undefined }}>
+    <li id={`ev-${e.id}`} data-kind="tool" style={{ ...rowBox(active, focused), display: 'grid', gridTemplateColumns: '18px 64px minmax(0, 1fr) auto', columnGap: 10, rowGap: 6, alignItems: 'center' }}>
       <Icon name={failed ? 'circle-x' : 'circle-check'} size={18} color={failed ? 'var(--wrong-600)' : 'var(--correct-600)'} />
       <span style={visuallyHidden}>{failed ? 'Lỗi' : 'Thành công'}</span>
       <ToolName name={name} />
@@ -60,6 +69,15 @@ function ToolRow({ tool, panel, onOpen }: { tool: TimelineTool; panel: PanelStat
       {e.summary && (
         <div style={{ gridColumn: '2 / -1', font: `400 12.5px/1.55 ${mono}`, padding: '6px 10px', borderRadius: 'var(--radius-sm)', background: failed ? 'var(--wrong-surface)' : 'var(--surface-sunken)', color: 'var(--ink-800)', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{e.summary}</div>
       )}
+      {isPlan && (
+        <div style={{ gridColumn: '2 / -1', font: 'var(--type-meta)', fontSize: 13, color: 'var(--text-meta)' }}>Claude trình kế hoạch. Bạn ấy duyệt hay góp ý thì app không thấy.</div>
+      )}
+      {answers.length > 0 && (
+        <div style={{ gridColumn: '2 / -1', display: 'grid', gap: 2, font: '500 13px/1.5 var(--font-sans)', padding: '6px 10px', borderRadius: 'var(--radius-sm)', background: 'var(--brand-050)', color: 'var(--ink-900)', overflowWrap: 'anywhere' }}>
+          <span style={{ font: 'var(--type-label)', fontSize: 12, color: 'var(--brand-700)' }}>Claude hỏi, bạn ấy chọn</span>
+          {answers.map((l, i) => <span key={i}>{l}</span>)}
+        </div>
+      )}
       {run?.start && (
         <div style={{ gridColumn: '2 / -1' }}>
           <StuckChip label={run.active ? `Có thể đang kẹt · cùng lệnh lỗi ${run.length} lần liên tiếp` : `Cùng lệnh lỗi ${run.length} lần liên tiếp`} />
@@ -67,20 +85,11 @@ function ToolRow({ tool, panel, onOpen }: { tool: TimelineTool; panel: PanelStat
       )}
       {(e.hasOutput || e.hasChange) && (
         <div style={{ gridColumn: '2 / -1', display: 'flex', gap: 4, marginLeft: -8 }}>
-          {e.hasOutput && <PanelButton id={e.id} kind="output" label="Xem output" icon="code" on={open('output')} onOpen={onOpen} />}
+          {e.hasOutput && <PanelButton id={e.id} kind="output" label={isPlan ? 'Xem kế hoạch' : 'Xem output'} icon={isPlan ? 'list-checks' : 'code'} on={open('output')} onOpen={onOpen} />}
           {e.hasChange && <PanelButton id={e.id} kind="change" label="Xem thay đổi" icon="file-text" on={open('change')} onOpen={onOpen} />}
         </div>
       )}
     </li>
-  );
-}
-
-function PanelButton({ id, kind, label, icon, on, onOpen }: { id: number; kind: PanelKind; label: string; icon: string; on: boolean; onOpen: (id: number, kind: PanelKind) => void }) {
-  return (
-    <button type="button" data-trigger={`${id}-${kind}`} aria-pressed={on} onClick={() => onOpen(id, kind)}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 28, padding: '0 8px', border: 0, borderRadius: 'var(--radius-sm)', cursor: 'pointer', font: 'var(--type-label)', fontSize: 13, color: on ? 'var(--brand-700)' : 'var(--text-link)', background: on ? 'var(--brand-050)' : 'transparent', textDecoration: on ? 'none' : 'underline' }}>
-      <Icon name={icon} size={14} />{label}{on && <Icon name="check" size={12} />}
-    </button>
   );
 }
 
@@ -94,12 +103,18 @@ export function Timeline({ member, timeline, panel, hidden, ctrl, canRemove, now
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const items: TimelineItem[] = hidden ? [] : buildTimeline(timeline.events, { memberStuck: member.stuck });
+  const flags = timeline.flags.filter(f => visibleFlags({ flags: [f.code], stuck: member.stuck }).length > 0).map(f => ({ code: f.code, ids: evidenceOf(f, timeline.events) })).filter(f => f.ids.length > 0);
 
   // Follow the end when the controller says so (first load, or new lines while the mentor is at the end).
   useLayoutEffect(() => {
     const el = scroller.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [timeline.stickToken, timeline.phase, hidden]);
+
+  // A flag chip jumped to an event: scroll to its row (the row is drawn highlighted while `focusId` stays).
+  useLayoutEffect(() => {
+    if (timeline.focusId !== null) document.getElementById(`ev-${timeline.focusId}`)?.scrollIntoView({ block: 'center' });
+  }, [timeline.focusToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // J / K moved the panel to another command: bring its row into view.
   const activeId = panel?.eventId;
@@ -117,7 +132,13 @@ export function Timeline({ member, timeline, panel, hidden, ctrl, canRemove, now
             <ConnectionChip row={member} />
             {member.stuck && <StuckChip />}
           </div>
-          <span style={{ font: 'var(--type-meta)', color: 'var(--text-meta)' }}>{memberCountsText(member)} · lần cuối thấy {formatLastSeen(member.lastSeenAt, now)}</span>
+          <span style={{ font: 'var(--type-meta)', color: 'var(--text-meta)' }}>{[memberCountsText(member), memberExtraCountsText(member)].filter(Boolean).join(' · ')} · lần cuối thấy {formatLastSeen(member.lastSeenAt, now)}</span>
+          {!hidden && flags.length > 0 && (
+            <div aria-label="Cờ gợi ý" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
+              {flags.map(({ code, ids }) => <FlagChip key={code} code={code} count={ids.length} onClick={() => ctrl.jumpToFlag(code)} />)}
+              <span style={{ font: 'var(--type-meta)', fontSize: 12.5, color: 'var(--text-meta)', alignSelf: 'center' }}>Gợi ý để bạn xem, không phải đánh giá.</span>
+            </div>
+          )}
         </div>
         {canRemove && <div style={{ marginLeft: 'auto' }}><Button variant="ghost" size="sm" icon="user-x" onClick={onRemove}>Mời ra</Button></div>}
       </div>
@@ -144,10 +165,16 @@ export function Timeline({ member, timeline, panel, hidden, ctrl, canRemove, now
           <>
             {items.map(item => item.kind === 'session' ? <SessionDivider key={item.key} index={item.index} startedAt={item.startedAt} /> : (
               <div key={item.key} style={{ display: 'grid', gap: 6 }}>
-                {item.prompt && <PromptBlock event={item.prompt} number={item.promptNumber} />}
+                {item.prompt && <PromptBlock event={item.prompt} number={item.promptNumber} focused={timeline.focusId === item.prompt.id} />}
                 {item.tools.length > 0 && (
                   <ol style={{ listStyle: 'none', margin: '0 0 0 14px', padding: '0 0 0 12px', borderLeft: '2px solid var(--ink-200)', display: 'grid', gap: 2 }}>
-                    {item.tools.map(t => <ToolRow key={t.event.id} tool={t} panel={panel} onOpen={onOpen} />)}
+                    {item.tools.map(t => {
+                      const focused = timeline.focusId === t.event.id;
+                      return t.event.kind === 'permission' ? <PermissionRow key={t.event.id} event={t.event} panel={panel} focused={focused} onOpen={onOpen} />
+                        : t.event.kind === 'session' ? <SessionRow key={t.event.id} event={t.event} focused={focused} />
+                        : t.event.kind === 'notice' ? <NoticeRow key={t.event.id} event={t.event} focused={focused} />
+                        : <ToolRow key={t.event.id} tool={t} panel={panel} focused={focused} onOpen={onOpen} />;
+                    })}
                   </ol>
                 )}
               </div>

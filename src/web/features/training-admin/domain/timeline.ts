@@ -13,6 +13,7 @@ export interface StuckRun {
   active: boolean;
 }
 
+/** A row under a prompt: a tool call, a permission request, a session marker (/clear, /compact, model) or a notice. Only tool rows can carry a stuck run. */
 export interface TimelineTool { event: TrainingEventRow; run: StuckRun | null }
 
 export type TimelineItem =
@@ -70,8 +71,9 @@ export function buildTimeline(events: readonly TrainingEventRow[], opts: { membe
   return items;
 }
 
-/** The commands that have an output or a change to open, in timeline order: what J / K step through. */
-export const openableEvents = (events: readonly TrainingEventRow[]): TrainingEventRow[] => events.filter(e => e.kind === 'tool' && (e.hasOutput || e.hasChange));
+/** The commands and permission requests that have an output or a change to open, in timeline order: what J / K step through. */
+export const openableEvents = (events: readonly TrainingEventRow[]): TrainingEventRow[] =>
+  events.filter(e => (e.kind === 'tool' || e.kind === 'permission') && (e.hasOutput || e.hasChange));
 
 /** The next (`1`) or previous (`-1`) command with something to open, relative to `currentId`; null at either end. */
 export function stepEvent(events: readonly TrainingEventRow[], currentId: number, step: 1 | -1): TrainingEventRow | null {

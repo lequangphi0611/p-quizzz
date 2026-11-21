@@ -35,3 +35,7 @@ export function formatLastSeen(ms: number | null, now: number): string {
 /** "6 prompt · 18 lệnh · 5 lỗi" */
 export const memberCountsText = (m: Pick<TrainingMemberRow, 'promptCount' | 'toolCount' | 'failedCount'>): string =>
   `${m.promptCount} prompt · ${m.toolCount} lệnh · ${m.failedCount} lỗi`;
+
+/** "2 /clear · 1 lần nén · 4 lần xin quyền": what is not a prompt or a command; parts that are zero are left out. Empty when there is nothing. */
+export const memberExtraCountsText = (m: Pick<TrainingMemberRow, 'clearCount' | 'compactCount' | 'permissionCount'>): string =>
+  [m.clearCount > 0 && `${m.clearCount} lần /clear`, m.compactCount > 0 && `${m.compactCount} lần nén`, m.permissionCount > 0 && `${m.permissionCount} lần xin quyền`].filter(Boolean).join(' · ');

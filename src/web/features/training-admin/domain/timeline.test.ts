@@ -83,3 +83,28 @@ describe('stepEvent', () => {
     expect(stepEvent(events, 9999, 1)).toBeNull();
   });
 });
+
+describe('rows other than commands', () => {
+  const row = (kind: TrainingEventRow['kind'], extra: Partial<TrainingEventRow> = {}): TrainingEventRow => ({ id: ++id, kind, receivedAt: id * 1000, claudeSessionId: 's1', hasOutput: false, hasChange: false, ...extra });
+
+  it('permission requests, session markers and notices sit under the prompt that was running, in order', () => {
+    id = 0;
+    const events = [prompt('p'), row('permission', { toolName: 'Bash', toolTarget: 'ls', decision: 'allowed' }), tool('Bash', 'ls', true), row('notice', { subtype: 'idle' }), row('session', { subtype: 'clear' })];
+    const [turn] = turns(buildTimeline(events, { memberStuck: false }));
+    expect(turn!.tools.map(t => t.event.kind)).toEqual(['permission', 'tool', 'notice', 'session']);
+  });
+
+  it('never makes a stuck run out of permission requests', () => {
+    id = 0;
+    const same = () => row('permission', { toolName: 'Bash', toolTarget: 'x', ok: false });
+    expect(turns(buildTimeline([same(), same(), same()], { memberStuck: true })).flatMap(t => t.tools).every(t => t.run === null)).toBe(true);
+  });
+
+  it('J / K also stop at a permission request that has a change to open', () => {
+    id = 0;
+    const a = tool('Bash', 'a', true, { hasOutput: true });
+    const p = row('permission', { toolName: 'Edit', toolTarget: 'x.ts', hasChange: true });
+    const events = [a, row('notice', { subtype: 'idle' }), p];
+    expect(stepEvent(events, a.id, 1)?.id).toBe(p.id);
+  });
+});
