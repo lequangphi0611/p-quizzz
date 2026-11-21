@@ -46,26 +46,43 @@ function FoldButton({ fold }: { fold: Fold }) {
 
 function PromptBlock({ event, number, focused, onMark, fold }: { event: TrainingEventRow; number: number | null; focused: boolean; onMark: (id: number) => void; fold: Fold | null }) {
   const mode = modeLabel(event.permissionMode);
-  return (
-    <div id={`ev-${event.id}`} style={{ display: 'grid', gridTemplateColumns: '18px minmax(0, 1fr) auto', gap: 10, alignItems: 'start', padding: '12px 14px', borderRadius: 'var(--radius-md)', background: focused ? 'var(--sun-100)' : 'var(--brand-050)', border: `1px solid ${focused ? 'var(--sun-200)' : 'var(--brand-200)'}` }}>
-      <Icon name="message-square" size={18} color="var(--brand-700)" style={{ marginTop: 2 }} />
-      <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', font: 'var(--type-label)', textTransform: 'uppercase', letterSpacing: 'var(--tracking-label)', color: 'var(--brand-700)' }}>
-          Prompt{number !== null ? ` ${number}` : ''}
-          {mode && <span title="Chế độ quyền của Claude Code lúc bạn ấy gõ prompt" style={{ textTransform: 'none', letterSpacing: 0, padding: '1px 8px', borderRadius: 'var(--radius-pill)', font: 'var(--type-label)', fontSize: 12, background: isAutoMode(event.permissionMode) ? 'var(--sun-100)' : 'var(--paper)', color: isAutoMode(event.permissionMode) ? 'var(--sun-ink)' : 'var(--ink-700)', border: `1px solid ${isAutoMode(event.permissionMode) ? 'var(--sun-200)' : 'var(--ink-300)'}` }}>{mode}</span>}
-        </span>
-        <p style={{ margin: 0, font: '500 16px/1.5 var(--font-sans)', color: 'var(--text-title)', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{event.prompt}</p>
-        {fold && !fold.open && (
-          <button type="button" onClick={fold.onToggle} style={{ justifySelf: 'start', padding: 0, border: 0, background: 'none', cursor: 'pointer', font: 'var(--type-meta)', fontWeight: 600, color: 'var(--text-link)', textDecoration: 'underline' }}>
-            {fold.commands} lệnh đã thu gọn{fold.failed > 0 ? ` · ${fold.failed} lỗi` : ''}
-          </button>
-        )}
+  const folded = fold !== null && !fold.open;
+  const box = { borderRadius: 'var(--radius-md)', background: focused ? 'var(--sun-100)' : 'var(--brand-050)', border: `1px solid ${focused ? 'var(--sun-200)' : 'var(--brand-200)'}` } as const;
+  const modeChip = mode && (
+    <span title="Chế độ quyền của Claude Code lúc bạn ấy gõ prompt" style={{ padding: '0 7px', borderRadius: 'var(--radius-pill)', font: 'var(--type-label)', fontSize: 11.5, whiteSpace: 'nowrap', background: isAutoMode(event.permissionMode) ? 'var(--sun-100)' : 'var(--paper)', color: isAutoMode(event.permissionMode) ? 'var(--sun-ink)' : 'var(--ink-700)', border: `1px solid ${isAutoMode(event.permissionMode) ? 'var(--sun-200)' : 'var(--ink-300)'}` }}>{mode}</span>
+  );
+  const actions = (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, flex: 'none' }}>
+      <span style={{ font: `500 12.5px/1 ${mono}`, color: 'var(--text-meta)', marginRight: 4 }}>{formatClock(event.receivedAt)}</span>
+      {fold && <FoldButton fold={fold} />}
+      <MarkButton id={event.id} marked={event.marked} onToggle={onMark} />
+    </span>
+  );
+  const label = <span style={{ font: 'var(--type-label)', fontSize: 12, textTransform: 'uppercase', letterSpacing: 'var(--tracking-label)', color: 'var(--brand-700)', whiteSpace: 'nowrap' }}>Prompt{number !== null ? ` ${number}` : ''}</span>;
+
+  // Folded: one line, so a long session can be read as a list of what the member asked.
+  if (folded) {
+    return (
+      <div id={`ev-${event.id}`} style={{ ...box, display: 'flex', alignItems: 'center', gap: 10, padding: '2px 4px 2px 12px', minHeight: 36 }}>
+        <Icon name="message-square" size={16} color="var(--brand-700)" />
+        {label}
+        {modeChip}
+        <span title={event.prompt} style={{ flex: 1, minWidth: 0, font: '500 14.5px/1.4 var(--font-sans)', color: 'var(--text-title)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{event.prompt}</span>
+        <button type="button" onClick={fold.onToggle} style={{ padding: 0, border: 0, background: 'none', cursor: 'pointer', whiteSpace: 'nowrap', font: 'var(--type-meta)', fontSize: 12.5, fontWeight: 600, color: 'var(--text-link)' }}>
+          {fold.commands} lệnh{fold.failed > 0 ? ` · ${fold.failed} lỗi` : ''}
+        </button>
+        {actions}
       </div>
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ font: `500 13px/1 ${mono}`, color: 'var(--text-meta)' }}>{formatClock(event.receivedAt)}</span>
-        {fold && <FoldButton fold={fold} />}
-        <MarkButton id={event.id} marked={event.marked} onToggle={onMark} />
-      </span>
+    );
+  }
+  return (
+    <div id={`ev-${event.id}`} style={{ ...box, display: 'grid', gridTemplateColumns: '16px minmax(0, 1fr) auto', gap: 10, alignItems: 'start', padding: '8px 4px 8px 12px' }}>
+      <Icon name="message-square" size={16} color="var(--brand-700)" style={{ marginTop: 3 }} />
+      <div style={{ display: 'grid', gap: 2, minWidth: 0 }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>{label}{modeChip}</span>
+        <p style={{ margin: 0, font: '500 15px/1.45 var(--font-sans)', color: 'var(--text-title)', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{event.prompt}</p>
+      </div>
+      {actions}
     </div>
   );
 }
@@ -155,34 +172,34 @@ export function Timeline({ member, timeline, panel, hidden, markError, ctrl, can
 
   return (
     <section aria-label={`Dòng thời gian của ${member.displayName}`} style={{ position: 'relative', display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0, height: '100%', background: 'var(--surface-card)', border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-card)', overflow: 'hidden' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderBottom: '1px solid var(--border-hairline)', flexWrap: 'wrap' }}>
-        <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <h2 style={{ margin: 0, font: 'var(--type-h2)', color: 'var(--text-title)', overflowWrap: 'anywhere' }}>{member.displayName}</h2>
-            <ConnectionChip row={member} />
-            {member.stuck && <StuckChip />}
-          </div>
-          <span style={{ font: 'var(--type-meta)', color: 'var(--text-meta)' }}>{[memberCountsText(member), memberExtraCountsText(member)].filter(Boolean).join(' · ')} · lần cuối thấy {formatLastSeen(member.lastSeenAt, now)}</span>
-          {!hidden && flags.length > 0 && (
-            <div aria-label="Cờ gợi ý" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
-              {flags.map(({ code, ids }) => <FlagChip key={code} code={code} count={ids.length} onClick={() => ctrl.jumpToFlag(code)} />)}
-              <span style={{ font: 'var(--type-meta)', fontSize: 12.5, color: 'var(--text-meta)', alignSelf: 'center' }}>Gợi ý để bạn xem, không phải đánh giá.</span>
+      <div style={{ display: 'grid', gap: 4, padding: '10px 14px 8px', borderBottom: '1px solid var(--border-hairline)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <h2 style={{ margin: 0, font: '700 18px/1.3 var(--font-sans)', color: 'var(--text-title)', overflowWrap: 'anywhere' }}>{member.displayName}</h2>
+          <ConnectionChip row={member} />
+          {member.stuck && <StuckChip />}
+          {canRemove && (
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 2 }}>
+              {!hidden && foldable.length > 0 && <Button variant="ghost" size="sm" icon={allFolded ? 'chevron-down' : 'chevron-up'} onClick={() => ctrl.setAllCollapsed(!allFolded)}>{allFolded ? 'Mở tất cả' : 'Thu gọn tất cả'}</Button>}
+              {!hidden && <Button variant="ghost" size="sm" icon="pencil" pressed={noteOpen} onClick={() => setNoteOpen(o => !o)}>{member.mentorNote ? 'Ghi chú ✓' : 'Ghi chú'}</Button>}
+              <Button variant="ghost" size="sm" icon="user-x" onClick={onRemove}>Mời ra</Button>
             </div>
           )}
         </div>
-        {canRemove && (
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
-            {!hidden && foldable.length > 0 && <Button variant="ghost" size="sm" icon={allFolded ? 'chevron-down' : 'chevron-up'} onClick={() => ctrl.setAllCollapsed(!allFolded)}>{allFolded ? 'Mở tất cả' : 'Thu gọn tất cả'}</Button>}
-            {!hidden && <Button variant="ghost" size="sm" icon="pencil" pressed={noteOpen} onClick={() => setNoteOpen(o => !o)}>{member.mentorNote ? 'Ghi chú ✓' : 'Ghi chú'}</Button>}
-            <Button variant="ghost" size="sm" icon="user-x" onClick={onRemove}>Mời ra</Button>
-          </div>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px 10px', flexWrap: 'wrap', font: 'var(--type-meta)', fontSize: 13, color: 'var(--text-meta)' }}>
+          <span>{[memberCountsText(member), memberExtraCountsText(member)].filter(Boolean).join(' · ')} · lần cuối thấy {formatLastSeen(member.lastSeenAt, now)}</span>
+          {!hidden && flags.length > 0 && (
+            <span aria-label="Cờ gợi ý" style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+              {flags.map(({ code, ids }) => <FlagChip key={code} code={code} count={ids.length} onClick={() => ctrl.jumpToFlag(code)} />)}
+              <span style={{ fontSize: 12, color: 'var(--text-meta)' }}>Gợi ý để bạn xem, không phải đánh giá.</span>
+            </span>
+          )}
+        </div>
       </div>
       {!hidden && noteOpen && canRemove && <NoteBox key={member.id} member={member} onSave={note => ctrl.saveNote(member.id, note)} />}
       {markError && !hidden && <div role="alert" style={{ padding: '8px 16px', background: 'var(--wrong-surface)', color: 'var(--wrong-600)', font: 'var(--type-meta)', fontWeight: 600 }}>{markError}</div>}
 
       <div ref={scroller} onScroll={e => ctrl.reportScroll(isNearBottom(e.currentTarget))} tabIndex={0} aria-label="Các sự kiện, cũ ở trên, mới ở dưới"
-        style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '14px 16px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '10px 12px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {hidden ? (
           <div style={{ margin: 'auto', display: 'grid', gap: 8, justifyItems: 'center', textAlign: 'center', color: 'var(--text-meta)', font: 'var(--type-body)', maxWidth: 340 }}>
             <Icon name="eye-off" size={28} />

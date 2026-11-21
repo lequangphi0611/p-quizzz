@@ -80,7 +80,7 @@ test('mark examples, write a note, preview and download the report, and the prom
   const first = timeline.getByRole('button', { name: 'Thu gọn các lệnh của prompt này' }).first();
   await first.click();
   await expect(timeline.locator('li', { hasText: 'npm test' })).toHaveCount(0);
-  await expect(timeline.getByText('1 lệnh đã thu gọn')).toBeVisible();
+  await expect(timeline.getByRole('button', { name: '1 lệnh', exact: true })).toBeVisible();
   await shot(page, 'M27-thu-gon-lenh');
   await timeline.getByRole('button', { name: 'Mở các lệnh của prompt này' }).click();
   await expect(timeline.locator('li', { hasText: 'npm test' })).toHaveCount(1);
