@@ -97,43 +97,59 @@ test('flags, the new rows and the class summary; the auto-accept switch', async 
   await expect(summary).not.toContainText('Mai');
   await shot(page, 'M21-bang-co-goi-y');
 
-  // ── Lan's timeline: the new rows ───────────────────────────────────────────────────────────────────
+  // ── Lan's timeline: the list has the prompts; the commands and markers of each open in a popup ─────────────
   await page.getByRole('button', { name: 'Lan', exact: true }).click();
   const timeline = page.getByLabel('Các sự kiện, cũ ở trên, mới ở dưới');
-  await expect(timeline.getByText('Bắt đầu phiên Claude mới (/clear)')).toBeVisible({ timeout: 6_000 });
-  await expect(timeline.getByText('Nén hội thoại (bạn ấy gõ /compact)')).toBeVisible();
-  await expect(timeline.getByText('“giữ lại ý chính”')).toBeVisible();
-  await expect(timeline.getByText('Nén hội thoại (Claude Code tự nén)')).toHaveCount(2);
-  await expect(timeline.getByText('claude-opus-4-5 → claude-sonnet-4-5')).toBeVisible();
-  await expect(timeline.getByText('Claude đang chờ bạn ấy nhập')).toBeVisible();
-  await expect(timeline.getByText('Bỏ qua hỏi quyền').first()).toBeVisible(); // the permission mode on the prompt
-  await expect(timeline.getByText('Claude hỏi, bạn ấy chọn')).toBeVisible();
-  await expect(timeline.getByText('Dùng thư viện nào? → vitest')).toBeVisible();
-  await expect(timeline.getByRole('button', { name: 'Xem kế hoạch' })).toBeVisible();
+  await expect(timeline.getByText('thôi, bỏ đi')).toBeVisible({ timeout: 6_000 });
+  await expect(timeline.getByText('Bỏ qua hỏi quyền').first()).toBeVisible(); // the permission mode sits on the prompt card
+  const popup = page.getByRole('dialog', { name: /Chi tiết các lệnh/ });
+  const openCard = async (text: string) => { await timeline.locator('div[id^="ev-"]', { hasText: text }).getByRole('button', { name: 'Xem chi tiết' }).click(); await expect(popup).toBeVisible(); };
+
+  // Prompt 2: compaction (typed and automatic), the wait, and /clear
+  await openCard('thôi, bỏ đi');
+  await expect(popup.getByText('Bắt đầu phiên Claude mới (/clear)')).toBeVisible();
+  await expect(popup.getByText('Nén hội thoại (bạn ấy gõ /compact)')).toBeVisible();
+  await expect(popup.getByText('“giữ lại ý chính”')).toBeVisible();
+  await expect(popup.getByText('Nén hội thoại (Claude Code tự nén)')).toHaveCount(2);
+  await expect(popup.getByText('Claude đang chờ bạn ấy nhập')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(popup).toHaveCount(0);
+
+  // Prompt 1: model, questions, plan and permission rows
+  await openCard('viết hàm tính tổng giỏ hàng');
+  await expect(popup.getByText('claude-opus-4-5 → claude-sonnet-4-5')).toBeVisible();
+  await expect(popup.getByText('Claude hỏi, bạn ấy chọn')).toBeVisible();
+  await expect(popup.getByText('Dùng thư viện nào? → vitest')).toBeVisible();
+  await expect(popup.getByRole('button', { name: 'Xem kế hoạch' })).toBeVisible();
 
   // Permission rows: an inferred answer, always marked as inferred; the forced push was asked for and never ran → "không cho".
-  const allowedRows = timeline.locator('li[data-kind="permission"]').filter({ hasText: /Đã cho sau ~\d/ });
+  const allowedRows = popup.locator('li[data-kind="permission"]').filter({ hasText: /Đã cho sau ~\d/ });
   await expect(allowedRows).toHaveCount(3);
   await expect(allowedRows.first()).toContainText('(suy ra)');
-  const pushRow = timeline.locator('li[data-kind="permission"]', { hasText: 'git push --force' });
+  const pushRow = popup.locator('li[data-kind="permission"]', { hasText: 'git push --force' });
   await expect(pushRow).toContainText('Không cho (suy ra)');
   await shot(page, 'M22-dong-thoi-gian-moi');
 
-  // The plan opens in the side panel, loaded only when asked.
-  await timeline.getByRole('button', { name: 'Xem kế hoạch' }).click();
+  // The plan opens in the drawer, loaded only when asked.
+  await popup.getByRole('button', { name: 'Xem kế hoạch' }).click();
   await expect(page.getByRole('complementary', { name: /Output/ }).getByText('1. Viết hàm add')).toBeVisible();
   await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(popup).toHaveCount(0);
 
-  // ── A flag chip jumps to the events behind it ──────────────────────────────────────────────────────
+  // ── A flag chip opens the popup that holds the events behind it and highlights the row ─────────────
   const header = page.getByLabel('Cờ gợi ý', { exact: true });
   await expect(header.getByText('Gợi ý để bạn xem, không phải đánh giá.')).toBeVisible();
   await header.getByRole('button', { name: /Đụng vào test/ }).click();
-  const editRow = timeline.locator('li', { hasText: 'src/cart.test.ts' });
+  await expect(popup).toBeVisible();
+  const editRow = popup.locator('li', { hasText: 'src/cart.test.ts' });
   await expect(editRow).toHaveCSS('box-shadow', /rgb/);
   await expect(editRow).toBeInViewport();
+  await page.keyboard.press('Escape');
   await header.getByRole('button', { name: /Lệnh nguy hiểm/ }).click();
   await expect(pushRow).toBeInViewport();
   await shot(page, 'M23-nhay-toi-su-kien');
+  await page.keyboard.press('Escape');
 
   // ── Auto-accept allowed for a training: that flag never goes up ───────────────────────────────────
   await page.goto('/admin/trainings');

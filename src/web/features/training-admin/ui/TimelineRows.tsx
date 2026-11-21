@@ -2,9 +2,11 @@ import type { CSSProperties } from 'react';
 import type { TrainingEventRow } from '../../../../shared/api/index.js';
 import { Icon } from '../../../shared/ui/Icon.js';
 import type { PanelKind, PanelState } from '../application/training-controller.js';
-import { decisionText, noticeTitle, sessionTitle } from '../domain/row-text.js';
+import { decisionText, noteLines, noticeTitle, sessionTitle } from '../domain/row-text.js';
+import { formatDuration } from '../domain/duration.js';
+import type { TimelineTool } from '../domain/timeline.js';
 import { toolLabel } from '../domain/tool-label.js';
-import { ToolName, visuallyHidden } from './chips.js';
+import { StuckChip, ToolName, visuallyHidden } from './chips.js';
 
 const mono = 'var(--font-mono)';
 
@@ -90,3 +92,53 @@ export function NoticeRow({ event: e, focused }: { event: TrainingEventRow; focu
     </li>
   );
 }
+
+export function ToolRow({ tool, panel, focused, onOpen, onMark }: { tool: TimelineTool; panel: PanelState | null; focused: boolean; onOpen: (id: number, kind: PanelKind) => void; onMark: (id: number) => void }) {
+  const { event: e, run } = tool;
+  const failed = e.ok === false;
+  const name = toolLabel(e.toolName ?? '');
+  const active = panel?.eventId === e.id;
+  const open = (kind: PanelKind) => active && panel?.kind === kind;
+  const answers = noteLines(e.note);
+  const isPlan = e.toolName === 'ExitPlanMode';
+  return (
+    <li id={`ev-${e.id}`} data-kind="tool" style={{ ...rowBox(active, focused), display: 'grid', gridTemplateColumns: '18px 64px minmax(0, 1fr) auto', columnGap: 10, rowGap: 6, alignItems: 'center' }}>
+      <Icon name={failed ? 'circle-x' : 'circle-check'} size={18} color={failed ? 'var(--wrong-600)' : 'var(--correct-600)'} />
+      <span style={visuallyHidden}>{failed ? 'Lỗi' : 'Thành công'}</span>
+      <ToolName name={name} />
+      {e.toolTarget === undefined ? <span /> : (
+        // One line; the end is cut with "…" when the column runs out, and hovering shows the whole command (also its line breaks).
+        <span title={e.toolTarget} style={{ minWidth: 0, font: `500 13.5px/1.45 ${mono}`, color: 'var(--ink-900)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.toolTarget}</span>
+      )}
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ font: `500 13px/1 ${mono}`, fontVariantNumeric: 'tabular-nums', color: 'var(--text-meta)', whiteSpace: 'nowrap' }}>{e.durationMs !== undefined ? formatDuration(e.durationMs) : ''}</span>
+        <MarkButton id={e.id} marked={e.marked} onToggle={onMark} />
+      </span>
+
+      {e.summary && (
+        <div style={{ gridColumn: '2 / -1', font: `400 12.5px/1.55 ${mono}`, padding: '6px 10px', borderRadius: 'var(--radius-sm)', background: failed ? 'var(--wrong-surface)' : 'var(--surface-sunken)', color: 'var(--ink-800)', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{e.summary}</div>
+      )}
+      {isPlan && (
+        <div style={{ gridColumn: '2 / -1', font: 'var(--type-meta)', fontSize: 13, color: 'var(--text-meta)' }}>Claude trình kế hoạch. Bạn ấy duyệt hay góp ý thì app không thấy.</div>
+      )}
+      {answers.length > 0 && (
+        <div style={{ gridColumn: '2 / -1', display: 'grid', gap: 2, font: '500 13px/1.5 var(--font-sans)', padding: '6px 10px', borderRadius: 'var(--radius-sm)', background: 'var(--brand-050)', color: 'var(--ink-900)', overflowWrap: 'anywhere' }}>
+          <span style={{ font: 'var(--type-label)', fontSize: 12, color: 'var(--brand-700)' }}>Claude hỏi, bạn ấy chọn</span>
+          {answers.map((l, i) => <span key={i}>{l}</span>)}
+        </div>
+      )}
+      {run?.start && (
+        <div style={{ gridColumn: '2 / -1' }}>
+          <StuckChip label={run.active ? `Có thể đang kẹt · cùng lệnh lỗi ${run.length} lần liên tiếp` : `Cùng lệnh lỗi ${run.length} lần liên tiếp`} />
+        </div>
+      )}
+      {(e.hasOutput || e.hasChange) && (
+        <div style={{ gridColumn: '2 / -1', display: 'flex', gap: 4, marginLeft: -8 }}>
+          {e.hasOutput && <PanelButton id={e.id} kind="output" label={isPlan ? 'Xem kế hoạch' : 'Xem output'} icon={isPlan ? 'list-checks' : 'code'} on={open('output')} onOpen={onOpen} />}
+          {e.hasChange && <PanelButton id={e.id} kind="change" label="Xem thay đổi" icon="file-text" on={open('change')} onOpen={onOpen} />}
+        </div>
+      )}
+    </li>
+  );
+}
+

@@ -3,7 +3,7 @@ import { ApiError } from '../../../shared/api-client/http-client.js';
 import { announcementFor } from '../domain/announcements.js';
 import { evidenceOf } from '../domain/flags.js';
 import { reportFileName } from '../domain/report.js';
-import { buildTimeline, stepEvent, turnKeyOf, turnKeys } from '../domain/timeline.js';
+import { stepEvent, turnKeyOf } from '../domain/timeline.js';
 import type { TrainingAdminGateway } from './training-admin-gateway.js';
 
 /** A member's timeline as loaded so far (oldest first). */
@@ -26,8 +26,6 @@ export interface TimelineState {
   /** The event a flag chip last jumped to: drawn highlighted; `focusToken` changes on every jump so the page scrolls even to the same row. */
   focusId: number | null;
   focusToken: number;
-  /** Turns the mentor folded (keys from `buildTimeline`): their commands are hidden until opened again. New turns start open. */
-  collapsed: ReadonlySet<string>;
 }
 
 export type PanelKind = 'output' | 'change';
@@ -73,6 +71,8 @@ export interface TrainingState {
   /** Members of an ended training, from the list (the detail no longer carries them); null until known. */
   endedMemberCount: number | null;
   report: ReportState | null;
+  /** The prompt whose commands are open in the popup (key from `buildTimeline`), or null. */
+  turnKey: string | null;
   /** Why the last mark / unmark failed (the row went back to how it was). Cleared by the next one that works. */
   markError: string;
 }
@@ -125,7 +125,7 @@ export class TrainingController {
     const known = id !== null && initial.status !== 'ended' && initial.members.some(m => m.id === id);
     this.state = {
       detail: initial, selectedId: known ? id : null, timeline: known ? this.freshTimeline(id) : null, panel: null, confirm: null,
-      working: false, actionError: '', hidden: gateway.readHideContent(), offline: false, announcement: '', endedMemberCount: null, report: null, markError: '',
+      working: false, actionError: '', hidden: gateway.readHideContent(), offline: false, announcement: '', endedMemberCount: null, report: null, turnKey: null, markError: '',
     };
   }
 
@@ -136,7 +136,7 @@ export class TrainingController {
     for (const l of [...this.listeners]) l();
   }
   private freshTimeline(memberId: number): TimelineState {
-    return { memberId, events: [], hasMore: false, phase: 'loading', loadingMore: false, error: '', newCount: 0, stickToken: 0, flags: [], focusId: null, focusToken: 0, collapsed: new Set() };
+    return { memberId, events: [], hasMore: false, phase: 'loading', loadingMore: false, error: '', newCount: 0, stickToken: 0, flags: [], focusId: null, focusToken: 0 };
   }
 
   /** Loads what the first render could not: the timeline of the member from the URL, the count of an ended training. Safe to call twice. */
@@ -190,8 +190,9 @@ export class TrainingController {
       patch.selectedId = null;
       patch.timeline = null;
       patch.panel = null;
+      patch.turnKey = null;
     }
-    if (next.status === 'ended') { this.panelToken++; this.reportToken++; patch.panel = null; patch.report = null; }
+    if (next.status === 'ended') { this.panelToken++; this.reportToken++; patch.panel = null; patch.turnKey = null; patch.report = null; }
     if (this.state.confirm && !this.state.working && !confirmStillMakesSense(this.state.confirm, next)) patch.confirm = null;
     this.set(patch);
     if (next.status === 'ended' && prev.status !== 'ended') void this.loadEndedCount();
@@ -256,10 +257,10 @@ export class TrainingController {
     if (memberId === this.state.selectedId) return;
     this.timelineToken++;
     this.panelToken++;
-    if (memberId === null) { this.set({ selectedId: null, timeline: null, panel: null }); return; }
+    if (memberId === null) { this.set({ selectedId: null, timeline: null, panel: null, turnKey: null }); return; }
     if (this.state.detail.status === 'ended' || !this.state.detail.members.some(m => m.id === memberId)) return;
     this.atBottom = true;
-    this.set({ selectedId: memberId, timeline: this.freshTimeline(memberId), panel: null });
+    this.set({ selectedId: memberId, timeline: this.freshTimeline(memberId), panel: null, turnKey: null });
     void this.loadInitial(memberId, this.timelineToken);
   }
 
@@ -316,35 +317,25 @@ export class TrainingController {
     if (ids.length === 0) return;
     const at = tl.focusId === null ? -1 : ids.indexOf(tl.focusId);
     const id = ids[(at + 1) % ids.length]!;
-    this.set({ timeline: { ...tl, collapsed: this.without(tl, id), focusId: id, focusToken: tl.focusToken + 1 } });
+    // A command sits in the popup of its prompt: open that one (a prompt itself is in the list).
+    const target = tl.events.find(e => e.id === id);
+    const key = target && target.kind !== 'prompt' ? turnKeyOf(tl.events, id) : null;
+    this.set({ ...(key ? { turnKey: key } : {}), timeline: { ...tl, focusId: id, focusToken: tl.focusToken + 1 } });
   }
 
-  // ── Folding the commands of a turn ────────────────────────────────────────────────────────────────
+  // ── The detail of one prompt (its commands, in a popup) ───────────────────────────────────────────
 
-  /** The folded set with the turn of `eventId` opened, so a jump never lands on a hidden row. */
-  private without(tl: TimelineState, eventId: number): ReadonlySet<string> {
-    const key = turnKeyOf(tl.events, eventId);
-    if (key === null || !tl.collapsed.has(key)) return tl.collapsed;
-    const next = new Set(tl.collapsed);
-    next.delete(key);
-    return next;
+  /** Opens the popup with the commands under one prompt (`key` from `buildTimeline`). */
+  openTurn(key: string): void {
+    if (this.state.hidden || this.state.detail.status === 'ended' || !this.state.timeline) return;
+    this.set({ turnKey: key });
   }
 
-  /** Folds or opens one turn. */
-  toggleTurn(key: string): void {
-    const tl = this.state.timeline;
-    if (!tl) return;
-    const next = new Set(tl.collapsed);
-    if (!next.delete(key)) next.add(key);
-    this.set({ timeline: { ...tl, collapsed: next } });
-  }
-
-  /** "Thu gọn tất cả" / "Mở tất cả". */
-  setAllCollapsed(collapsed: boolean): void {
-    const tl = this.state.timeline;
-    if (!tl) return;
-    const keys = collapsed ? turnKeys(buildTimeline(tl.events, { memberStuck: false })) : [];
-    this.set({ timeline: { ...tl, collapsed: new Set(keys) } });
+  /** Closes the popup, and the output panel that belongs to it. */
+  closeTurn(): void {
+    if (this.state.turnKey === null && this.state.panel === null) return;
+    this.panelToken++;
+    this.set({ turnKey: null, panel: null });
   }
 
   /** The page reports whether the timeline is at its end (within 80px) after every scroll. */
@@ -396,7 +387,8 @@ export class TrainingController {
     const target = stepEvent(tl.events, p.eventId, direction);
     if (!target) return;
     const kind: PanelKind = p.kind === 'output' ? (target.hasOutput ? 'output' : 'change') : (target.hasChange ? 'change' : 'output');
-    this.set({ timeline: { ...tl, collapsed: this.without(tl, target.id) } });
+    const key = turnKeyOf(tl.events, target.id);
+    if (key !== null && key !== this.state.turnKey) this.set({ turnKey: key });
     void this.openDetail(target.id, kind);
   }
 
@@ -490,7 +482,7 @@ export class TrainingController {
   setHidden(hidden: boolean): void {
     if (hidden === this.state.hidden) return;
     this.gateway.writeHideContent(hidden);
-    if (hidden) { this.panelToken++; this.set({ hidden, panel: null }); } else this.set({ hidden });
+    if (hidden) { this.panelToken++; this.set({ hidden, panel: null, turnKey: null }); } else this.set({ hidden });
   }
   toggleHidden(): void { this.setHidden(!this.state.hidden); }
 

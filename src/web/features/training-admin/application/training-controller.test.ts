@@ -680,11 +680,11 @@ describe('TrainingController: marks, notes and the report (S40)', () => {
   });
 });
 
-describe('TrainingController: folding the commands of a turn', () => {
+describe('TrainingController: the popup with the commands of one prompt', () => {
   const twoTurns = (): TrainingEventsPage => ({
-    events: [ev(1, { kind: 'prompt', prompt: 'một', toolName: undefined, toolTarget: undefined, ok: undefined }), ev(2), ev(3, { ok: false }),
-      ev(4, { kind: 'prompt', prompt: 'hai', toolName: undefined, toolTarget: undefined, ok: undefined }), ev(5)],
-    hasMore: false, flags: [{ code: 'repeated_failure', eventIds: [3] }],
+    events: [ev(1, { kind: 'prompt', prompt: 'một', toolName: undefined, toolTarget: undefined, ok: undefined }), ev(2, { hasOutput: true }), ev(3, { ok: false, hasOutput: true }),
+      ev(4, { kind: 'prompt', prompt: 'hai', toolName: undefined, toolTarget: undefined, ok: undefined }), ev(5, { hasOutput: true })],
+    hasMore: false, flags: [{ code: 'repeated_failure', eventIds: [3] }, { code: 'repeated_request', eventIds: [4] }],
   });
   const picked = async () => {
     const m = make({ events: vi.fn(async () => twoTurns()) }, detail(), { initialMemberId: 1 });
@@ -692,44 +692,50 @@ describe('TrainingController: folding the commands of a turn', () => {
     await flush();
     return m.ctrl;
   };
-  const folded = (c: TrainingController) => [...c.getState().timeline!.collapsed].sort();
 
-  it('starts with every turn open; a turn folds and opens on its own', async () => {
+  it('opens and closes the popup of a prompt; closing it also closes the output panel', async () => {
     const c = await picked();
-    expect(folded(c)).toEqual([]);
-    c.toggleTurn('t1');
-    expect(folded(c)).toEqual(['t1']);
-    c.toggleTurn('t1');
-    expect(folded(c)).toEqual([]);
+    c.openTurn('t1');
+    expect(c.getState().turnKey).toBe('t1');
+    await c.openDetail(2, 'output');
+    expect(c.getState().panel).not.toBeNull();
+    c.closeTurn();
+    expect(c.getState()).toMatchObject({ turnKey: null, panel: null });
   });
 
-  it('"thu gọn tất cả" folds every turn that has commands, and "mở tất cả" opens them', async () => {
+  it('a flag chip opens the popup of the prompt that holds the command it jumps to', async () => {
     const c = await picked();
-    c.setAllCollapsed(true);
-    expect(folded(c)).toEqual(['t1', 't4']);
-    c.setAllCollapsed(false);
-    expect(folded(c)).toEqual([]);
-  });
-
-  it('a flag chip opens the folded turn it jumps into, and leaves the others folded', async () => {
-    const c = await picked();
-    c.setAllCollapsed(true);
     c.jumpToFlag('repeated_failure');
-    expect(folded(c)).toEqual(['t4']);
+    expect(c.getState()).toMatchObject({ turnKey: 't1' });
     expect(c.getState().timeline!.focusId).toBe(3);
   });
 
-  it('keeps the folded turns when new events arrive', async () => {
+  it('a flag on a prompt itself highlights it in the list and opens no popup', async () => {
     const c = await picked();
-    c.toggleTurn('t1');
-    await c.refresh();
-    expect(folded(c)).toEqual(['t1']);
+    c.jumpToFlag('repeated_request');
+    expect(c.getState().turnKey).toBeNull();
+    expect(c.getState().timeline!.focusId).toBe(4);
   });
 
-  it('forgets the folds when another member is picked', async () => {
+  it('J / K to a command of another prompt moves the popup there', async () => {
     const c = await picked();
-    c.toggleTurn('t1');
+    c.openTurn('t1');
+    await c.openDetail(3, 'output');
+    c.step(1);
+    expect(c.getState().turnKey).toBe('t4');
+    expect(c.getState().panel?.eventId).toBe(5);
+  });
+
+  it('is closed by picking another member, by hiding the content, and cannot open once hidden', async () => {
+    const c = await picked();
+    c.openTurn('t1');
     c.select(2);
-    expect(folded(c)).toEqual([]);
+    expect(c.getState().turnKey).toBeNull();
+    c.openTurn('t1');
+    expect(c.getState().turnKey).toBe('t1');
+    c.setHidden(true);
+    expect(c.getState().turnKey).toBeNull();
+    c.openTurn('t1');
+    expect(c.getState().turnKey).toBeNull();
   });
 });

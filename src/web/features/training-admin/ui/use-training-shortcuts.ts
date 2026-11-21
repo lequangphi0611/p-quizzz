@@ -17,7 +17,7 @@ export function useTrainingShortcuts(ctrl: TrainingController, closePanel: () =>
         if (e.key === 'Escape') ctrl.cancelConfirm(); // the dialogs sit on top: nothing else reacts to keys behind them
         return;
       }
-      const action = shortcutFor(e, { panelOpen: s.panel !== null });
+      const action = shortcutFor(e, { panelOpen: s.panel !== null, turnOpen: s.turnKey !== null });
       if (!action) return;
       e.preventDefault();
       if (action === 'toggle-hidden') ctrl.toggleHidden();

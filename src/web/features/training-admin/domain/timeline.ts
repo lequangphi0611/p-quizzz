@@ -83,9 +83,6 @@ export function stepEvent(events: readonly TrainingEventRow[], currentId: number
   return openable[at + step] ?? null;
 }
 
-/** The turns (a prompt and what ran under it) that have something to fold, as their keys. */
-export const turnKeys = (items: readonly TimelineItem[]): string[] => items.flatMap(i => (i.kind === 'turn' && i.tools.length > 0 ? [i.key] : []));
-
 /** The key of the turn an event sits in (null if it is not in any). */
 export function turnKeyOf(events: readonly TrainingEventRow[], eventId: number): string | null {
   const hit = buildTimeline(events, { memberStuck: false }).find(i => i.kind === 'turn' && (i.prompt?.id === eventId || i.tools.some(t => t.event.id === eventId)));

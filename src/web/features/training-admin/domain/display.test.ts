@@ -96,6 +96,8 @@ describe('shortcutFor', () => {
     expect(shortcutFor({ key: 'h' }, { panelOpen: false })).toBe('toggle-hidden');
     expect(shortcutFor({ key: 'H' }, { panelOpen: true })).toBe('toggle-hidden');
     expect(shortcutFor({ key: 'j' }, { panelOpen: false })).toBeNull();
+    expect(shortcutFor({ key: 'Escape' }, { panelOpen: false, turnOpen: true })).toBe('close');
+    expect(shortcutFor({ key: 'Escape' }, { panelOpen: false })).toBeNull();
     expect(shortcutFor({ key: 'j' }, { panelOpen: true })).toBe('next');
     expect(shortcutFor({ key: 'K' }, { panelOpen: true })).toBe('prev');
     expect(shortcutFor({ key: 'Escape' }, { panelOpen: true })).toBe('close');

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TrainingEventRow } from '../../../../shared/api/index.js';
-import { buildTimeline, stepEvent, turnKeyOf, turnKeys, type TimelineItem } from './timeline.js';
+import { buildTimeline, stepEvent, turnKeyOf, type TimelineItem } from './timeline.js';
 
 let id = 0;
 const prompt = (text: string, session = 's1'): TrainingEventRow => ({ id: ++id, kind: 'prompt', receivedAt: id * 1000, claudeSessionId: session, prompt: text, hasOutput: false, hasChange: false, marked: false });
@@ -109,15 +109,7 @@ describe('rows other than commands', () => {
   });
 });
 
-describe('folding turns', () => {
-  it('turnKeys lists only turns that have something under the prompt', () => {
-    const a = prompt('một');
-    const t1 = tool('Bash', 'ls', true);
-    const b = prompt('hai, không lệnh');
-    const keys = turnKeys(buildTimeline([a, t1, b], { memberStuck: false }));
-    expect(keys).toEqual([`t${a.id}`]);
-  });
-
+describe('finding the turn of an event', () => {
   it('turnKeyOf finds the turn of a prompt or of a command, and null for an unknown event', () => {
     const a = prompt('một');
     const t1 = tool('Bash', 'ls', true);

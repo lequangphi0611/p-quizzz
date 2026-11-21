@@ -126,32 +126,43 @@ test('mentor runs an AI training: room code, members, timeline, output, stop, en
   await expect(page.getByRole('heading', { name: 'Bình', level: 2 })).toBeVisible();
   await expect(timeline.getByText('viết test cho hàm tính tổng giỏ hàng, chạy test luôn')).toBeVisible();
   await expect(timeline.getByText('sửa đi')).toBeVisible();
-  await expect(timeline.getByText('Có thể đang kẹt · cùng lệnh lỗi 3 lần liên tiếp')).toBeVisible();
-  await expect(timeline.getByText('1 phút 05 s')).toBeVisible();
-  await expect(timeline.getByText('3,4 s')).toBeVisible();
-  await expect(timeline.getByText('Expected: 90').first()).toBeVisible(); // the summary line of a failed command
+  // The list is the overview: prompts only, each with how many commands ran under it. The commands open in a popup.
+  await expect(timeline.locator('li')).toHaveCount(0);
+  const card = (text: string) => timeline.locator('div[id^="ev-"]', { hasText: text });
+  await expect(card('viết test cho hàm tính tổng giỏ hàng').getByText('7 lệnh · 1 lỗi')).toBeVisible();
+  const popup = page.getByRole('dialog', { name: /Chi tiết các lệnh/ });
+  const openCard = async (text: string) => { await card(text).getByRole('button', { name: 'Xem chi tiết' }).click(); await expect(popup).toBeVisible(); };
+  const layout = async () => JSON.stringify([await page.locator('table[aria-label="Học viên"]').boundingBox(), await timeline.boundingBox()]);
+  const before = await layout();
+  await openCard('viết test cho hàm tính tổng giỏ hàng');
+  await expect(popup.getByText('Có thể đang kẹt · cùng lệnh lỗi 3 lần liên tiếp')).toBeVisible();
+  await expect(popup.getByText('1 phút 05 s')).toBeVisible();
+  await expect(popup.getByText('3,4 s')).toBeVisible();
+  await expect(popup.getByText('Expected: 90').first()).toBeVisible(); // the summary line of a failed command
   expect(detailRequests).toHaveLength(0); // no output loaded until a button is pressed
 
   // PowerShell is shown as "PS" (hover and screen readers still get the full name); a long command stays on one line with "…" and its whole text on hover.
-  const psRow = timeline.locator('li', { hasText: 'Get-ChildItem -Recurse src' });
+  const psRow = popup.locator('li', { hasText: 'Get-ChildItem -Recurse src' });
   await expect(psRow.locator('abbr')).toHaveText('PS');
   await expect(psRow.locator('abbr')).toHaveAttribute('title', 'PowerShell');
-  const longTarget = timeline.locator('li', { hasText: 'find src -type f' }).locator('span[title]').filter({ hasText: 'find src -type f' });
+  const longTarget = popup.locator('li', { hasText: 'find src -type f' }).locator('span[title]').filter({ hasText: 'find src -type f' });
   await expect(longTarget).toHaveAttribute('title', LONG_COMMAND);
   const fit = await longTarget.evaluate(el => ({ cut: el.scrollWidth > el.clientWidth, oneLine: el.getBoundingClientRect().height < 24, overflow: getComputedStyle(el).textOverflow, wrap: getComputedStyle(el).whiteSpace }));
   expect(fit).toEqual({ cut: true, oneLine: true, overflow: 'ellipsis', wrap: 'nowrap' });
   const left = async (loc: typeof psRow) => (await loc.locator('span[title]').first().boundingBox())!.x;
-  expect(Math.abs((await left(psRow)) - (await left(timeline.locator('li', { hasText: 'find src -type f' }))))).toBeLessThan(1); // commands line up whatever the tool's name
-  await expect(timeline.getByRole('button', { name: /xem đầy đủ/i })).toHaveCount(0); // no click-to-expand any more
+  expect(Math.abs((await left(psRow)) - (await left(popup.locator('li', { hasText: 'find src -type f' }))))).toBeLessThan(1); // commands line up whatever the tool's name
+  await expect(popup.getByRole('button', { name: /xem đầy đủ/i })).toHaveCount(0); // no click-to-expand any more
   await shot(page, 'M13-dong-thoi-gian');
+  expect(await layout()).toBe(before); // the popup is an overlay: the members and the list keep their size
 
   // F5 keeps the choice
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Bình', level: 2 })).toBeVisible();
   await expect(page.getByLabel(TIMELINE).getByText('sửa đi')).toBeVisible();
 
-  // ── Output: right-hand panel, head, "đã lược bỏ", tail ───────────────────────────────────────────────
-  const catRow = page.locator('li', { hasText: 'cat build.log' });
+  // ── Output: right-hand drawer, head, "đã lược bỏ", tail ───────────────────────────────────────────────
+  await openCard('viết test cho hàm tính tổng giỏ hàng');
+  const catRow = popup.locator('li', { hasText: 'cat build.log' });
   const trigger = catRow.getByRole('button', { name: 'Xem output' });
   await trigger.click();
   const panel = page.getByRole('complementary', { name: /Output/ });
@@ -159,6 +170,9 @@ test('mentor runs an AI training: room code, members, timeline, output, stop, en
   await expect(panel.getByText('build 0001: compiled')).toBeVisible();
   await expect(panel.getByText('build 1240: compiled')).toBeVisible();
   expect(detailRequests).toHaveLength(1);
+  expect(await layout()).toBe(before); // opening the output does not shrink the table or the list any more
+  const drawer = await panel.boundingBox();
+  expect(drawer!.x + drawer!.width).toBeGreaterThan(DESKTOP.width - 40); // pinned to the right edge
   await shot(page, 'M14-output');
 
   await page.setViewportSize(LAPTOP_1280);
@@ -174,6 +188,9 @@ test('mentor runs an AI training: room code, members, timeline, output, stop, en
   await page.keyboard.press('Escape');
   await expect(page.getByRole('complementary')).toHaveCount(0);
   await expect(trigger).toBeFocused();
+  await expect(popup).toBeVisible(); // the first Esc closed the drawer only
+  await page.keyboard.press('Escape');
+  await expect(popup).toHaveCount(0);
 
   // ── Hide the content (H): nothing readable on a projector; remembered after a reload ────────────────
   await page.keyboard.press('h');
@@ -185,19 +202,19 @@ test('mentor runs an AI training: room code, members, timeline, output, stop, en
   await page.getByRole('button', { name: /Hiện nội dung/ }).click();
   await expect(page.getByLabel(TIMELINE).getByText('sửa đi')).toBeVisible();
 
-  // ── Live: a new line follows the end; higher up it only counts ─────────────────────────────────────
-  for (let i = 0; i < 25; i++) await binh.send(hook.bash(`echo ${i}`, `${i}`, 5, s2));
-  await expect(timeline.getByText('echo 24', { exact: true })).toBeVisible({ timeout: 6_000 });
+  // ── Live: a new prompt follows the end; higher up it only counts ──────────────────────────────────
+  for (let i = 0; i < 25; i++) await binh.send(hook.prompt(`lượt ${i}`, s2));
+  await expect(timeline.getByText('lượt 24', { exact: true })).toBeVisible({ timeout: 6_000 });
   await expect(page.getByText(/sự kiện mới/)).toHaveCount(0); // at the end: it followed, no chip
   await timeline.evaluate(el => { el.scrollTop = 0; });
   await page.waitForTimeout(200);
-  await binh.send(hook.bash('echo late-1', 'late-1', 5, s2));
-  await binh.send(hook.bash('echo late-2', 'late-2', 5, s2));
+  await binh.send(hook.prompt('late-1', s2));
+  await binh.send(hook.prompt('late-2', s2));
   await expect(page.getByRole('button', { name: '2 sự kiện mới' })).toBeVisible({ timeout: 8_000 });
   expect(await timeline.evaluate(el => el.scrollTop)).toBeLessThan(5); // did not jump
   await shot(page, 'M13b-su-kien-moi');
   await page.getByRole('button', { name: '2 sự kiện mới' }).click();
-  await expect(timeline.getByText('echo late-2', { exact: true })).toBeInViewport();
+  await expect(timeline.getByText('late-2', { exact: true })).toBeInViewport();
   await expect(page.getByText(/sự kiện mới/)).toHaveCount(0);
 
   // ── Invite one out (Mời ra), with a confirmation ─────────────────────────────────────────────────────

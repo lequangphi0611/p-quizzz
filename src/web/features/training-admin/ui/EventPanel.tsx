@@ -10,6 +10,7 @@ import { changeLines, clipView } from '../domain/clip-view.js';
 import { formatDuration } from '../domain/duration.js';
 import { toolLabel } from '../domain/tool-label.js';
 import { ToolName } from './chips.js';
+import { DRAWER_WIDTH } from './TurnDetail.js';
 
 const codeFont = '400 13px/1.6 var(--font-mono)';
 const pre = { margin: 0, font: codeFont, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', color: 'var(--ink-900)' } as const;
@@ -47,7 +48,7 @@ export function EventPanel({ panel, event, onKind, onClose, onRetry, onStep }: {
   const title = panel.kind === 'output' ? 'Output' : 'Thay đổi';
 
   return (
-    <aside aria-label={`${title} của lệnh`} style={{ display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0, height: '100%', background: 'var(--surface-card)', border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-card)', overflow: 'hidden' }}>
+    <aside aria-label={`${title} của lệnh`} style={{ position: 'fixed', top: 16, right: 16, bottom: 16, width: DRAWER_WIDTH, zIndex: 60, display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0, background: 'var(--paper)', border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-dialog)', overflow: 'hidden', animation: 'pq-pop-in var(--dur-base) var(--ease-standard)' }}>
       <div style={{ display: 'grid', gap: 8, padding: '12px 14px', borderBottom: '1px solid var(--border-hairline)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <h2 style={{ margin: 0, font: 'var(--type-h2)', fontSize: 16, color: 'var(--text-title)' }}>{title}</h2>

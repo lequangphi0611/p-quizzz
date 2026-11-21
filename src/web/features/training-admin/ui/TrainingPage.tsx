@@ -16,6 +16,7 @@ import { EventPanel } from './EventPanel.js';
 import { MembersTable } from './MembersTable.js';
 import { RoomCodeCard, RoomCodeInline } from './RoomCode.js';
 import { Timeline } from './Timeline.js';
+import { TurnDetail } from './TurnDetail.js';
 import { TrainingDialogs } from './TrainingDialogs.js';
 import { useTrainingShortcuts } from './use-training-shortcuts.js';
 
@@ -45,7 +46,8 @@ function TrainingView({ initial }: { initial: TrainingDetail }) {
 
   // Esc and the close button hand the focus back to the button that opened the panel.
   const closePanel = () => {
-    const p = ctrl.getState().panel;
+    const { panel: p, turnKey } = ctrl.getState();
+    if (!p && turnKey) { ctrl.closeTurn(); return; } // Esc with only the popup open closes the popup
     ctrl.closePanel();
     if (p) requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-trigger="${p.eventId}-${p.kind}"]`)?.focus());
   };
@@ -185,20 +187,20 @@ function EndedCard({ state, onBack }: { state: TrainingState; onBack: () => void
   );
 }
 
-// Members on one side, the picked member's timeline on the other; with the output panel open the members shrink to names.
+// Members on one side, the picked member's timeline on the other; once one is picked the members shrink to names. A prompt's commands open in a popup and their output in a drawer on the right: both are overlays, so this grid never changes.
 // The workspace has a fixed height so the timeline scrolls inside it (new events follow the end while the mentor is there).
 function Workspace({ state, ctrl, closePanel }: { state: TrainingState; ctrl: TrainingController; closePanel: () => void }) {
-  const { detail, selectedId, timeline, panel, hidden, markError } = state;
+  const { detail, selectedId, timeline, panel, hidden, markError, turnKey } = state;
   const member = detail.members.find(m => m.id === selectedId);
   const panelOpen = panel !== null && !hidden;
   const panelEvent = panel ? timeline?.events.find(e => e.id === panel.eventId) : undefined;
   const now = Date.now();
   return (
-    <div style={{ display: 'grid', gap: 16, height: 'clamp(520px, calc(100vh - 300px), 960px)', gridTemplateColumns: panelOpen ? '200px minmax(0, 1fr) minmax(380px, 430px)' : member ? '230px minmax(0, 1fr)' : 'minmax(0, 1.2fr) minmax(0, 1fr)' }}>
-      <MembersTable members={detail.members} selectedId={selectedId} onSelect={id => ctrl.select(id)} onPurge={id => ctrl.askPurge(id)} compact={panelOpen || member !== undefined} now={now} />
+    <div style={{ display: 'grid', gap: 16, height: 'clamp(520px, calc(100vh - 300px), 960px)', gridTemplateColumns: member ? '230px minmax(0, 1fr)' : 'minmax(0, 1.2fr) minmax(0, 1fr)' }}>
+      <MembersTable members={detail.members} selectedId={selectedId} onSelect={id => ctrl.select(id)} onPurge={id => ctrl.askPurge(id)} compact={member !== undefined} now={now} />
       {member && timeline ? (
         <Timeline member={member} timeline={timeline} panel={hidden ? null : panel} hidden={hidden} markError={markError} ctrl={ctrl} now={now} canRemove={detail.status !== 'ended'}
-          onOpen={(id, kind) => void ctrl.openDetail(id, kind)} onRemove={() => ctrl.askRemove(member.id)} />
+          onRemove={() => ctrl.askRemove(member.id)} />
       ) : (
         <Card style={{ display: 'grid', placeItems: 'center', textAlign: 'center', height: '100%', boxSizing: 'border-box' }}>
           <div style={{ display: 'grid', gap: 8, justifyItems: 'center', color: 'var(--text-meta)', font: 'var(--type-body)', maxWidth: 340 }}>
@@ -208,6 +210,7 @@ function Workspace({ state, ctrl, closePanel }: { state: TrainingState; ctrl: Tr
           </div>
         </Card>
       )}
+      {turnKey !== null && !hidden && member && timeline && <TurnDetail turnKey={turnKey} member={member} timeline={timeline} panel={panel} ctrl={ctrl} />}
       {panelOpen && panel && (
         <EventPanel panel={panel} event={panelEvent} onKind={k => void ctrl.openDetail(panel.eventId, k)} onClose={closePanel} onRetry={() => ctrl.retryPanel()} onStep={d => ctrl.step(d)} />
       )}

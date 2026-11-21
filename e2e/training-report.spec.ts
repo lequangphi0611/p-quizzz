@@ -62,8 +62,12 @@ test('mark examples, write a note, preview and download the report, and the prom
   const markButtons = timeline.getByRole('button', { name: 'Đánh dấu làm ví dụ cho báo cáo' });
   await markButtons.first().click();
   await expect(timeline.getByRole('button', { name: 'Bỏ đánh dấu ví dụ' })).toHaveCount(1);
-  await timeline.locator('li', { hasText: 'npm test' }).getByRole('button', { name: 'Đánh dấu làm ví dụ cho báo cáo' }).click();
-  await expect(timeline.getByRole('button', { name: 'Bỏ đánh dấu ví dụ' })).toHaveCount(2);
+  const popup = page.getByRole('dialog', { name: /Chi tiết các lệnh/ });
+  await timeline.getByRole('button', { name: 'Xem chi tiết' }).click();
+  await popup.locator('li', { hasText: 'npm test' }).getByRole('button', { name: 'Đánh dấu làm ví dụ cho báo cáo' }).click();
+  await expect(popup.getByRole('button', { name: 'Bỏ đánh dấu ví dụ' })).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await expect(popup).toHaveCount(0);
   await page.getByRole('button', { name: 'Ghi chú', exact: true }).click();
   await page.getByLabel('Ghi chú về Lan').fill('Nhắc Lan chạy test sau mỗi lần sửa. Đã lộ TOKEN=abcdefgh12345678.');
   await page.getByRole('button', { name: 'Lưu ghi chú' }).click();
@@ -73,21 +77,10 @@ test('mark examples, write a note, preview and download the report, and the prom
   // The marks and the note survive a reload.
   await page.reload();
   await page.getByRole('button', { name: 'Lan', exact: true }).click();
-  await expect(timeline.getByRole('button', { name: 'Bỏ đánh dấu ví dụ' })).toHaveCount(2);
+  await expect(timeline.getByRole('button', { name: 'Bỏ đánh dấu ví dụ' })).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Ghi chú ✓' })).toBeVisible();
 
-  // ── Fold the commands of a prompt, open them again; fold all / open all ─────────────────────────────
-  const first = timeline.getByRole('button', { name: 'Thu gọn các lệnh của prompt này' }).first();
-  await first.click();
-  await expect(timeline.locator('li', { hasText: 'npm test' })).toHaveCount(0);
-  await expect(timeline.getByRole('button', { name: '1 lệnh', exact: true })).toBeVisible();
-  await shot(page, 'M27-thu-gon-lenh');
-  await timeline.getByRole('button', { name: 'Mở các lệnh của prompt này' }).click();
-  await expect(timeline.locator('li', { hasText: 'npm test' })).toHaveCount(1);
-  await page.getByRole('button', { name: 'Thu gọn tất cả' }).click();
-  await expect(timeline.locator('li')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Mở tất cả' }).click();
-  await expect(timeline.locator('li', { hasText: 'npm test' })).toHaveCount(1);
+  await shot(page, 'M27-danh-sach-prompt');
 
   // ── Preview, then the file ─────────────────────────────────────────────────────────────────────────
   await page.getByRole('button', { name: 'Xuất báo cáo' }).click();
