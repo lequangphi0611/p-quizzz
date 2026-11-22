@@ -246,6 +246,90 @@ export const aiSuggestions = sqliteTable('ai_suggestions', {
   finishedAt: ts('finished_at'),
 });
 
+// AI training session (PRODUCT.md §7.34): its own concept, not tied to an exam or a session.
+export const trainings = sqliteTable(
+  'trainings',
+  {
+    id: id(),
+    name: text('name').notNull(),
+    status: text('status', { enum: ['open', 'stopped', 'ended'] }).notNull().default('open'),
+    // 6 digits while open; null once stopped. Shares its space with `sessions.room_code` (the code allocator checks both).
+    roomCode: text('room_code'),
+    createdAt: ts('created_at').notNull(),
+    stoppedAt: ts('stopped_at'),
+    endedAt: ts('ended_at'),
+    // Written when the training ends, because the members are deleted then.
+    memberCount: integer('member_count'),
+    // S39: the mentor expects auto-accept / bypass here, so the flag for it stays down.
+    allowAutoAccept: integer('allow_auto_accept', { mode: 'boolean' }).notNull().default(false),
+    // S40: when the mentor last downloaded the report (the prompt before "Kết thúc" asks while this is empty).
+    reportExportedAt: ts('report_exported_at'),
+  },
+  t => [uniqueIndex('trainings_room_code_uq').on(t.roomCode)],
+);
+
+// Exists only once the member agreed. Withdrawing or being removed deletes the row (and, by cascade, every event).
+export const trainingMembers = sqliteTable(
+  'training_members',
+  {
+    id: id(),
+    trainingId: integer('training_id').notNull().references(() => trainings.id, { onDelete: 'cascade' }),
+    displayName: text('display_name').notNull(),
+    // The member's browser token.
+    token: text('token').notNull().unique(),
+    // Lives in the hook config on the member's machine; a different value, so leaking that file only allows fake events.
+    ingestToken: text('ingest_token').notNull().unique(),
+    consentedAt: ts('consented_at').notNull(),
+    firstSeenAt: ts('first_seen_at'),
+    lastSeenAt: ts('last_seen_at'),
+    // The member pressed "Dừng gửi" while open (S38): nothing new is accepted, what was sent stays until the mentor approves deleting it.
+    stoppedSendingAt: ts('stopped_sending_at'),
+    // An event arrived after "Dừng thu" or "Dừng gửi": the hook is still installed on that machine.
+    seenAfterStopAt: ts('seen_after_stop_at'),
+    uninstallCheckAt: ts('uninstall_check_at'),
+    uninstalledAt: ts('uninstalled_at'),
+    // S40: the mentor's own words about this member, for the report.
+    mentorNote: text('mentor_note'),
+  },
+  // Case-insensitive for ASCII only (SQLite); the domain rule covers all of Unicode.
+  t => [uniqueIndex('training_members_name_uq').on(t.trainingId, sql`lower(${t.displayName})`)],
+);
+
+// What the hook sent, already filtered (docs/architecture.md §11.8); the raw JSON is never stored. Written by S33.
+export const trainingEvents = sqliteTable(
+  'training_events',
+  {
+    id: id(),
+    memberId: integer('member_id').notNull().references(() => trainingMembers.id, { onDelete: 'cascade' }),
+    kind: text('kind', { enum: ['prompt', 'tool', 'permission', 'session', 'notice'] }).notNull(),
+    claudeSessionId: text('claude_session_id').notNull(),
+    // S37 (architecture.md §11.9): Claude Code's permission mode and turn id, the subtype of session / notice rows, and a short note.
+    permissionMode: text('permission_mode'),
+    promptId: text('prompt_id'),
+    subtype: text('subtype'),
+    note: text('note'),
+    receivedAt: ts('received_at').notNull(),
+    prompt: text('prompt'),
+    toolName: text('tool_name'),
+    toolTarget: text('tool_target'),
+    ok: integer('ok', { mode: 'boolean' }),
+    durationMs: integer('duration_ms'),
+    errorExcerpt: text('error_excerpt'),
+    outputHead: text('output_head'),
+    outputTail: text('output_tail'),
+    outputOmittedLines: integer('output_omitted_lines'),
+    changeHead: text('change_head'),
+    changeTail: text('change_tail'),
+    changeOmittedLines: integer('change_omitted_lines'),
+  },
+  t => [index('training_events_member_idx').on(t.memberId, t.id)],
+);
+
+// S40: events the mentor picked as examples for the report. Gone with the event (and so with the member) by cascade.
+export const trainingEventMarks = sqliteTable('training_event_marks', {
+  eventId: integer('event_id').primaryKey().references(() => trainingEvents.id, { onDelete: 'cascade' }),
+});
+
 export const examsRelations = relations(exams, ({ many }) => ({ questions: many(questions), sessions: many(sessions) }));
 export const questionsRelations = relations(questions, ({ one, many }) => ({
   exam: one(exams, { fields: [questions.examId], references: [exams.id] }),

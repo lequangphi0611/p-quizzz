@@ -89,4 +89,17 @@ describe('GET /api/admin/events (the mentor\'s single stream)', () => {
     for (let i = 0; i < 50 && bus.allListenerCount() > 0; i++) await new Promise(r => setTimeout(r, 20));
     expect(bus.allListenerCount()).toBe(0);
   });
+
+  it('also carries AI training signals as `training` with the training id, and creating a training sends one', async () => {
+    ({ app } = await createTestApp());
+    const headers = await loginAsMentor(app);
+    const base = await app.listen({ port: 0, host: '127.0.0.1' });
+    const c = await connect(base, 'admin', headers as Record<string, string>);
+    await c.waitFor(': connected');
+    const created = (await app.inject({ method: 'POST', url: '/api/admin/trainings', headers, payload: { name: 'Buổi 1' } })).json<{ id: number }>();
+    expect(await c.waitFor(`event: training\ndata: {"trainingId":${created.id}}\n\n`)).toBe(true);
+    await c.close();
+    for (let i = 0; i < 50 && bus.trainingListenerCount() > 0; i++) await new Promise(r => setTimeout(r, 20));
+    expect(bus.trainingListenerCount()).toBe(0);
+  });
 });

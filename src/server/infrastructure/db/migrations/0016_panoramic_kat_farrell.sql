@@ -1,0 +1,1 @@
+ALTER TABLE `trainings` ADD `allow_auto_accept` integer DEFAULT false NOT NULL;

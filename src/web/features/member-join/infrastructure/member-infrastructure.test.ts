@@ -15,6 +15,15 @@ describe('HttpMemberGateway', () => {
   });
 });
 
+describe('HttpMemberGateway.resolveRoom', () => {
+  it('hands back whatever the code opens: a session or an AI training', async () => {
+    const answers = [{ kind: 'session', id: 4, title: 'Đề', status: 'lobby' }, { kind: 'training', id: 7, title: 'Buổi training' }];
+    const g = new HttpMemberGateway({ post: vi.fn(async () => answers.shift()) } as unknown as HttpClient);
+    expect(await g.resolveRoom('123456')).toMatchObject({ kind: 'session', id: 4 });
+    expect(await g.resolveRoom('654321')).toEqual({ kind: 'training', id: 7, title: 'Buổi training' });
+  });
+});
+
 describe('SessionStorageRoomCodeMemory', () => {
   it('remembers per session and survives broken storage', () => {
     const m = new Map<string, string>();

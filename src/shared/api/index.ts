@@ -11,3 +11,4 @@ export * from './grading.js';
 export * from './discussion.js';
 export * from './groups.js';
 export * from './sharing.js';
+export * from './training.js';

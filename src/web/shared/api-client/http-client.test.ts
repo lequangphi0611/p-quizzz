@@ -22,6 +22,19 @@ describe('createHttpClient', () => {
     expect((f.mock.calls[0]![1]!).headers).toEqual({ 'X-A': '/api/x', 'X-B': 'GET/api/x' });
   });
 
+  it('adds a call\'s own headers after the interceptors, for every verb', async () => {
+    const f = respond(200, {});
+    const http = createHttpClient({ fetch: f as unknown as typeof fetch, interceptors: [r => { r.headers['X-A'] = 'a'; }] });
+    await http.get('/a', { headers: { 'X-Own': '1' } });
+    await http.post('/a', { x: 1 }, { headers: { 'X-Own': '2' } });
+    await http.delete('/a', undefined, { headers: { 'X-Own': '3', 'X-A': 'override' } });
+    expect(f.mock.calls.map(c => c[1]!.headers)).toEqual([
+      { 'X-A': 'a', 'X-Own': '1' },
+      { 'X-A': 'a', 'Content-Type': 'application/json', 'X-Own': '2' },
+      { 'X-A': 'override', 'X-Own': '3' },
+    ]);
+  });
+
   it('maps errors: { error } message, generic fallback, non-JSON body, network failure', async () => {
     const mk = (f: ReturnType<typeof respond>) => createHttpClient({ fetch: f as unknown as typeof fetch });
     await expect(mk(respond(409, { error: 'Trùng' })).get('/a')).rejects.toMatchObject({ status: 409, message: 'Trùng' });

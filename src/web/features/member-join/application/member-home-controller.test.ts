@@ -4,9 +4,9 @@ import { ApiError } from '../../../shared/api-client/http-client.js';
 import { InMemoryTokenStore } from '../../../shared/token-store/in-memory-token-store.js';
 import { InMemoryMySessionsStore, type MemberGateway, type RoomCodeMemory } from './member-gateway.js';
 import { MY_SESSIONS_KEPT } from '../domain/my-sessions.js';
-import { MemberHomeController, selectCanReopen, selectFollowedId, selectRoom, selectScreen } from './member-home-controller.js';
+import { MemberHomeController, selectCanReopen, selectFollowedId, selectRoom, selectScreen, selectTrainingRoom } from './member-home-controller.js';
 
-const found = (id = 1, status: ActiveSession['status'] = 'lobby'): ActiveSession => ({ id, title: 'T', status } as ActiveSession);
+const found = (id = 1, status: ActiveSession['status'] = 'lobby'): ActiveSession & { kind: 'session' } => ({ kind: 'session', id, title: 'T', status } as ActiveSession & { kind: 'session' });
 const me = (id = 1, status = 'lobby', participant = 'active', attemptCurrent: unknown = null): MeResponse => ({ session: { id, status, title: 'T' }, participant: { status: participant, displayName: 'An' }, attempt: { current: attemptCurrent, submitted: [] } } as unknown as MeResponse);
 
 function make(over: Partial<MemberGateway> = {}, tokens = new InMemoryTokenStore(), mine = new InMemoryMySessionsStore()) {
@@ -490,5 +490,52 @@ describe('MemberHomeController: my sessions on this browser (PRODUCT.md §7.29)'
     await settle();
     ctrl.forgetMine(1);
     expect(mine.load()).toHaveLength(1);
+  });
+});
+
+describe('MemberHomeController: a room code that opens an AI training (S36)', () => {
+  const training = { kind: 'training' as const, id: 7, title: 'Claude Code buổi 2' };
+
+  it('a training code is found as a training, not as a session: no name step, nothing followed or remembered', async () => {
+    const { ctrl, rooms } = make({ resolveRoom: vi.fn(async () => training) });
+    await ctrl.lookUpRoom('482 913');
+    expect(selectTrainingRoom(ctrl.getState())).toEqual({ id: 7, title: 'Claude Code buổi 2' });
+    expect(selectRoom(ctrl.getState())).toBeNull();
+    expect(ctrl.getState().followId).toBeNull();
+    expect(selectScreen(ctrl.getState())).toBe('code'); // the page leaves for /training/7 instead of showing the exam name form
+    expect(rooms.recall(7)).toBe('');
+  });
+
+  it('is not asked again while the same code stays on screen (every wrong code counts at the server)', async () => {
+    const { ctrl, gateway } = make({ resolveRoom: vi.fn(async () => training) });
+    await Promise.all([ctrl.lookUpRoom('482913'), ctrl.lookUpRoom('482913')]);
+    await ctrl.lookUpRoom('482913');
+    expect(gateway.resolveRoom).toHaveBeenCalledTimes(1);
+  });
+
+  it('editing the code forgets the training; an exam code afterwards still finds the session', async () => {
+    const { ctrl, gateway } = make({ resolveRoom: vi.fn().mockResolvedValueOnce(training).mockResolvedValueOnce(found(3)) });
+    await ctrl.lookUpRoom('482913');
+    ctrl.clearRoom();
+    expect(selectTrainingRoom(ctrl.getState())).toBeNull();
+    await ctrl.lookUpRoom('111111');
+    expect(gateway.resolveRoom).toHaveBeenCalledTimes(2);
+    expect(selectTrainingRoom(ctrl.getState())).toBeNull();
+    expect(selectRoom(ctrl.getState())?.id).toBe(3);
+    expect(selectScreen(ctrl.getState())).toBe('join');
+  });
+
+  it('a session lookup answered with kind "session" behaves as before', async () => {
+    const { ctrl } = make({ resolveRoom: vi.fn(async () => ({ kind: 'session' as const, id: 4, title: 'Đề', status: 'lobby' as const, access: 'free' as const, timer: null, start: null })) });
+    await ctrl.lookUpRoom('482913');
+    expect(selectRoom(ctrl.getState())).toMatchObject({ id: 4, title: 'Đề' });
+    expect(selectTrainingRoom(ctrl.getState())).toBeNull();
+  });
+
+  it('a wrong training code fails like any wrong code (403), and a failed lookup leaves no training behind', async () => {
+    const { ctrl } = make({ resolveRoom: vi.fn(async () => { throw new ApiError(403, 'Mã phòng không đúng'); }) });
+    await ctrl.lookUpRoom('000000');
+    expect(ctrl.getState().lookup).toMatchObject({ status: 'error', training: null, error: { status: 403 } });
+    expect(selectTrainingRoom(ctrl.getState())).toBeNull();
   });
 });

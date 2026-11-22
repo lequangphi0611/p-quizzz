@@ -60,7 +60,10 @@ export const adminEventsRoutes = (events: EventSubscriber): FastifyPluginAsync<{
       res.write(': connected\n\n');
       open.add(res);
 
-      const unsubscribe = events.subscribeAll((sessionId, type) => res.write(`event: ${type}\ndata: ${JSON.stringify({ sessionId })}\n\n`));
+      const offSessions = events.subscribeAll((sessionId, type) => res.write(`event: ${type}\ndata: ${JSON.stringify({ sessionId })}\n\n`));
+      // AI training (PRODUCT.md §7.34): same stream, its own event name and id key. Clients that do not know it ignore it.
+      const offTraining = events.subscribeTraining(trainingId => res.write(`event: training\ndata: ${JSON.stringify({ trainingId })}\n\n`));
+      const unsubscribe = () => { offSessions(); offTraining(); };
       const ping = setInterval(() => res.write(': ping\n\n'), heartbeatMs);
       req.raw.on('close', () => {
         clearInterval(ping);

@@ -59,6 +59,15 @@ Mỗi story là một file tự đủ ngữ cảnh để một model/người im
 | [S29](S29-session-start-modes.md) | Bắt đầu phiên: thủ công / hẹn giờ / khi mọi người sẵn sàng | S09, S10, S12, S14, S18, S20, S21, S25 | ✅ |
 | [S30](S30-choice-reason.md) | Ô lý do cho câu trắc nghiệm (bắt buộc khi đánh dấu, không tính điểm) | S04, S11, S12, S16, S17, S18, S24, S25 | ✅ |
 | [S31](S31-shared-sessions.md) | Trang chia sẻ các phiên đã thi (một link chung, chỉ đề + lời giải + tỉ lệ chọn) | S16, S17, S18, S20 | ✅ |
+| [S32](S32-training-api.md) | Buổi training AI: tạo / dừng thu / kết thúc, member vào + đồng ý, cấu hình hook | S03, S20 | ✅ |
+| [S33](S33-training-ingest.md) | Nhận sự kiện hook (ingest), lọc + cắt output, trạng thái kết nối, kiểm tra gỡ | S32 | ✅ |
+| [S34](S34-training-mentor-view-api.md) | API xem dữ liệu training cho mentor: dòng thời gian, output khi cần, cờ kẹt | S33 | ✅ |
+| [S35](S35-training-mentor-ui.md) | UI mentor: buổi training AI | S34 | ✅ |
+| [S36](S36-training-member-ui.md) | UI member: vào buổi training, đồng ý, cài và gỡ hook | S32, S33 | ✅ |
+| [S37](S37-training-capture-more.md) | Training: thu thêm phiên, xin quyền, câu hỏi và kế hoạch của Claude | S33, S36 | ✅ |
+| [S38](S38-training-stop-sending.md) | Training: member dừng gửi, mentor duyệt xoá dữ liệu | S35, S36 | ✅ |
+| [S39](S39-training-flags-timeline.md) | Training: cờ gợi ý và các dòng mới trên dòng thời gian | S37 | ✅ |
+| [S40](S40-training-report.md) | Training: đánh dấu ví dụ, ghi chú, xuất báo cáo trước khi kết thúc | S38, S39 | ✅ |
 
 ## Thứ tự & song song
 
@@ -75,5 +84,9 @@ Mỗi story là một file tự đủ ngữ cảnh để một model/người im
 Đợt 8 (sau MVP, theo bản thiết kế UI của đợt này): S20 → S21 → S22 làm **tuần tự** (S21 dựa vào tra phiên theo mã của S20; S22 dựa vào danh tính email của S21). Phần API/domain của mỗi story làm được trước, UI chờ bản thiết kế.
 
 Các story trong cùng đợt chạm file khác nhau là chính; nếu cùng sửa `src/server/app.ts` (đăng ký route) hoặc router web thì merge tay phần đăng ký — đó là xung đột dự kiến, không phải lỗi.
+
+Đợt 9 (buổi training AI, PRODUCT.md §7.34): S32 → S33 → S34 làm **tuần tự** (server). Trước S33 nên chạy checklist máy thật trong [spikes/claude-code-hooks.md §5](../spikes/claude-code-hooks.md): kết quả có thể đổi contract ingest. S35 (cần S34) và S36 (cần S33) làm **song song** sau khi có bản thiết kế UI.
+
+Đợt 10 (training: thấy rõ cách làm việc với Claude, PRODUCT.md §7.35): S37 và S38 làm **song song** (S37 chạm ingest và màn đồng ý; S38 chạm luồng dừng gửi; cùng sửa câu chữ màn đồng ý nên phải thống nhất trước). Sau đó làm S39, rồi S40. S40 cần designer nhẹ.
 
 **Mốc dùng thử được với member thật:** xong đợt 6 (chưa có màn hình chiếu và xem lại bài).

@@ -18,6 +18,7 @@ import { NO_PROGRESS } from '../../domain/attempt/attempt.js';
 import { examQuestionCount } from './question-count.js';
 import { loadSessionProgress } from './session-progress.js';
 import type { DbAccess } from './drizzle-exam-repository.js';
+import { roomCodeTaken } from './room-code-space.js';
 
 const activeCount = sql<number>`(select count(*) from participants where participants.session_id = sessions.id and participants.status = 'active')`;
 const readyCount = sql<number>`(select count(*) from participants where participants.session_id = sessions.id and participants.status = 'active' and participants.ready_at is not null)`;
@@ -119,7 +120,8 @@ export class DrizzleSessionRepository implements SessionRepository {
   }
 
   async roomCodeInUse(code: string): Promise<boolean> {
-    return !!(await this.access(db => db.select({ id: sessions.id }).from(sessions).where(eq(sessions.roomCode, code)).get()));
+    // Trainings share the code space (PRODUCT.md §7.34), so a session never gets a code a training is using.
+    return this.access(db => roomCodeTaken(db, code));
   }
 }
 
