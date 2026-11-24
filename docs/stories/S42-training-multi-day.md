@@ -1,6 +1,6 @@
 # S42: Training nhiều ngày: nhóm theo ngày trên dòng thời gian
 
-**Phụ thuộc:** S35, S39, S40 · **Trạng thái:** ✅ (2026-11-24, vòng 2: nhóm theo ngày)
+**Phụ thuộc:** S35, S39, S40 · **Trạng thái:** ⏳ vòng 3 (áp thiết kế của designer, 2026-11-24)
 
 ## Bối cảnh
 Một buổi training kéo dài nhiều ngày và thu cả ngoài giờ học. Dòng thời gian của mentor chỉ hiện giờ:phút nên không biết prompt nào của ngày nào. Business: [PRODUCT.md §7.37](../PRODUCT.md) (a)–(e).
@@ -105,3 +105,67 @@ PO xem ảnh vòng 1 và đổi cách hiển thị. Business: [PRODUCT.md §7.37
 - Controller: `TimelineState.openDays/knownDays`, `toggleDay`, `setAllDays`; `jumpToFlag`, `openTurn`, `step` tự mở ngày chứa sự kiện. Đổi tên cho đúng nghĩa: `reportScroll` thành `reportFollowing`, `jumpToBottom` thành `jumpToLatest`, `stickToken` thành `followToken`; `isNearBottom` thành `isLatestInView` (sự kiện mới nhất nằm cuối nhóm ngày đầu tiên, đánh dấu bằng một phần tử cao 0 `#timeline-latest`).
 - `Timeline.tsx`: tiêu đề nhóm là `<button aria-expanded aria-controls>`, nút "Mở tất cả / Thu tất cả" (≥ 2 ngày), "Tải thêm" lên trên cùng; ẩn nội dung thì không có gì trong số đó.
 - E2E `e2e/training-multi-day.spec.ts` viết lại (giờ khác nhau giữa các prompt, một lượt qua nửa đêm, chip cờ mở ngày thu gọn); ảnh chụp lại trong `docs/design/S42-assets/` (1 mặc định, 2 mở tất cả, 3 chi tiết lượt, 4 màn đồng ý, 5 khung 800px).
+
+## Vòng 3: áp thiết kế của designer (PO duyệt 2026-11-24)
+PO thấy UI vòng 2 không hài hoà và nhờ designer ([prompt](../design/S42-training-day-groups-ui-prompt.md)). Kết quả:
+- Canvas gốc: https://claude.ai/artifact/VweyUbGHM2TvdB3hc1GpSL
+- Bản chép trong repo: [`docs/design/S42-design/`](../design/S42-design/).
+  - `Spec.dc.html` là **spec cho dev**: số đo, token, tương tác, component đề xuất.
+  - `Screen.dc.html` là màn hình dùng chung cho mọi frame. Các frame chỉ khác nhau ở `variant`: `default`, `all`, `single`, `flag`, `new`, `stuck`, `more`, `hidden`, `loading`, `error`.
+
+Hai file là HTML của công cụ thiết kế, không chạy được trong app. Đọc chúng để lấy cấu trúc, số đo và token. Token trong thiết kế (`--ink-*`, `--brand-*`, `--wrong-600`, `--surface-page`, `--focus-ring`, `--dur-fast`, `--ease-standard`, `--shadow-raised`, …) là token của design system; dùng token tương ứng trong `src/web` (tìm trong CSS hiện có). Thiếu token nào thì báo, đừng tự đặt giá trị mới. Hành vi vòng 2 giữ nguyên, trừ các điểm dưới. Business: [PRODUCT.md §7.37](../PRODUCT.md) (b) bản mới.
+
+### Phạm vi
+- **Tiêu đề ngày (`DayGroupHeader`)** theo Spec:
+  - Không còn là thẻ. Chữ trên nền khung, hàng tối thiểu 44px, chevron 16 trong ô 28×28.
+  - Nhãn ngày 700 15px `ink-900`. Huy hiệu **"Hôm nay"** cho ngày hôm nay.
+  - Tóm tắt 400 13px `ink-600`, số dạng tabular. Riêng con số lỗi 600 `wrong-600`; bỏ "· N lỗi" khi bằng 0.
+  - Hover nền `ink-100`; focus dùng `focus-ring`.
+  - Ngày đang thu giữ màu chữ và **hiện chip cờ của ngày đó** bên phải. Chip là nút riêng cạnh nút tiêu đề, không lồng vào trong; bấm thì như chip cờ hiện có (mở ngày, tới sự kiện căn cứ).
+  - Cột hẹp (≤ ~560px): tóm tắt xuống dòng; chip xuống dòng thứ ba, thụt 38px.
+- **Đường ray và khoảng cách**:
+  - Nội dung một ngày thụt 36px (13 + ray 2px `ink-200` + 21); ray chạy dưới tâm chevron.
+  - Prompt ↔ prompt 8px; prompt → dải phiên 12px; dải phiên → prompt 12px.
+  - Giữa các ngày có đường kẻ 1px `ink-200` chạy hết chiều ngang. Các ngày đang thu liền nhau thành danh sách kẻ dòng, không để khoảng trống.
+  - Khung cuộn đệm 12px trên, 16px hai bên.
+- **Dải phiên (`SessionMarker`)**:
+  - Điểm mốc 12px trên ray; chữ thường căn trái: "Phiên Claude Code 2" (600 12px `ink-800`) + " · mở lúc 09:55" (400 `ink-600`); vạch đứt `ink-300` tới mép phải.
+  - **Phiên kéo qua 0 giờ**: đầu ngày sau lặp dải "Phiên Claude Code N · tiếp từ dd/mm". Số phiên đánh theo cả buổi.
+- **Chỉ một ngày**: dùng **nhãn nhẹ** (biến thể `light`, không phải nút, không có chevron/ray thu gọn), ví dụ "Thứ Ba, 24/11/2026 · Hôm nay" + tóm tắt. Theo frame `single`.
+- **"Mở tất cả / Thu tất cả"**: chuyển lên **hàng thông tin học viên** (frame `default`), `Button` ghost sm icon `list`. Bỏ hàng riêng hiện có. Ẩn khi chỉ một ngày hoặc khi đang ẩn nội dung.
+- **Tiêu đề ngày dính**:
+  - Chỉ tiêu đề của ngày **đang mở** dính ở đầu khung; ngày sau đẩy ngày trước lên. Dải phiên không dính.
+  - Bóng và đường kẻ dưới chỉ hiện khi đang dính.
+  - Bấm tiêu đề đang dính để thu thì cuộn sao cho tiêu đề đó nằm ở đỉnh khung.
+- **Mở/thu**: không làm hiệu ứng chiều cao. Chevron xoay trong `dur-fast` / `ease-standard`; nội dung hiện bằng hiệu ứng fade có sẵn (nếu có), và tôn trọng giảm chuyển động. `aria-expanded` + `aria-controls`; vùng nội dung `role="region"` `aria-labelledby`. Thứ tự Tab: tiêu đề ngày → chip cờ của ngày → các prompt.
+- **Giữ vị trí đọc**:
+  - Trước mỗi thay đổi DOM (sự kiện mới, mở/thu một ngày phía trên, Tải thêm), lưu phần tử đầu tiên đang thấy và khoảng lệch của nó; sau khi đổi thì đặt lại `scrollTop` để phần tử đó đứng yên. `overflow-anchor` chỉ là lớp dự phòng.
+  - Ngoại lệ: đang theo dõi (quy tắc vòng 2) thì đi theo sự kiện mới.
+- **Chip "N sự kiện mới"**: đặt ở **mép phía có sự kiện** (sự kiện ở trên khung nhìn thì chip ở mép trên, mũi tên hướng lên; ở dưới thì mép dưới, mũi tên xuống). Nền `ink-900`, bóng `shadow-raised`. Bấm thì mở ngày (nếu thu), cuộn tới, tô kiểu focus rồi nhạt dần.
+- **"Tải thêm"** chuyển xuống **cuối nhóm ngày mới nhất**, ngay sau prompt cuối của ngày đó. Ngày đó đang thu thì vẫn hiện nút ở vị trí tương ứng (dưới tiêu đề).
+- **Ẩn nội dung**: thay cả khung bằng thông báo như hiện nay, nhưng **giữ trạng thái mở/thu và vị trí cuộn**, để bật lại thì về đúng chỗ.
+- **Đang tải / lỗi tải**: khớp frame `loading` / `error`.
+- **Component**: tách `DayGroupHeader`, `SessionMarker` (và `CollapsibleSection` nếu tiện) thành component trong `features/training-admin/ui`. Không thêm vào `shared/ui` trừ khi đã có chỗ dùng thứ hai.
+- **Ảnh** `docs/design/S42-assets/` chụp lại theo các frame `default` (1440 và 800px), `all` (đang dính tiêu đề), `single`, `flag`, `new`, `hidden`. Màn đồng ý giữ ảnh cũ nếu không đổi. Dữ liệu mẫu như vòng 2.
+
+### Acceptance criteria (vòng 3)
+- [ ] Tiêu đề ngày, đường ray, khoảng cách, dải phiên khớp Spec (số đo và token tương ứng trong app).
+- [ ] Ngày đang thu hiện chip cờ của ngày đó. Chip là nút riêng, bấm thì mở ngày và tới sự kiện căn cứ.
+- [ ] "Hôm nay" chỉ ở ngày hôm nay (theo giờ máy mentor).
+- [ ] Chỉ một ngày thì dùng nhãn nhẹ, không có nút mở/thu.
+- [ ] "Mở tất cả / Thu tất cả" nằm trên hàng thông tin học viên; không còn hàng riêng.
+- [ ] Tiêu đề ngày đang mở dính khi cuộn, ngày sau đẩy ngày trước. Thu từ tiêu đề dính thì tiêu đề đó về đỉnh khung.
+- [ ] Phiên qua 0 giờ có dải "· tiếp từ dd/mm" ở đầu ngày sau; số phiên không đổi.
+- [ ] Sự kiện mới, mở/thu một ngày phía trên, "Tải thêm": nội dung đang đọc không nhảy (khi không theo dõi).
+- [ ] Chip "N sự kiện mới" ở mép phía có sự kiện, mũi tên đúng hướng.
+- [ ] "Tải thêm" ở cuối nhóm ngày mới nhất.
+- [ ] Ẩn rồi hiện lại nội dung thì giữ trạng thái mở/thu và vị trí cuộn.
+- [ ] Cột hẹp (800px): tiêu đề xuống dòng đúng Spec, không tràn ngang trong khung dòng thời gian.
+- [ ] Bàn phím, `aria-*`, thứ tự Tab như Spec; giảm chuyển động thì không có hiệu ứng.
+- [ ] `npm run typecheck`, `npm test` pass; toàn bộ `npm run e2e` không có lỗi mới (đã biết có sẵn trên main: `s26-ai-grading`, `training-export.spec.ts:99`).
+
+### Test (vòng 3)
+- Domain: dải "tiếp từ" khi phiên qua 0 giờ; cờ theo ngày (cờ nào thuộc ngày nào, theo sự kiện căn cứ); "Hôm nay".
+- Controller hoặc hàm thuần: neo vị trí đọc (tính lại `scrollTop` từ phần tử neo) nếu tách được; hướng của chip "N sự kiện mới".
+- E2E `e2e/training-multi-day.spec.ts`: chip cờ trên ngày đang thu, nhãn nhẹ khi một ngày, nút mở/thu tất cả ở hàng học viên, tiêu đề dính (kiểm vị trí sau khi cuộn), giữ vị trí khi có sự kiện mới lúc đang đọc ngày cũ, ẩn/hiện giữ trạng thái; chụp ảnh.
+
