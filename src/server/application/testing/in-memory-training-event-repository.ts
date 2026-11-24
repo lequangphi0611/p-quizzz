@@ -1,6 +1,7 @@
 import {
-  FLAG_TEXT_CHARS, OUTPUT_END_CHARS, type EventDetail, type LightEvent, type MarkedEvent, type MemberCounts, type NewTrainingEvent, type TrainingEventRepository,
+  FLAG_TEXT_CHARS, OUTPUT_END_CHARS, type EventDetail, type ExportStats, type LightEvent, type MarkedEvent, type MemberCounts, type NewTrainingEvent, type TrainingEventRepository,
 } from '../ports/training-event-repository.js';
+import type { ExportEvent } from '../../domain/training/export.js';
 import type { FlagEvent } from '../../domain/training/flags/flag-event.js';
 import type { ToolOutcome } from '../../domain/training/is-stuck.js';
 import type { Snapshottable } from './in-memory-unit-of-work.js';
@@ -60,6 +61,42 @@ export class InMemoryTrainingEventRepository implements TrainingEventRepository,
     const out: MarkedEvent[] = [];
     for (const e of await this.all()) {
       if (this.marks.has(e.id) && (await this.members.findById(e.memberId))?.trainingId === trainingId) out.push({ ...this.toLight(e), memberId: e.memberId });
+    }
+    return out;
+  }
+
+  async listForExport(memberId: number, range: { from: Date; to: Date }): Promise<ExportEvent[]> {
+    return (await this.all())
+      .filter(e => e.memberId === memberId && e.receivedAt >= range.from && e.receivedAt < range.to)
+      .map(e => ({
+        id: e.id,
+        kind: e.kind,
+        at: e.receivedAt,
+        claudeSessionId: e.claudeSessionId,
+        permissionMode: e.permissionMode,
+        prompt: e.kind === 'prompt' ? e.prompt : null,
+        toolName: e.kind === 'tool' || e.kind === 'permission' ? e.toolName : null,
+        toolTarget: e.kind === 'tool' || e.kind === 'permission' ? e.toolTarget : null,
+        ok: e.kind === 'tool' ? e.ok : null,
+        durationMs: e.kind === 'tool' ? e.durationMs : null,
+        errorExcerpt: e.kind === 'tool' ? e.errorExcerpt : null,
+        note: e.kind === 'tool' || e.kind === 'session' ? e.note : null,
+        subtype: e.kind === 'session' || e.kind === 'notice' ? e.subtype : null,
+        output: e.kind === 'tool' ? e.output : null,
+        change: e.kind === 'tool' || e.kind === 'permission' ? e.change : null,
+        marked: this.marks.has(e.id),
+      }));
+  }
+
+  async exportStats(trainingId: number, range: { from: Date; to: Date }): Promise<Map<number, ExportStats>> {
+    const out = new Map<number, ExportStats>();
+    for (const e of await this.all()) {
+      if ((await this.members.findById(e.memberId))?.trainingId !== trainingId) continue;
+      if (e.receivedAt < range.from || e.receivedAt >= range.to) continue;
+      const c = out.get(e.memberId) ?? { eventCount: 0, approxBytes: 0 };
+      c.eventCount++;
+      c.approxBytes += 200 + JSON.stringify(e).length;
+      out.set(e.memberId, c);
     }
     return out;
   }

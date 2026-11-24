@@ -1,4 +1,5 @@
 import type { Clip } from '../../domain/training/clip.js';
+import type { ExportEvent } from '../../domain/training/export.js';
 import type { FlagEvent } from '../../domain/training/flags/flag-event.js';
 import type { ToolOutcome } from '../../domain/training/is-stuck.js';
 import type { TrainingEventDraft } from '../../domain/training/training-event.js';
@@ -55,8 +56,7 @@ export interface MemberCounts {
   lastEventId: number;
 }
 
-/** How much of a change / output the flag rules may read. */
-export const FLAG_TEXT_CHARS = 4000;
+export { FLAG_TEXT_CHARS } from '../../domain/training/flags/flag-event.js';
 
 /** Read side: usable outside a unit of work. */
 export interface TrainingEventReader {
@@ -71,6 +71,15 @@ export interface TrainingEventReader {
   countsByMember(trainingId: number): Promise<Map<number, MemberCounts>>;
   /** The events of the training the mentor marked, oldest first (no output and no change: the report never carries them). */
   listMarked(trainingId: number): Promise<MarkedEvent[]>;
+  /** One member's events received in `[from, to)`, oldest first, with the output and the change whole as stored (S41). */
+  listForExport(memberId: number, range: { from: Date; to: Date }): Promise<ExportEvent[]>;
+  /** Per member of the training: the events received in `[from, to)` and roughly how many bytes of text they carry. Members with none are absent. */
+  exportStats(trainingId: number, range: { from: Date; to: Date }): Promise<Map<number, ExportStats>>;
+}
+
+export interface ExportStats {
+  eventCount: number;
+  approxBytes: number;
 }
 
 /** Write side: only reachable inside a unit of work (see `TrainingUnitContext`). */

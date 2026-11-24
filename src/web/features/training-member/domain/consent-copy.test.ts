@@ -29,11 +29,25 @@ describe('consent copy holds to the contract (PRODUCT.md §7.34)', () => {
     const h = all(HANDLING_ITEMS);
     expect(h).toMatch(/nhiều ngày/);
     expect(h).toMatch(/ngoài giờ học/);
-    expect(h).toMatch(/mentor dừng thu hoặc bạn dừng gửi/);
-    expect(HANDLING_ITEMS.findIndex(i => /nhiều ngày/.test(i.lead))).toBeLessThan(HANDLING_ITEMS.findIndex(i => /Xoá khi/.test(i.lead)));
+    expect(h).toMatch(/"Dừng thu" hoặc bạn dừng gửi/);
+    expect(HANDLING_ITEMS.filter(i => /nhiều ngày/.test(i.lead))).toHaveLength(1);
   });
   it('says the mentor can export a named report', () => {
     expect(all(HANDLING_ITEMS)).toMatch(/xuất báo cáo có tên bạn/);
+  });
+  it('says the training can last several days and the config stays on the machine until it is removed (PRODUCT.md §7.36g)', () => {
+    const h = all(HANDLING_ITEMS);
+    expect(h).toMatch(/nhiều ngày/);
+    expect(h).toMatch(/Dừng thu/);
+    expect(h).toMatch(/cho tới khi bạn gỡ/);
+    expect(h).toMatch(/sang mạng khác/);
+  });
+  it('says the mentor can export all the data, output and file changes included, to an AI service of the mentor\'s choice, and that the app cannot take it back (§7.36g)', () => {
+    const h = all(HANDLING_ITEMS);
+    expect(h).toMatch(/xuất toàn bộ dữ liệu của bạn, có tên/);
+    expect(h).toMatch(/output lệnh và nội dung file thay đổi/);
+    expect(h).toMatch(/dịch vụ AI do mentor chọn/);
+    expect(h).toMatch(/app không quản lý hay xoá được, kể cả sau khi mentor bấm "Kết thúc"/);
   });
   it('says the Read tool sends only the file name and line count, never the content', () => {
     expect(sent).toMatch(/Read.*chỉ gửi tên file và số dòng/s);

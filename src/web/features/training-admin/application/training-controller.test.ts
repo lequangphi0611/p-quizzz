@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { TrainingDetail, TrainingEventDetail, TrainingEventRow, TrainingEventsPage, TrainingMemberRow } from '../../../../shared/api/index.js';
+import type { TrainingDetail, TrainingEventDetail, TrainingEventRow, TrainingEventsPage, TrainingExportSummary, TrainingMemberRow } from '../../../../shared/api/index.js';
 import { ApiError } from '../../../shared/api-client/http-client.js';
 import type { TrainingAdminGateway } from './training-admin-gateway.js';
 import { TrainingController } from './training-controller.js';
@@ -13,6 +13,8 @@ const detail = (over: Partial<TrainingDetail> = {}): TrainingDetail =>
 const ev = (id: number, over: Partial<TrainingEventRow> = {}): TrainingEventRow =>
   ({ id, kind: 'tool', receivedAt: id, claudeSessionId: 's', toolName: 'Bash', toolTarget: 'ls', ok: true, hasOutput: false, hasChange: false, marked: false, ...over });
 const page = (ids: number[], hasMore = false): TrainingEventsPage => ({ events: ids.map(i => ev(i)), hasMore, flags: [] });
+
+const exportSummary = (over: Partial<TrainingExportSummary> = {}): TrainingExportSummary => ({ from: '2026-11-24', to: '2026-11-24', memberCount: 2, eventCount: 12, approxBytes: 4096, tooLarge: false, ...over });
 
 const deferred = <T,>() => { let resolve!: (v: T) => void; let reject!: (e: unknown) => void; const promise = new Promise<T>((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };
 const flush = () => new Promise<void>(r => setTimeout(r, 0));
@@ -33,6 +35,8 @@ function make(over: Partial<TrainingAdminGateway> = {}, initial = detail(), opts
     saveNote: vi.fn(async () => {}),
     reportPreview: vi.fn(async () => '# Báo cáo'),
     exportReport: vi.fn(async () => '# Báo cáo\nđầy đủ'),
+    exportSummary: vi.fn(async () => exportSummary()),
+    exportData: vi.fn(async () => new Blob(['zip'])),
     getJoinHosts: vi.fn(async () => ['192.168.1.5:3000']),
     readHideContent: () => hide,
     writeHideContent: vi.fn((h: boolean) => { hide = h; }),
@@ -737,5 +741,194 @@ describe('TrainingController: the popup with the commands of one prompt', () => 
     expect(c.getState().turnKey).toBeNull();
     c.openTurn('t1');
     expect(c.getState().turnKey).toBeNull();
+  });
+});
+
+describe('TrainingController: exporting the raw data (S41)', () => {
+  it('opens on "Hôm nay" and the whole class, counts at once and asks the server for nothing but the defaults', async () => {
+    const { ctrl, gateway } = make();
+    ctrl.openDataExport();
+    expect(ctrl.getState().dataExport).toMatchObject({ mode: 'today', memberIds: null, phase: 'loading', summary: null });
+    await flush();
+    expect(gateway.exportSummary).toHaveBeenCalledExactlyOnceWith(5, { memberIds: null });
+    expect(ctrl.getState().dataExport).toMatchObject({ phase: 'ready', summary: { eventCount: 12 }, error: '' });
+  });
+
+  it('leaving "Hôm nay" starts from the day the server counted as today; a range starts as that one day', async () => {
+    const { ctrl, gateway } = make();
+    ctrl.openDataExport();
+    await flush();
+    ctrl.setDataExportMode('range');
+    expect(ctrl.getState().dataExport).toMatchObject({ mode: 'range', from: '2026-11-24', to: '2026-11-24' });
+    await flush();
+    expect(gateway.exportSummary).toHaveBeenLastCalledWith(5, { from: '2026-11-24', to: '2026-11-24', memberIds: null });
+    ctrl.setDataExportMode('today');
+    await flush();
+    expect(gateway.exportSummary).toHaveBeenLastCalledWith(5, { memberIds: null });
+  });
+
+  it('moving the start past the end moves the end with it; an end before the start is refused here, without asking the server', async () => {
+    const { ctrl, gateway } = make();
+    ctrl.openDataExport();
+    await flush();
+    ctrl.setDataExportMode('range');
+    ctrl.setDataExportTo('2026-11-26');
+    ctrl.setDataExportFrom('2026-11-27');
+    expect(ctrl.getState().dataExport).toMatchObject({ from: '2026-11-27', to: '2026-11-27' });
+    await flush();
+    const calls = vi.mocked(gateway.exportSummary).mock.calls.length;
+    ctrl.setDataExportTo('2026-11-20');
+    expect(ctrl.getState().dataExport).toMatchObject({ phase: 'ready', summary: null, error: 'Ngày kết thúc phải sau hoặc cùng ngày bắt đầu' });
+    await flush();
+    expect(gateway.exportSummary).toHaveBeenCalledTimes(calls);
+  });
+
+  it('"Chọn bạn" starts with everyone ticked; unticking everyone is refused here; "Cả lớp" goes back', async () => {
+    const { ctrl, gateway } = make();
+    ctrl.openDataExport();
+    await flush();
+    ctrl.setDataExportAllMembers(false);
+    expect(ctrl.getState().dataExport!.memberIds).toEqual([1, 2]);
+    await flush();
+    expect(gateway.exportSummary).toHaveBeenLastCalledWith(5, { memberIds: [1, 2] });
+    ctrl.toggleDataExportMember(1);
+    ctrl.toggleDataExportMember(2);
+    expect(ctrl.getState().dataExport).toMatchObject({ memberIds: [], summary: null, error: 'Chọn ít nhất một bạn' });
+    ctrl.toggleDataExportMember(2);
+    await flush();
+    expect(gateway.exportSummary).toHaveBeenLastCalledWith(5, { memberIds: [2] });
+    ctrl.setDataExportAllMembers(true);
+    await flush();
+    expect(ctrl.getState().dataExport!.memberIds).toBeNull();
+    ctrl.toggleDataExportMember(1); // ticking only means something in "Chọn bạn"
+    expect(ctrl.getState().dataExport!.memberIds).toBeNull();
+  });
+
+  it('drops a count that comes back after the choice changed', async () => {
+    const slow = deferred<TrainingExportSummary>();
+    const fast = deferred<TrainingExportSummary>();
+    const summaries = vi.fn().mockReturnValueOnce(slow.promise).mockReturnValueOnce(fast.promise);
+    const { ctrl } = make({ exportSummary: summaries });
+    ctrl.openDataExport();
+    ctrl.setDataExportAllMembers(false);
+    fast.resolve(exportSummary({ eventCount: 3 }));
+    await flush();
+    slow.resolve(exportSummary({ eventCount: 99 }));
+    await flush();
+    expect(ctrl.getState().dataExport!.summary!.eventCount).toBe(3);
+  });
+
+  it('shows why counting failed and counts again on "Thử lại"', async () => {
+    const { ctrl } = make({ exportSummary: vi.fn().mockRejectedValueOnce(new ApiError(0, 'Không kết nối được tới máy chủ')).mockResolvedValue(exportSummary({ eventCount: 5 })) });
+    ctrl.openDataExport();
+    await flush();
+    expect(ctrl.getState().dataExport).toMatchObject({ phase: 'error', error: 'Không kết nối được tới máy chủ', summary: null });
+    ctrl.retryDataExport();
+    await flush();
+    expect(ctrl.getState().dataExport).toMatchObject({ phase: 'ready', error: '', summary: { eventCount: 5 } });
+  });
+
+  it('downloads the zip once per press, under a safe name, for the days the server counted, and says so', async () => {
+    const saveBlob = vi.fn();
+    const zip = deferred<Blob>();
+    const { ctrl, gateway } = make({ exportData: vi.fn(() => zip.promise), exportSummary: vi.fn(async () => exportSummary({ from: '2026-11-22', to: '2026-11-24' })) }, detail(), { saveBlob });
+    ctrl.openDataExport();
+    await flush();
+    const first = ctrl.downloadDataExport();
+    void ctrl.downloadDataExport(); // a second press while it runs
+    expect(ctrl.getState().dataExport!.saving).toBe(true);
+    const blob = new Blob(['zip']);
+    zip.resolve(blob);
+    await first;
+    expect(gateway.exportData).toHaveBeenCalledExactlyOnceWith(5, { from: '2026-11-22', to: '2026-11-24', memberIds: null });
+    expect(saveBlob).toHaveBeenCalledExactlyOnceWith('du-lieu-buoi-1-2026-11-22_2026-11-24.zip', blob);
+    expect(ctrl.getState().dataExport).toMatchObject({ saving: false, saved: true });
+    expect(gateway.exportReport).not.toHaveBeenCalled(); // not the report: nothing is recorded as exported
+  });
+
+  it('changing the choice after a download clears "đã tải"', async () => {
+    const { ctrl } = make({}, detail(), { saveBlob: vi.fn() });
+    ctrl.openDataExport();
+    await flush();
+    await ctrl.downloadDataExport();
+    expect(ctrl.getState().dataExport!.saved).toBe(true);
+    ctrl.setDataExportAllMembers(false);
+    expect(ctrl.getState().dataExport!.saved).toBe(false);
+  });
+
+  it('keeps the dialog and the choice when the download fails, and allows another try', async () => {
+    const saveBlob = vi.fn();
+    const { ctrl, gateway } = make({ exportData: vi.fn().mockRejectedValueOnce(new ApiError(404, 'Không có dữ liệu trong khoảng này')).mockResolvedValue(new Blob(['zip'])) }, detail(), { saveBlob });
+    ctrl.openDataExport();
+    await flush();
+    await ctrl.downloadDataExport();
+    expect(saveBlob).not.toHaveBeenCalled();
+    expect(ctrl.getState().dataExport).toMatchObject({ phase: 'ready', saving: false, saved: false, error: '', saveError: 'Không có dữ liệu trong khoảng này' });
+    await ctrl.downloadDataExport();
+    expect(gateway.exportData).toHaveBeenCalledTimes(2);
+    expect(saveBlob).toHaveBeenCalledTimes(1);
+    expect(ctrl.getState().dataExport).toMatchObject({ saved: true, saveError: '' });
+  });
+
+  it('will not download what the server said is empty or too large, or while counting', async () => {
+    const { ctrl, gateway } = make({ exportSummary: vi.fn().mockResolvedValueOnce(exportSummary({ eventCount: 0 })).mockResolvedValueOnce(exportSummary({ tooLarge: true, approxBytes: 300 * 1024 * 1024 })) }, detail(), { saveBlob: vi.fn() });
+    ctrl.openDataExport();
+    await ctrl.downloadDataExport(); // still counting
+    await flush();
+    await ctrl.downloadDataExport(); // nothing in it
+    ctrl.setDataExportAllMembers(false);
+    await flush();
+    await ctrl.downloadDataExport(); // too large
+    expect(gateway.exportData).not.toHaveBeenCalled();
+  });
+
+  it('drops a download that finishes after the dialog was closed', async () => {
+    const saveBlob = vi.fn();
+    const zip = deferred<Blob>();
+    const { ctrl } = make({ exportData: vi.fn(() => zip.promise) }, detail(), { saveBlob });
+    ctrl.openDataExport();
+    await flush();
+    const downloading = ctrl.downloadDataExport();
+    ctrl.closeDataExport();
+    zip.resolve(new Blob(['zip']));
+    await downloading;
+    expect(saveBlob).not.toHaveBeenCalled();
+    expect(ctrl.getState().dataExport).toBeNull();
+  });
+
+  it('the report dialog and this one replace each other, and neither survives the end of the training', async () => {
+    const { ctrl } = make({}, detail({ status: 'stopped', roomCode: null, uninstalled: { count: 0, total: 2 } }));
+    await ctrl.openReport();
+    expect(ctrl.getState().report).not.toBeNull();
+    ctrl.openDataExport();
+    expect(ctrl.getState()).toMatchObject({ report: null, dataExport: { mode: 'today' } });
+    await flush();
+    await ctrl.openReport();
+    expect(ctrl.getState().dataExport).toBeNull();
+    ctrl.openDataExport();
+    await flush();
+    ctrl.askEnd();
+    await ctrl.confirm();
+    expect(ctrl.getState().dataExport).toBeNull();
+  });
+
+  it('is not offered once the training ended', () => {
+    const { ctrl } = make({}, detail({ status: 'ended', roomCode: null, members: [] }));
+    ctrl.openDataExport();
+    expect(ctrl.getState().dataExport).toBeNull();
+  });
+
+  it('a member who left meanwhile is dropped from the choice instead of making the server refuse it', async () => {
+    const { ctrl, gateway } = make({ get: vi.fn(async () => detail({ members: [member(1, 'An')] })) });
+    ctrl.openDataExport();
+    await flush();
+    ctrl.setDataExportAllMembers(false);
+    await flush();
+    expect(ctrl.getState().dataExport!.memberIds).toEqual([1, 2]);
+    await ctrl.refresh(); // Bình was invited out
+    ctrl.setDataExportMode('day');
+    await flush();
+    expect(ctrl.getState().dataExport!.memberIds).toEqual([1]);
+    expect(gateway.exportSummary).toHaveBeenLastCalledWith(5, { from: '2026-11-24', memberIds: [1] });
   });
 });

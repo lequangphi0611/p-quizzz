@@ -38,3 +38,17 @@ export class TrainingEventNotFoundError extends DomainError {
     super('not_found', 'Không tìm thấy sự kiện');
   }
 }
+
+/** The export has nothing to put in the file: no event of the chosen members in the chosen days (S41). */
+export class TrainingExportEmptyError extends DomainError {
+  constructor() {
+    super('not_found', 'Không có dữ liệu trong khoảng này', 'empty_export');
+  }
+}
+
+/** Too much text for one file: the mentor narrows the days or the members (S41). */
+export class TrainingExportTooLargeError extends DomainError {
+  constructor(approxBytes: number) {
+    super('invalid', `Dữ liệu quá lớn (khoảng ${Math.ceil(approxBytes / (1024 * 1024))} MB). Chọn ít ngày hoặc ít bạn hơn.`, 'export_too_large');
+  }
+}

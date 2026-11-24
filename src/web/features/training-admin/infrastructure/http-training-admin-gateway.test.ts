@@ -49,6 +49,28 @@ describe('HttpTrainingAdminGateway', () => {
     await expect(g.exportReport(3)).rejects.toMatchObject({ status: 409, message: 'Buổi training đã kết thúc, dữ liệu đã bị xoá' });
   });
 
+  it('exports the raw data (S41): the query carries only what was chosen, the zip comes back as a Blob', async () => {
+    const summary = { from: '2026-11-24', to: '2026-11-24', memberCount: 2, eventCount: 9, approxBytes: 2048, tooLarge: false };
+    const f = vi.fn(async (url: string, _init?: RequestInit) => (url.includes('export.zip') ? new Response(new Uint8Array([0x50, 0x4b]), { status: 200 }) : new Response(JSON.stringify(summary), { status: 200 })));
+    const g = new HttpTrainingAdminGateway(createHttpClient({ fetch: f as unknown as typeof fetch }));
+    expect(await g.exportSummary(3, { memberIds: null })).toEqual(summary);
+    await g.exportSummary(3, { from: '2026-11-23', memberIds: null });
+    await g.exportSummary(3, { from: '2026-11-22', to: '2026-11-24', memberIds: [8, 9] });
+    expect(await g.exportData(3, { from: '2026-11-22', to: '2026-11-24', memberIds: [8] })).toBeInstanceOf(Blob);
+    expect(f.mock.calls.map(c => [(c[1] as RequestInit).method, c[0]])).toEqual([
+      ['GET', '/api/admin/trainings/3/export/summary'],
+      ['GET', '/api/admin/trainings/3/export/summary?from=2026-11-23'],
+      ['GET', '/api/admin/trainings/3/export/summary?from=2026-11-22&to=2026-11-24&members=8,9'],
+      ['GET', '/api/admin/trainings/3/export.zip?from=2026-11-22&to=2026-11-24&members=8'],
+    ]);
+  });
+
+  it('a refused export still reports the server message', async () => {
+    const f = vi.fn(async () => new Response(JSON.stringify({ error: 'Không có dữ liệu trong khoảng này' }), { status: 404 }));
+    const g = new HttpTrainingAdminGateway(createHttpClient({ fetch: f as unknown as typeof fetch }));
+    await expect(g.exportData(3, { memberIds: null })).rejects.toMatchObject({ status: 404, message: 'Không có dữ liệu trong khoảng này' });
+  });
+
   describe('the "hide content" choice', () => {
     const http = createHttpClient({ fetch: vi.fn() as unknown as typeof fetch });
     const memory = () => { const m = new Map<string, string>(); return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => { m.set(k, v); } }; };

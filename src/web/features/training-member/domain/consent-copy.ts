@@ -45,10 +45,11 @@ export const SECRET_WARNING =
 /** "Ai xem, giữ bao lâu, rút lại thế nào". */
 export const HANDLING_ITEMS: readonly ConsentItem[] = [
   { icon: 'eye', lead: 'Chỉ mentor xem.', text: 'Bạn không xem lại được dữ liệu đã gửi, và các bạn khác cũng không xem được.' },
-  { icon: 'calendar', lead: 'Buổi có thể kéo dài nhiều ngày.', text: 'Mọi prompt và lệnh trong thư mục bài tập đều được gửi, kể cả ngoài giờ học, cho tới khi mentor dừng thu hoặc bạn dừng gửi.' },
   { icon: 'trash-2', lead: 'Xoá khi mentor bấm "Kết thúc".', text: 'Trước đó dữ liệu được giữ trên máy mentor.' },
+  { icon: 'clock', lead: 'Buổi có thể kéo dài nhiều ngày.', text: 'Mọi prompt và lệnh trong thư mục bài tập đều được gửi, kể cả ngoài giờ học, cho tới khi mentor bấm "Dừng thu" hoặc bạn dừng gửi. Cấu hình nằm trên máy bạn cho tới khi bạn gỡ: mang máy sang mạng khác mà chưa gỡ thì Claude Code vẫn gửi tới địa chỉ máy mentor, kể cả khi đó là máy khác.' },
   { icon: 'log-out', lead: 'Dừng gửi bất cứ lúc nào:', text: 'máy mentor không nhận thêm gì từ bạn. Dữ liệu đã gửi chỉ bị xoá khi mentor duyệt xoá hoặc khi mentor bấm "Kết thúc", và mentor biết tên người đã dừng. Sau đó bạn gỡ cấu hình khỏi thư mục bài tập (trang sẽ hướng dẫn).' },
   { icon: 'wifi', lead: 'Đi qua mạng nội bộ (Wi-Fi/LAN) không mã hoá.', text: 'Người khác trong cùng mạng có thể có cách đọc được.' },
   { icon: 'file-text', lead: 'Mentor có thể xuất báo cáo có tên bạn', text: 'lưu trên máy mentor.' },
+  { icon: 'sparkles', lead: 'Mentor có thể xuất toàn bộ dữ liệu của bạn, có tên,', text: 'kể cả output lệnh và nội dung file thay đổi, rồi đưa vào dịch vụ AI do mentor chọn để phân tích. File đã tải và dữ liệu đã đưa vào dịch vụ đó thì app không quản lý hay xoá được, kể cả sau khi mentor bấm "Kết thúc".' },
   { icon: 'user-check', lead: 'Không tham gia vẫn học bình thường.', text: 'Mentor không thấy tên người không tham gia.' },
 ];
