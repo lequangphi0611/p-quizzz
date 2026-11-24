@@ -1,4 +1,5 @@
-import { deflateRawSync } from 'node:zlib';
+import { promisify } from 'node:util';
+import { deflateRaw } from 'node:zlib';
 import type { ArchiveFile, ArchiveWriter } from '../../application/ports/archive-writer.js';
 import type { Clock } from '../../application/ports/clock.js';
 
@@ -15,9 +16,26 @@ const CRC_TABLE = (() => {
   return table;
 })();
 
-export function crc32(data: Uint8Array): number {
-  let c = 0xffffffff;
+const deflateAsync = promisify(deflateRaw);
+const yieldToLoop = (): Promise<void> => new Promise(resolve => setImmediate(resolve));
+const CRC_CHUNK = 1 << 20;
+
+function crcUpdate(c: number, data: Uint8Array): number {
   for (const byte of data) c = CRC_TABLE[(c ^ byte) & 0xff]! ^ (c >>> 8);
+  return c;
+}
+
+export function crc32(data: Uint8Array): number {
+  return (crcUpdate(0xffffffff, data) ^ 0xffffffff) >>> 0;
+}
+
+/** Same result as `crc32`, but gives the event loop a turn every 1 MiB so a big file does not stall other requests. */
+async function crc32Yielding(data: Uint8Array): Promise<number> {
+  let c = 0xffffffff;
+  for (let i = 0; i < data.length; i += CRC_CHUNK) {
+    c = crcUpdate(c, data.subarray(i, i + CRC_CHUNK));
+    if (i + CRC_CHUNK < data.length) await yieldToLoop();
+  }
   return (c ^ 0xffffffff) >>> 0;
 }
 
@@ -56,9 +74,10 @@ export class NodeZipWriter implements ArchiveWriter {
     for (const file of files) {
       const name = Buffer.from(file.name, 'utf8');
       const data = Buffer.from(file.content, 'utf8');
-      const compressed = deflateRawSync(data);
+      await yieldToLoop();
+      const compressed = await deflateAsync(data);
       if (data.length > LIMIT || compressed.length > LIMIT || offset > LIMIT) throw new RangeError('File too large for a zip');
-      const entry: Entry = { name, crc: crc32(data), compressed, size: data.length, offset };
+      const entry: Entry = { name, crc: await crc32Yielding(data), compressed, size: data.length, offset };
       const header = Buffer.alloc(30);
       header.writeUInt32LE(0x04034b50, 0);
       header.writeUInt16LE(VERSION, 4);

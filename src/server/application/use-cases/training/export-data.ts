@@ -37,20 +37,23 @@ async function resolveScope(deps: Deps, trainingId: number, query: TrainingExpor
   return { training, range: resolveExportRange(query, deps.clock.now()), members };
 }
 
+async function summarize(deps: Deps, trainingId: number, { range, members }: Scope): Promise<TrainingExportSummary> {
+  const stats = await deps.events.exportStats(trainingId, range);
+  let eventCount = 0;
+  let approxBytes = 0;
+  for (const m of members) {
+    eventCount += stats.get(m.id)?.eventCount ?? 0;
+    approxBytes += stats.get(m.id)?.approxBytes ?? 0;
+  }
+  return { from: range.fromDay, to: range.toDay, memberCount: members.length, eventCount, approxBytes, tooLarge: approxBytes > TRAINING_EXPORT_MAX_BYTES };
+}
+
 /** What the dialog shows before the file is built (PRODUCT.md §7.36a). */
 export class GetTrainingExportSummary {
   constructor(private readonly deps: Deps) {}
 
   async execute(trainingId: number, query: TrainingExportQuery): Promise<TrainingExportSummary> {
-    const { range, members } = await resolveScope(this.deps, trainingId, query);
-    const stats = await this.deps.events.exportStats(trainingId, range);
-    let eventCount = 0;
-    let approxBytes = 0;
-    for (const m of members) {
-      eventCount += stats.get(m.id)?.eventCount ?? 0;
-      approxBytes += stats.get(m.id)?.approxBytes ?? 0;
-    }
-    return { from: range.fromDay, to: range.toDay, memberCount: members.length, eventCount, approxBytes, tooLarge: approxBytes > TRAINING_EXPORT_MAX_BYTES };
+    return summarize(this.deps, trainingId, await resolveScope(this.deps, trainingId, query));
   }
 }
 
@@ -66,21 +69,20 @@ export interface TrainingExportFile {
  * output and file changes included, secrets masked. It is not the report: nothing is recorded as exported, and the app never calls an AI here.
  */
 export class ExportTrainingData {
-  private readonly summary: GetTrainingExportSummary;
-
-  constructor(private readonly deps: Deps) {
-    this.summary = new GetTrainingExportSummary(deps);
-  }
+  constructor(private readonly deps: Deps) {}
 
   async execute(trainingId: number, query: TrainingExportQuery): Promise<TrainingExportFile> {
-    const summary = await this.summary.execute(trainingId, query);
+    // Resolved once: the empty and size checks and the zip all use the same members.
+    const scope = await resolveScope(this.deps, trainingId, query);
+    const summary = await summarize(this.deps, trainingId, scope);
     if (summary.eventCount === 0) throw new TrainingExportEmptyError();
     if (summary.tooLarge) throw new TrainingExportTooLargeError(summary.approxBytes);
-    const { training, range, members } = await resolveScope(this.deps, trainingId, query);
+    const { training, range, members } = scope;
 
     // One member at a time, so only one member's events are in memory besides the text already built.
     const inputs: ExportMemberInput[] = [];
     for (const m of members) {
+      await new Promise<void>(resolve => setImmediate(resolve)); // let hook POSTs from members through between members
       inputs.push({ displayName: m.displayName, stoppedSending: m.stoppedSendingAt !== null, note: m.mentorNote, events: await this.deps.events.listForExport(m.id, range) });
     }
     const files = buildExportFiles({ trainingName: training.name, range, exportedAt: this.deps.clock.now(), allowAutoAccept: training.allowAutoAccept, members: inputs });
