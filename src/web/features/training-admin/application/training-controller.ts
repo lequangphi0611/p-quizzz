@@ -1,7 +1,7 @@
 import type { Clip, FlagCode, MemberFlag, TrainingDetail, TrainingEventRow, TrainingExportSummary } from '../../../../shared/api/index.js';
 import { ApiError } from '../../../shared/api-client/http-client.js';
 import { announcementFor } from '../domain/announcements.js';
-import { dayGroupsOf, dayKeyOfEvent, dayKeyOfTurn, reconcileOpenDays, withDayOpen } from '../domain/day-groups.js';
+import { dayGroupsOf, dayKeyOfEvent, dayKeyOfTurn, dayKeysByEvent, reconcileOpenDays, withDayOpen } from '../domain/day-groups.js';
 import { exportFileName, exportInputError, paramsFor, type ExportMode } from '../domain/export.js';
 import { evidenceOf } from '../domain/flags.js';
 import { reportFileName } from '../domain/report.js';
@@ -354,7 +354,8 @@ export class TrainingController {
     const tl = this.state.timeline;
     const flag = tl?.flags.find(f => f.code === code);
     if (!tl || this.state.hidden) return;
-    const ids = evidenceOf(flag, tl.events).filter(id => dayKey === undefined || dayKeyOfEvent(tl.events, id) === dayKey);
+    const days = dayKeysByEvent(tl.events);
+    const ids = evidenceOf(flag, tl.events).filter(id => dayKey === undefined || days.get(id) === dayKey);
     if (ids.length === 0) return;
     const at = tl.focusId === null ? -1 : ids.indexOf(tl.focusId);
     const id = ids[(at + 1) % ids.length]!;
@@ -362,7 +363,7 @@ export class TrainingController {
     const target = tl.events.find(e => e.id === id);
     const key = target && target.kind !== 'prompt' ? turnKeyOf(tl.events, id) : null;
     // A folded day opens first, so the row exists when the page scrolls to it.
-    const openDays = withDayOpen(tl.openDays, dayKeyOfEvent(tl.events, id));
+    const openDays = withDayOpen(tl.openDays, days.get(id) ?? null);
     this.set({ ...(key ? { turnKey: key } : {}), timeline: { ...tl, openDays, focusId: id, focusToken: tl.focusToken + 1 } });
   }
 
@@ -392,7 +393,8 @@ export class TrainingController {
   reportFollowing(inView: boolean): void {
     this.inView = inView;
     const tl = this.state.timeline;
-    if (tl && this.isFollowing(tl) && tl.newCount > 0) this.set({ timeline: { ...tl, newCount: 0 } });
+    // Called on every scroll and every render: the cheap check first, `isFollowing` rebuilds the day groups.
+    if (tl && tl.newCount > 0 && this.isFollowing(tl)) this.set({ timeline: { ...tl, newCount: 0 } });
   }
 
   /** The "N sự kiện mới" chip: opens the day of the newest event if it is folded and brings that event into view. */

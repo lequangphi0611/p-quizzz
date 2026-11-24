@@ -40,11 +40,21 @@ export function groupByDay(items: readonly TimelineItem[]): DayGroup[] {
 /** The day groups of a member's events (oldest first), newest day first. */
 export const dayGroupsOf = (events: readonly TrainingEventRow[]): DayGroup[] => groupByDay(buildTimeline(events, { memberStuck: false }));
 
-/** The day an event is shown under (that of its turn), or null for an unknown event. */
-export function dayKeyOfEvent(events: readonly TrainingEventRow[], eventId: number): string | null {
-  const hit = dayGroupsOf(events).find(g => g.items.some(i => i.kind === 'turn' && (i.prompt?.id === eventId || i.tools.some(t => t.event.id === eventId))));
-  return hit?.dayKey ?? null;
+/** The day every event is shown under (that of its turn), by event id: one pass over the timeline. */
+export function dayKeysByEvent(events: readonly TrainingEventRow[]): Map<number, string> {
+  const out = new Map<number, string>();
+  for (const g of dayGroupsOf(events)) {
+    for (const i of g.items) {
+      if (i.kind !== 'turn') continue;
+      if (i.prompt) out.set(i.prompt.id, g.dayKey);
+      for (const t of i.tools) out.set(t.event.id, g.dayKey);
+    }
+  }
+  return out;
 }
+
+/** The day an event is shown under (that of its turn), or null for an unknown event. */
+export const dayKeyOfEvent = (events: readonly TrainingEventRow[], eventId: number): string | null => dayKeysByEvent(events).get(eventId) ?? null;
 
 /** The day a turn (key from `buildTimeline`) is shown under, or null. */
 export const dayKeyOfTurn = (events: readonly TrainingEventRow[], turnKey: string): string | null =>

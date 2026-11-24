@@ -251,7 +251,7 @@ export function Timeline({ member, timeline, panel, hidden, markError, ctrl, can
                 const open = single || timeline.openDays.includes(g.dayKey);
                 const prevOpen = at > 0 && (timeline.openDays.includes(groups[at - 1]!.dayKey));
                 const label = dayLabel(g.startedAt);
-                const body = `day-body-${g.dayKey}`;
+                const body = bodyId(g.dayKey);
                 return (
                   <div key={g.dayKey} data-day-group={g.dayKey} style={{ padding: '0 16px', ...(at > 0 ? { borderTop: '1px solid var(--ink-200)', marginTop: prevOpen ? 12 : 0 } : {}) }}>
                     <DayGroupHeader id={`day-${g.dayKey}`} bodyId={body} label={label} today={isToday(g.dayKey, now)} counts={g} expanded={open} variant={single ? 'light' : 'default'}
