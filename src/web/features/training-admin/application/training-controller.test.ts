@@ -1013,6 +1013,18 @@ describe('TrainingController: day groups', () => {
     expect(open(ctrl)).toEqual([D22, D25]);
   });
 
+  it('with the newest day folded, the marker in view is not following: new events are counted and the chip opens the day', async () => {
+    const { ctrl, push } = await opened(days());
+    ctrl.toggleDay(D24);
+    ctrl.reportFollowing(true); // today's header is still in view
+    const token = ctrl.getState().timeline!.followToken;
+    push(ev(7, { receivedAt: at(24, 12) }));
+    await ctrl.refresh();
+    expect(ctrl.getState().timeline).toMatchObject({ newCount: 1, followToken: token });
+    ctrl.jumpToLatest();
+    expect(open(ctrl)).toEqual([D24]);
+  });
+
   it('the "N sự kiện mới" chip opens the newest day if it was folded', async () => {
     const { ctrl, push } = await opened(days());
     ctrl.toggleDay(D24);

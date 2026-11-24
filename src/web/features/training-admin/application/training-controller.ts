@@ -144,7 +144,7 @@ export class TrainingController {
   private reportToken = 0; // bumped on every open / close of the report dialog
   private exportToken = 0; // bumped on every change of what the data export dialog shows, and on close
   private started = false;
-  private following = true; // the newest event is in (or near) the viewport
+  private inView = true; // the newest event is in (or near) the viewport
   private detailGen = 0; // bumped when an action's own answer is newer than any reload in flight
   private timelineToken = 0; // bumped when another member is picked (or none)
   private panelToken = 0; // bumped on every open / close of the panel
@@ -270,7 +270,7 @@ export class TrainingController {
     const updated = new Map(fetched.events.filter(e => e.id <= lastId).map(e => [e.id, e]));
     let { newCount, followToken } = tl;
     // While the newest event is in view (or nothing was shown yet) the view follows the new lines; elsewhere it only counts them.
-    if (fresh.length > 0) { if (tl.events.length === 0 || this.following) followToken++; else newCount += fresh.length; }
+    if (fresh.length > 0) { if (tl.events.length === 0 || this.isFollowing(tl)) followToken++; else newCount += fresh.length; }
     const events = [...tl.events.map(e => updated.get(e.id) ?? e), ...fresh];
     // The first days that appear open only the newest; a day that appears later opens by itself, the others stay as they are.
     const days = fresh.length > 0 ? reconcileOpenDays({ open: tl.openDays, known: tl.knownDays }, dayGroupsOf(events).map(g => g.dayKey)) : { open: tl.openDays, known: tl.knownDays };
@@ -296,7 +296,7 @@ export class TrainingController {
     this.panelToken++;
     if (memberId === null) { this.set({ selectedId: null, timeline: null, panel: null, turnKey: null }); return; }
     if (this.state.detail.status === 'ended' || !this.state.detail.members.some(m => m.id === memberId)) return;
-    this.following = true;
+    this.inView = true;
     this.set({ selectedId: memberId, timeline: this.freshTimeline(memberId), panel: null, turnKey: null });
     void this.loadInitial(memberId, this.timelineToken);
   }
@@ -378,16 +378,22 @@ export class TrainingController {
     this.set({ turnKey: null, panel: null });
   }
 
+  /** Following = the newest event is in view AND its day is open: a folded day shows no event, so nothing new would be seen. */
+  private isFollowing(tl: TimelineState): boolean {
+    const newest = dayGroupsOf(tl.events)[0]?.dayKey;
+    return this.inView && (newest === undefined || tl.openDays.includes(newest));
+  }
+
   /** The page reports, after every scroll, whether the newest event is in (or near) the viewport: "đang theo dõi". */
-  reportFollowing(following: boolean): void {
-    this.following = following;
+  reportFollowing(inView: boolean): void {
+    this.inView = inView;
     const tl = this.state.timeline;
-    if (following && tl && tl.newCount > 0) this.set({ timeline: { ...tl, newCount: 0 } });
+    if (tl && this.isFollowing(tl) && tl.newCount > 0) this.set({ timeline: { ...tl, newCount: 0 } });
   }
 
   /** The "N sự kiện mới" chip: opens the day of the newest event if it is folded and brings that event into view. */
   jumpToLatest(): void {
-    this.following = true;
+    this.inView = true;
     const tl = this.state.timeline;
     if (!tl) return;
     const newest = dayGroupsOf(tl.events)[0]?.dayKey ?? null;
