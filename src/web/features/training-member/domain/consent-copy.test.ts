@@ -25,6 +25,13 @@ describe('consent copy holds to the contract (PRODUCT.md §7.34)', () => {
     expect(h).toMatch(/mentor biết tên người đã dừng/);
     expect(h).not.toMatch(/bị xoá ngay/);
   });
+  it('says the training may last several days and collects outside class hours until someone stops it', () => {
+    const h = all(HANDLING_ITEMS);
+    expect(h).toMatch(/nhiều ngày/);
+    expect(h).toMatch(/ngoài giờ học/);
+    expect(h).toMatch(/"Dừng thu" hoặc bạn dừng gửi/);
+    expect(HANDLING_ITEMS.filter(i => /nhiều ngày/.test(i.lead))).toHaveLength(1);
+  });
   it('says the mentor can export a named report', () => {
     expect(all(HANDLING_ITEMS)).toMatch(/xuất báo cáo có tên bạn/);
   });

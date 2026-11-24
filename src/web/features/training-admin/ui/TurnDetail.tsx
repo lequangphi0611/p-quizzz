@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { TrainingMemberRow } from '../../../../shared/api/index.js';
-import { formatClock } from '../../../shared/format/date.js';
+import { dayAndClock } from '../domain/days.js';
 import { Button } from '../../../shared/ui/Button.js';
 import { Icon } from '../../../shared/ui/Icon.js';
 import type { PanelKind, PanelState, TimelineState, TrainingController } from '../application/training-controller.js';
@@ -35,7 +35,7 @@ export function TurnDetail({ turnKey, member, timeline, panel, ctrl }: { turnKey
           <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', font: 'var(--type-label)', textTransform: 'uppercase', letterSpacing: 'var(--tracking-label)', color: 'var(--brand-700)' }}>
               <Icon name={turn.prompt ? 'message-square' : 'terminal'} size={16} />{title} · {member.displayName}
-              {turn.prompt && <span style={{ textTransform: 'none', letterSpacing: 0, color: 'var(--text-meta)', font: '500 13px/1 var(--font-mono)' }}>{formatClock(turn.prompt.receivedAt)}</span>}
+              {turn.prompt && <span style={{ textTransform: 'none', letterSpacing: 0, color: 'var(--text-meta)', font: '500 13px/1 var(--font-mono)' }}>{dayAndClock(turn.prompt.receivedAt)}</span>}
               {mode && <span style={{ textTransform: 'none', letterSpacing: 0, padding: '0 7px', borderRadius: 'var(--radius-pill)', background: 'var(--paper)', border: '1px solid var(--ink-300)', color: 'var(--ink-700)', fontSize: 12 }}>{mode}</span>}
             </span>
             {turn.prompt && <p style={{ margin: 0, maxHeight: '24vh', overflow: 'auto', font: '500 16px/1.5 var(--font-sans)', color: 'var(--text-title)', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{turn.prompt.prompt}</p>}

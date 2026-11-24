@@ -38,3 +38,7 @@ code, kbd, pre { font-family: var(--font-mono); }
 /* Share page rows (S31): the whole row is one link. */
 .pq-share-row { transition: background var(--dur-fast) var(--ease-standard); }
 .pq-share-row:hover { background: var(--ink-050); color: inherit; }
+/* S42: 1600ms is a local value pending a design-system token. The card the "N sự kiện mới" chip jumped to is drawn like a focus ring that fades out (no motion: no effect). */
+@keyframes pq-flash { 0%, 40% { box-shadow: 0 0 0 2px var(--brand-500); background: var(--brand-050); } 100% { box-shadow: 0 0 0 2px transparent; background: var(--paper); } }
+.pq-flash { animation: pq-flash 1600ms var(--ease-standard); }
+@media (prefers-reduced-motion: reduce) { .pq-flash { animation: none; } }

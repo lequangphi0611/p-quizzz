@@ -49,7 +49,7 @@ test('mark examples, write a note, preview and download the report, and the prom
 
   // ── Report with nothing marked: it says so ─────────────────────────────────────────────────────────
   await page.getByRole('button', { name: 'Lan', exact: true }).click();
-  const timeline = page.getByLabel('Các sự kiện, cũ ở trên, mới ở dưới');
+  const timeline = page.getByLabel('Các sự kiện, ngày mới nhất ở trên');
   await expect(timeline.getByText('chạy lại giúp mình')).toBeVisible({ timeout: 6_000 });
   await page.getByRole('button', { name: 'Xuất báo cáo' }).click();
   const dialog = page.getByRole('dialog', { name: 'Xuất báo cáo' });

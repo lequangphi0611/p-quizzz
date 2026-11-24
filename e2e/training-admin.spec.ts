@@ -41,7 +41,7 @@ async function joinMember(api: APIRequestContext, trainingId: number, roomCode: 
   };
 }
 
-const TIMELINE = 'Các sự kiện, cũ ở trên, mới ở dưới';
+const TIMELINE = 'Các sự kiện, ngày mới nhất ở trên';
 const long = Array.from({ length: 1240 }, (_, i) => `build ${String(i + 1).padStart(4, '0')}: compiled module-${i % 37}.ts in ${(i * 7) % 90} ms`).join('\n');
 const testFile = Array.from({ length: 38 }, (_, i) => (i === 0 ? "import { total } from './cart';" : i === 1 ? "test('tính tổng khi có mã giảm giá', () => {" : i === 37 ? '});' : `  expect(total(cart${i}, 'GIAM10')).toBe(${90 + (i % 3)});`)).join('\n');
 const FAIL = 'FAIL src/cart.test.ts › tính tổng khi có mã giảm giá\n  Expected: 90\n  Received: 100';

@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Spec dòng thời gian theo ngày</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/designsystem_2e7074/styles.css">
+<link rel="stylesheet" href="ds/designsystem_2e7074/tokens/fonts.css">
+<link rel="stylesheet" href="ds/designsystem_2e7074/tokens/colors.css">
+<link rel="stylesheet" href="ds/designsystem_2e7074/tokens/typography.css">
+<link rel="stylesheet" href="ds/designsystem_2e7074/tokens/spacing.css">
+<link rel="stylesheet" href="ds/designsystem_2e7074/tokens/radii.css">
+<link rel="stylesheet" href="ds/designsystem_2e7074/tokens/elevation.css">
+<link rel="stylesheet" href="ds/designsystem_2e7074/tokens/motion.css">
+<link rel="stylesheet" href="ds/designsystem_2e7074/tokens/icons.css">
+<link rel="stylesheet" href="ds/designsystem_2e7074/tokens/base.css">
+<script src="ds/designsystem_2e7074/_ds_bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.sp h2{margin:0 0 4px;font:800 24px/1.25 var(--font-sans);color:var(--ink-900)}
+.sp h3{margin:22px 0 8px;font:700 16px/1.3 var(--font-sans);color:var(--ink-900)}
+.sp p,.sp li{font:400 14px/1.55 var(--font-sans);color:var(--ink-800);margin:0}
+.sp ul{margin:0;padding-left:20px;display:grid;gap:6px}
+.sp code{font:500 12.5px/1.4 var(--font-mono);background:var(--ink-100);padding:1px 5px;border-radius:4px;color:var(--ink-900)}
+.cap{font:600 12px/1.3 var(--font-sans);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-600);margin:14px 0 6px}
+</style>
+</helmet>
+<div class="sp" style="width: 1840px; box-sizing: border-box; padding: 56px; background: var(--paper); font-family: var(--font-sans); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 56px; align-items: start">
+
+<section>
+  <h2>Tiêu đề ngày · DayGroupHeader</h2>
+  <p>Cấp 1. Không phải thẻ: chữ đậm nằm thẳng trên nền khung (<code>--surface-page</code>), ngăn ngày bằng một đường kẻ mảnh. Prompt là thẻ trắng nên luôn là thứ nổi nhất.</p>
+  <div style="margin-top: 16px; padding: 12px 16px; background: var(--surface-page); border: 1px solid var(--ink-200); border-radius: 14px">
+    <div class="cap">Mở</div>
+    <div style="display: flex; align-items: center; gap: 10px; min-height: 44px"><span style="width: 28px; height: 28px; display: grid; place-items: center; color: var(--ink-700)"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="chevron-down" size="{{s16}}"></x-import></span><span style="font: 700 15px/1.3 var(--font-sans); color: var(--ink-900)">Thứ Ba, 24/11/2026</span><span style="font: 600 11px/1 var(--font-sans); padding: 4px 8px; border-radius: 999px; background: var(--brand-100); color: var(--brand-700)">Hôm nay</span><span style="font: 400 13px/1.45 var(--font-sans); color: var(--ink-600)">3 prompt · 4 lệnh · <b style="font-weight: 600; color: var(--wrong-600)">1</b> lỗi</span></div>
+    <div class="cap">Thu</div>
+    <div style="display: flex; align-items: center; gap: 10px; min-height: 44px; border-top: 1px solid var(--ink-200)"><span style="width: 28px; height: 28px; display: grid; place-items: center; color: var(--ink-700)"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="chevron-right" size="{{s16}}"></x-import></span><span style="font: 700 15px/1.3 var(--font-sans); color: var(--ink-900)">Chủ Nhật, 22/11/2026</span><span style="font: 400 13px/1.45 var(--font-sans); color: var(--ink-600)">3 prompt · 5 lệnh</span></div>
+    <div class="cap">Hover</div>
+    <div style="display: flex; align-items: center; gap: 10px; min-height: 44px; border-radius: 10px; background: var(--ink-100)"><span style="width: 28px; height: 28px; display: grid; place-items: center; color: var(--ink-700)"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="chevron-right" size="{{s16}}"></x-import></span><span style="font: 700 15px/1.3 var(--font-sans); color: var(--ink-900)">Chủ Nhật, 22/11/2026</span><span style="font: 400 13px/1.45 var(--font-sans); color: var(--ink-600)">3 prompt · 5 lệnh</span></div>
+    <div class="cap">Focus (bàn phím)</div>
+    <div style="display: flex; align-items: center; gap: 10px; min-height: 44px; border-radius: 10px; box-shadow: var(--focus-ring)"><span style="width: 28px; height: 28px; display: grid; place-items: center; color: var(--ink-700)"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="chevron-right" size="{{s16}}"></x-import></span><span style="font: 700 15px/1.3 var(--font-sans); color: var(--ink-900)">Chủ Nhật, 22/11/2026</span><span style="font: 400 13px/1.45 var(--font-sans); color: var(--ink-600)">3 prompt · 5 lệnh</span></div>
+    <div class="cap">Thu · có lỗi · có cờ</div>
+    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 0 12px; min-height: 44px"><div style="display: flex; align-items: center; gap: 10px; flex: 1 1 auto"><span style="width: 28px; height: 28px; display: grid; place-items: center; color: var(--ink-700)"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="chevron-right" size="{{s16}}"></x-import></span><span style="font: 700 15px/1.3 var(--font-sans); color: var(--ink-900)">Thứ Hai, 23/11/2026</span><span style="font: 400 13px/1.45 var(--font-sans); color: var(--ink-600)">4 prompt · 9 lệnh · <b style="font-weight: 600; color: var(--wrong-600)">3</b> lỗi</span></div><div style="display: flex; gap: 6px"><span style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--ink-200); background: var(--paper); font: 600 12px/1 var(--font-sans); color: var(--ink-800)"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="flag" size="{{s12}}" color="var(--ink-600)"></x-import>Lặp lệnh lỗi</span><span style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--ink-200); background: var(--paper); font: 600 12px/1 var(--font-sans); color: var(--ink-800)"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="hourglass" size="{{s12}}" color="var(--ink-600)"></x-import>Có thể đang kẹt</span></div></div>
+    <div class="cap">Đang dính ở đầu khung</div>
+    <div style="display: flex; align-items: center; gap: 10px; min-height: 44px; margin: 0 -16px; padding: 0 16px; border-bottom: 1px solid var(--ink-200); box-shadow: 0 6px 8px -6px rgba(20,23,28,.20)"><span style="width: 28px; height: 28px; display: grid; place-items: center; color: var(--ink-700)"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="chevron-down" size="{{s16}}"></x-import></span><span style="font: 700 15px/1.3 var(--font-sans); color: var(--ink-900)">Thứ Hai, 23/11/2026</span><span style="font: 400 13px/1.45 var(--font-sans); color: var(--ink-600)">4 prompt · 9 lệnh · <b style="font-weight: 600; color: var(--wrong-600)">3</b> lỗi</span></div>
+    <div class="cap" style="margin-top: 18px">Nhãn nhẹ (chỉ một ngày)</div>
+    <div style="display: flex; align-items: baseline; gap: 10px; padding: 4px 0 10px; border-bottom: 1px solid var(--ink-200)"><span style="font: 600 13px/1.4 var(--font-sans); color: var(--ink-800)">Thứ Ba, 24/11/2026 · Hôm nay</span><span style="font: 400 13px/1.45 var(--font-sans); color: var(--ink-600)">3 prompt · 4 lệnh · <b style="font-weight: 600; color: var(--wrong-600)">1</b> lỗi</span></div>
+  </div>
+  <h3>Số đo</h3>
+  <ul>
+    <li>Hàng tối thiểu 44px; vùng chevron 28×28, icon 16, <code>--ink-700</code>; chevron cách nhãn 10px.</li>
+    <li>Nhãn ngày 700 15/1.3 <code>--ink-900</code>. “Hôm nay”: 600 11px, nền <code>--brand-100</code>, chữ <code>--brand-700</code>, bo tròn hết.</li>
+    <li>Tóm tắt 400 13/1.45 <code>--ink-600</code>, số dạng tabular. Riêng con số lỗi 600 <code>--wrong-600</code> (khoảng 5,3:1 trên nền khung); bỏ cả cụm “· N lỗi” khi bằng 0. Không tô nền hay viền đỏ cho cả ngày.</li>
+    <li>Hover: nền <code>--ink-100</code>, bo 10. Focus: <code>--focus-ring</code> (2px paper + 2px brand-500).</li>
+    <li>Ngày đang thu giữ nguyên màu chữ (không làm mờ), chỉ đổi chevron và hiện chip cờ của ngày bên phải. Chip là nút riêng, đứng cạnh nút tiêu đề chứ không lồng vào trong.</li>
+    <li>Cột phải hẹp (khoảng 560px trở xuống): tóm tắt xuống dòng dưới nhãn; chip xuống dòng thứ ba, thụt 38px.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Dải phiên · SessionMarker</h2>
+  <p>Cấp 2, mốc nhẹ nằm trên đường ray của ngày. Cùng ngôn ngữ với tiêu đề ngày (căn trái, chữ thường) nhưng nhỏ hơn và không bấm được.</p>
+  <div style="margin-top: 16px; padding: 12px 16px; background: var(--surface-page); border: 1px solid var(--ink-200); border-radius: 14px">
+    <div style="margin-left: 13px; border-left: 2px solid var(--ink-200); padding: 0 0 8px 21px"><div style="height: 40px; border-radius: 10px; background: var(--paper); border: 1px solid var(--ink-200); display: flex; align-items: center; padding: 0 14px; font: 600 12px/1 var(--font-sans); letter-spacing: .06em; color: var(--ink-700)">PROMPT 10 …</div></div>
+    <div style="margin-left: 13px; border-left: 2px solid var(--ink-200); padding: 4px 0 12px 21px"><div style="position: relative; display: flex; align-items: center; gap: 10px; min-height: 24px"><span style="position: absolute; left: -28px; top: 6px; width: 12px; height: 12px; box-sizing: border-box; border-radius: 50%; background: var(--surface-page); border: 2px solid var(--ink-500)"></span><span style="font: 600 12px/1.3 var(--font-sans); color: var(--ink-800)">Phiên Claude Code 2<span style="font-weight: 400; color: var(--ink-600)"> · mở lúc 09:55</span></span><span style="flex: 1; border-top: 1px dashed var(--ink-300)"></span></div></div>
+    <div style="margin-left: 13px; border-left: 2px solid var(--ink-200); padding: 0 0 0 21px"><div style="height: 40px; border-radius: 10px; background: var(--paper); border: 1px solid var(--ink-200); display: flex; align-items: center; padding: 0 14px; font: 600 12px/1 var(--font-sans); letter-spacing: .06em; color: var(--ink-700)">PROMPT 11 …</div></div>
+  </div>
+  <ul style="margin-top: 12px">
+    <li>Điểm mốc 12px, viền 2px <code>--ink-500</code>, nằm đúng tâm đường ray.</li>
+    <li>Chữ 600 12px <code>--ink-800</code> + “· mở lúc HH:MM” 400 <code>--ink-600</code>; vạch đứt 1px <code>--ink-300</code> kéo tới mép phải.</li>
+    <li>Viết thường, căn trái, để khác hẳn nhãn “PROMPT N” in hoa và bỏ kiểu đường kẻ căn giữa cũ.</li>
+  </ul>
+
+  <h3>Khoảng cách và đường ray</h3>
+  <ul>
+    <li>Khung cuộn: đệm 12px trên, 16px hai bên.</li>
+    <li>Nội dung một ngày thụt 36px = 13 + ray 2px <code>--ink-200</code> + 21. Ray chạy dọc dưới tâm chevron (x = 14), gom cả ngày thành một khối kể cả khi mở tất cả.</li>
+    <li>Giữa hai prompt: 8px. Prompt → dải phiên: 8 + 4. Dải phiên → prompt: 12.</li>
+    <li>Cuối một ngày đang mở → tiêu đề ngày sau: 8 + 12 + đường kẻ 1px <code>--ink-200</code> chạy hết chiều ngang.</li>
+    <li>Hai ngày đang thu liền nhau: 0 + đường kẻ, thành một danh sách kẻ dòng (mỗi hàng 45px), không để khoảng trống.</li>
+  </ul>
+
+  <h3>Vị trí Mở tất cả / Thu tất cả</h3>
+  <ul>
+    <li>Đặt trên hàng thông tin học viên, ngay trái nút “Ẩn nội dung”. Dùng <code>Button</code> ghost sm, icon <code>list</code>.</li>
+    <li>Lý do: hàng này không cuộn theo nên nút luôn ở một chỗ. Nếu gắn vào tiêu đề ngày đầu, nút sẽ trôi mất khi cuộn, và khi tiêu đề dính thì một hàng có hai hành động dễ bấm nhầm.</li>
+    <li>Nhãn tự đổi: còn ngày đang thu thì là “Mở tất cả”, tất cả đã mở thì là “Thu tất cả”. Ẩn khi chỉ có một ngày hoặc khi đang ẩn nội dung.</li>
+  </ul>
+
+  <h3>Component mới đề xuất cho design system</h3>
+  <ul>
+    <li><code>DayGroupHeader</code> { label, isToday?, counts: {prompts, commands, errors}, expanded, onToggle, flags?: {label, icon, onClick}[], stuck?, variant: 'default' | 'light' }. Chip cờ chỉ hiện khi đang thu. 'light' là nhãn nhẹ, không phải nút. Tự xuống dòng theo bề rộng khung (container query khoảng 560px).</li>
+    <li><code>CollapsibleSection</code> { id, header, expanded, children, keepMounted? }: lo aria-controls / region và giữ neo cuộn khi đổi chiều cao.</li>
+    <li><code>SessionMarker</code> { index, openedAt, continued? }.</li>
+    <li><code>FlagChip</code> { label, icon = 'flag', date?, onClick, size: 'sm' | 'md' }: chỉ thêm nếu chip cờ hiện có chưa là component dùng chung.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Tương tác</h2>
+  <h3>Mở / thu</h3>
+  <ul>
+    <li>Không tạo hiệu ứng chiều cao: danh sách dài làm việc giữ vị trí đọc khó và tốn hiệu năng. Chevron xoay 90° trong <code>--dur-fast</code> (120ms), <code>--ease-standard</code>; nội dung hiện bằng <code>pq-fade</code> <code>--dur-base</code>. Khi giảm chuyển động thì mọi thời lượng về 0 (token đã lo).</li>
+    <li>Enter / Space trên tiêu đề để mở/thu. Thứ tự Tab: tiêu đề ngày → chip cờ của ngày → các prompt.</li>
+    <li>Nút tiêu đề có <code>aria-expanded</code> và <code>aria-controls</code> trỏ tới vùng nội dung; vùng là <code>role="region"</code> với <code>aria-labelledby</code>. Trình đọc màn hình đọc: “Thứ Hai, 23/11/2026, 4 prompt, 9 lệnh, 3 lỗi, đang thu gọn”.</li>
+  </ul>
+  <h3>Tiêu đề dính: có</h3>
+  <ul>
+    <li>Một ngày có thể vài chục prompt; khi cuộn giữa ngày, mentor vẫn cần biết đang ở ngày nào và thu được ngay. Chỉ tiêu đề ngày dính, dải phiên không dính. Ngày sau đẩy ngày trước lên; ngày đang thu không dính.</li>
+    <li>Bóng và đường kẻ dưới chỉ hiện khi đang dính.</li>
+    <li>Bấm tiêu đề đang dính để thu: cuộn sao cho tiêu đề đó nằm ở đỉnh khung, để mentor không bị đẩy vào giữa một ngày khác.</li>
+  </ul>
+  <h3>Giữ vị trí đọc</h3>
+  <ul>
+    <li>Trước khi DOM đổi (sự kiện mới, mở/thu ngày phía trên, Tải thêm): lưu phần tử đầu tiên đang thấy và khoảng lệch của nó. Sau khi đổi, đặt lại <code>scrollTop</code> để phần tử đó đứng yên. <code>overflow-anchor: auto</code> chỉ là lớp dự phòng.</li>
+    <li>Ngoại lệ: sự kiện mới nhất đang nằm trong khung nhìn (mentor đang theo dõi trực tiếp) thì cuộn theo sự kiện mới.</li>
+    <li>Chip “N sự kiện mới”: <code>--ink-900</code>, bóng <code>--shadow-raised</code>, mũi tên chỉ về phía có sự kiện. Bấm thì mở ngày (nếu đang thu), cuộn tới, tô kiểu focus rồi nhạt dần.</li>
+    <li>Ẩn nội dung: thay cả khung bằng thông báo, nhưng vẫn giữ trạng thái mở/thu và vị trí cuộn, để bật lại thì về đúng chỗ.</li>
+  </ul>
+  <h3>Cần PO cân nhắc (không tự đổi)</h3>
+  <ul>
+    <li><b>Sự kiện mới nhất nằm giữa danh sách.</b> Ngày mới ở trên nhưng trong ngày lại cũ → mới, nên prompt mới nhất nằm ở cuối nhóm “Hôm nay”, không ở mép trên hay mép dưới. Hệ quả: chip “N sự kiện mới” cố định ở đáy sẽ chỉ sai hướng khi mentor đang đọc ngày cũ bên dưới (sự kiện ở phía trên). Frame 5 vẽ chip ở đáy đúng như brief, mũi tên hướng lên. Đề xuất: đặt chip ở mép phía có sự kiện.</li>
+    <li><b>“Tải thêm” ở trên cùng.</b> Sự kiện mới hơn của hôm nay sẽ được chèn vào cuối nhóm “Hôm nay”, không phải trên cùng. Đề xuất: đặt nút ở cuối nhóm ngày mới nhất, hoặc giữ ở trên nhưng bấm xong thì cuộn tới chỗ vừa chèn.</li>
+    <li><b>Phiên kéo qua 0 giờ.</b> Đầu ngày sau có lặp lại dải “Phiên Claude Code 2 · tiếp từ 23/11” không? Số phiên đánh lại theo từng ngày hay theo cả buổi?</li>
+  </ul>
+  <h3>Giả định và chỗ lệch trong dữ liệu mẫu</h3>
+  <ul>
+    <li>Ba ngày trước đã có 9 prompt, nên hôm nay mình đánh số Prompt 10–12 (brief ghi 9–11).</li>
+    <li>Prompt 11 có 1 lệnh lỗi nhưng tóm tắt hôm nay không có lỗi, nên mình vẽ “3 prompt · 4 lệnh · 1 lỗi”.</li>
+    <li>Nội dung prompt của các ngày cũ và tên các học viên khác là dữ liệu giả lập.</li>
+    <li>Design system chưa có chip cờ và kiểu <code>focus</code> “hiện có”, nên mình vẽ xấp xỉ: chip trung tính; focus = <code>--brand-050</code> + viền <code>--brand-500</code>. Khi làm thật, dev dùng component có sẵn của app.</li>
+  </ul>
+</section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1840,"height":2400}}'>
+class Component extends DCLogic {
+  renderVals() { return { s12: 12, s16: 16 }; }
+}
+</script>
+</body>
+</html>

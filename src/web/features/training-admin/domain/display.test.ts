@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { changeLines, clipView, omittedLabel } from './clip-view.js';
 import { connectionLabel } from './connection-label.js';
 import { formatDuration } from './duration.js';
-import { BOTTOM_THRESHOLD_PX, isNearBottom } from './scroll.js';
+import { FOLLOW_THRESHOLD_PX, isLatestInView } from './scroll.js';
 import { isTypingTarget, shortcutFor } from './shortcuts.js';
 import { toolLabel } from './tool-label.js';
 import { memberCountLabel, trainingStatusIcon, trainingStatusLabel } from './training-ui.js';
@@ -82,12 +82,15 @@ describe('changeLines', () => {
   });
 });
 
-describe('isNearBottom', () => {
-  it('is true within 80px of the end and false beyond', () => {
-    expect(BOTTOM_THRESHOLD_PX).toBe(80);
-    expect(isNearBottom({ scrollTop: 920, clientHeight: 500, scrollHeight: 1500 })).toBe(true);
-    expect(isNearBottom({ scrollTop: 920 - 1, clientHeight: 500, scrollHeight: 1500 })).toBe(false);
-    expect(isNearBottom({ scrollTop: 0, clientHeight: 500, scrollHeight: 300 })).toBe(true);
+describe('isLatestInView', () => {
+  const view = { top: 100, bottom: 600 };
+  it('is true when the newest event is in the viewport or within 80px of it, false beyond', () => {
+    expect(FOLLOW_THRESHOLD_PX).toBe(80);
+    expect(isLatestInView({ top: 300, bottom: 300 }, view)).toBe(true);
+    expect(isLatestInView({ top: 680, bottom: 680 }, view)).toBe(true);
+    expect(isLatestInView({ top: 681, bottom: 681 }, view)).toBe(false);
+    expect(isLatestInView({ top: 20, bottom: 20 }, view)).toBe(true);
+    expect(isLatestInView({ top: 19, bottom: 19 }, view)).toBe(false);
   });
 });
 

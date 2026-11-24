@@ -69,6 +69,7 @@ Mỗi story là một file tự đủ ngữ cảnh để một model/người im
 | [S39](S39-training-flags-timeline.md) | Training: cờ gợi ý và các dòng mới trên dòng thời gian | S37 | ✅ |
 | [S40](S40-training-report.md) | Training: đánh dấu ví dụ, ghi chú, xuất báo cáo trước khi kết thúc | S38, S39 | ✅ |
 | [S41](S41-training-export.md) | Training: xuất dữ liệu thô (zip, mỗi member một file) theo ngày để phân tích bằng AI cá nhân | S40 | ✅ |
+| [S42](S42-training-multi-day.md) | Training nhiều ngày: nhóm theo ngày (mới nhất ở trên, thu gọn) trên dòng thời gian | S35, S39, S40, S41 | ✅ |
 
 ## Thứ tự & song song
 

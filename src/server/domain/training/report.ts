@@ -42,8 +42,10 @@ const clip = (text: string, max: number): string => {
 };
 
 const pad = (n: number) => String(n).padStart(2, '0');
-const stamp = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-const stampLong = (d: Date) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${stamp(d)}`;
+const clock = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+/** `dd/mm HH:MM`: a training can run for several days, so every time in the file carries its day. */
+const stamp = (d: Date) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${clock(d)}`;
+const stampLong = (d: Date) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${clock(d)}`;
 
 /** Block-quote every line, so a multi-line prompt cannot break out of its list item. */
 const quote = (text: string) => text.split(/\r?\n/).map(l => `> ${l}`.trimEnd()).join('\n');

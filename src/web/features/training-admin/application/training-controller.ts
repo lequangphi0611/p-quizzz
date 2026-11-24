@@ -1,6 +1,7 @@
 import type { Clip, FlagCode, MemberFlag, TrainingDetail, TrainingEventRow, TrainingExportSummary } from '../../../../shared/api/index.js';
 import { ApiError } from '../../../shared/api-client/http-client.js';
 import { announcementFor } from '../domain/announcements.js';
+import { dayGroupsOf, dayKeyOfEvent, dayKeyOfTurn, dayKeysByEvent, reconcileOpenDays, withDayOpen } from '../domain/day-groups.js';
 import { exportFileName, exportInputError, paramsFor, type ExportMode } from '../domain/export.js';
 import { evidenceOf } from '../domain/flags.js';
 import { reportFileName } from '../domain/report.js';
@@ -20,8 +21,12 @@ export interface TimelineState {
   error: string;
   /** Events that arrived while the mentor was reading higher up: the "N sự kiện mới ↓" chip. */
   newCount: number;
-  /** Changes whenever the timeline should scroll to its end (the page reacts to the change, not the value). */
-  stickToken: number;
+  /** Changes whenever the timeline should scroll to its newest event (the page reacts to the change, not the value). */
+  followToken: number;
+  /** The days (`yyyy-mm-dd`) whose group is open; the rest are folded to their header. */
+  openDays: string[];
+  /** Every day already shown once: a day not in it is new and opens by itself. */
+  knownDays: string[];
   /** The flags of this member's whole timeline, each with the events behind it (from the server). */
   flags: MemberFlag[];
   /** The event a flag chip last jumped to: drawn highlighted; `focusToken` changes on every jump so the page scrolls even to the same row. */
@@ -139,7 +144,7 @@ export class TrainingController {
   private reportToken = 0; // bumped on every open / close of the report dialog
   private exportToken = 0; // bumped on every change of what the data export dialog shows, and on close
   private started = false;
-  private atBottom = true;
+  private inView = true; // the newest event is in (or near) the viewport
   private detailGen = 0; // bumped when an action's own answer is newer than any reload in flight
   private timelineToken = 0; // bumped when another member is picked (or none)
   private panelToken = 0; // bumped on every open / close of the panel
@@ -165,7 +170,7 @@ export class TrainingController {
     for (const l of [...this.listeners]) l();
   }
   private freshTimeline(memberId: number): TimelineState {
-    return { memberId, events: [], hasMore: false, phase: 'loading', loadingMore: false, error: '', newCount: 0, stickToken: 0, flags: [], focusId: null, focusToken: 0 };
+    return { memberId, events: [], hasMore: false, phase: 'loading', loadingMore: false, error: '', newCount: 0, followToken: 0, openDays: [], knownDays: [], flags: [], focusId: null, focusToken: 0 };
   }
 
   /** Loads what the first render could not: the timeline of the member from the URL, the count of an ended training. Safe to call twice. */
@@ -257,16 +262,20 @@ export class TrainingController {
    * Adds what came after the last event, and swaps in the newer version of rows already shown (a permission request that was
    * "waiting" gets its inferred answer once more events exist).
    */
-  private appendEvents(memberId: number, fetched: Fetched): void {
+  private appendEvents(memberId: number, fetched: Fetched, fromLoadMore = false): void {
     const tl = this.state.timeline;
     if (!tl || tl.memberId !== memberId) return;
     const lastId = tl.events[tl.events.length - 1]?.id ?? 0;
     const fresh = fetched.events.filter(e => e.id > lastId);
     const updated = new Map(fetched.events.filter(e => e.id <= lastId).map(e => [e.id, e]));
-    let { newCount, stickToken } = tl;
-    // At the end of the timeline (or empty so far) it follows the new lines; higher up it only counts them.
-    if (fresh.length > 0) { if (tl.events.length === 0 || this.atBottom) stickToken++; else newCount += fresh.length; }
-    this.set({ timeline: { ...tl, events: [...tl.events.map(e => updated.get(e.id) ?? e), ...fresh], hasMore: fetched.hasMore, flags: fetched.flags, phase: 'ready', loadingMore: false, error: '', newCount, stickToken } });
+    let { newCount, followToken } = tl;
+    // While the newest event is in view (or nothing was shown yet) the view follows the new lines; elsewhere it only counts them.
+    // "Tải thêm" is the mentor's own request and sits right under the newest loaded event: it never follows and never counts as new.
+    if (fresh.length > 0 && !fromLoadMore) { if (tl.events.length === 0 || this.isFollowing(tl)) followToken++; else newCount += fresh.length; }
+    const events = [...tl.events.map(e => updated.get(e.id) ?? e), ...fresh];
+    // The first days that appear open only the newest; a day that appears later opens by itself, the others stay as they are.
+    const days = fresh.length > 0 ? reconcileOpenDays({ open: tl.openDays, known: tl.knownDays }, dayGroupsOf(events).map(g => g.dayKey)) : { open: tl.openDays, known: tl.knownDays };
+    this.set({ timeline: { ...tl, events, hasMore: fetched.hasMore, flags: fetched.flags, phase: 'ready', loadingMore: false, error: '', newCount, followToken, openDays: days.open, knownDays: days.known } });
   }
 
   private async loadInitial(memberId: number, token: number): Promise<void> {
@@ -288,7 +297,7 @@ export class TrainingController {
     this.panelToken++;
     if (memberId === null) { this.set({ selectedId: null, timeline: null, panel: null, turnKey: null }); return; }
     if (this.state.detail.status === 'ended' || !this.state.detail.members.some(m => m.id === memberId)) return;
-    this.atBottom = true;
+    this.inView = true;
     this.set({ selectedId: memberId, timeline: this.freshTimeline(memberId), panel: null, turnKey: null });
     void this.loadInitial(memberId, this.timelineToken);
   }
@@ -330,34 +339,41 @@ export class TrainingController {
     try {
       const fetched = await this.fetchPages(tl.memberId, lastId);
       if (token !== this.timelineToken) return;
-      this.appendEvents(tl.memberId, fetched);
+      this.appendEvents(tl.memberId, fetched, true);
     } catch (err) {
       const now = this.state.timeline;
       if (token === this.timelineToken && now) this.set({ timeline: { ...now, loadingMore: false, error: errorText(err, 'Không tải thêm được') } });
     }
   }
 
-  /** A flag chip: jumps to the next event behind that flag (the first press goes to the first one), highlighting its row. */
-  jumpToFlag(code: FlagCode): void {
+  /**
+   * A flag chip: jumps to the next event behind that flag (the first press goes to the first one), highlighting its row. The chip of
+   * a day (`dayKey`) goes only through the events of that day.
+   */
+  jumpToFlag(code: FlagCode, dayKey?: string): void {
     const tl = this.state.timeline;
     const flag = tl?.flags.find(f => f.code === code);
     if (!tl || this.state.hidden) return;
-    const ids = evidenceOf(flag, tl.events);
+    const days = dayKeysByEvent(tl.events);
+    const ids = evidenceOf(flag, tl.events).filter(id => dayKey === undefined || days.get(id) === dayKey);
     if (ids.length === 0) return;
     const at = tl.focusId === null ? -1 : ids.indexOf(tl.focusId);
     const id = ids[(at + 1) % ids.length]!;
     // A command sits in the popup of its prompt: open that one (a prompt itself is in the list).
     const target = tl.events.find(e => e.id === id);
     const key = target && target.kind !== 'prompt' ? turnKeyOf(tl.events, id) : null;
-    this.set({ ...(key ? { turnKey: key } : {}), timeline: { ...tl, focusId: id, focusToken: tl.focusToken + 1 } });
+    // A folded day opens first, so the row exists when the page scrolls to it.
+    const openDays = withDayOpen(tl.openDays, days.get(id) ?? null);
+    this.set({ ...(key ? { turnKey: key } : {}), timeline: { ...tl, openDays, focusId: id, focusToken: tl.focusToken + 1 } });
   }
 
   // ── The detail of one prompt (its commands, in a popup) ───────────────────────────────────────────
 
   /** Opens the popup with the commands under one prompt (`key` from `buildTimeline`). */
   openTurn(key: string): void {
-    if (this.state.hidden || this.state.detail.status === 'ended' || !this.state.timeline) return;
-    this.set({ turnKey: key });
+    const tl = this.state.timeline;
+    if (this.state.hidden || this.state.detail.status === 'ended' || !tl) return;
+    this.set({ turnKey: key, timeline: { ...tl, openDays: withDayOpen(tl.openDays, dayKeyOfTurn(tl.events, key)) } });
   }
 
   /** Closes the popup, and the output panel that belongs to it. */
@@ -367,18 +383,42 @@ export class TrainingController {
     this.set({ turnKey: null, panel: null });
   }
 
-  /** The page reports whether the timeline is at its end (within 80px) after every scroll. */
-  reportScroll(atBottom: boolean): void {
-    this.atBottom = atBottom;
-    const tl = this.state.timeline;
-    if (atBottom && tl && tl.newCount > 0) this.set({ timeline: { ...tl, newCount: 0 } });
+  /** Following = the newest event is in view AND its day is open: a folded day shows no event, so nothing new would be seen. */
+  private isFollowing(tl: TimelineState): boolean {
+    const newest = dayGroupsOf(tl.events)[0]?.dayKey;
+    return this.inView && (newest === undefined || tl.openDays.includes(newest));
   }
 
-  /** The "N sự kiện mới ↓" chip. */
-  jumpToBottom(): void {
-    this.atBottom = true;
+  /** The page reports, after every scroll, whether the newest event is in (or near) the viewport: "đang theo dõi". */
+  reportFollowing(inView: boolean): void {
+    this.inView = inView;
     const tl = this.state.timeline;
-    if (tl) this.set({ timeline: { ...tl, newCount: 0, stickToken: tl.stickToken + 1 } });
+    // Called on every scroll and every render: the cheap check first, `isFollowing` rebuilds the day groups.
+    if (tl && tl.newCount > 0 && this.isFollowing(tl)) this.set({ timeline: { ...tl, newCount: 0 } });
+  }
+
+  /** The "N sự kiện mới" chip: opens the day of the newest event if it is folded and brings that event into view. */
+  jumpToLatest(): void {
+    this.inView = true;
+    const tl = this.state.timeline;
+    if (!tl) return;
+    const newest = dayGroupsOf(tl.events)[0]?.dayKey ?? null;
+    this.set({ timeline: { ...tl, newCount: 0, followToken: tl.followToken + 1, openDays: withDayOpen(tl.openDays, newest) } });
+  }
+
+  /** Opens or folds one day group. */
+  toggleDay(dayKey: string): void {
+    const tl = this.state.timeline;
+    if (!tl) return;
+    const openDays = tl.openDays.includes(dayKey) ? tl.openDays.filter(k => k !== dayKey) : [...tl.openDays, dayKey];
+    this.set({ timeline: { ...tl, openDays } });
+  }
+
+  /** "Mở tất cả" / "Thu tất cả". */
+  setAllDays(open: boolean): void {
+    const tl = this.state.timeline;
+    if (!tl) return;
+    this.set({ timeline: { ...tl, openDays: open ? dayGroupsOf(tl.events).map(g => g.dayKey) : [] } });
   }
 
   // ── The output / change panel ──────────────────────────────────────────────────────────────────
@@ -418,6 +458,8 @@ export class TrainingController {
     const kind: PanelKind = p.kind === 'output' ? (target.hasOutput ? 'output' : 'change') : (target.hasChange ? 'change' : 'output');
     const key = turnKeyOf(tl.events, target.id);
     if (key !== null && key !== this.state.turnKey) this.set({ turnKey: key });
+    const day = dayKeyOfEvent(tl.events, target.id);
+    if (day !== null && !tl.openDays.includes(day)) this.set({ timeline: { ...tl, openDays: withDayOpen(tl.openDays, day) } });
     void this.openDetail(target.id, kind);
   }
 
