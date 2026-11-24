@@ -262,7 +262,7 @@ export class TrainingController {
    * Adds what came after the last event, and swaps in the newer version of rows already shown (a permission request that was
    * "waiting" gets its inferred answer once more events exist).
    */
-  private appendEvents(memberId: number, fetched: Fetched): void {
+  private appendEvents(memberId: number, fetched: Fetched, fromLoadMore = false): void {
     const tl = this.state.timeline;
     if (!tl || tl.memberId !== memberId) return;
     const lastId = tl.events[tl.events.length - 1]?.id ?? 0;
@@ -270,7 +270,8 @@ export class TrainingController {
     const updated = new Map(fetched.events.filter(e => e.id <= lastId).map(e => [e.id, e]));
     let { newCount, followToken } = tl;
     // While the newest event is in view (or nothing was shown yet) the view follows the new lines; elsewhere it only counts them.
-    if (fresh.length > 0) { if (tl.events.length === 0 || this.isFollowing(tl)) followToken++; else newCount += fresh.length; }
+    // "Tải thêm" is the mentor's own request and sits right under the newest loaded event: it never follows and never counts as new.
+    if (fresh.length > 0 && !fromLoadMore) { if (tl.events.length === 0 || this.isFollowing(tl)) followToken++; else newCount += fresh.length; }
     const events = [...tl.events.map(e => updated.get(e.id) ?? e), ...fresh];
     // The first days that appear open only the newest; a day that appears later opens by itself, the others stay as they are.
     const days = fresh.length > 0 ? reconcileOpenDays({ open: tl.openDays, known: tl.knownDays }, dayGroupsOf(events).map(g => g.dayKey)) : { open: tl.openDays, known: tl.knownDays };
@@ -338,7 +339,7 @@ export class TrainingController {
     try {
       const fetched = await this.fetchPages(tl.memberId, lastId);
       if (token !== this.timelineToken) return;
-      this.appendEvents(tl.memberId, fetched);
+      this.appendEvents(tl.memberId, fetched, true);
     } catch (err) {
       const now = this.state.timeline;
       if (token === this.timelineToken && now) this.set({ timeline: { ...now, loadingMore: false, error: errorText(err, 'Không tải thêm được') } });

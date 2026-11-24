@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { TrainingEventRow, TrainingMemberRow } from '../../../../shared/api/index.js';
 import { formatClock } from '../../../shared/format/date.js';
 import { Button } from '../../../shared/ui/Button.js';
@@ -60,7 +60,7 @@ function PromptBlock({ event, number, focused, flash, onMark, detail }: { event:
 
 /** Below this width of the timeline frame the day header wraps (summary under the label, chips on a third line). */
 const NARROW_PX = 560;
-/** How long the card the "N sự kiện mới" chip jumped to stays drawn as focused, before it is cleared. */
+/** How long the card the "N sự kiện mới" chip jumped to stays drawn as focused, before it is cleared. A local value (like the 1600ms of `pq-flash` in index.css) pending a design-system token. */
 const FLASH_MS = 1700;
 
 /**
@@ -186,9 +186,12 @@ export function Timeline({ member, timeline, panel, hidden, markError, ctrl, can
     captureAnchor(`day-${dayKey}-row`); // the header stays where it is (a pinned one goes to the top of the frame once its day is folded)
     ctrl.toggleDay(dayKey);
   };
+  const flashTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(flashTimer.current), []);
   const jumpToLatest = () => {
     setFlashId(newestPrompt?.id ?? null);
-    window.setTimeout(() => setFlashId(null), FLASH_MS);
+    window.clearTimeout(flashTimer.current);
+    flashTimer.current = window.setTimeout(() => setFlashId(null), FLASH_MS);
     ctrl.jumpToLatest();
   };
   const loadMore = () => { captureAnchor(); void ctrl.loadMore(); };

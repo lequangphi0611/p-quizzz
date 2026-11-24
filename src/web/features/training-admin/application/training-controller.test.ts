@@ -124,6 +124,20 @@ describe('TrainingController: paging by `after`', () => {
     expect(ctrl.getState().timeline).toMatchObject({ hasMore: false, events: [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }, { id: 6 }, { id: 7 }, { id: 8 }] });
   });
 
+  it('"Tải thêm" neither follows the newest event nor counts the batch as new', async () => {
+    const events = vi.fn(async (_t: number, _m: number, after = 0): Promise<TrainingEventsPage> => page([after + 1, after + 2], after < 6));
+    const { ctrl } = make({ events }, detail(), { maxPages: 2 });
+    ctrl.select(1);
+    await flush();
+    ctrl.reportFollowing(true); // the newest loaded event is in view, as it is when the button is visible
+    const before = ctrl.getState().timeline!;
+    await ctrl.loadMore();
+    const after = ctrl.getState().timeline!;
+    expect(after.events).toHaveLength(8);
+    expect(after.followToken).toBe(before.followToken);
+    expect(after.newCount).toBe(0);
+  });
+
   it('a failed "Tải thêm" keeps what is shown and says why', async () => {
     let calls = 0;
     const events = vi.fn(async (): Promise<TrainingEventsPage> => { if (++calls === 1) return page([1], true); throw new ApiError(0, 'Không kết nối được tới máy chủ'); });

@@ -53,7 +53,7 @@ export function DayGroupHeader({ id, bodyId, label, today, counts, expanded, onT
           </span>
         </button>
         {chips && (
-          <div aria-label={`Cờ của ${label}`} style={{ display: 'flex', flexWrap: 'wrap', gap: 6, ...(narrow ? { flexBasis: '100%', padding: '0 0 8px 38px' } : {}) }}>
+          <div role="group" aria-label={`Cờ của ${label}`} style={{ display: 'flex', flexWrap: 'wrap', gap: 6, ...(narrow ? { flexBasis: '100%', padding: '0 0 8px 38px' } : {}) }}>
             {chips.map(f => f.stuck
               ? <StuckChip key="stuck" onClick={() => onFlag?.(f)} />
               : <FlagChip key={f.code} code={f.code} count={f.count} onClick={() => onFlag?.(f)} />)}

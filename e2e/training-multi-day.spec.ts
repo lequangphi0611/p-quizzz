@@ -33,6 +33,7 @@ test('mentor reads a training of several days: day groups, flags, sticky header,
   test.setTimeout(180_000);
   const mentor = await mentorContext(browser, baseURL!, DESKTOP);
   const page = mentor.page;
+  await page.emulateMedia({ reducedMotion: 'reduce' }); // no fade-in or flash while a screenshot is taken
   const api = await request.newContext({ baseURL: baseURL! });
 
   const created = await mentor.context.request.post('/api/admin/trainings', { data: { name: 'Training nhiều ngày', allowAutoAccept: false } });
