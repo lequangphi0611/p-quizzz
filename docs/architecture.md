@@ -504,6 +504,17 @@ Contract dự kiến; story nào chạm thì chốt lại tại đây. Payload t
   - `maskSecrets(text)` (domain, cùng `SECRET_PATTERNS` với cờ `possible_secret`) che chuỗi giống khoá hoặc mật khẩu; `buildReport` chạy nó trên toàn bộ văn bản ở bước cuối.
   - Dấu, ghi chú và báo cáo đều bị xoá khi Kết thúc.
 
+### 11.10 Xuất dữ liệu training để phân tích (S41, PRODUCT.md §7.36; chưa làm)
+
+Contract dự kiến; S41 chốt lại tại đây khi làm.
+
+- **Không thêm thư viện**: tự ghi định dạng zip tối thiểu bằng `node:zlib` (`deflateRawSync`, `crc32` có từ Node 22.2) trong `infrastructure/`, sau một port của application. Tên file trong zip là ASCII nên không cần cờ UTF-8. Nếu tự ghi gặp vấn đề tương thích (Windows Explorer, macOS Archive Utility) thì dừng và đề xuất thư viện, cập nhật §1.
+- `GET /api/admin/trainings/:id/export/summary?from=YYYY-MM-DD&to=YYYY-MM-DD&members=1,2` → `{ memberCount, eventCount, approxBytes }` để hiện trước khi tải. Bỏ `members` là cả lớp; bỏ `from`/`to` là hôm nay.
+- `GET /api/admin/trainings/:id/export.zip?…` (cùng tham số) → `application/zip`, file đính kèm. Không có sự kiện nào trong khoảng → 404 với thông báo; buổi `ended` → 409; `from` > `to` hoặc ngày sai định dạng → 400.
+- Ngày tính theo **giờ địa phương của máy chạy server** (= máy mentor): `from` 00:00 đến hết ngày `to`.
+- Domain thuần: `buildExportOverview(...)` và `buildMemberExport(...)` dựng Markdown; `slugifyFileName(index, displayName)` → `03-nguyen-van-an.md` (bỏ dấu, `đ` → `d`, chỉ `[a-z0-9-]`, rỗng thì `member`); toàn bộ văn bản qua `maskSecrets` ở bước cuối như báo cáo S40.
+- Khác `report.md` (§11.9): có output và nội dung sửa file; không ghi `report_exported_at`.
+
 ## 12. Web: hạ tầng dùng chung (P4-1, issue #18)
 
 Các port phía web nằm ở `src/web/shared/`, implementation được chọn tại `src/web/app/composition.ts` (composition root phía web).
