@@ -52,7 +52,7 @@ describe('exporting the raw data (S41)', () => {
     expect(res.headers['cache-control']).toBe('no-store');
 
     const files = readZip(res.rawPayload);
-    expect([...files.keys()]).toEqual(['00-tong-quan.md', '01-nguyen-van-an.md', '02-mai.md']);
+    expect([...files.keys()].sort()).toEqual(['00-tong-quan.md', '01-nguyen-van-an.md', '02-mai.md']);
     const text = files.get('01-nguyen-van-an.md')!;
     expect(text).toMatch(/^# Nguyễn Văn An\n/);
     expect(text).toContain('Viết hàm cộng hai số');
@@ -123,7 +123,7 @@ describe('exporting the raw data (S41)', () => {
     await s.ingest(mai.ingestToken, { ...userPromptSubmit, prompt: 'bài của Mai' });
 
     const files = await s.files(t, `?members=${mai.id}`);
-    expect([...files.keys()]).toEqual(['00-tong-quan.md', '01-mai.md']);
+    expect([...files.keys()].sort()).toEqual(['00-tong-quan.md', '01-mai.md']);
     expect([...files.values()].join('\n')).not.toContain('bài của An');
     expect([...(await s.files(t, `?members=${an.id},${mai.id}`)).keys()]).toHaveLength(3);
 
@@ -149,7 +149,7 @@ describe('exporting the raw data (S41)', () => {
 
     await s.admin('POST', `/trainings/${t.id}/members/${an.id}/purge`);
     const after = await s.files(t);
-    expect([...after.keys()]).toEqual(['00-tong-quan.md', '01-mai.md']);
+    expect([...after.keys()].sort()).toEqual(['00-tong-quan.md', '01-mai.md']);
     expect([...after.values()].join('\n')).not.toContain('An');
   });
 

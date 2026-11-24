@@ -4,7 +4,10 @@ export interface ArchiveFile {
   content: string;
 }
 
-/** Packs files into a zip the mentor can open anywhere (PRODUCT.md §7.36b). */
+/**
+ * Packs files into a zip the mentor can open anywhere (PRODUCT.md §7.36b). Files can arrive one by one (an async iterable), so the
+ * caller never has to hold every file's text at once; the writer keeps only the compressed bytes of each.
+ */
 export interface ArchiveWriter {
-  zip(files: readonly ArchiveFile[]): Promise<Buffer>;
+  zip(files: Iterable<ArchiveFile> | AsyncIterable<ArchiveFile>): Promise<Buffer>;
 }

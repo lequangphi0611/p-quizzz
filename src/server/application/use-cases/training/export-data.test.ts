@@ -14,8 +14,10 @@ import { JoinTraining } from './member.js';
 
 class FakeArchive implements ArchiveWriter {
   last: readonly ArchiveFile[] = [];
-  async zip(files: readonly ArchiveFile[]) {
-    this.last = files;
+  async zip(files: Iterable<ArchiveFile> | AsyncIterable<ArchiveFile>) {
+    const all: ArchiveFile[] = [];
+    for await (const f of files) all.push(f);
+    this.last = all;
     return Buffer.from('zip');
   }
 }
@@ -94,7 +96,7 @@ describe('ExportTrainingData', () => {
   it('packs the overview and one file per member through the archive port, and names the download after the days', async () => {
     const { uc, t } = await scenario();
     const out = await uc.export.execute(t.id, { from: '2026-11-23', to: '2026-11-24' });
-    expect(archive.last.map(f => f.name)).toEqual(['00-tong-quan.md', '01-lan.md', '02-mai.md']);
+    expect(archive.last.map(f => f.name)).toEqual(['01-lan.md', '02-mai.md', '00-tong-quan.md']);
     expect(out.data.toString()).toBe('zip');
     expect(out.fileName).toBe(`du-lieu-training-${t.id}-2026-11-23_2026-11-24.zip`);
     expect(out.summary).toMatchObject({ memberCount: 2, eventCount: 2 });
@@ -111,7 +113,7 @@ describe('ExportTrainingData', () => {
   it('only the chosen members; a chosen member with nothing in the days leaves nothing to build', async () => {
     const { uc, t, lan, mai } = await scenario();
     await uc.export.execute(t.id, { members: [lan.id], from: '2026-11-23' });
-    expect(archive.last.map(f => f.name)).toEqual(['00-tong-quan.md', '01-lan.md']);
+    expect(archive.last.map(f => f.name)).toEqual(['01-lan.md', '00-tong-quan.md']);
     await expect(uc.export.execute(t.id, { members: [mai.id], from: '2026-11-23' })).rejects.toBeInstanceOf(TrainingExportEmptyError);
   });
 

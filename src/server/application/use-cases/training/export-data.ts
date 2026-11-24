@@ -1,9 +1,9 @@
 import { TRAINING_EXPORT_MAX_BYTES, type TrainingExportQuery, type TrainingExportSummary } from '../../../../shared/api/training.js';
 import { TrainingExportEmptyError, TrainingExportTooLargeError, TrainingMemberNotFoundError, TrainingNotFoundError, TrainingStateError } from '../../../domain/training/errors.js';
-import { buildExportFiles, type ExportMemberInput } from '../../../domain/training/export.js';
+import { buildMemberExport, buildOverviewExport, type ExportContext, type ExportMemberSummary } from '../../../domain/training/export.js';
 import { resolveExportRange, type ExportRange } from '../../../domain/training/export-range.js';
 import type { Training, TrainingMember } from '../../../domain/training/training.js';
-import type { ArchiveWriter } from '../../ports/archive-writer.js';
+import type { ArchiveFile, ArchiveWriter } from '../../ports/archive-writer.js';
 import type { Clock } from '../../ports/clock.js';
 import type { TrainingEventReader } from '../../ports/training-event-repository.js';
 import type { TrainingMemberReader, TrainingReader } from '../../ports/training-repository.js';
@@ -79,14 +79,22 @@ export class ExportTrainingData {
     if (summary.tooLarge) throw new TrainingExportTooLargeError(summary.approxBytes);
     const { training, range, members } = scope;
 
-    // One member at a time, so only one member's events are in memory besides the text already built.
-    const inputs: ExportMemberInput[] = [];
-    for (const m of members) {
-      await new Promise<void>(resolve => setImmediate(resolve)); // let hook POSTs from members through between members
-      inputs.push({ displayName: m.displayName, stoppedSending: m.stoppedSendingAt !== null, note: m.mentorNote, events: await this.deps.events.listForExport(m.id, range) });
+    // One member at a time: read, build, mask and compress a member before the next is read, so only that member's text is in memory
+    // besides the compressed bytes. The overview needs only each member's summary, so it goes in last.
+    const context: ExportContext = { trainingName: training.name, range, exportedAt: this.deps.clock.now(), allowAutoAccept: training.allowAutoAccept };
+    const { events } = this.deps;
+    async function* files(): AsyncGenerator<ArchiveFile> {
+      const summaries: ExportMemberSummary[] = [];
+      for (const [i, m] of members.entries()) {
+        await new Promise<void>(resolve => setImmediate(resolve)); // let hook POSTs from members through between members
+        const input = { displayName: m.displayName, stoppedSending: m.stoppedSendingAt !== null, note: m.mentorNote, events: await events.listForExport(m.id, range) };
+        const built = buildMemberExport(input, i + 1, context);
+        summaries.push(built.summary);
+        yield built.file;
+      }
+      yield buildOverviewExport(summaries, context);
     }
-    const files = buildExportFiles({ trainingName: training.name, range, exportedAt: this.deps.clock.now(), allowAutoAccept: training.allowAutoAccept, members: inputs });
-    const data = await this.deps.archive.zip(files);
+    const data = await this.deps.archive.zip(files());
     const days = range.fromDay === range.toDay ? range.fromDay : `${range.fromDay}_${range.toDay}`;
     return { fileName: `du-lieu-training-${trainingId}-${days}.zip`, data, summary };
   }

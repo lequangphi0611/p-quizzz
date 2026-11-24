@@ -64,14 +64,14 @@ interface Entry {
 export class NodeZipWriter implements ArchiveWriter {
   constructor(private readonly clock: Clock) {}
 
-  async zip(files: readonly ArchiveFile[]): Promise<Buffer> {
-    if (files.length > 0xffff) throw new RangeError('Too many files for a zip');
+  async zip(files: Iterable<ArchiveFile> | AsyncIterable<ArchiveFile>): Promise<Buffer> {
     const { time, date } = dosStamp(this.clock.now());
     const parts: Buffer[] = [];
     const entries: Entry[] = [];
     let offset = 0;
 
-    for (const file of files) {
+    for await (const file of files) {
+      if (entries.length >= 0xffff) throw new RangeError('Too many files for a zip');
       const name = Buffer.from(file.name, 'utf8');
       const data = Buffer.from(file.content, 'utf8');
       await yieldToLoop();

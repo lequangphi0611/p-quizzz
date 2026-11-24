@@ -35,12 +35,25 @@ export interface ExportMemberInput {
   events: ExportEvent[];
 }
 
-export interface ExportInput {
+/** What every file of the export needs besides the member itself. */
+export interface ExportContext {
   trainingName: string;
   range: Pick<ExportRange, 'fromDay' | 'toDay'>;
   exportedAt: Date;
   allowAutoAccept: boolean;
+}
+
+export interface ExportInput extends ExportContext {
   members: ExportMemberInput[];
+}
+
+/** What the overview keeps of a member once the member's file is built: no events, so those can be dropped. */
+export interface ExportMemberSummary {
+  fileName: string;
+  displayName: string;
+  stoppedSending: boolean;
+  eventCount: number;
+  flagCodes: FlagCode[];
 }
 
 export interface ExportFile {
@@ -183,7 +196,7 @@ function analyze(input: ExportMemberInput, index: number, allowAutoAccept: boole
   return { input, fileName: slugifyFileName(index, input.displayName), stats: statsOf(input.events), flags, decisions };
 }
 
-function memberFile(a: Analyzed, input: ExportInput): string {
+function memberFile(a: Analyzed, input: ExportContext): string {
   const { events } = a.input;
   const title = `# ${oneLine(a.input.displayName)}${a.input.stoppedSending ? ' (đã dừng gửi)' : ''}`;
   const lines = [
@@ -258,9 +271,9 @@ const ANALYSIS_PROMPTS: readonly { title: string; body: string }[] = [
   },
 ];
 
-function overviewFile(all: Analyzed[], input: ExportInput): string {
-  const eventTotal = all.reduce((n, a) => n + a.input.events.length, 0);
-  const flagRows = FLAG_CODES.map(code => ({ code, n: all.filter(a => a.flags.some(f => f.code === code)).length })).filter(r => r.n > 0);
+function overviewFile(all: readonly ExportMemberSummary[], input: ExportContext): string {
+  const eventTotal = all.reduce((n, a) => n + a.eventCount, 0);
+  const flagRows = FLAG_CODES.map(code => ({ code, n: all.filter(a => a.flagCodes.includes(code)).length })).filter(r => r.n > 0);
   const lines = [
     `# Dữ liệu buổi training: ${oneLine(input.trainingName)}`,
     '',
@@ -280,7 +293,7 @@ function overviewFile(all: Analyzed[], input: ExportInput): string {
     '',
     '| File | Tên | Sự kiện | Ghi chú |',
     '|---|---|---|---|',
-    ...all.map(a => `| ${a.fileName} | ${oneLine(a.input.displayName).replaceAll('|', '/')} | ${a.input.events.length} | ${a.input.stoppedSending ? 'đã dừng gửi' : ''} |`),
+    ...all.map(a => `| ${a.fileName} | ${oneLine(a.displayName).replaceAll('|', '/')} | ${a.eventCount} | ${a.stoppedSending ? 'đã dừng gửi' : ''} |`),
     '',
     '## Tổng hợp lớp',
     '',
@@ -297,14 +310,26 @@ function overviewFile(all: Analyzed[], input: ExportInput): string {
   return `${lines.join('\n').trimEnd()}\n`;
 }
 
+/** One member's file, already masked, plus what the overview needs from them. Built one member at a time so a big class never sits in memory whole. */
+export function buildMemberExport(member: ExportMemberInput, index: number, context: ExportContext): { file: ExportFile; summary: ExportMemberSummary } {
+  const a = analyze(member, index, context.allowAutoAccept);
+  return {
+    file: { name: a.fileName, content: maskSecrets(memberFile(a, context)) },
+    summary: { fileName: a.fileName, displayName: member.displayName, stoppedSending: member.stoppedSending, eventCount: member.events.length, flagCodes: a.flags.map(f => f.code) },
+  };
+}
+
+/** `00-tong-quan.md`, masked, from the summaries `buildMemberExport` returned. */
+export function buildOverviewExport(summaries: readonly ExportMemberSummary[], context: ExportContext): ExportFile {
+  return { name: OVERVIEW_FILE, content: maskSecrets(overviewFile(summaries, context)) };
+}
+
 /**
  * The files of the zip (PRODUCT.md §7.36): `00-tong-quan.md` and one file per member, in the order of the class. Everything goes
  * through `maskSecrets` last, so a key that shows up in an output is hidden whichever field carried it (the match is best effort).
+ * The app itself builds them one member at a time (`buildMemberExport`); this builds them all at once.
  */
 export function buildExportFiles(input: ExportInput): ExportFile[] {
-  const analyzed = input.members.map((m, i) => analyze(m, i + 1, input.allowAutoAccept));
-  return [
-    { name: OVERVIEW_FILE, content: overviewFile(analyzed, input) },
-    ...analyzed.map(a => ({ name: a.fileName, content: memberFile(a, input) })),
-  ].map(f => ({ ...f, content: maskSecrets(f.content) }));
+  const built = input.members.map((m, i) => buildMemberExport(m, i + 1, input));
+  return [buildOverviewExport(built.map(b => b.summary), input), ...built.map(b => b.file)];
 }

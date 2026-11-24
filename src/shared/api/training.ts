@@ -230,7 +230,7 @@ export interface TrainingEventDetail {
 // S41 (PRODUCT.md §7.36): export the raw data of a training as a zip, to be analysed with the mentor's own AI.
 
 /** Biggest zip (before compression) the server builds; the mentor narrows the days or the members above it. */
-export const TRAINING_EXPORT_MAX_BYTES = 200 * 1024 * 1024;
+export const TRAINING_EXPORT_MAX_BYTES = 50 * 1024 * 1024;
 
 const exportDay = z
   .string({ error: 'Ngày phải có dạng YYYY-MM-DD' })
