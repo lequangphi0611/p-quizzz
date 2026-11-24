@@ -62,7 +62,7 @@ Một buổi training kéo dài nhiều ngày và thu cả ngoài giờ học. D
 - `buildTimeline` chèn dải ngày trước lượt đầu của mỗi ngày và trước dải phiên mở cùng lượt đó (dải phiên được giữ lại đến khi lượt mở).
 - Ô "Đi tới ngày" là `<select>` (shared/ui chưa có Select), đặt dưới đầu dòng thời gian, có placeholder "Chọn ngày…"; chọn xong chỉ cuộn.
 - Báo cáo: `stamp` thành `dd/mm HH:MM`; dòng "Xuất lúc" giữ `dd/mm/yyyy HH:MM`.
-- Màn đồng ý: thêm mục "Buổi có thể kéo dài nhiều ngày." (icon `calendar`) trước mục xoá dữ liệu.
+- Màn đồng ý: mục "Buổi có thể kéo dài nhiều ngày." gộp với mục cùng tên đến từ main (icon `clock`, sau mục xoá dữ liệu) khi merge; thêm ý "kể cả ngoài giờ học".
 - E2E `e2e/training-multi-day.spec.ts` (tên bắt đầu bằng `training-` để chạy sau `training-admin.spec.ts`, vì các spec dùng chung một server): server luôn ghi `receivedAt` là giờ nhận và `page.clock` không đổi được dữ liệu đó, nên spec dịch `receivedAt` trong câu trả lời của `/members/:id/events` bằng `page.route`. Phủ: 3 dải ngày, ô chọn (thứ tự, số prompt, cuộn), ngày trong ô chi tiết, ẩn nội dung, màn đồng ý. Ảnh: `docs/design/S42-assets/`.
 
 ## Vòng 2: nhóm theo ngày, ngày mới nhất ở trên, thu gọn (PO đổi 2026-11-24)
