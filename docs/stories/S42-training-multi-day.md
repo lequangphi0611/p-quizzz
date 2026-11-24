@@ -1,6 +1,6 @@
 # S42: Training nhiều ngày: nhóm theo ngày trên dòng thời gian
 
-**Phụ thuộc:** S35, S39, S40 · **Trạng thái:** ⏳ vòng 2 (PO đổi cách hiển thị ngày, 2026-11-24)
+**Phụ thuộc:** S35, S39, S40 · **Trạng thái:** ✅ (2026-11-24, vòng 2: nhóm theo ngày)
 
 ## Bối cảnh
 Một buổi training kéo dài nhiều ngày và thu cả ngoài giờ học. Dòng thời gian của mentor chỉ hiện giờ:phút nên không biết prompt nào của ngày nào. Business: [PRODUCT.md §7.37](../PRODUCT.md) (a)–(e).
@@ -81,22 +81,27 @@ PO xem ảnh vòng 1 và đổi cách hiển thị. Business: [PRODUCT.md §7.37
 - **Ảnh** `docs/design/S42-assets/` **chụp lại toàn bộ**, thay các ảnh cũ. Dữ liệu ảnh phải có **giờ khác nhau** giữa các prompt (không phải cùng một giờ ở mọi ngày) và có một lượt qua nửa đêm. Gồm: (1) mặc định nhiều ngày: ngày mới nhất mở, các ngày khác thu gọn; (2) sau "Mở tất cả"; (3) ô chi tiết lệnh có ngày; (4) màn đồng ý của member với **mục "Buổi có thể kéo dài nhiều ngày" nằm trong ảnh** (chụp phần tử hoặc cuộn tới); (5) khung hẹp ~800px.
 
 ### Acceptance criteria (vòng 2)
-- [ ] Nhóm ngày xếp mới nhất trước; trong nhóm, lượt xếp cũ → mới. Lượt qua nửa đêm nằm trọn trong nhóm ngày của prompt.
-- [ ] Tiêu đề nhóm đúng nhãn và tóm tắt (prompt, lệnh, lỗi; bỏ lỗi khi 0), số liệu khớp các lượt trong nhóm.
-- [ ] ≥ 2 ngày: mặc định chỉ ngày mới nhất mở; 1 ngày: mở. Chọn member khác về mặc định.
-- [ ] Bấm tiêu đề mở/thu đúng ngày đó; `aria-expanded` đúng; dùng được bằng bàn phím.
-- [ ] "Mở tất cả / Thu tất cả" chỉ hiện khi ≥ 2 ngày và làm đúng việc.
-- [ ] Chip cờ / J/K / mở chi tiết lượt tới sự kiện trong ngày thu gọn thì ngày đó tự mở và sự kiện vào khung nhìn.
-- [ ] Mở dòng thời gian thấy sự kiện mới nhất. Đang theo dõi thì sự kiện mới vẫn trong khung nhìn; đang xem chỗ khác thì có "N sự kiện mới", bấm vào thì tới sự kiện mới nhất.
-- [ ] Sự kiện của ngày mới (đang xem) tạo nhóm mới ở trên cùng, tự mở; trạng thái các nhóm khác giữ nguyên.
-- [ ] "Tải thêm" nằm trên cùng khi còn sự kiện chưa tải.
-- [ ] Không còn ô "Đi tới ngày" và code thừa của nó.
-- [ ] Ẩn nội dung thì không lộ prompt, tiêu đề ngày hay tóm tắt.
-- [ ] Ảnh `docs/design/S42-assets/` được chụp lại theo danh sách trên; ảnh cũ không còn dùng thì xoá.
-- [ ] Không đổi API, schema, event. `npm run typecheck`, `npm test` pass; toàn bộ `npm run e2e` không có lỗi mới (lỗi có sẵn `s26-ai-grading` khi chạy cả bộ đã biết, xem PR #45).
+- [x] Nhóm ngày xếp mới nhất trước; trong nhóm, lượt xếp cũ → mới. Lượt qua nửa đêm nằm trọn trong nhóm ngày của prompt.
+- [x] Tiêu đề nhóm đúng nhãn và tóm tắt (prompt, lệnh, lỗi; bỏ lỗi khi 0), số liệu khớp các lượt trong nhóm.
+- [x] ≥ 2 ngày: mặc định chỉ ngày mới nhất mở; 1 ngày: mở. Chọn member khác về mặc định.
+- [x] Bấm tiêu đề mở/thu đúng ngày đó; `aria-expanded` đúng; dùng được bằng bàn phím.
+- [x] "Mở tất cả / Thu tất cả" chỉ hiện khi ≥ 2 ngày và làm đúng việc.
+- [x] Chip cờ / J/K / mở chi tiết lượt tới sự kiện trong ngày thu gọn thì ngày đó tự mở và sự kiện vào khung nhìn.
+- [x] Mở dòng thời gian thấy sự kiện mới nhất. Đang theo dõi thì sự kiện mới vẫn trong khung nhìn; đang xem chỗ khác thì có "N sự kiện mới", bấm vào thì tới sự kiện mới nhất.
+- [x] Sự kiện của ngày mới (đang xem) tạo nhóm mới ở trên cùng, tự mở; trạng thái các nhóm khác giữ nguyên.
+- [x] "Tải thêm" nằm trên cùng khi còn sự kiện chưa tải.
+- [x] Không còn ô "Đi tới ngày" và code thừa của nó.
+- [x] Ẩn nội dung thì không lộ prompt, tiêu đề ngày hay tóm tắt.
+- [x] Ảnh `docs/design/S42-assets/` được chụp lại theo danh sách trên; ảnh cũ không còn dùng thì xoá.
+- [x] Không đổi API, schema, event. `npm run typecheck`, `npm test` pass; toàn bộ `npm run e2e` không có lỗi mới (lỗi có sẵn `s26-ai-grading` khi chạy cả bộ đã biết, xem PR #45).
 
 ### Test (vòng 2)
 - Domain: gom nhóm ngày (thứ tự, tóm tắt, qua nửa đêm, một ngày, phiên Claude Code trải qua hai ngày); trạng thái mở/thu mặc định và khi có ngày mới (nếu tách thành hàm thuần ở domain/application).
 - Controller: tự mở ngày khi nhảy tới sự kiện; quy tắc "đang theo dõi" mới; chọn member khác về mặc định.
 - E2E `e2e/training-multi-day.spec.ts`: mặc định thu gọn, mở/thu một ngày, "Mở tất cả", chip cờ hoặc chi tiết lượt mở ngày thu gọn (nếu dựng được dữ liệu), ẩn nội dung, màn đồng ý; chụp ảnh như trên.
 
+### Đã làm (vòng 2)
+- Domain `domain/day-groups.ts`: `groupByDay` gom kết quả `buildTimeline` (dải `day` vẫn là mốc cắt) thành `DayGroup[]` mới nhất trước, kèm số prompt/lệnh/lỗi; `dayGroupSummary`, `dayKeyOfEvent`/`dayKeyOfTurn`, `reconcileOpenDays` (mặc định + ngày mới tự mở), `withDayOpen`. Bỏ `listDays`, `dayShortLabel`, `dayElementId` và ô "Đi tới ngày".
+- Controller: `TimelineState.openDays/knownDays`, `toggleDay`, `setAllDays`; `jumpToFlag`, `openTurn`, `step` tự mở ngày chứa sự kiện. Đổi tên cho đúng nghĩa: `reportScroll` thành `reportFollowing`, `jumpToBottom` thành `jumpToLatest`, `stickToken` thành `followToken`; `isNearBottom` thành `isLatestInView` (sự kiện mới nhất nằm cuối nhóm ngày đầu tiên, đánh dấu bằng một phần tử cao 0 `#timeline-latest`).
+- `Timeline.tsx`: tiêu đề nhóm là `<button aria-expanded aria-controls>`, nút "Mở tất cả / Thu tất cả" (≥ 2 ngày), "Tải thêm" lên trên cùng; ẩn nội dung thì không có gì trong số đó.
+- E2E `e2e/training-multi-day.spec.ts` viết lại (giờ khác nhau giữa các prompt, một lượt qua nửa đêm, chip cờ mở ngày thu gọn); ảnh chụp lại trong `docs/design/S42-assets/` (1 mặc định, 2 mở tất cả, 3 chi tiết lượt, 4 màn đồng ý, 5 khung 800px).

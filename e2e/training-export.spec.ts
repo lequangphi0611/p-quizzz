@@ -53,7 +53,7 @@ test('export the raw data: pick the days and the members, see what it holds, dow
   await lan.send(hook.prompt(`viết hàm tính tổng giỏ hàng, dùng khoá ${SECRET}`));
   await lan.send(hook.bash('npm test'));
   await page.getByRole('button', { name: 'Nguyễn Văn Lan', exact: true }).click();
-  await expect(page.getByLabel('Các sự kiện, cũ ở trên, mới ở dưới').getByText('viết hàm tính tổng giỏ hàng')).toBeVisible({ timeout: 6_000 });
+  await expect(page.getByLabel('Các sự kiện, ngày mới nhất ở trên').getByText('viết hàm tính tổng giỏ hàng')).toBeVisible({ timeout: 6_000 });
 
   // ── The dialog says what it is, and counts today ──────────────────────────────────────────────────
   await page.getByRole('button', { name: 'Xuất dữ liệu để phân tích' }).click();

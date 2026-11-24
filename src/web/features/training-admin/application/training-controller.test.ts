@@ -153,52 +153,52 @@ describe('TrainingController: new events', () => {
     expect(ctrl.getState().timeline?.events.map(e => e.id)).toEqual([10, 11, 12, 13]);
   });
 
-  it('at the end of the timeline it follows new events; no chip', async () => {
+  it('while the newest event is in view it follows new events; no chip', async () => {
     const { ctrl, push } = await opened();
-    const before = ctrl.getState().timeline!.stickToken;
-    ctrl.reportScroll(true);
+    const before = ctrl.getState().timeline!.followToken;
+    ctrl.reportFollowing(true);
     push(12);
     await ctrl.refresh();
-    expect(ctrl.getState().timeline).toMatchObject({ newCount: 0, stickToken: before + 1 });
+    expect(ctrl.getState().timeline).toMatchObject({ newCount: 0, followToken: before + 1 });
   });
 
-  it('higher up it does not move: it counts them for the "N sự kiện mới ↓" chip', async () => {
+  it('looking elsewhere it does not move: it counts them for the "N sự kiện mới" chip', async () => {
     const { ctrl, push } = await opened();
-    const before = ctrl.getState().timeline!.stickToken;
-    ctrl.reportScroll(false);
+    const before = ctrl.getState().timeline!.followToken;
+    ctrl.reportFollowing(false);
     push(12, 13);
     await ctrl.refresh();
     push(14);
     await ctrl.refresh();
-    expect(ctrl.getState().timeline).toMatchObject({ newCount: 3, stickToken: before });
+    expect(ctrl.getState().timeline).toMatchObject({ newCount: 3, followToken: before });
   });
 
-  it('scrolling back to the end clears the chip; the chip jumps to the end', async () => {
+  it('seeing the newest event again clears the chip; the chip jumps to the newest event', async () => {
     const { ctrl, push } = await opened();
-    ctrl.reportScroll(false);
+    ctrl.reportFollowing(false);
     push(12);
     await ctrl.refresh();
-    const token = ctrl.getState().timeline!.stickToken;
-    ctrl.jumpToBottom();
-    expect(ctrl.getState().timeline).toMatchObject({ newCount: 0, stickToken: token + 1 });
+    const token = ctrl.getState().timeline!.followToken;
+    ctrl.jumpToLatest();
+    expect(ctrl.getState().timeline).toMatchObject({ newCount: 0, followToken: token + 1 });
 
-    ctrl.reportScroll(false);
+    ctrl.reportFollowing(false);
     push(13);
     await ctrl.refresh();
     expect(ctrl.getState().timeline?.newCount).toBe(1);
-    ctrl.reportScroll(true);
+    ctrl.reportFollowing(true);
     expect(ctrl.getState().timeline?.newCount).toBe(0);
   });
 
-  it('a member picked later starts at the end, whatever the scroll position was before', async () => {
+  it('a member picked later starts at the newest event, whatever the scroll position was before', async () => {
     const { ctrl, push } = await opened();
-    ctrl.reportScroll(false);
+    ctrl.reportFollowing(false);
     ctrl.select(2);
     await flush();
-    const token = ctrl.getState().timeline!.stickToken;
+    const token = ctrl.getState().timeline!.followToken;
     push(12);
     await ctrl.refresh();
-    expect(ctrl.getState().timeline).toMatchObject({ newCount: 0, stickToken: token + 1 });
+    expect(ctrl.getState().timeline).toMatchObject({ newCount: 0, followToken: token + 1 });
   });
 });
 
@@ -930,5 +930,98 @@ describe('TrainingController: exporting the raw data (S41)', () => {
     await flush();
     expect(ctrl.getState().dataExport!.memberIds).toEqual([1]);
     expect(gateway.exportSummary).toHaveBeenLastCalledWith(5, { from: '2026-11-24', memberIds: [1] });
+  });
+});
+
+describe('TrainingController: day groups', () => {
+  const at = (d: number, h = 9) => new Date(2026, 10, d, h, 0).getTime();
+  const D22 = '2026-11-22', D23 = '2026-11-23', D24 = '2026-11-24', D25 = '2026-11-25';
+  // 1 prompt on 22/11 with a failing command, 2 prompts on 23/11 (the second has a command), 1 prompt on 24/11.
+  const days = (): TrainingEventRow[] => [
+    ev(1, { kind: 'prompt', prompt: 'a', receivedAt: at(22) }), ev(2, { receivedAt: at(22, 10), hasOutput: true }),
+    ev(3, { kind: 'prompt', prompt: 'b', receivedAt: at(23) }), ev(4, { kind: 'prompt', prompt: 'c', receivedAt: at(23, 11) }), ev(5, { receivedAt: at(23, 11), hasOutput: true }),
+    ev(6, { kind: 'prompt', prompt: 'd', receivedAt: at(24) }),
+  ];
+  async function opened(rows: TrainingEventRow[], flags: TrainingEventsPage['flags'] = []) {
+    let all = rows;
+    const events = vi.fn(async (_t: number, _m: number, after = 0): Promise<TrainingEventsPage> => ({ events: all.filter(e => e.id > after), hasMore: false, flags }));
+    const made = make({ events });
+    made.ctrl.select(1);
+    await flush();
+    return { ...made, push: (...more: TrainingEventRow[]) => { all = [...all, ...more]; } };
+  }
+  const open = (c: TrainingController) => [...c.getState().timeline!.openDays].sort();
+
+  it('opens only the newest day when there are several; the only day when there is one', async () => {
+    expect(open((await opened(days())).ctrl)).toEqual([D24]);
+    expect(open((await opened(days().slice(0, 2))).ctrl)).toEqual([D22]);
+  });
+
+  it('opens and folds a day, and opens or folds them all', async () => {
+    const { ctrl } = await opened(days());
+    ctrl.toggleDay(D22);
+    expect(open(ctrl)).toEqual([D22, D24]);
+    ctrl.toggleDay(D24);
+    expect(open(ctrl)).toEqual([D22]);
+    ctrl.setAllDays(true);
+    expect(open(ctrl)).toEqual([D22, D23, D24]);
+    ctrl.setAllDays(false);
+    expect(open(ctrl)).toEqual([]);
+  });
+
+  it('another member starts again from the default', async () => {
+    const { ctrl } = await opened(days());
+    ctrl.setAllDays(true);
+    ctrl.select(2);
+    await flush();
+    expect(open(ctrl)).toEqual([D24]);
+  });
+
+  it('a flag chip opens the folded day of the event it jumps to', async () => {
+    const { ctrl } = await opened(days(), [{ code: 'touches_tests', eventIds: [2] }, { code: 'repeated_request', eventIds: [3] }]);
+    ctrl.jumpToFlag('touches_tests');
+    expect(open(ctrl)).toEqual([D22, D24]);
+    ctrl.jumpToFlag('repeated_request');
+    expect(open(ctrl)).toEqual([D22, D23, D24]);
+  });
+
+  it('opening the detail of a turn opens its day', async () => {
+    const { ctrl } = await opened(days());
+    ctrl.openTurn('t4');
+    expect(open(ctrl)).toEqual([D23, D24]);
+  });
+
+  it('J / K to a command in a folded day opens that day', async () => {
+    const { ctrl } = await opened(days());
+    await ctrl.openDetail(5, 'output'); // command of 23/11, which is folded
+    expect(open(ctrl)).toEqual([D24]);
+    ctrl.step(-1);
+    expect(ctrl.getState().panel?.eventId).toBe(2);
+    expect(open(ctrl)).toEqual([D22, D24]);
+  });
+
+  it('a day that appears while watching opens by itself; the other days keep their state', async () => {
+    const { ctrl, push } = await opened(days());
+    ctrl.toggleDay(D22);
+    ctrl.toggleDay(D24);
+    expect(open(ctrl)).toEqual([D22]);
+    push(ev(7, { kind: 'prompt', prompt: 'e', receivedAt: at(25) }));
+    await ctrl.refresh();
+    expect(open(ctrl)).toEqual([D22, D25]);
+    push(ev(8, { kind: 'prompt', prompt: 'f', receivedAt: at(25, 12) }));
+    await ctrl.refresh();
+    expect(open(ctrl)).toEqual([D22, D25]);
+  });
+
+  it('the "N sự kiện mới" chip opens the newest day if it was folded', async () => {
+    const { ctrl, push } = await opened(days());
+    ctrl.toggleDay(D24);
+    ctrl.reportFollowing(false);
+    push(ev(7, { receivedAt: at(24, 12) }));
+    await ctrl.refresh();
+    expect(ctrl.getState().timeline?.newCount).toBe(1);
+    ctrl.jumpToLatest();
+    expect(open(ctrl)).toEqual([D24]);
+    expect(ctrl.getState().timeline?.newCount).toBe(0);
   });
 });

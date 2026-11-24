@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, useLayoutEffect, useRef, useState } from 'react';
 import type { TrainingEventRow, TrainingMemberRow } from '../../../../shared/api/index.js';
 import { formatClock } from '../../../shared/format/date.js';
 import { Button } from '../../../shared/ui/Button.js';
@@ -10,42 +10,35 @@ import { formatDuration } from '../domain/duration.js';
 import { memberCountsText, memberExtraCountsText, formatLastSeen } from '../domain/members.js';
 import { evidenceOf, visibleFlags } from '../domain/flags.js';
 import { decisionText, isAutoMode, modeLabel, noteLines, noticeTitle, sessionTitle } from '../domain/row-text.js';
-import { isNearBottom } from '../domain/scroll.js';
+import { isLatestInView } from '../domain/scroll.js';
 import { toolLabel } from '../domain/tool-label.js';
-import { dayElementId, dayLabel, listDays } from '../domain/days.js';
-import { buildTimeline, type TimelineItem, type TimelineTool } from '../domain/timeline.js';
+import { dayLabel } from '../domain/days.js';
+import { dayGroupSummary, groupByDay, type DayGroup } from '../domain/day-groups.js';
+import { buildTimeline } from '../domain/timeline.js';
 import { ConnectionChip, FlagChip, StuckChip, ToolName, visuallyHidden } from './chips.js';
 import { MarkButton } from './TimelineRows.js';
 import { NoteBox } from './NoteBox.js';
 
 const mono = 'var(--font-mono)';
 
-/** The day strip: the full date, so a prompt of another day is never taken for today's. */
-function DayDivider({ dayKey, startedAt }: { dayKey: string; startedAt: number }) {
-  const label = dayLabel(startedAt);
-  return (
-    <div id={dayElementId(dayKey)} role="separator" aria-label={label} style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '6px 0 2px', scrollMarginTop: 6 }}>
-      <span style={{ flex: 1, height: 1, background: 'var(--brand-200)' }} />
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '2px 10px', borderRadius: 'var(--radius-pill)', background: 'var(--brand-050)', border: '1px solid var(--brand-200)', font: 'var(--type-label)', fontSize: 12.5, color: 'var(--brand-700)', whiteSpace: 'nowrap' }}>
-        <Icon name="calendar" size={13} />{label}
-      </span>
-      <span style={{ flex: 1, height: 1, background: 'var(--brand-200)' }} />
-    </div>
-  );
-}
+/** A zero-height marker right after the newest day: where the newest event ends. */
+const LATEST_ID = 'timeline-latest';
 
-const pickerStyle = { height: 30, padding: '0 8px', font: 'var(--type-meta)', fontSize: 13, color: 'var(--text-title)', background: 'var(--paper)', border: '1.5px solid var(--border-strong)', borderRadius: 'var(--radius-md)' } as const;
+const bodyId = (dayKey: string) => `day-body-${dayKey}`;
 
-/** "Đi tới ngày": scrolls to a day strip. It filters nothing. */
-function DayPicker({ days }: { days: ReturnType<typeof listDays> }) {
+/**
+ * The header of a day group: a button that folds or opens it. It shows the full date, so a prompt of another day is never taken
+ * for today's, and the counts of the day, so a folded day still says what happened.
+ */
+function DayHeader({ group, open, onToggle }: { group: DayGroup; open: boolean; onToggle: () => void }) {
+  const text = dayGroupSummary(dayLabel(group.startedAt), group);
   return (
-    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, font: 'var(--type-meta)', fontSize: 13, color: 'var(--text-meta)' }}>
-      Đi tới ngày
-      <select value="" onChange={e => { if (e.target.value) document.getElementById(dayElementId(e.target.value))?.scrollIntoView({ block: 'start' }); }} style={pickerStyle}>
-        <option value="">Chọn ngày…</option>
-        {days.map(d => <option key={d.dayKey} value={d.dayKey}>{d.label} · {d.prompts} prompt</option>)}
-      </select>
-    </label>
+    <button type="button" id={`day-${group.dayKey}`} aria-expanded={open} aria-controls={bodyId(group.dayKey)} onClick={onToggle}
+      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', textAlign: 'left', cursor: 'pointer', borderRadius: 'var(--radius-md)', background: 'var(--brand-050)', border: '1px solid var(--brand-200)', font: 'var(--type-label)', fontSize: 13.5, color: 'var(--brand-700)' }}>
+      <Icon name={open ? 'chevron-down' : 'chevron-right'} size={15} />
+      <Icon name="calendar" size={14} />
+      <span style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>{text}</span>
+    </button>
   );
 }
 
@@ -94,7 +87,7 @@ function PromptBlock({ event, number, focused, onMark, detail }: { event: Traini
 }
 
 /**
- * One member's timeline: oldest at the top, newest at the bottom like a log. Grouped by prompt; Claude Code sessions are
+ * One member's timeline: day groups, the newest day first and folded away when old; inside a day oldest to newest. Grouped by prompt; Claude Code sessions are
  * separated; a run of the same failing command carries the "có thể đang kẹt" chip. Output is never loaded until a button is pressed.
  */
 export function Timeline({ member, timeline, panel, hidden, markError, ctrl, canRemove, now, onRemove }: {
@@ -104,15 +97,26 @@ export function Timeline({ member, timeline, panel, hidden, markError, ctrl, can
   const scroller = useRef<HTMLDivElement>(null);
   const [noteOpen, setNoteOpen] = useState(false);
   const onMark = (id: number) => void ctrl.toggleMark(id);
-  const items: TimelineItem[] = hidden ? [] : buildTimeline(timeline.events, { memberStuck: member.stuck });
-  const days = hidden || timeline.phase === 'loading' || timeline.phase === 'error' ? [] : listDays(timeline.events);
+  const groups: DayGroup[] = hidden ? [] : groupByDay(buildTimeline(timeline.events, { memberStuck: member.stuck }));
+  const allOpen = groups.length > 0 && groups.every(g => timeline.openDays.includes(g.dayKey));
   const flags = timeline.flags.filter(f => visibleFlags({ flags: [f.code], stuck: member.stuck }).length > 0).map(f => ({ code: f.code, ids: evidenceOf(f, timeline.events) })).filter(f => f.ids.length > 0);
 
-  // Follow the end when the controller says so (first load, or new lines while the mentor is at the end).
+  // Bring the newest event into view when the controller says so (first load, or new lines while it is being followed). The
+  // newest event ends the newest day, which is the first group, so the marker sits right after that group.
   useLayoutEffect(() => {
     const el = scroller.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [timeline.stickToken, timeline.phase, hidden]);
+    const latest = document.getElementById(LATEST_ID);
+    if (!el || !latest) return;
+    el.scrollTop += latest.getBoundingClientRect().bottom - el.getBoundingClientRect().bottom;
+  }, [timeline.followToken, timeline.phase, hidden]);
+
+  // "Đang theo dõi": after a scroll, or when a day opens or folds, is the newest event in (or near) the viewport?
+  const reportFollowing = () => {
+    const el = scroller.current;
+    const latest = document.getElementById(LATEST_ID);
+    if (el && latest) ctrl.reportFollowing(isLatestInView(latest.getBoundingClientRect(), el.getBoundingClientRect()));
+  };
+  useLayoutEffect(reportFollowing, [timeline.openDays]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A flag chip jumped to an event: scroll to its row (the row is drawn highlighted while `focusId` stays).
   useLayoutEffect(() => {
@@ -150,11 +154,15 @@ export function Timeline({ member, timeline, panel, hidden, markError, ctrl, can
           )}
         </div>
       </div>
-      {days.length >= 2 && <div style={{ padding: '6px 14px', borderBottom: '1px solid var(--border-hairline)' }}><DayPicker days={days} /></div>}
+      {groups.length >= 2 && timeline.phase === 'ready' && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '4px 12px', borderBottom: '1px solid var(--border-hairline)' }}>
+          <Button variant="ghost" size="sm" icon={allOpen ? 'minus' : 'chevron-down'} onClick={() => ctrl.setAllDays(!allOpen)}>{allOpen ? 'Thu tất cả' : 'Mở tất cả'}</Button>
+        </div>
+      )}
       {!hidden && noteOpen && canRemove && <NoteBox key={member.id} member={member} onSave={note => ctrl.saveNote(member.id, note)} />}
       {markError && !hidden && <div role="alert" style={{ padding: '8px 16px', background: 'var(--wrong-surface)', color: 'var(--wrong-600)', font: 'var(--type-meta)', fontWeight: 600 }}>{markError}</div>}
 
-      <div ref={scroller} onScroll={e => ctrl.reportScroll(isNearBottom(e.currentTarget))} tabIndex={0} aria-label="Các sự kiện, cũ ở trên, mới ở dưới"
+      <div ref={scroller} onScroll={reportFollowing} tabIndex={0} aria-label="Các sự kiện, ngày mới nhất ở trên"
         style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '10px 12px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {hidden ? (
           <div style={{ margin: 'auto', display: 'grid', gap: 8, justifyItems: 'center', textAlign: 'center', color: 'var(--text-meta)', font: 'var(--type-body)', maxWidth: 340 }}>
@@ -166,7 +174,7 @@ export function Timeline({ member, timeline, panel, hidden, markError, ctrl, can
           <div style={{ margin: 'auto' }}><Spinner label="Đang tải dòng thời gian…" /></div>
         ) : timeline.phase === 'error' ? (
           <div style={{ margin: 'auto', maxWidth: 420, width: '100%' }}><ErrorMessage title="Không tải được dòng thời gian" message={timeline.error} onRetry={() => ctrl.retryTimeline()} /></div>
-        ) : items.length === 0 ? (
+        ) : groups.length === 0 ? (
           <div style={{ margin: 'auto', display: 'grid', gap: 6, justifyItems: 'center', textAlign: 'center', color: 'var(--text-meta)', font: 'var(--type-body)', maxWidth: 360 }}>
             <Icon name="hourglass" size={26} />
             <strong style={{ color: 'var(--text-title)' }}>Chưa có sự kiện nào</strong>
@@ -174,26 +182,37 @@ export function Timeline({ member, timeline, panel, hidden, markError, ctrl, can
           </div>
         ) : (
           <>
-            {items.map(item => {
-              if (item.kind === 'day') return <DayDivider key={item.key} dayKey={item.dayKey} startedAt={item.startedAt} />;
-              if (item.kind === 'session') return <SessionDivider key={item.key} index={item.index} startedAt={item.startedAt} />;
-              const shown = item.tools.filter(t => t.event.kind === 'tool');
-              const detail: Detail | null = item.tools.length > 0 ? { commands: shown.length, failed: shown.filter(t => t.event.ok === false).length, onOpen: () => ctrl.openTurn(item.key) } : null;
-              return <PromptBlock key={item.key} event={item.prompt} number={item.promptNumber} focused={item.prompt !== null && timeline.focusId === item.prompt.id} onMark={onMark} detail={detail} />;
-            })}
             {timeline.hasMore && (
-              <div style={{ display: 'grid', justifyItems: 'center', gap: 8 }}>
+              <div style={{ display: 'grid', justifyItems: 'center', gap: 6 }}>
+                <span style={{ font: 'var(--type-meta)', fontSize: 13, color: 'var(--text-meta)' }}>Còn sự kiện mới hơn chưa tải</span>
                 {timeline.error && <ErrorMessage message={timeline.error} />}
                 <Button variant="secondary" size="sm" icon="rotate-ccw" loading={timeline.loadingMore} onClick={() => void ctrl.loadMore()}>Tải thêm</Button>
               </div>
             )}
+            {groups.map((g, at) => {
+              const open = timeline.openDays.includes(g.dayKey);
+              return (
+                <Fragment key={g.dayKey}>
+                  <DayHeader group={g} open={open} onToggle={() => ctrl.toggleDay(g.dayKey)} />
+                  <div id={bodyId(g.dayKey)} hidden={!open} style={open ? { display: 'flex', flexDirection: 'column', gap: 10 } : undefined}>
+                    {open && g.items.map(item => {
+                      if (item.kind === 'session') return <SessionDivider key={item.key} index={item.index} startedAt={item.startedAt} />;
+                      const shown = item.tools.filter(t => t.event.kind === 'tool');
+                      const detail: Detail | null = item.tools.length > 0 ? { commands: shown.length, failed: shown.filter(t => t.event.ok === false).length, onOpen: () => ctrl.openTurn(item.key) } : null;
+                      return <PromptBlock key={item.key} event={item.prompt} number={item.promptNumber} focused={item.prompt !== null && timeline.focusId === item.prompt.id} onMark={onMark} detail={detail} />;
+                    })}
+                  </div>
+                  {at === 0 && <div id={LATEST_ID} aria-hidden style={{ height: 0, flex: 'none' }} />}
+                </Fragment>
+              );
+            })}
           </>
         )}
       </div>
 
       {timeline.newCount > 0 && !hidden && (
         <div style={{ position: 'absolute', left: 0, right: 0, bottom: 14, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
-          <button type="button" onClick={() => ctrl.jumpToBottom()} style={{ pointerEvents: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, height: 34, padding: '0 14px', borderRadius: 'var(--radius-pill)', border: 0, cursor: 'pointer', background: 'var(--ink-900)', color: '#fff', font: 'var(--type-label)', fontSize: 13, boxShadow: 'var(--shadow-dialog)' }}>
+          <button type="button" onClick={() => ctrl.jumpToLatest()} style={{ pointerEvents: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, height: 34, padding: '0 14px', borderRadius: 'var(--radius-pill)', border: 0, cursor: 'pointer', background: 'var(--ink-900)', color: '#fff', font: 'var(--type-label)', fontSize: 13, boxShadow: 'var(--shadow-dialog)' }}>
             {timeline.newCount} sự kiện mới<Icon name="chevron-down" size={14} />
           </button>
         </div>

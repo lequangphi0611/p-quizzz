@@ -99,7 +99,7 @@ test('flags, the new rows and the class summary; the auto-accept switch', async 
 
   // ── Lan's timeline: the list has the prompts; the commands and markers of each open in a popup ─────────────
   await page.getByRole('button', { name: 'Lan', exact: true }).click();
-  const timeline = page.getByLabel('Các sự kiện, cũ ở trên, mới ở dưới');
+  const timeline = page.getByLabel('Các sự kiện, ngày mới nhất ở trên');
   await expect(timeline.getByText('thôi, bỏ đi')).toBeVisible({ timeout: 6_000 });
   await expect(timeline.getByText('Bỏ qua hỏi quyền').first()).toBeVisible(); // the permission mode sits on the prompt card
   const popup = page.getByRole('dialog', { name: /Chi tiết các lệnh/ });
