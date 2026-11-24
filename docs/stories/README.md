@@ -68,6 +68,7 @@ Mỗi story là một file tự đủ ngữ cảnh để một model/người im
 | [S38](S38-training-stop-sending.md) | Training: member dừng gửi, mentor duyệt xoá dữ liệu | S35, S36 | ✅ |
 | [S39](S39-training-flags-timeline.md) | Training: cờ gợi ý và các dòng mới trên dòng thời gian | S37 | ✅ |
 | [S40](S40-training-report.md) | Training: đánh dấu ví dụ, ghi chú, xuất báo cáo trước khi kết thúc | S38, S39 | ✅ |
+| [S41](S41-training-export.md) | Training: xuất dữ liệu thô (zip, mỗi member một file) theo ngày để phân tích bằng AI cá nhân | S40 | ✅ |
 
 ## Thứ tự & song song
 
@@ -88,5 +89,7 @@ Các story trong cùng đợt chạm file khác nhau là chính; nếu cùng s�
 Đợt 9 (buổi training AI, PRODUCT.md §7.34): S32 → S33 → S34 làm **tuần tự** (server). Trước S33 nên chạy checklist máy thật trong [spikes/claude-code-hooks.md §5](../spikes/claude-code-hooks.md): kết quả có thể đổi contract ingest. S35 (cần S34) và S36 (cần S33) làm **song song** sau khi có bản thiết kế UI.
 
 Đợt 10 (training: thấy rõ cách làm việc với Claude, PRODUCT.md §7.35): S37 và S38 làm **song song** (S37 chạm ingest và màn đồng ý; S38 chạm luồng dừng gửi; cùng sửa câu chữ màn đồng ý nên phải thống nhất trước). Sau đó làm S39, rồi S40. S40 cần designer nhẹ.
+
+Đợt 11 (training: xuất dữ liệu để phân tích, PRODUCT.md §7.36): S41, một story, chạm phần xuất của S40 và màn đồng ý của S36/S37.
 
 **Mốc dùng thử được với member thật:** xong đợt 6 (chưa có màn hình chiếu và xem lại bài).

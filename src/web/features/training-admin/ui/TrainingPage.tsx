@@ -102,6 +102,7 @@ function Header({ state, ctrl, onBack }: { state: TrainingState; ctrl: TrainingC
             <Button variant="secondary" icon={hidden ? 'eye' : 'eye-off'} pressed={hidden} shortcut="H" onClick={() => ctrl.toggleHidden()}>{hidden ? 'Hiện nội dung' : 'Ẩn nội dung'}</Button>
           )}
           {detail.status !== 'ended' && detail.members.length > 0 && <Button variant="secondary" icon="download" onClick={() => void ctrl.openReport()}>Xuất báo cáo</Button>}
+          {detail.status !== 'ended' && detail.members.length > 0 && <Button variant="secondary" icon="sparkles" onClick={() => ctrl.openDataExport()}>Xuất dữ liệu để phân tích</Button>}
           {open && <Button variant="secondary" icon="square" onClick={() => ctrl.askStop()}>Dừng thu</Button>}
           {stopped && <Button variant="danger" icon="trash-2" onClick={() => ctrl.askEnd()}>Kết thúc</Button>}
         </div>

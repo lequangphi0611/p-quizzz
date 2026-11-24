@@ -1,6 +1,7 @@
-import type { CreatedTraining, NetworkInfo, TrainingDetail, TrainingEventDetail, TrainingEventsPage, TrainingSummary } from '../../../../shared/api/index.js';
+import type { CreatedTraining, NetworkInfo, TrainingDetail, TrainingEventDetail, TrainingEventsPage, TrainingExportSummary, TrainingSummary } from '../../../../shared/api/index.js';
 import type { HttpClient } from '../../../shared/api-client/http-client.js';
 import type { TrainingAdminGateway } from '../application/training-admin-gateway.js';
+import { exportQueryString, type ExportParams } from '../domain/export.js';
 
 /** localStorage key of the "ẩn nội dung" choice; mentor browser only. */
 export const HIDE_CONTENT_KEY = 'pq:training-admin:hide-content';
@@ -32,6 +33,12 @@ export class HttpTrainingAdminGateway implements TrainingAdminGateway {
   async saveNote(trainingId: number, memberId: number, note: string): Promise<void> { await this.http.put(`/api/admin/trainings/${trainingId}/members/${memberId}/note`, { note }); }
   reportPreview(trainingId: number): Promise<string> { return this.http.get<string>(`/api/admin/trainings/${trainingId}/report.md?preview=1`, { as: 'text' }); }
   exportReport(trainingId: number): Promise<string> { return this.http.get<string>(`/api/admin/trainings/${trainingId}/report.md`, { as: 'text' }); }
+  exportSummary(trainingId: number, params: ExportParams): Promise<TrainingExportSummary> {
+    return this.http.get<TrainingExportSummary>(`/api/admin/trainings/${trainingId}/export/summary${exportQueryString(params)}`);
+  }
+  exportData(trainingId: number, params: ExportParams): Promise<Blob> {
+    return this.http.get<Blob>(`/api/admin/trainings/${trainingId}/export.zip${exportQueryString(params)}`, { as: 'blob' });
+  }
   async getJoinHosts(): Promise<string[]> { return (await this.http.get<NetworkInfo>('/api/network')).joinHosts; }
   readHideContent(): boolean {
     try { return this.storage?.getItem(HIDE_CONTENT_KEY) === '1'; } catch { return false; }

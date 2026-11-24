@@ -45,6 +45,9 @@ export interface PermissionDecisionInfo {
 
 export type FlagRule = (events: readonly FlagEvent[], ctx: FlagContext) => FlagHit | null;
 
+/** How much of a change / output the flag rules may read. */
+export const FLAG_TEXT_CHARS = 4000;
+
 /** Most events listed as evidence for one flag. */
 export const MAX_EVIDENCE = 20;
 export const cap = (ids: number[]): number[] => ids.slice(0, MAX_EVIDENCE);

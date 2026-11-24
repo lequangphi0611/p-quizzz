@@ -1,8 +1,9 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { CreateTrainingBody, JoinTrainingBody, MemberNoteBody, type HookConfig, type JoinTrainingResponse, type MyTraining, type TrainingDetail, type TrainingEventDetail, type TrainingEventsPage, type UninstallCheckResult } from '../../../shared/api/training.js';
+import { CreateTrainingBody, JoinTrainingBody, MemberNoteBody, TrainingExportQuery, type HookConfig, type JoinTrainingResponse, type MyTraining, type TrainingDetail, type TrainingEventDetail, type TrainingEventsPage, type TrainingExportSummary, type UninstallCheckResult } from '../../../shared/api/training.js';
 import { WrongRoomCodeError } from '../../domain/participant/errors.js';
 import { TrainingEventNotFoundError, TrainingMemberNotFoundError, TrainingNotFoundError } from '../../domain/training/errors.js';
 import type { CreateTraining, EndTraining, GetTrainingDetail, ListTrainings, MarkTrainingEvent, PurgeTrainingMember, RemoveTrainingMember, SaveMemberNote, StopTraining } from '../../application/use-cases/training/admin.js';
+import type { ExportTrainingData, GetTrainingExportSummary } from '../../application/use-cases/training/export-data.js';
 import type { ExportTrainingReport } from '../../application/use-cases/training/report.js';
 import type { GetTrainingEventDetail, ListMemberEvents } from '../../application/use-cases/training/view.js';
 import type { IngestHookEvent } from '../../application/use-cases/training/ingest.js';
@@ -26,6 +27,8 @@ export interface TrainingUseCases {
   markEvent: MarkTrainingEvent;
   saveNote: SaveMemberNote;
   report: ExportTrainingReport;
+  exportSummary: GetTrainingExportSummary;
+  exportData: ExportTrainingData;
   memberEvents: ListMemberEvents;
   eventDetail: GetTrainingEventDetail;
   join: JoinTraining;
@@ -41,7 +44,7 @@ export interface TrainingUseCases {
 const badBody = (issue: { message: string } | undefined) => ({ error: issue?.message ?? 'Dữ liệu không hợp lệ' });
 
 // Mentor routes (PRODUCT.md §7.34). Registered inside the requireMentor scope of /api/admin, so they only answer on the mentor's machine.
-export const trainingAdminRoutes = (uc: Pick<TrainingUseCases, 'create' | 'list' | 'detail' | 'stop' | 'end' | 'removeMember' | 'purgeMember' | 'memberEvents' | 'eventDetail' | 'markEvent' | 'saveNote' | 'report'>): FastifyPluginAsync =>
+export const trainingAdminRoutes = (uc: Pick<TrainingUseCases, 'create' | 'list' | 'detail' | 'stop' | 'end' | 'removeMember' | 'purgeMember' | 'memberEvents' | 'eventDetail' | 'markEvent' | 'saveNote' | 'report' | 'exportSummary' | 'exportData'>): FastifyPluginAsync =>
   async app => {
     app.post('/trainings', async (req, reply) => {
       const body = CreateTrainingBody.safeParse(req.body);
@@ -132,6 +135,36 @@ export const trainingAdminRoutes = (uc: Pick<TrainingUseCases, 'create' | 'list'
         reply.header('Content-Type', 'text/markdown; charset=utf-8').header('Cache-Control', 'no-store');
         if (!preview) reply.header('Content-Disposition', `attachment; filename="bao-cao-training-${id}.md"`);
         return reply.send(text);
+      } catch (err) {
+        return sendDomainError(reply, err);
+      }
+    });
+
+    // S41 (PRODUCT.md §7.36): the raw data of some days as a zip, for the mentor's own AI. It is not the report: nothing is recorded as exported.
+    app.get<{ Params: { id: string }; Querystring: Record<string, string> }>('/trainings/:id/export/summary', async (req, reply): Promise<TrainingExportSummary | undefined> => {
+      try {
+        const id = parseId(req.params.id);
+        if (!id) throw new TrainingNotFoundError();
+        const query = TrainingExportQuery.safeParse(req.query);
+        if (!query.success) return reply.code(400).send(badBody(query.error.issues[0]));
+        return await uc.exportSummary.execute(id, query.data);
+      } catch (err) {
+        return sendDomainError(reply, err);
+      }
+    });
+
+    app.get<{ Params: { id: string }; Querystring: Record<string, string> }>('/trainings/:id/export.zip', async (req, reply) => {
+      try {
+        const id = parseId(req.params.id);
+        if (!id) throw new TrainingNotFoundError();
+        const query = TrainingExportQuery.safeParse(req.query);
+        if (!query.success) return reply.code(400).send(badBody(query.error.issues[0]));
+        const file = await uc.exportData.execute(id, query.data);
+        return reply
+          .header('Content-Type', 'application/zip')
+          .header('Cache-Control', 'no-store')
+          .header('Content-Disposition', `attachment; filename="${file.fileName}"`)
+          .send(file.data);
       } catch (err) {
         return sendDomainError(reply, err);
       }

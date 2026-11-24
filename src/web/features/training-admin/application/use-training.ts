@@ -1,5 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { TrainingDetail, TrainingSummary } from '../../../../shared/api/index.js';
+import { saveBlobFile } from '../../../shared/download/save-blob-file.js';
 import { saveTextFile } from '../../../shared/download/save-text-file.js';
 import { useAdminEvents } from '../../../shared/events/use-session-events.js';
 import { useTrainingAdminGateway } from './training-admin-context.js';
@@ -16,7 +17,7 @@ const POLL_OFFLINE_MS = 5_000;
  */
 export function useTraining(initial: TrainingDetail, initialMemberId: number | null): { state: TrainingState; ctrl: TrainingController } {
   const gateway = useTrainingAdminGateway();
-  const [ctrl] = useState(() => new TrainingController(gateway, initial, { initialMemberId, saveFile: saveTextFile }));
+  const [ctrl] = useState(() => new TrainingController(gateway, initial, { initialMemberId, saveFile: saveTextFile, saveBlob: saveBlobFile }));
   const state = useSyncExternalStore(ctrl.subscribe, ctrl.getState);
   useEffect(() => { ctrl.start(); }, [ctrl]);
   useAdminEvents({
