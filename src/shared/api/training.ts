@@ -226,3 +226,47 @@ export interface TrainingEventDetail {
   output: Clip | null;
   change: Clip | null;
 }
+
+// S41 (PRODUCT.md §7.36): export the raw data of a training as a zip, to be analysed with the mentor's own AI.
+
+/** Biggest zip (before compression) the server builds; the mentor narrows the days or the members above it. */
+export const TRAINING_EXPORT_MAX_BYTES = 200 * 1024 * 1024;
+
+const exportDay = z
+  .string({ error: 'Ngày phải có dạng YYYY-MM-DD' })
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày phải có dạng YYYY-MM-DD')
+  .refine(s => {
+    const [y, m, d] = s.split('-').map(Number) as [number, number, number];
+    const date = new Date(y, m - 1, d);
+    return date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d;
+  }, 'Ngày không tồn tại');
+
+/**
+ * GET /api/admin/trainings/:id/export/summary and /export.zip. No `from` and no `to` = today; `from` alone = that one day.
+ * Days are the calendar days of the machine running the app (the mentor's). `members` is a comma-separated list of ids; absent = the whole class.
+ */
+export const TrainingExportQuery = z
+  .object({
+    from: exportDay.optional(),
+    to: exportDay.optional(),
+    members: z
+      .string()
+      .regex(/^\d+(,\d+)*$/, 'Danh sách bạn không hợp lệ')
+      .transform(s => [...new Set(s.split(',').map(Number))])
+      .optional(),
+  })
+  .refine(q => !(q.to && !q.from), { message: 'Chọn ngày bắt đầu', path: ['from'] })
+  .refine(q => !(q.from && q.to && q.to < q.from), { message: 'Ngày kết thúc phải sau hoặc cùng ngày bắt đầu', path: ['to'] });
+export type TrainingExportQuery = z.infer<typeof TrainingExportQuery>;
+
+/** What the dialog shows before the file is built. `eventCount` 0 means there is nothing to download. */
+export interface TrainingExportSummary {
+  /** The days actually used (YYYY-MM-DD), after the defaults. */
+  from: string;
+  to: string;
+  memberCount: number;
+  eventCount: number;
+  approxBytes: number;
+  /** Above `TRAINING_EXPORT_MAX_BYTES`: the file would not be built. */
+  tooLarge: boolean;
+}

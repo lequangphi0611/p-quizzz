@@ -91,7 +91,9 @@ import { DrizzleShareTokenStore } from './infrastructure/db/drizzle-share-token-
 import type { TrainingUnitContext } from './application/ports/training-repository.js';
 import { CreateTraining, EndTraining, GetTrainingDetail, ListTrainings, PurgeTrainingMember, RemoveTrainingMember, SaveMemberNote, StopTraining, MarkTrainingEvent } from './application/use-cases/training/admin.js';
 import { FinishUninstallCheck, GetHookConfig, GetMyTraining, JoinTraining, ResumeTrainingMember, StartUninstallCheck, WithdrawTrainingConsent } from './application/use-cases/training/member.js';
+import { ExportTrainingData, GetTrainingExportSummary } from './application/use-cases/training/export-data.js';
 import { ExportTrainingReport } from './application/use-cases/training/report.js';
+import { NodeZipWriter } from './infrastructure/system/node-zip-writer.js';
 import { ResolveAnyRoom } from './application/use-cases/training/resolve-any-room.js';
 import { DrizzleTrainingEventRepository } from './infrastructure/db/drizzle-training-event-repository.js';
 import { DrizzleTrainingMemberRepository, DrizzleTrainingRepository } from './infrastructure/db/drizzle-training-repository.js';
@@ -237,6 +239,7 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}, aiOptions:
     return { trainings: new DrizzleTrainingRepository(access), members: new DrizzleTrainingMemberRepository(access), events: new DrizzleTrainingEventRepository(access) };
   });
   const trainingSignals = new BusTrainingSignals(bus);
+  const trainingExportDeps = { trainings: trainingReader, members: trainingMemberReader, events: trainingEventReader, clock: ports.clock, archive: new NodeZipWriter(ports.clock) };
   const trainingDeps = { unitOfWork: trainingUnitOfWork, clock: ports.clock, signals: trainingSignals };
   // Ingest is dense (every prompt and tool call): the mentor's screen is refreshed at most every 2 s per training. Other changes are rare and go out at once.
   const ingestSignals = new ThrottledTrainingSignals(trainingSignals);
@@ -284,6 +287,8 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}, aiOptions:
       markEvent: new MarkTrainingEvent(trainingDeps),
       saveNote: new SaveMemberNote(trainingDeps),
       report: new ExportTrainingReport({ ...trainingDeps, trainings: trainingReader, members: trainingMemberReader, events: trainingEventReader }),
+      exportSummary: new GetTrainingExportSummary(trainingExportDeps),
+      exportData: new ExportTrainingData(trainingExportDeps),
       join: new JoinTraining({ ...trainingDeps, tokens: ports.tokens }),
       resume: new ResumeTrainingMember({ members: trainingMemberReader, trainings: trainingReader }),
       me: new GetMyTraining(),

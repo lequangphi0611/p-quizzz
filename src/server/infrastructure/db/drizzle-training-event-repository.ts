@@ -1,7 +1,8 @@
-import { and, asc, desc, eq, gt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, lt, sql } from 'drizzle-orm';
 import {
-  FLAG_TEXT_CHARS, OUTPUT_END_CHARS, type EventDetail, type LightEvent, type MarkedEvent, type MemberCounts, type NewTrainingEvent, type TrainingEventRepository,
+  FLAG_TEXT_CHARS, OUTPUT_END_CHARS, type EventDetail, type ExportStats, type LightEvent, type MarkedEvent, type MemberCounts, type NewTrainingEvent, type TrainingEventRepository,
 } from '../../application/ports/training-event-repository.js';
+import type { ExportEvent } from '../../domain/training/export.js';
 import type { FlagEvent } from '../../domain/training/flags/flag-event.js';
 import type { Clip } from '../../domain/training/clip.js';
 import type { ToolOutcome } from '../../domain/training/is-stuck.js';
@@ -106,6 +107,64 @@ export class DrizzleTrainingEventRepository implements TrainingEventRepository {
         .all()
         .map(r => ({ ...toLight(r), memberId: r.memberId })),
     );
+  }
+
+  /** Whole text of every event in the range, one member at a time (S41): the export reads what the mentor's screen never loads in a list. */
+  listForExport(memberId: number, range: { from: Date; to: Date }): Promise<ExportEvent[]> {
+    return this.access(db =>
+      db
+        .select({
+          id: trainingEvents.id,
+          kind: trainingEvents.kind,
+          at: trainingEvents.receivedAt,
+          claudeSessionId: trainingEvents.claudeSessionId,
+          permissionMode: trainingEvents.permissionMode,
+          prompt: trainingEvents.prompt,
+          toolName: trainingEvents.toolName,
+          toolTarget: trainingEvents.toolTarget,
+          ok: trainingEvents.ok,
+          durationMs: trainingEvents.durationMs,
+          errorExcerpt: trainingEvents.errorExcerpt,
+          note: trainingEvents.note,
+          subtype: trainingEvents.subtype,
+          outputHead: trainingEvents.outputHead,
+          outputTail: trainingEvents.outputTail,
+          outputOmitted: trainingEvents.outputOmittedLines,
+          changeHead: trainingEvents.changeHead,
+          changeTail: trainingEvents.changeTail,
+          changeOmitted: trainingEvents.changeOmittedLines,
+          marked: sql<number>`exists (select 1 from ${trainingEventMarks} where ${trainingEventMarks.eventId} = ${trainingEvents.id})`,
+        })
+        .from(trainingEvents)
+        .where(and(eq(trainingEvents.memberId, memberId), gte(trainingEvents.receivedAt, range.from), lt(trainingEvents.receivedAt, range.to)))
+        .orderBy(asc(trainingEvents.id))
+        .all()
+        .map(({ outputHead, outputTail, outputOmitted, changeHead, changeTail, changeOmitted, marked, ...r }) => ({
+          ...r,
+          kind: r.kind as ExportEvent['kind'],
+          output: clipOf(outputHead, outputTail, outputOmitted),
+          change: clipOf(changeHead, changeTail, changeOmitted),
+          marked: Boolean(marked),
+        })),
+    );
+  }
+
+  async exportStats(trainingId: number, range: { from: Date; to: Date }): Promise<Map<number, ExportStats>> {
+    const bytes = (col: unknown) => sql`coalesce(length(cast(${col} as blob)), 0)`;
+    const rows = await this.access(db =>
+      db
+        .select({
+          memberId: trainingEvents.memberId,
+          eventCount: sql<number>`count(*)`,
+          approxBytes: sql<number>`sum(200 + ${bytes(trainingEvents.prompt)} + ${bytes(trainingEvents.toolTarget)} + ${bytes(trainingEvents.errorExcerpt)} + ${bytes(trainingEvents.note)} + ${bytes(trainingEvents.outputHead)} + ${bytes(trainingEvents.outputTail)} + ${bytes(trainingEvents.changeHead)} + ${bytes(trainingEvents.changeTail)})`,
+        })
+        .from(trainingEvents)
+        .innerJoin(trainingMembers, eq(trainingMembers.id, trainingEvents.memberId))
+        .where(and(eq(trainingMembers.trainingId, trainingId), gte(trainingEvents.receivedAt, range.from), lt(trainingEvents.receivedAt, range.to)))
+        .groupBy(trainingEvents.memberId)
+        .all(),
+    );
+    return new Map(rows.map(r => [r.memberId, { eventCount: Number(r.eventCount), approxBytes: Number(r.approxBytes) }]));
   }
 
   async setMark(eventId: number, marked: boolean): Promise<void> {

@@ -52,4 +52,15 @@ describe('createHttpClient', () => {
   it('returns undefined for an empty success body', async () => {
     expect(await createHttpClient({ fetch: respond(204, undefined) as unknown as typeof fetch }).delete('/a')).toBeUndefined();
   });
+
+  it('returns a binary answer as a Blob when asked, and still reads an error as { error }', async () => {
+    const zip = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0, 255]);
+    const ok = createHttpClient({ fetch: vi.fn(async () => new Response(zip, { status: 200 })) as unknown as typeof fetch });
+    const blob = await ok.get<Blob>('/x.zip', { as: 'blob' });
+    expect(blob).toBeInstanceOf(Blob);
+    expect(new Uint8Array(await blob.arrayBuffer())).toEqual(zip);
+
+    const failing = createHttpClient({ fetch: vi.fn(async () => new Response(JSON.stringify({ error: 'Không có dữ liệu trong khoảng này', code: 'empty_export' }), { status: 404 })) as unknown as typeof fetch });
+    await expect(failing.get('/x.zip', { as: 'blob' })).rejects.toMatchObject({ status: 404, message: 'Không có dữ liệu trong khoảng này', code: 'empty_export' });
+  });
 });

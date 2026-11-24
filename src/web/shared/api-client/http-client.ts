@@ -25,8 +25,8 @@ export type RequestInterceptor = (request: OutgoingRequest) => void;
 /** Per-call extras. `headers` are added after the interceptors (a call that carries its own credential, e.g. a training member token). */
 export interface RequestOptions {
   headers?: Record<string, string>;
-  /** `text`: a successful answer is returned as the raw body, not parsed as JSON (a Markdown file). Errors are still `{ error }` JSON. */
-  as?: 'json' | 'text';
+  /** `text`: a successful answer is returned as the raw body, not parsed as JSON (a Markdown file); `blob`: as a `Blob` (a zip). Errors are still `{ error }` JSON. */
+  as?: 'json' | 'text' | 'blob';
 }
 
 export interface HttpClient {
@@ -60,6 +60,7 @@ export function createHttpClient(options: HttpClientOptions = {}): HttpClient {
       throw new ApiError(0, 'Không kết nối được tới máy chủ');
     }
 
+    if (res.ok && options?.as === 'blob') return (await res.blob()) as T;
     const text = await res.text();
     if (res.ok && options?.as === 'text') return text as T;
     let data: unknown;

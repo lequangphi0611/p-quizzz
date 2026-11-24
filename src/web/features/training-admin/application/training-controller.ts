@@ -1,6 +1,7 @@
-import type { Clip, FlagCode, MemberFlag, TrainingDetail, TrainingEventRow } from '../../../../shared/api/index.js';
+import type { Clip, FlagCode, MemberFlag, TrainingDetail, TrainingEventRow, TrainingExportSummary } from '../../../../shared/api/index.js';
 import { ApiError } from '../../../shared/api-client/http-client.js';
 import { announcementFor } from '../domain/announcements.js';
+import { exportFileName, exportInputError, paramsFor, type ExportMode } from '../domain/export.js';
 import { evidenceOf } from '../domain/flags.js';
 import { reportFileName } from '../domain/report.js';
 import { stepEvent, turnKeyOf } from '../domain/timeline.js';
@@ -50,6 +51,28 @@ export interface ReportState {
   saved: boolean;
 }
 
+/** The "Xuất dữ liệu để phân tích" dialog (PRODUCT.md §7.36): which days, which members, what the zip would hold, then the file. */
+export interface DataExportState {
+  mode: ExportMode;
+  /** The days as a date input gives them (`YYYY-MM-DD`); empty until the mentor leaves "Hôm nay". */
+  from: string;
+  to: string;
+  /** null = the whole class. */
+  memberIds: number[] | null;
+  /** About `summary`: `loading` while the server counts, `error` when it could not. */
+  phase: 'loading' | 'ready' | 'error';
+  /** What the server counted for the current choice (kept while the next count loads, so the dialog does not flicker). */
+  summary: TrainingExportSummary | null;
+  /** Why the choice cannot be exported (checked here) or why counting failed. */
+  error: string;
+  /** Why the last download failed; the mentor may press the button again. */
+  saveError: string;
+  /** The zip is being fetched. */
+  saving: boolean;
+  /** The file was handed to the browser for the current choice. */
+  saved: boolean;
+}
+
 export type Confirm = { kind: 'stop' } | { kind: 'end' } | { kind: 'remove'; memberId: number; name: string } | { kind: 'purge'; memberId: number; name: string };
 
 export interface TrainingState {
@@ -71,6 +94,7 @@ export interface TrainingState {
   /** Members of an ended training, from the list (the detail no longer carries them); null until known. */
   endedMemberCount: number | null;
   report: ReportState | null;
+  dataExport: DataExportState | null;
   /** The prompt whose commands are open in the popup (key from `buildTimeline`), or null. */
   turnKey: string | null;
   /** Why the last mark / unmark failed (the row went back to how it was). Cleared by the next one that works. */
@@ -84,6 +108,8 @@ export interface TrainingControllerOptions {
   maxPages?: number;
   /** Hands a text file to the browser's download (the page supplies it; the controller stays free of the DOM). */
   saveFile?: (filename: string, text: string) => void;
+  /** Same for a binary file (the zip). */
+  saveBlob?: (filename: string, blob: Blob) => void;
 }
 
 interface Fetched {
@@ -109,7 +135,9 @@ export class TrainingController {
   private listeners = new Set<() => void>();
   private maxPages: number;
   private saveFile: (filename: string, text: string) => void;
+  private saveBlob: (filename: string, blob: Blob) => void;
   private reportToken = 0; // bumped on every open / close of the report dialog
+  private exportToken = 0; // bumped on every change of what the data export dialog shows, and on close
   private started = false;
   private atBottom = true;
   private detailGen = 0; // bumped when an action's own answer is newer than any reload in flight
@@ -121,11 +149,12 @@ export class TrainingController {
   constructor(private gateway: TrainingAdminGateway, initial: TrainingDetail, opts: TrainingControllerOptions = {}) {
     this.maxPages = opts.maxPages ?? 10;
     this.saveFile = opts.saveFile ?? (() => {});
+    this.saveBlob = opts.saveBlob ?? (() => {});
     const id = opts.initialMemberId ?? null;
     const known = id !== null && initial.status !== 'ended' && initial.members.some(m => m.id === id);
     this.state = {
       detail: initial, selectedId: known ? id : null, timeline: known ? this.freshTimeline(id) : null, panel: null, confirm: null,
-      working: false, actionError: '', hidden: gateway.readHideContent(), offline: false, announcement: '', endedMemberCount: null, report: null, turnKey: null, markError: '',
+      working: false, actionError: '', hidden: gateway.readHideContent(), offline: false, announcement: '', endedMemberCount: null, report: null, dataExport: null, turnKey: null, markError: '',
     };
   }
 
@@ -192,7 +221,7 @@ export class TrainingController {
       patch.panel = null;
       patch.turnKey = null;
     }
-    if (next.status === 'ended') { this.panelToken++; this.reportToken++; patch.panel = null; patch.turnKey = null; patch.report = null; }
+    if (next.status === 'ended') { this.panelToken++; this.reportToken++; this.exportToken++; patch.panel = null; patch.turnKey = null; patch.report = null; patch.dataExport = null; }
     if (this.state.confirm && !this.state.working && !confirmStillMakesSense(this.state.confirm, next)) patch.confirm = null;
     this.set(patch);
     if (next.status === 'ended' && prev.status !== 'ended') void this.loadEndedCount();
@@ -436,7 +465,8 @@ export class TrainingController {
   async openReport(): Promise<void> {
     if (this.state.detail.status === 'ended') return;
     const token = ++this.reportToken;
-    this.set({ report: { phase: 'loading', text: '', error: '', saving: false, saved: false } });
+    this.exportToken++;
+    this.set({ dataExport: null, report: { phase: 'loading', text: '', error: '', saving: false, saved: false } });
     try {
       const text = await this.gateway.reportPreview(this.state.detail.id);
       if (token !== this.reportToken) return;
@@ -468,6 +498,112 @@ export class TrainingController {
       if (token !== this.reportToken) return;
       const now = this.state.report;
       if (now) this.set({ report: { ...now, saving: false, error: errorText(err, 'Không tải được file') } });
+    }
+  }
+
+  // ── Export the raw data for the mentor's own AI (S41) ─────────────────────────────────────────────
+
+  /** Opens the dialog on "Hôm nay" and the whole class, and asks the server what that holds. */
+  openDataExport(): void {
+    if (this.state.detail.status === 'ended') return;
+    this.reportToken++;
+    const dataExport: DataExportState = { mode: 'today', from: '', to: '', memberIds: null, phase: 'loading', summary: null, error: '', saveError: '', saving: false, saved: false };
+    this.set({ report: null, dataExport });
+    void this.reloadDataExport();
+  }
+
+  closeDataExport(): void {
+    this.exportToken++;
+    if (this.state.dataExport) this.set({ dataExport: null });
+  }
+
+  /** Leaving "Hôm nay" starts from the day the server counted as today, so the mentor edits a real date instead of typing one. */
+  setDataExportMode(mode: ExportMode): void {
+    const d = this.state.dataExport;
+    if (!d || d.saving || mode === d.mode) return;
+    const from = d.from || d.summary?.from || '';
+    const to = mode === 'range' ? (d.to && d.to >= from ? d.to : from) : d.to;
+    this.changeDataExport({ mode, from, to });
+  }
+
+  setDataExportFrom(from: string): void {
+    const d = this.state.dataExport;
+    if (!d || d.saving) return;
+    // A start after the end would be refused: the end follows it.
+    this.changeDataExport({ from, to: d.mode === 'range' && from && d.to && d.to < from ? from : d.to });
+  }
+
+  setDataExportTo(to: string): void {
+    const d = this.state.dataExport;
+    if (!d || d.saving) return;
+    this.changeDataExport({ to });
+  }
+
+  /** "Cả lớp" or "Chọn bạn" (everyone starts ticked, so the mentor only unticks). */
+  setDataExportAllMembers(all: boolean): void {
+    const d = this.state.dataExport;
+    if (!d || d.saving || (d.memberIds === null) === all) return;
+    this.changeDataExport({ memberIds: all ? null : this.state.detail.members.map(m => m.id) });
+  }
+
+  toggleDataExportMember(memberId: number): void {
+    const d = this.state.dataExport;
+    if (!d || d.saving || d.memberIds === null) return;
+    this.changeDataExport({ memberIds: d.memberIds.includes(memberId) ? d.memberIds.filter(id => id !== memberId) : [...d.memberIds, memberId] });
+  }
+
+  /** "Thử lại" after counting failed. */
+  retryDataExport(): void {
+    if (this.state.dataExport?.phase === 'error') void this.reloadDataExport();
+  }
+
+  private changeDataExport(patch: Partial<DataExportState>): void {
+    const d = this.state.dataExport;
+    if (!d) return;
+    this.set({ dataExport: { ...d, ...patch, saved: false, saveError: '' } });
+    void this.reloadDataExport();
+  }
+
+  /** Counts what the current choice holds. A choice that cannot be exported is not sent to the server; the answer of an older choice is dropped. */
+  private async reloadDataExport(): Promise<void> {
+    const token = ++this.exportToken;
+    const d = this.state.dataExport;
+    if (!d) return;
+    // A member who left the training since the box was ticked would make the server refuse the whole request.
+    const here = new Set(this.state.detail.members.map(m => m.id));
+    const memberIds = d.memberIds === null ? null : d.memberIds.filter(id => here.has(id));
+    const problem = exportInputError(d.mode, d.from, d.to, memberIds);
+    if (problem) {
+      this.set({ dataExport: { ...d, memberIds, phase: 'ready', summary: null, error: problem } });
+      return;
+    }
+    this.set({ dataExport: { ...d, memberIds, phase: 'loading', error: '' } });
+    try {
+      const summary = await this.gateway.exportSummary(this.state.detail.id, paramsFor(d.mode, d.from, d.to, memberIds));
+      if (token !== this.exportToken || !this.state.dataExport) return;
+      this.set({ dataExport: { ...this.state.dataExport, phase: 'ready', summary, error: '' } });
+    } catch (err) {
+      if (token !== this.exportToken || !this.state.dataExport) return;
+      this.set({ dataExport: { ...this.state.dataExport, phase: 'error', summary: null, error: errorText(err, 'Không đếm được dữ liệu') } });
+    }
+  }
+
+  /** "Tải file .zip": builds the zip on the server and hands it to the browser. Not the report: nothing is recorded as exported. */
+  async downloadDataExport(): Promise<void> {
+    const d = this.state.dataExport;
+    const summary = d?.summary;
+    if (!d || !summary || d.phase !== 'ready' || d.saving || d.error || summary.eventCount === 0 || summary.tooLarge) return;
+    const token = ++this.exportToken;
+    this.set({ dataExport: { ...d, saving: true, saveError: '' } });
+    try {
+      // The days the server counted, so a dialog left open past midnight still downloads what it showed.
+      const blob = await this.gateway.exportData(this.state.detail.id, paramsFor('range', summary.from, summary.to, d.memberIds));
+      if (token !== this.exportToken || !this.state.dataExport) return;
+      this.saveBlob(exportFileName(this.state.detail.name, summary.from, summary.to), blob);
+      this.set({ dataExport: { ...this.state.dataExport, saving: false, saved: true, saveError: '' } });
+    } catch (err) {
+      if (token !== this.exportToken || !this.state.dataExport) return;
+      this.set({ dataExport: { ...this.state.dataExport, saving: false, saveError: errorText(err, 'Không tải được file') } });
     }
   }
 

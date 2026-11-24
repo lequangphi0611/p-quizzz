@@ -110,12 +110,12 @@ DRAFT ──open──▶ LOBBY ──start──▶ RUNNING ──close──�
 - Xếp câu "Cần bàn trước" trong chế độ thảo luận (§7.30), phần đầu của mục thống kê theo câu ở phase 2
 - Bắt đầu phiên: thủ công / hẹn giờ / khi mọi người sẵn sàng; luật ở phòng chờ, vào thẳng câu 1 (§7.31)
 - Ô lý do cho câu trắc nghiệm, bắt buộc với câu được đánh dấu, không tính điểm (§7.32)
+- Buổi training AI: xuất dữ liệu thô (zip, mỗi member một file) theo ngày để mentor phân tích bằng AI cá nhân (§7.36)
 
 ### Sau MVP (đã duyệt, chưa làm)
 - Trang chia sẻ các phiên đã thi cho người không thi (§7.33)
 - Buổi training AI: member đồng ý gửi prompt và hoạt động công cụ của Claude Code về máy mentor (§7.34)
 - Buổi training AI: thấy rõ phiên, xin quyền, câu hỏi của Claude; cờ gợi ý; xuất báo cáo trước khi kết thúc (§7.35)
-- Buổi training AI: xuất dữ liệu thô (zip, mỗi member một file) theo ngày để mentor phân tích bằng AI cá nhân (§7.36)
 
 ### Phase 2 (đã xác định, chưa làm)
 - **Chế độ live** (kiểu game show: mentor điều khiển từng câu, đếm ngược, điểm theo tốc độ)

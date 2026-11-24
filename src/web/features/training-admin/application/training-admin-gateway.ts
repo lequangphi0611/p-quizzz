@@ -1,4 +1,5 @@
-import type { CreatedTraining, TrainingDetail, TrainingEventDetail, TrainingEventsPage, TrainingSummary } from '../../../../shared/api/index.js';
+import type { CreatedTraining, TrainingDetail, TrainingEventDetail, TrainingEventsPage, TrainingExportSummary, TrainingSummary } from '../../../../shared/api/index.js';
+import type { ExportParams } from '../domain/export.js';
 
 /** Port: the mentor's view of AI trainings (`/api/admin/trainings`, PRODUCT.md §7.34). */
 export interface TrainingAdminGateway {
@@ -26,6 +27,10 @@ export interface TrainingAdminGateway {
   reportPreview(trainingId: number): Promise<string>;
   /** The report as Markdown for the file: the server records that it was exported. */
   exportReport(trainingId: number): Promise<string>;
+  /** How many members and events the chosen days and members hold, and how big the zip would be (S41). Nothing is built. */
+  exportSummary(trainingId: number, params: ExportParams): Promise<TrainingExportSummary>;
+  /** The zip of the raw data for the mentor's own AI (S41). It is not the report: nothing is recorded as exported. */
+  exportData(trainingId: number, params: ExportParams): Promise<Blob>;
   /** LAN addresses members can type (`/api/network`), to show next to the room code. */
   getJoinHosts(): Promise<string[]>;
   /**
