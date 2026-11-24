@@ -345,12 +345,15 @@ export class TrainingController {
     }
   }
 
-  /** A flag chip: jumps to the next event behind that flag (the first press goes to the first one), highlighting its row. */
-  jumpToFlag(code: FlagCode): void {
+  /**
+   * A flag chip: jumps to the next event behind that flag (the first press goes to the first one), highlighting its row. The chip of
+   * a day (`dayKey`) goes only through the events of that day.
+   */
+  jumpToFlag(code: FlagCode, dayKey?: string): void {
     const tl = this.state.timeline;
     const flag = tl?.flags.find(f => f.code === code);
     if (!tl || this.state.hidden) return;
-    const ids = evidenceOf(flag, tl.events);
+    const ids = evidenceOf(flag, tl.events).filter(id => dayKey === undefined || dayKeyOfEvent(tl.events, id) === dayKey);
     if (ids.length === 0) return;
     const at = tl.focusId === null ? -1 : ids.indexOf(tl.focusId);
     const id = ids[(at + 1) % ids.length]!;

@@ -38,14 +38,18 @@ export function StoppedSendingChip({ iconOnly = false }: { iconOnly?: boolean })
   );
 }
 
-/** "Có thể đang kẹt": a hint to the mentor, pale yellow with a flag, never red and never a verdict. */
-export function StuckChip({ label = 'Có thể đang kẹt', iconOnly = false }: { label?: string; iconOnly?: boolean }) {
-  return (
-    <span title={iconOnly ? label : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: iconOnly ? '3px 5px' : '2px 9px 2px 7px', borderRadius: 'var(--radius-pill)', background: 'var(--sun-100)', color: 'var(--sun-ink)', border: '1px solid var(--sun-200)', font: 'var(--type-label)', fontSize: 12, whiteSpace: 'nowrap' }}>
+/** "Có thể đang kẹt": a hint to the mentor, pale yellow with a flag, never red and never a verdict. With `onClick` it is a button (the chip of a day). */
+export function StuckChip({ label = 'Có thể đang kẹt', iconOnly = false, onClick }: { label?: string; iconOnly?: boolean; onClick?: () => void }) {
+  const style = { display: 'inline-flex', alignItems: 'center', gap: 5, padding: iconOnly ? '3px 5px' : '2px 9px 2px 7px', borderRadius: 'var(--radius-pill)', background: 'var(--sun-100)', color: 'var(--sun-ink)', border: '1px solid var(--sun-200)', font: 'var(--type-label)', fontSize: 12, whiteSpace: 'nowrap' } as const;
+  const body = (
+    <>
       <Icon name="flag" size={13} />
       {iconOnly ? <span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>{label}</span> : label}
-    </span>
+    </>
   );
+  return onClick
+    ? <button type="button" title={label} onClick={onClick} style={{ ...style, cursor: 'pointer' }}>{body}</button>
+    : <span title={iconOnly ? label : undefined} style={style}>{body}</span>;
 }
 
 /**

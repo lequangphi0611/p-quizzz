@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dayAndClock, dayKeyOf, dayLabel, dayMonth } from './days.js';
+import { dayAndClock, dayKeyOf, dayLabel, dayMonth, isToday } from './days.js';
 
 // Local-time moments, so the tests do not depend on the machine's time zone.
 const at = (y: number, mo: number, d: number, h = 12, mi = 0) => new Date(y, mo - 1, d, h, mi).getTime();
@@ -22,5 +22,12 @@ describe('day labels', () => {
     expect(dayMonth(at(2026, 3, 1))).toBe('01/03');
     expect(dayAndClock(at(2026, 11, 24, 14, 30))).toBe('24/11 14:30');
     expect(dayAndClock(at(2026, 11, 2, 7, 5))).toBe('02/11 07:05');
+  });
+});
+
+describe('isToday', () => {
+  it('is true only for the local day of now', () => {
+    expect(isToday('2026-11-24', at(2026, 11, 24, 0, 1))).toBe(true);
+    expect(isToday('2026-11-23', at(2026, 11, 24, 0, 1))).toBe(false);
   });
 });

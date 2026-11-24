@@ -1,6 +1,6 @@
 # S42: Training nhiều ngày: nhóm theo ngày trên dòng thời gian
 
-**Phụ thuộc:** S35, S39, S40 · **Trạng thái:** ⏳ vòng 3 (áp thiết kế của designer, 2026-11-24)
+**Phụ thuộc:** S35, S39, S40 · **Trạng thái:** ✅ (2026-11-24, vòng 3)
 
 ## Bối cảnh
 Một buổi training kéo dài nhiều ngày và thu cả ngoài giờ học. Dòng thời gian của mentor chỉ hiện giờ:phút nên không biết prompt nào của ngày nào. Business: [PRODUCT.md §7.37](../PRODUCT.md) (a)–(e).
@@ -149,23 +149,36 @@ Hai file là HTML của công cụ thiết kế, không chạy được trong ap
 - **Ảnh** `docs/design/S42-assets/` chụp lại theo các frame `default` (1440 và 800px), `all` (đang dính tiêu đề), `single`, `flag`, `new`, `hidden`. Màn đồng ý giữ ảnh cũ nếu không đổi. Dữ liệu mẫu như vòng 2.
 
 ### Acceptance criteria (vòng 3)
-- [ ] Tiêu đề ngày, đường ray, khoảng cách, dải phiên khớp Spec (số đo và token tương ứng trong app).
-- [ ] Ngày đang thu hiện chip cờ của ngày đó. Chip là nút riêng, bấm thì mở ngày và tới sự kiện căn cứ.
-- [ ] "Hôm nay" chỉ ở ngày hôm nay (theo giờ máy mentor).
-- [ ] Chỉ một ngày thì dùng nhãn nhẹ, không có nút mở/thu.
-- [ ] "Mở tất cả / Thu tất cả" nằm trên hàng thông tin học viên; không còn hàng riêng.
-- [ ] Tiêu đề ngày đang mở dính khi cuộn, ngày sau đẩy ngày trước. Thu từ tiêu đề dính thì tiêu đề đó về đỉnh khung.
-- [ ] Phiên qua 0 giờ có dải "· tiếp từ dd/mm" ở đầu ngày sau; số phiên không đổi.
-- [ ] Sự kiện mới, mở/thu một ngày phía trên, "Tải thêm": nội dung đang đọc không nhảy (khi không theo dõi).
-- [ ] Chip "N sự kiện mới" ở mép phía có sự kiện, mũi tên đúng hướng.
-- [ ] "Tải thêm" ở cuối nhóm ngày mới nhất.
-- [ ] Ẩn rồi hiện lại nội dung thì giữ trạng thái mở/thu và vị trí cuộn.
-- [ ] Cột hẹp (800px): tiêu đề xuống dòng đúng Spec, không tràn ngang trong khung dòng thời gian.
-- [ ] Bàn phím, `aria-*`, thứ tự Tab như Spec; giảm chuyển động thì không có hiệu ứng.
-- [ ] `npm run typecheck`, `npm test` pass; toàn bộ `npm run e2e` không có lỗi mới (đã biết có sẵn trên main: `s26-ai-grading`, `training-export.spec.ts:99`).
+- [x] Tiêu đề ngày, đường ray, khoảng cách, dải phiên khớp Spec (số đo và token tương ứng trong app).
+- [x] Ngày đang thu hiện chip cờ của ngày đó. Chip là nút riêng, bấm thì mở ngày và tới sự kiện căn cứ.
+- [x] "Hôm nay" chỉ ở ngày hôm nay (theo giờ máy mentor).
+- [x] Chỉ một ngày thì dùng nhãn nhẹ, không có nút mở/thu.
+- [x] "Mở tất cả / Thu tất cả" nằm trên hàng thông tin học viên; không còn hàng riêng.
+- [x] Tiêu đề ngày đang mở dính khi cuộn, ngày sau đẩy ngày trước. Thu từ tiêu đề dính thì tiêu đề đó về đỉnh khung.
+- [x] Phiên qua 0 giờ có dải "· tiếp từ dd/mm" ở đầu ngày sau; số phiên không đổi.
+- [x] Sự kiện mới, mở/thu một ngày phía trên, "Tải thêm": nội dung đang đọc không nhảy (khi không theo dõi).
+- [x] Chip "N sự kiện mới" ở mép phía có sự kiện, mũi tên đúng hướng.
+- [x] "Tải thêm" ở cuối nhóm ngày mới nhất.
+- [x] Ẩn rồi hiện lại nội dung thì giữ trạng thái mở/thu và vị trí cuộn.
+- [x] Cột hẹp (800px): tiêu đề xuống dòng đúng Spec, không tràn ngang trong khung dòng thời gian.
+- [x] Bàn phím, `aria-*`, thứ tự Tab như Spec; giảm chuyển động thì không có hiệu ứng.
+- [x] `npm run typecheck`, `npm test` pass; toàn bộ `npm run e2e` không có lỗi mới (đã biết có sẵn trên main: `s26-ai-grading`, `training-export.spec.ts:99`).
 
 ### Test (vòng 3)
 - Domain: dải "tiếp từ" khi phiên qua 0 giờ; cờ theo ngày (cờ nào thuộc ngày nào, theo sự kiện căn cứ); "Hôm nay".
 - Controller hoặc hàm thuần: neo vị trí đọc (tính lại `scrollTop` từ phần tử neo) nếu tách được; hướng của chip "N sự kiện mới".
 - E2E `e2e/training-multi-day.spec.ts`: chip cờ trên ngày đang thu, nhãn nhẹ khi một ngày, nút mở/thu tất cả ở hàng học viên, tiêu đề dính (kiểm vị trí sau khi cuộn), giữ vị trí khi có sự kiện mới lúc đang đọc ngày cũ, ẩn/hiện giữ trạng thái; chụp ảnh.
+
+### Đã làm (vòng 3)
+- Component mới trong `features/training-admin/ui`: `DayGroupHeader` (biến thể `default` / `light`, chip cờ là nút riêng, `data-sticky`/`data-pinned`), `SessionMarker` (`mở lúc` / `tiếp từ dd/mm`). Không tách `CollapsibleSection` (vùng nội dung là một `div role="region"` trong `Timeline`).
+- Domain: `buildTimeline` thêm dải phiên lặp `continuedFrom` ở đầu ngày sau (số phiên theo cả buổi); `dayFlags` (cờ theo ngày, chip "Có thể đang kẹt" ở ngày có lượt lỗi còn chạy), `dayGroupSpoken`, `isToday`, `latestSide`, `keepAnchorScrollTop`. `jumpToFlag(code, dayKey?)`. Bỏ `dayGroupSummary`.
+- `Timeline.tsx`: tiêu đề dính (chỉ ngày đang mở, đo bằng `data-day-group`), giữ vị trí đọc bằng phần tử neo (ghi lại ở mỗi lần cuộn/layout, đặt lại trước các lần cuộn khác), chip "N sự kiện mới" ở mép phía có sự kiện (mép trên thì nằm dưới tiêu đề dính), "Tải thêm" cuối nhóm ngày mới nhất, ẩn nội dung giữ trạng thái và vị trí (neo vẫn còn khi bật lại), nút Mở/Thu tất cả lên hàng học viên.
+- Ảnh `docs/design/S42-assets/` chụp lại (1 mặc định, 2 hẹp 800px, 3 tiêu đề dính, 5 một ngày, 6 chip cờ, 7 sự kiện mới, 8 ẩn, 9 chi tiết lượt); ảnh đồng ý giữ nguyên.
+- Token: đủ, không đặt giá trị mới. Lệch/ghi chú:
+  - Spec `shadow-raised`, `focus-ring`, `dur-fast`, `pq-fade`, `brand-100/700`, `wrong-600`, `ink-*` đều có sẵn. Màu bóng của tiêu đề dính (`rgba(20,23,28,.20)`) là giá trị trong Spec, không có token.
+  - Thêm một keyframe `pq-flash` vào `styles/index.css` cho hiệu ứng "tô kiểu focus rồi nhạt dần" của thẻ prompt (chưa có sẵn); giảm chuyển động thì tắt.
+  - Dòng tóm tắt "4 ngày · 12 prompt · 21 lệnh" của frame `default` không nằm trong phạm vi, chưa làm.
+  - Thẻ prompt bỏ icon trái, nền trắng như Spec; kiểu "focus" của thẻ vẫn là nền vàng nhạt sẵn có (Spec ghi dev dùng kiểu sẵn có).
+  - Ở cột hẹp tóm tắt xuống dòng; tiêu đề vẫn cao 44px (hai dòng vừa trong 44px).
+  - Chip "N sự kiện mới" tự biến mất khi sự kiện mới nhất vào khung nhìn (theo quy tắc theo dõi vòng 2).
 

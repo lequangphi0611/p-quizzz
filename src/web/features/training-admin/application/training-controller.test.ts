@@ -985,6 +985,18 @@ describe('TrainingController: day groups', () => {
     expect(open(ctrl)).toEqual([D22, D23, D24]);
   });
 
+  it('the chip of a day goes only through the events of that day, and opens it', async () => {
+    const { ctrl } = await opened(days(), [{ code: 'touches_tests', eventIds: [2, 3, 6] }]);
+    ctrl.jumpToFlag('touches_tests', D23);
+    expect(ctrl.getState().timeline?.focusId).toBe(3);
+    expect(open(ctrl)).toEqual([D23, D24]);
+    ctrl.jumpToFlag('touches_tests', D23);
+    expect(ctrl.getState().timeline?.focusId).toBe(3); // the only one of that day
+    const token = ctrl.getState().timeline!.focusToken;
+    ctrl.jumpToFlag('touches_tests', D25); // nothing of that flag on that day
+    expect(ctrl.getState().timeline?.focusToken).toBe(token);
+  });
+
   it('opening the detail of a turn opens its day', async () => {
     const { ctrl } = await opened(days());
     ctrl.openTurn('t4');

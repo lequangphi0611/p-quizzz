@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TrainingEventRow } from '../../../../shared/api/index.js';
-import { dayGroupSummary, dayGroupsOf, dayKeyOfEvent, dayKeyOfTurn, groupByDay, reconcileOpenDays, withDayOpen } from './day-groups.js';
+import { dayFlags, dayGroupSpoken, dayGroupsOf, dayKeyOfEvent, dayKeyOfTurn, groupByDay, reconcileOpenDays, withDayOpen } from './day-groups.js';
 import { buildTimeline } from './timeline.js';
 
 // Local-time moments, so the tests do not depend on the machine's time zone.
@@ -50,21 +50,21 @@ describe('groupByDay', () => {
     expect(groupsOf([])).toEqual([]);
   });
 
-  it('a Claude Code session that spans two days has its divider only in the day where it opens', () => {
+  it('a Claude Code session that spans two days is announced again at the top of the next day', () => {
     id = 0;
     const events = [
       ev('prompt', at(2026, 11, 23, 9), { claudeSessionId: 'A' }), ev('prompt', at(2026, 11, 23, 10), { claudeSessionId: 'B' }),
       ev('prompt', at(2026, 11, 24, 9), { claudeSessionId: 'B' }), ev('prompt', at(2026, 11, 24, 10), { claudeSessionId: 'A' }),
     ];
     const kinds = groupsOf(events).map(g => g.items.map(i => i.kind));
-    expect(kinds).toEqual([['turn', 'session', 'turn'], ['session', 'turn', 'session', 'turn']]);
+    expect(kinds).toEqual([['session', 'turn', 'session', 'turn'], ['session', 'turn', 'session', 'turn']]);
   });
 });
 
-describe('dayGroupSummary', () => {
-  it('writes the label with the counts, leaving out the failures at 0', () => {
-    expect(dayGroupSummary('Thứ Ba, 24/11/2026', { prompts: 5, commands: 12, failed: 2 })).toBe('Thứ Ba, 24/11/2026 · 5 prompt · 12 lệnh · 2 lỗi');
-    expect(dayGroupSummary('Thứ Ba, 24/11/2026', { prompts: 1, commands: 0, failed: 0 })).toBe('Thứ Ba, 24/11/2026 · 1 prompt · 0 lệnh');
+describe('dayGroupSpoken', () => {
+  it('says the counts, leaves the failures out at 0 and names today', () => {
+    expect(dayGroupSpoken('Thứ Ba, 24/11/2026', false, { prompts: 5, commands: 12, failed: 2 })).toBe('Thứ Ba, 24/11/2026, 5 prompt, 12 lệnh, 2 lỗi');
+    expect(dayGroupSpoken('Thứ Ba, 24/11/2026', true, { prompts: 1, commands: 0, failed: 0 })).toBe('Thứ Ba, 24/11/2026, hôm nay, 1 prompt, 0 lệnh');
   });
 });
 
@@ -98,5 +98,34 @@ describe('open and folded days', () => {
     expect(withDayOpen(['a'], 'b')).toEqual(['a', 'b']);
     expect(withDayOpen(['a'], 'a')).toEqual(['a']);
     expect(withDayOpen(['a'], null)).toEqual(['a']);
+  });
+});
+
+describe('dayFlags', () => {
+  const build = (stuck: boolean) => {
+    id = 0;
+    const events = [
+      ev('prompt', at(2026, 11, 23, 9)), ev('tool', at(2026, 11, 23, 9, 1), { ok: false, toolTarget: 'npm test' }), ev('tool', at(2026, 11, 23, 9, 2), { ok: false, toolTarget: 'npm test' }), ev('tool', at(2026, 11, 23, 9, 3), { ok: false, toolTarget: 'npm test' }),
+      ev('prompt', at(2026, 11, 24, 8)), ev('tool', at(2026, 11, 24, 8, 1)),
+    ];
+    return { events, groups: groupByDay(buildTimeline(events, { memberStuck: stuck })) };
+  };
+
+  it('gives each flag to the days its events fall on, counting only those events', () => {
+    const { groups } = build(false);
+    const flags = [{ code: 'repeated_failure' as const, ids: [2, 3, 4] }, { code: 'touches_tests' as const, ids: [3, 6] }];
+    const by = dayFlags(groups, flags, false);
+    expect(by.get('2026-11-23')).toEqual([{ code: 'repeated_failure', count: 3, stuck: false }, { code: 'touches_tests', count: 1, stuck: false }]);
+    expect(by.get('2026-11-24')).toEqual([{ code: 'touches_tests', count: 1, stuck: false }]);
+  });
+
+  it('shows the stuck chip instead of the repeated-failure flag, on the day of the run that is still going', () => {
+    id = 0;
+    const fail = (h: number, mi: number) => ev('tool', at(2026, 11, 24, h, mi), { ok: false, toolTarget: 'npm test' });
+    const events = [ev('prompt', at(2026, 11, 23, 9)), ev('tool', at(2026, 11, 23, 9, 1)), ev('prompt', at(2026, 11, 24, 8)), fail(8, 1), fail(8, 2), fail(8, 3)];
+    const groups = groupByDay(buildTimeline(events, { memberStuck: true }));
+    const by = dayFlags(groups, [{ code: 'repeated_failure', ids: [4, 5, 6] }], true);
+    expect(by.get('2026-11-24')).toEqual([{ code: 'repeated_failure', count: 3, stuck: true }]);
+    expect(by.get('2026-11-23')).toEqual([]);
   });
 });

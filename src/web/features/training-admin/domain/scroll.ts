@@ -10,3 +10,18 @@ export interface Span { top: number; bottom: number }
  */
 export const isLatestInView = (latest: Span, view: Span, threshold = FOLLOW_THRESHOLD_PX): boolean =>
   latest.bottom >= view.top - threshold && latest.top <= view.bottom + threshold;
+
+/** Where the newest event is relative to the viewport: the "N sự kiện mới" chip sits on the edge of that side. */
+export type LatestSide = 'above' | 'in' | 'below';
+
+export function latestSide(latest: Span, view: Span): LatestSide {
+  if (latest.bottom < view.top) return 'above';
+  if (latest.top > view.bottom) return 'below';
+  return 'in';
+}
+
+/**
+ * The `scrollTop` that keeps an anchor element where it was: it sat `before` pixels below the viewport top and now sits
+ * `after` pixels below it, so the content moved by the difference and the scroll position follows.
+ */
+export const keepAnchorScrollTop = (scrollTop: number, before: number, after: number): number => scrollTop + (after - before);

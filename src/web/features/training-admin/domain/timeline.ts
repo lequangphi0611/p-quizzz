@@ -19,7 +19,8 @@ export interface TimelineTool { event: TrainingEventRow; run: StuckRun | null }
 
 export type TimelineItem =
   | { kind: 'day'; key: string; dayKey: string; startedAt: number }
-  | { kind: 'session'; key: string; index: number; claudeSessionId: string; startedAt: number }
+  /** `continuedFrom` is set on the repeat of a session that runs past midnight: the moment its previous turn started, on an earlier day. */
+  | { kind: 'session'; key: string; index: number; claudeSessionId: string; startedAt: number; continuedFrom?: number }
   | { kind: 'turn'; key: string; prompt: TrainingEventRow | null; promptNumber: number | null; tools: TimelineTool[] };
 
 /** Marks every run of ≥ STUCK_REPEAT consecutive failures with the same target. Prompts between do not cut a run; a success does. */
@@ -56,13 +57,20 @@ export function buildTimeline(events: readonly TrainingEventRow[], opts: { membe
   let turn: Extract<TimelineItem, { kind: 'turn' }> | null = null;
   let pendingDivider: Extract<TimelineItem, { kind: 'session' }> | null = null;
   let lastDay: string | null = null;
+  let lastTurnAt: number | null = null; // when the previous turn of the current session started
   let promptNumber = 0;
   // A turn belongs to the day of its first event (its prompt), however late its commands run. The day strip goes before the
   // turn and before the session divider that opens it.
   const open = (e: TrainingEventRow, prompt: TrainingEventRow | null, number: number | null) => {
     const dayKey = dayKeyOf(e.receivedAt);
-    if (dayKey !== lastDay) { lastDay = dayKey; items.push({ kind: 'day', key: `d${dayKey}`, dayKey, startedAt: e.receivedAt }); }
+    const newDay = dayKey !== lastDay;
+    if (newDay) { lastDay = dayKey; items.push({ kind: 'day', key: `d${dayKey}`, dayKey, startedAt: e.receivedAt }); }
     if (pendingDivider) { items.push(pendingDivider); pendingDivider = null; }
+    // A session that runs past midnight is announced again at the top of the next day; its number stays the one of the whole training.
+    else if (newDay && dividers && lastTurnAt !== null && currentSession !== null) {
+      items.push({ kind: 'session', key: `s${e.id}c`, index: sessions.indexOf(currentSession) + 1, claudeSessionId: currentSession, startedAt: e.receivedAt, continuedFrom: lastTurnAt });
+    }
+    lastTurnAt = e.receivedAt;
     turn = { kind: 'turn', key: `t${e.id}`, prompt, promptNumber: number, tools: [] };
     items.push(turn);
   };
@@ -70,6 +78,7 @@ export function buildTimeline(events: readonly TrainingEventRow[], opts: { membe
     if (e.claudeSessionId !== currentSession) {
       currentSession = e.claudeSessionId;
       turn = null;
+      lastTurnAt = null;
       if (dividers) pendingDivider = { kind: 'session', key: `s${e.id}`, index: sessions.indexOf(currentSession) + 1, claudeSessionId: currentSession, startedAt: e.receivedAt };
     }
     if (e.kind === 'prompt') {

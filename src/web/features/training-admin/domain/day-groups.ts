@@ -1,6 +1,6 @@
 import type { TimelineItem } from './timeline.js';
 import { buildTimeline } from './timeline.js';
-import type { TrainingEventRow } from '../../../../shared/api/index.js';
+import type { FlagCode, TrainingEventRow } from '../../../../shared/api/index.js';
 
 export type TurnItem = Extract<TimelineItem, { kind: 'turn' }>;
 export type GroupItem = Exclude<TimelineItem, { kind: 'day' }>;
@@ -37,11 +37,6 @@ export function groupByDay(items: readonly TimelineItem[]): DayGroup[] {
   return groups.reverse();
 }
 
-/** `Thứ Ba, 24/11/2026 · 5 prompt · 12 lệnh · 2 lỗi` (the failure part is left out at 0): the header of a group. */
-export function dayGroupSummary(label: string, g: Pick<DayGroup, 'prompts' | 'commands' | 'failed'>): string {
-  return `${label} · ${g.prompts} prompt · ${g.commands} lệnh${g.failed > 0 ? ` · ${g.failed} lỗi` : ''}`;
-}
-
 /** The day groups of a member's events (oldest first), newest day first. */
 export const dayGroupsOf = (events: readonly TrainingEventRow[]): DayGroup[] => groupByDay(buildTimeline(events, { memberStuck: false }));
 
@@ -72,3 +67,37 @@ export function reconcileOpenDays(prev: OpenDays, dayKeys: readonly string[]): O
 /** The same days opened, plus `dayKey` (no change when it is already open or null). */
 export const withDayOpen = (open: readonly string[], dayKey: string | null): string[] =>
   dayKey === null || open.includes(dayKey) ? [...open] : [...open, dayKey];
+
+/** A chip on a folded day: a flag with the events behind it that fall on that day, or "có thể đang kẹt" (`stuck`, jumps like the repeated-failure flag). */
+export interface DayFlag { code: FlagCode; count: number; stuck: boolean }
+
+/**
+ * The flags of each day (by `dayKey`), from the events behind each flag: a flag belongs to the days its events fall on. While the
+ * member is stuck, the "repeated failure" flag gives way to the stuck chip, which sits on the day of the run that is still going.
+ */
+export function dayFlags(groups: readonly DayGroup[], flags: readonly { code: FlagCode; ids: readonly number[] }[], stuck: boolean): Map<string, DayFlag[]> {
+  const out = new Map<string, DayFlag[]>();
+  for (const g of groups) {
+    const ids = new Set<number>();
+    let activeRun = false;
+    for (const item of g.items) {
+      if (item.kind !== 'turn') continue;
+      if (item.prompt) ids.add(item.prompt.id);
+      for (const t of item.tools) { ids.add(t.event.id); if (t.run?.active) activeRun = true; }
+    }
+    const list: DayFlag[] = [];
+    for (const f of flags) {
+      const count = f.ids.filter(id => ids.has(id)).length;
+      if (count === 0) continue;
+      if (f.code === 'repeated_failure' && stuck) { if (activeRun) list.push({ code: f.code, count, stuck: true }); continue; }
+      list.push({ code: f.code, count, stuck: false });
+    }
+    out.set(g.dayKey, list);
+  }
+  return out;
+}
+
+/** `Thứ Hai, 23/11/2026, 4 prompt, 9 lệnh, 3 lỗi`: what a screen reader says for a day header (the failure part is left out at 0). */
+export function dayGroupSpoken(label: string, today: boolean, g: Pick<DayGroup, 'prompts' | 'commands' | 'failed'>): string {
+  return `${label}${today ? ', hôm nay' : ''}, ${g.prompts} prompt, ${g.commands} lệnh${g.failed > 0 ? `, ${g.failed} lỗi` : ''}`;
+}

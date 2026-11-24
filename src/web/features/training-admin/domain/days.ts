@@ -26,3 +26,6 @@ export function dayAndClock(ms: number): string {
   const d = new Date(ms);
   return `${dayMonth(ms)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+
+/** Whether the day `dayKey` is the local day of `nowMs` (the mentor's machine). */
+export const isToday = (dayKey: string, nowMs: number): boolean => dayKeyOf(nowMs) === dayKey;

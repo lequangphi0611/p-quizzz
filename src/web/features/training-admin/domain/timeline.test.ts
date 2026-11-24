@@ -155,4 +155,17 @@ describe('buildTimeline: days (PRODUCT.md §7.37)', () => {
     const items = buildTimeline([p('a', at(23, 9), 'A'), p('b', at(24, 9), 'B')], { memberStuck: false });
     expect(shape(items)).toEqual(['day 2026-11-23', 'session 1', 'turn 1', 'day 2026-11-24', 'session 2', 'turn 2']);
   });
+
+  it('repeats a session that runs past midnight at the top of the next day, with the same number', () => {
+    id = 0;
+    const items = buildTimeline([p('a', at(23, 9), 'A'), p('b', at(23, 10), 'B'), p('c', at(24, 9), 'B'), p('d', at(25, 9), 'B')], { memberStuck: false });
+    expect(shape(items)).toEqual(['day 2026-11-23', 'session 1', 'turn 1', 'session 2', 'turn 2', 'day 2026-11-24', 'session 2', 'turn 3', 'day 2026-11-25', 'session 2', 'turn 4']);
+    const repeats = items.filter((i): i is Extract<TimelineItem, { kind: 'session' }> => i.kind === 'session' && i.continuedFrom !== undefined);
+    expect(repeats.map(r => r.continuedFrom)).toEqual([at(23, 10), at(24, 9)]);
+  });
+
+  it('does not repeat a session when there is only one, nor when a new session opens on the new day', () => {
+    id = 0;
+    expect(shape(buildTimeline([p('a', at(23, 9)), p('b', at(24, 9))], { memberStuck: false }))).toEqual(['day 2026-11-23', 'turn 1', 'day 2026-11-24', 'turn 2']);
+  });
 });
