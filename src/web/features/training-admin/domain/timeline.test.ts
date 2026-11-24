@@ -14,7 +14,7 @@ describe('buildTimeline', () => {
     id = 0;
     const events = [prompt('một'), tool('Read', 'a.ts', true), tool('Bash', 'npm test', false), prompt('hai'), tool('Edit', 'a.ts', true)];
     const items = buildTimeline(events, { memberStuck: false });
-    expect(items.map(i => i.kind)).toEqual(['turn', 'turn']);
+    expect(items.map(i => i.kind)).toEqual(['day', 'turn', 'turn']);
     expect(turns(items).map(t => [t.promptNumber, t.prompt?.prompt, t.tools.length])).toEqual([[1, 'một', 2], [2, 'hai', 1]]);
   });
 
@@ -31,7 +31,7 @@ describe('buildTimeline', () => {
 
     id = 0;
     const many = buildTimeline([prompt('a', 'A'), tool('Bash', 'ls', true, {}, 'A'), tool('Bash', 'pwd', true, {}, 'B'), prompt('b', 'B'), prompt('c', 'A')], { memberStuck: false });
-    expect(many.map(i => (i.kind === 'session' ? `session ${i.index}` : 'turn'))).toEqual(['session 1', 'turn', 'session 2', 'turn', 'turn', 'session 1', 'turn']);
+    expect(many.filter(i => i.kind !== 'day').map(i => (i.kind === 'session' ? `session ${i.index}` : 'turn'))).toEqual(['session 1', 'turn', 'session 2', 'turn', 'turn', 'session 1', 'turn']);
     // commands of the new session never stay in the previous session's turn
     expect(turns(many)[1]!.prompt).toBeNull();
   });
@@ -120,5 +120,39 @@ describe('finding the turn of an event', () => {
     expect(turnKeyOf(events, a.id)).toBe(`t${a.id}`);
     expect(turnKeyOf(events, t2.id)).toBe(`t${b.id}`);
     expect(turnKeyOf(events, 9999)).toBeNull();
+  });
+});
+
+describe('buildTimeline: days (PRODUCT.md §7.36)', () => {
+  const at = (d: number, h: number, mi = 0) => new Date(2026, 10, d, h, mi).getTime();
+  const p = (text: string, receivedAt: number, session = 's1'): TrainingEventRow => ({ ...prompt(text, session), receivedAt });
+  const t = (receivedAt: number, session = 's1'): TrainingEventRow => ({ ...tool('Bash', 'ls', true, {}, session), receivedAt });
+  const shape = (items: TimelineItem[]) => items.map(i => (i.kind === 'day' ? `day ${i.dayKey}` : i.kind === 'session' ? `session ${i.index}` : `turn ${i.promptNumber}`));
+
+  it('puts one day strip before the first item of each day, also for the first day and for a single day', () => {
+    id = 0;
+    expect(shape(buildTimeline([p('a', at(23, 9)), p('b', at(23, 10))], { memberStuck: false }))).toEqual(['day 2026-11-23', 'turn 1', 'turn 2']);
+    id = 0;
+    expect(shape(buildTimeline([p('a', at(23, 9)), p('b', at(24, 10)), p('c', at(24, 11)), p('d', at(26, 8))], { memberStuck: false })))
+      .toEqual(['day 2026-11-23', 'turn 1', 'day 2026-11-24', 'turn 2', 'turn 3', 'day 2026-11-26', 'turn 4']);
+  });
+
+  it('keeps a turn whole under the day of its prompt when a command runs after midnight', () => {
+    id = 0;
+    const items = buildTimeline([p('late', at(23, 23, 58)), t(at(24, 0, 3)), p('next', at(24, 9))], { memberStuck: false });
+    expect(shape(items)).toEqual(['day 2026-11-23', 'turn 1', 'day 2026-11-24', 'turn 2']);
+    expect(turns(items)[0]!.tools).toHaveLength(1);
+  });
+
+  it('dates the "before the first prompt" turn by its first event', () => {
+    id = 0;
+    const items = buildTimeline([t(at(23, 8)), p('x', at(24, 9))], { memberStuck: false });
+    expect(shape(items)).toEqual(['day 2026-11-23', 'turn null', 'day 2026-11-24', 'turn 1']);
+  });
+
+  it('puts the day strip before the session divider that falls in the same place', () => {
+    id = 0;
+    const items = buildTimeline([p('a', at(23, 9), 'A'), p('b', at(24, 9), 'B')], { memberStuck: false });
+    expect(shape(items)).toEqual(['day 2026-11-23', 'session 1', 'turn 1', 'day 2026-11-24', 'session 2', 'turn 2']);
   });
 });

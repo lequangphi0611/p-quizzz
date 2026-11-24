@@ -1,4 +1,5 @@
 import type { TrainingEventRow } from '../../../../shared/api/index.js';
+import { dayKeyOf } from './days.js';
 
 /** The same failing command this many times in a row is flagged (mirrors the server's `STUCK_REPEAT`, PRODUCT.md §7.34). */
 export const STUCK_REPEAT = 3;
@@ -17,6 +18,7 @@ export interface StuckRun {
 export interface TimelineTool { event: TrainingEventRow; run: StuckRun | null }
 
 export type TimelineItem =
+  | { kind: 'day'; key: string; dayKey: string; startedAt: number }
   | { kind: 'session'; key: string; index: number; claudeSessionId: string; startedAt: number }
   | { kind: 'turn'; key: string; prompt: TrainingEventRow | null; promptNumber: number | null; tools: TimelineTool[] };
 
@@ -52,20 +54,30 @@ export function buildTimeline(events: readonly TrainingEventRow[], opts: { membe
   const items: TimelineItem[] = [];
   let currentSession: string | null = null;
   let turn: Extract<TimelineItem, { kind: 'turn' }> | null = null;
+  let pendingDivider: Extract<TimelineItem, { kind: 'session' }> | null = null;
+  let lastDay: string | null = null;
   let promptNumber = 0;
+  // A turn belongs to the day of its first event (its prompt), however late its commands run. The day strip goes before the
+  // turn and before the session divider that opens it.
+  const open = (e: TrainingEventRow, prompt: TrainingEventRow | null, number: number | null) => {
+    const dayKey = dayKeyOf(e.receivedAt);
+    if (dayKey !== lastDay) { lastDay = dayKey; items.push({ kind: 'day', key: `d${dayKey}`, dayKey, startedAt: e.receivedAt }); }
+    if (pendingDivider) { items.push(pendingDivider); pendingDivider = null; }
+    turn = { kind: 'turn', key: `t${e.id}`, prompt, promptNumber: number, tools: [] };
+    items.push(turn);
+  };
   for (const e of events) {
     if (e.claudeSessionId !== currentSession) {
       currentSession = e.claudeSessionId;
       turn = null;
-      if (dividers) items.push({ kind: 'session', key: `s${e.id}`, index: sessions.indexOf(currentSession) + 1, claudeSessionId: currentSession, startedAt: e.receivedAt });
+      if (dividers) pendingDivider = { kind: 'session', key: `s${e.id}`, index: sessions.indexOf(currentSession) + 1, claudeSessionId: currentSession, startedAt: e.receivedAt };
     }
     if (e.kind === 'prompt') {
       promptNumber++;
-      turn = { kind: 'turn', key: `t${e.id}`, prompt: e, promptNumber, tools: [] };
-      items.push(turn);
+      open(e, e, promptNumber);
     } else {
-      if (!turn) { turn = { kind: 'turn', key: `t${e.id}`, prompt: null, promptNumber: null, tools: [] }; items.push(turn); }
-      turn.tools.push({ event: e, run: marks.get(e.id) ?? null });
+      if (!turn) open(e, null, null);
+      turn!.tools.push({ event: e, run: marks.get(e.id) ?? null });
     }
   }
   return items;

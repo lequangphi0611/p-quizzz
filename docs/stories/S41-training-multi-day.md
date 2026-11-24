@@ -1,6 +1,6 @@
 # S41: Training nhiều ngày: hiện ngày và nhảy tới ngày trên dòng thời gian
 
-**Phụ thuộc:** S35, S39, S40 · **Trạng thái:** ⏳ chưa làm
+**Phụ thuộc:** S35, S39, S40 · **Trạng thái:** ✅ xong (2026-11-24)
 
 ## Bối cảnh
 Một buổi training kéo dài nhiều ngày và thu cả ngoài giờ học. Dòng thời gian của mentor chỉ hiện giờ:phút nên không biết prompt nào của ngày nào. Business: [PRODUCT.md §7.36](../PRODUCT.md) (a)–(e).
@@ -35,16 +35,16 @@ Một buổi training kéo dài nhiều ngày và thu cả ngoài giờ học. D
 - Đổi cách phân trang hay API dòng thời gian.
 
 ## Acceptance criteria
-- [ ] Dòng thời gian của sự kiện trải trên 2 ngày trở lên có đúng một dải ngày cho mỗi ngày, theo thứ tự thời gian, có dải trước mục đầu tiên. Dòng thời gian chỉ có một ngày cũng có một dải.
-- [ ] Prompt lúc 23:58 có lệnh chạy lúc 00:03 hôm sau: cả lượt nằm dưới ngày của prompt. Dải ngày hôm sau chỉ xuất hiện trước lượt kế tiếp.
-- [ ] Nhãn ngày đúng thứ tiếng Việt, kể cả Chủ Nhật, và đúng định dạng `dd/mm/yyyy` (có số 0 đứng đầu).
-- [ ] Dải phiên Claude Code thêm `dd/mm` khi khác ngày với dải ngày ngay trên nó.
-- [ ] Ô "Đi tới ngày" chỉ hiện khi có ≥ 2 ngày. Liệt kê ngày mới nhất trước, kèm số prompt đúng. Chọn một ngày thì dải ngày đó vào khung nhìn.
-- [ ] Ô chọn ngày bị ẩn khi nội dung đang ẩn. Không có nội dung prompt nào lọt ra khi ẩn.
-- [ ] Ô chi tiết lệnh hiện ngày kèm giờ của prompt.
-- [ ] Báo cáo Markdown ghi `dd/mm HH:MM` cho mọi mốc giờ.
-- [ ] Màn đồng ý của member có mục mới về nhiều ngày / ngoài giờ học.
-- [ ] Không đổi API, schema, event. `npm run typecheck`, `npm test` (gồm `arch:check`) pass.
+- [x] Dòng thời gian của sự kiện trải trên 2 ngày trở lên có đúng một dải ngày cho mỗi ngày, theo thứ tự thời gian, có dải trước mục đầu tiên. Dòng thời gian chỉ có một ngày cũng có một dải.
+- [x] Prompt lúc 23:58 có lệnh chạy lúc 00:03 hôm sau: cả lượt nằm dưới ngày của prompt. Dải ngày hôm sau chỉ xuất hiện trước lượt kế tiếp.
+- [x] Nhãn ngày đúng thứ tiếng Việt, kể cả Chủ Nhật, và đúng định dạng `dd/mm/yyyy` (có số 0 đứng đầu).
+- [x] Dải phiên Claude Code thêm `dd/mm` khi khác ngày với dải ngày ngay trên nó.
+- [x] Ô "Đi tới ngày" chỉ hiện khi có ≥ 2 ngày. Liệt kê ngày mới nhất trước, kèm số prompt đúng. Chọn một ngày thì dải ngày đó vào khung nhìn.
+- [x] Ô chọn ngày bị ẩn khi nội dung đang ẩn. Không có nội dung prompt nào lọt ra khi ẩn.
+- [x] Ô chi tiết lệnh hiện ngày kèm giờ của prompt.
+- [x] Báo cáo Markdown ghi `dd/mm HH:MM` cho mọi mốc giờ.
+- [x] Màn đồng ý của member có mục mới về nhiều ngày / ngoài giờ học.
+- [x] Không đổi API, schema, event. `npm run typecheck`, `npm test` (gồm `arch:check`) pass.
 
 ## Test
 - Domain web: `days.test.ts` (khoá ngày, nhãn, Chủ Nhật, số 0 đứng đầu, đếm prompt theo ngày, thứ tự mới nhất trước). `timeline.test.ts` thêm các ca: nhiều ngày, qua nửa đêm trong một lượt, dải ngày đứng trước dải phiên, lượt "Trước prompt đầu tiên". Dựng mốc thời gian bằng `new Date(y, m, d, h, min)` (giờ địa phương) để test không phụ thuộc múi giờ máy chạy.
@@ -56,3 +56,11 @@ Một buổi training kéo dài nhiều ngày và thu cả ngoài giờ học. D
 
 ## Module bị chạm
 `src/web/features/training-admin/{domain,ui}`, `src/web/features/training-member/domain/consent-copy.ts`, `src/server/domain/training/report.ts`, test tương ứng, `e2e/`.
+
+## Đã làm (ghi chú)
+- `domain/days.ts` (khoá ngày, nhãn đầy đủ/ngắn, `dayAndClock`, `listDays`). Ngày của một lượt là ngày của sự kiện đầu lượt; `listDays` theo cùng quy tắc nên số prompt khớp với dải ngày.
+- `buildTimeline` chèn dải ngày trước lượt đầu của mỗi ngày và trước dải phiên mở cùng lượt đó (dải phiên được giữ lại đến khi lượt mở).
+- Dải phiên ghi `dd/mm` khi khác ngày với dải ngày gần nhất phía trên. Ô "Đi tới ngày" là `<select>` (shared/ui chưa có Select), đặt dưới đầu dòng thời gian, có placeholder "Chọn ngày…"; chọn xong chỉ cuộn.
+- Báo cáo: `stamp` thành `dd/mm HH:MM`; dòng "Xuất lúc" giữ `dd/mm/yyyy HH:MM`.
+- Màn đồng ý: thêm mục "Buổi có thể kéo dài nhiều ngày." (icon `calendar`) trước mục xoá dữ liệu.
+- E2E `e2e/s41-training-multi-day.spec.ts`: server luôn ghi `receivedAt` là giờ nhận và `page.clock` không đổi được dữ liệu đó, nên spec dịch `receivedAt` trong câu trả lời của `/members/:id/events` bằng `page.route`. Phủ: 3 dải ngày, ô chọn (thứ tự, số prompt, cuộn), ngày trong ô chi tiết, ẩn nội dung, màn đồng ý. Ảnh: `docs/design/S41-assets/`.

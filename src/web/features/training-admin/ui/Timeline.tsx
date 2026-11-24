@@ -12,6 +12,7 @@ import { evidenceOf, visibleFlags } from '../domain/flags.js';
 import { decisionText, isAutoMode, modeLabel, noteLines, noticeTitle, sessionTitle } from '../domain/row-text.js';
 import { isNearBottom } from '../domain/scroll.js';
 import { toolLabel } from '../domain/tool-label.js';
+import { dayElementId, dayLabel, dayKeyOf, dayMonth, listDays } from '../domain/days.js';
 import { buildTimeline, type TimelineItem, type TimelineTool } from '../domain/timeline.js';
 import { ConnectionChip, FlagChip, StuckChip, ToolName, visuallyHidden } from './chips.js';
 import { MarkButton } from './TimelineRows.js';
@@ -19,12 +20,41 @@ import { NoteBox } from './NoteBox.js';
 
 const mono = 'var(--font-mono)';
 
-function SessionDivider({ index, startedAt }: { index: number; startedAt: number }) {
+/** The day strip: the full date, so a prompt of another day is never taken for today's. */
+function DayDivider({ dayKey, startedAt }: { dayKey: string; startedAt: number }) {
+  const label = dayLabel(startedAt);
+  return (
+    <div id={dayElementId(dayKey)} role="separator" aria-label={label} style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '6px 0 2px', scrollMarginTop: 6 }}>
+      <span style={{ flex: 1, height: 1, background: 'var(--brand-200)' }} />
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '2px 10px', borderRadius: 'var(--radius-pill)', background: 'var(--brand-050)', border: '1px solid var(--brand-200)', font: 'var(--type-label)', fontSize: 12.5, color: 'var(--brand-700)', whiteSpace: 'nowrap' }}>
+        <Icon name="calendar" size={13} />{label}
+      </span>
+      <span style={{ flex: 1, height: 1, background: 'var(--brand-200)' }} />
+    </div>
+  );
+}
+
+const pickerStyle = { height: 30, padding: '0 8px', font: 'var(--type-meta)', fontSize: 13, color: 'var(--text-title)', background: 'var(--paper)', border: '1.5px solid var(--border-strong)', borderRadius: 'var(--radius-md)' } as const;
+
+/** "Đi tới ngày": scrolls to a day strip. It filters nothing. */
+function DayPicker({ days }: { days: ReturnType<typeof listDays> }) {
+  return (
+    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, font: 'var(--type-meta)', fontSize: 13, color: 'var(--text-meta)' }}>
+      Đi tới ngày
+      <select value="" onChange={e => { if (e.target.value) document.getElementById(dayElementId(e.target.value))?.scrollIntoView({ block: 'start' }); }} style={pickerStyle}>
+        <option value="">Chọn ngày…</option>
+        {days.map(d => <option key={d.dayKey} value={d.dayKey}>{d.label} · {d.prompts} prompt</option>)}
+      </select>
+    </label>
+  );
+}
+
+function SessionDivider({ index, startedAt, sameDay }: { index: number; startedAt: number; sameDay: boolean }) {
   return (
     <div role="separator" aria-label={`Phiên Claude Code ${index}`} style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0' }}>
       <span style={{ flex: 1, height: 1, background: 'var(--ink-300)' }} />
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, font: 'var(--type-label)', color: 'var(--text-meta)', textTransform: 'uppercase', letterSpacing: 'var(--tracking-label)' }}>
-        <Icon name="play" size={12} />Phiên Claude Code {index} · mở lúc {formatClock(startedAt)}
+        <Icon name="play" size={12} />Phiên Claude Code {index} · mở lúc {sameDay ? '' : `${dayMonth(startedAt)} `}{formatClock(startedAt)}
       </span>
       <span style={{ flex: 1, height: 1, background: 'var(--ink-300)' }} />
     </div>
@@ -75,6 +105,8 @@ export function Timeline({ member, timeline, panel, hidden, markError, ctrl, can
   const [noteOpen, setNoteOpen] = useState(false);
   const onMark = (id: number) => void ctrl.toggleMark(id);
   const items: TimelineItem[] = hidden ? [] : buildTimeline(timeline.events, { memberStuck: member.stuck });
+  const days = hidden || timeline.phase === 'loading' || timeline.phase === 'error' ? [] : listDays(timeline.events);
+  let shownDay = '';
   const flags = timeline.flags.filter(f => visibleFlags({ flags: [f.code], stuck: member.stuck }).length > 0).map(f => ({ code: f.code, ids: evidenceOf(f, timeline.events) })).filter(f => f.ids.length > 0);
 
   // Follow the end when the controller says so (first load, or new lines while the mentor is at the end).
@@ -119,6 +151,7 @@ export function Timeline({ member, timeline, panel, hidden, markError, ctrl, can
           )}
         </div>
       </div>
+      {days.length >= 2 && <div style={{ padding: '6px 14px', borderBottom: '1px solid var(--border-hairline)' }}><DayPicker days={days} /></div>}
       {!hidden && noteOpen && canRemove && <NoteBox key={member.id} member={member} onSave={note => ctrl.saveNote(member.id, note)} />}
       {markError && !hidden && <div role="alert" style={{ padding: '8px 16px', background: 'var(--wrong-surface)', color: 'var(--wrong-600)', font: 'var(--type-meta)', fontWeight: 600 }}>{markError}</div>}
 
@@ -143,7 +176,8 @@ export function Timeline({ member, timeline, panel, hidden, markError, ctrl, can
         ) : (
           <>
             {items.map(item => {
-              if (item.kind === 'session') return <SessionDivider key={item.key} index={item.index} startedAt={item.startedAt} />;
+              if (item.kind === 'day') { shownDay = item.dayKey; return <DayDivider key={item.key} dayKey={item.dayKey} startedAt={item.startedAt} />; }
+              if (item.kind === 'session') return <SessionDivider key={item.key} index={item.index} startedAt={item.startedAt} sameDay={dayKeyOf(item.startedAt) === shownDay} />;
               const shown = item.tools.filter(t => t.event.kind === 'tool');
               const detail: Detail | null = item.tools.length > 0 ? { commands: shown.length, failed: shown.filter(t => t.event.ok === false).length, onOpen: () => ctrl.openTurn(item.key) } : null;
               return <PromptBlock key={item.key} event={item.prompt} number={item.promptNumber} focused={item.prompt !== null && timeline.focusId === item.prompt.id} onMark={onMark} detail={detail} />;

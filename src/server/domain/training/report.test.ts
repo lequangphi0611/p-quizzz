@@ -49,8 +49,14 @@ describe('buildReport', () => {
     expect(text).toContain('12 prompt · 30 lệnh (3 lỗi) · /clear 1 · nén 0 · xin quyền 4');
     expect(text).toContain(`Cờ gợi ý: ${FLAG_LABELS.touches_tests}`);
     expect(text).toContain('> Cần nhắc chạy test\n> sau mỗi lần sửa');
-    expect(text).toContain('1. 14:03 · Prompt\n   > Sửa lỗi giúp mình');
-    expect(text).toContain('2. 14:09 · Bash `npm test` · lỗi');
+    expect(text).toContain('1. 21/11 14:03 · Prompt\n   > Sửa lỗi giúp mình');
+    expect(text).toContain('2. 21/11 14:09 · Bash `npm test` · lỗi');
+  });
+
+  it('writes every example time as dd/mm HH:MM, with leading zeros, so a multi-day training is readable', () => {
+    const early = { ...prompt('x'), at: new Date(2026, 0, 5, 7, 4) };
+    const text = buildReport({ trainingName: 'B', exportedAt, members: [member({ examples: [early] })] });
+    expect(text).toContain('1. 05/01 07:04 · Prompt');
   });
 
   it('marks a member who stopped sending', () => {
