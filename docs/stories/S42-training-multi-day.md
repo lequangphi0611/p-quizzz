@@ -1,9 +1,9 @@
-# S41: Training nhiều ngày: nhóm theo ngày trên dòng thời gian
+# S42: Training nhiều ngày: nhóm theo ngày trên dòng thời gian
 
 **Phụ thuộc:** S35, S39, S40 · **Trạng thái:** ⏳ vòng 2 (PO đổi cách hiển thị ngày, 2026-11-24)
 
 ## Bối cảnh
-Một buổi training kéo dài nhiều ngày và thu cả ngoài giờ học. Dòng thời gian của mentor chỉ hiện giờ:phút nên không biết prompt nào của ngày nào. Business: [PRODUCT.md §7.36](../PRODUCT.md) (a)–(e).
+Một buổi training kéo dài nhiều ngày và thu cả ngoài giờ học. Dòng thời gian của mentor chỉ hiện giờ:phút nên không biết prompt nào của ngày nào. Business: [PRODUCT.md §7.37](../PRODUCT.md) (a)–(e).
 
 ## Phạm vi
 **Không đổi contract** (`architecture.md`): không đổi API, schema hay event. Toàn bộ dữ liệu cần đã có (`TrainingEventRow.receivedAt`). Ngày tính theo giờ địa phương của trình duyệt (web) và của tiến trình server (báo cáo); cả hai chạy trên máy mentor.
@@ -52,7 +52,7 @@ Một buổi training kéo dài nhiều ngày và thu cả ngoài giờ học. D
 - E2E: mở rộng `e2e/training-admin.spec.ts` (hoặc file mới `e2e/training-multi-day.spec.ts`).
   - Server luôn ghi `receivedAt` là thời điểm nhận, nên để có sự kiện của ngày cũ, hãy giả lập đồng hồ trình duyệt bằng `page.clock` nếu đủ. Nếu không đủ thì ghi rõ trong báo cáo rằng phần nhiều ngày chỉ được phủ bằng unit test.
   - Tối thiểu: có dải ngày, có ngày trong ô chi tiết lệnh, màn đồng ý có mục mới.
-  - Ảnh chụp vào `docs/design/S41-assets/`.
+  - Ảnh chụp vào `docs/design/S42-assets/`.
 
 ## Module bị chạm
 `src/web/features/training-admin/{domain,ui}`, `src/web/features/training-member/domain/consent-copy.ts`, `src/server/domain/training/report.ts`, test tương ứng, `e2e/`.
@@ -63,10 +63,10 @@ Một buổi training kéo dài nhiều ngày và thu cả ngoài giờ học. D
 - Ô "Đi tới ngày" là `<select>` (shared/ui chưa có Select), đặt dưới đầu dòng thời gian, có placeholder "Chọn ngày…"; chọn xong chỉ cuộn.
 - Báo cáo: `stamp` thành `dd/mm HH:MM`; dòng "Xuất lúc" giữ `dd/mm/yyyy HH:MM`.
 - Màn đồng ý: thêm mục "Buổi có thể kéo dài nhiều ngày." (icon `calendar`) trước mục xoá dữ liệu.
-- E2E `e2e/training-multi-day.spec.ts` (tên bắt đầu bằng `training-` để chạy sau `training-admin.spec.ts`, vì các spec dùng chung một server): server luôn ghi `receivedAt` là giờ nhận và `page.clock` không đổi được dữ liệu đó, nên spec dịch `receivedAt` trong câu trả lời của `/members/:id/events` bằng `page.route`. Phủ: 3 dải ngày, ô chọn (thứ tự, số prompt, cuộn), ngày trong ô chi tiết, ẩn nội dung, màn đồng ý. Ảnh: `docs/design/S41-assets/`.
+- E2E `e2e/training-multi-day.spec.ts` (tên bắt đầu bằng `training-` để chạy sau `training-admin.spec.ts`, vì các spec dùng chung một server): server luôn ghi `receivedAt` là giờ nhận và `page.clock` không đổi được dữ liệu đó, nên spec dịch `receivedAt` trong câu trả lời của `/members/:id/events` bằng `page.route`. Phủ: 3 dải ngày, ô chọn (thứ tự, số prompt, cuộn), ngày trong ô chi tiết, ẩn nội dung, màn đồng ý. Ảnh: `docs/design/S42-assets/`.
 
 ## Vòng 2: nhóm theo ngày, ngày mới nhất ở trên, thu gọn (PO đổi 2026-11-24)
-PO xem ảnh vòng 1 và đổi cách hiển thị. Business: [PRODUCT.md §7.36](../PRODUCT.md) (a), (b), (e) bản mới. Phần báo cáo Markdown, ô chi tiết lệnh có ngày và màn đồng ý của vòng 1 **giữ nguyên**. Vẫn **không đổi contract**.
+PO xem ảnh vòng 1 và đổi cách hiển thị. Business: [PRODUCT.md §7.37](../PRODUCT.md) (a), (b), (e) bản mới. Phần báo cáo Markdown, ô chi tiết lệnh có ngày và màn đồng ý của vòng 1 **giữ nguyên**. Vẫn **không đổi contract**.
 
 ### Phạm vi
 - **Nhóm theo ngày:** dòng thời gian thành danh sách nhóm ngày, **ngày mới nhất ở trên**. Trong một nhóm, các lượt và dải phiên Claude Code giữ thứ tự **cũ → mới** như hiện nay, cùng quy tắc ngày của vòng 1 (lượt thuộc ngày của prompt; lệnh sau 0 giờ không tách lượt; lượt "Trước prompt đầu tiên" theo ngày của sự kiện đầu). Cách làm gợi ý: domain thuần gom kết quả `buildTimeline` (hoặc thay `kind: 'day'`) thành `DayGroup[] = { dayKey, startedAt, items, prompts, commands, failed }`, mới nhất trước; số lệnh và số lỗi đếm như `Detail` hiện có (chỉ sự kiện `kind === 'tool'`). Số prompt và các dải ngày phải đến từ **cùng một** phép gom, không tính hai nơi.
@@ -78,7 +78,7 @@ PO xem ảnh vòng 1 và đổi cách hiển thị. Business: [PRODUCT.md §7.36
 - **"Tải thêm"** (sự kiện mới hơn giới hạn đã tải) chuyển lên **trên cùng**, trên nhóm ngày mới nhất, ghi "Còn sự kiện mới hơn chưa tải".
 - **Bỏ ô "Đi tới ngày"** cùng `listDays` và mọi code chỉ dùng cho nó (giữ hàm nhãn nào còn dùng).
 - **Ẩn nội dung (H):** không hiện tiêu đề ngày, tóm tắt hay nút mở/thu (như phần còn lại của dòng thời gian khi ẩn).
-- **Ảnh** `docs/design/S41-assets/` **chụp lại toàn bộ**, thay các ảnh cũ. Dữ liệu ảnh phải có **giờ khác nhau** giữa các prompt (không phải cùng một giờ ở mọi ngày) và có một lượt qua nửa đêm. Gồm: (1) mặc định nhiều ngày: ngày mới nhất mở, các ngày khác thu gọn; (2) sau "Mở tất cả"; (3) ô chi tiết lệnh có ngày; (4) màn đồng ý của member với **mục "Buổi có thể kéo dài nhiều ngày" nằm trong ảnh** (chụp phần tử hoặc cuộn tới); (5) khung hẹp ~800px.
+- **Ảnh** `docs/design/S42-assets/` **chụp lại toàn bộ**, thay các ảnh cũ. Dữ liệu ảnh phải có **giờ khác nhau** giữa các prompt (không phải cùng một giờ ở mọi ngày) và có một lượt qua nửa đêm. Gồm: (1) mặc định nhiều ngày: ngày mới nhất mở, các ngày khác thu gọn; (2) sau "Mở tất cả"; (3) ô chi tiết lệnh có ngày; (4) màn đồng ý của member với **mục "Buổi có thể kéo dài nhiều ngày" nằm trong ảnh** (chụp phần tử hoặc cuộn tới); (5) khung hẹp ~800px.
 
 ### Acceptance criteria (vòng 2)
 - [ ] Nhóm ngày xếp mới nhất trước; trong nhóm, lượt xếp cũ → mới. Lượt qua nửa đêm nằm trọn trong nhóm ngày của prompt.
@@ -92,7 +92,7 @@ PO xem ảnh vòng 1 và đổi cách hiển thị. Business: [PRODUCT.md §7.36
 - [ ] "Tải thêm" nằm trên cùng khi còn sự kiện chưa tải.
 - [ ] Không còn ô "Đi tới ngày" và code thừa của nó.
 - [ ] Ẩn nội dung thì không lộ prompt, tiêu đề ngày hay tóm tắt.
-- [ ] Ảnh `docs/design/S41-assets/` được chụp lại theo danh sách trên; ảnh cũ không còn dùng thì xoá.
+- [ ] Ảnh `docs/design/S42-assets/` được chụp lại theo danh sách trên; ảnh cũ không còn dùng thì xoá.
 - [ ] Không đổi API, schema, event. `npm run typecheck`, `npm test` pass; toàn bộ `npm run e2e` không có lỗi mới (lỗi có sẵn `s26-ai-grading` khi chạy cả bộ đã biết, xem PR #45).
 
 ### Test (vòng 2)

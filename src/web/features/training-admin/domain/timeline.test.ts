@@ -123,7 +123,7 @@ describe('finding the turn of an event', () => {
   });
 });
 
-describe('buildTimeline: days (PRODUCT.md §7.36)', () => {
+describe('buildTimeline: days (PRODUCT.md §7.37)', () => {
   const at = (d: number, h: number, mi = 0) => new Date(2026, 10, d, h, mi).getTime();
   const p = (text: string, receivedAt: number, session = 's1'): TrainingEventRow => ({ ...prompt(text, session), receivedAt });
   const t = (receivedAt: number, session = 's1'): TrainingEventRow => ({ ...tool('Bash', 'ls', true, {}, session), receivedAt });

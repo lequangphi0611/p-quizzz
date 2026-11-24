@@ -2,7 +2,7 @@ import { type APIRequestContext, expect, request, test } from '@playwright/test'
 import type { TrainingEventsPage } from '../src/shared/api/index.js';
 import { DESKTOP, memberContext, mentorContext, shotPath } from './helpers';
 
-// S41: a training that runs for several days (PRODUCT.md §7.36). The server always stamps `receivedAt` with the time it
+// S42: a training that runs for several days (PRODUCT.md §7.37). The server always stamps `receivedAt` with the time it
 // received an event, so the older days are made by moving the timestamps in the events answer the browser gets. The day
 // logic itself is covered by unit tests; this checks it is wired to the screen.
 const DAY = 24 * 3600_000;
@@ -53,7 +53,7 @@ test('mentor sees the day of every prompt and can jump to a day', async ({ brows
   const labels = await strips.evaluateAll(els => els.map(e => e.getAttribute('aria-label')));
   expect(labels[0]).toMatch(/^(Thứ (Hai|Ba|Tư|Năm|Sáu|Bảy)|Chủ Nhật), \d{2}\/\d{2}\/\d{4}$/);
   expect(new Set(labels).size).toBe(3);
-  await page.screenshot({ path: shotPath('S41', '1-day-strips') });
+  await page.screenshot({ path: shotPath('S42', '1-day-strips') });
 
   // The picker lists the days newest first with the prompt counts, and jumps to one without filtering.
   const picker = page.getByLabel('Đi tới ngày');
@@ -62,14 +62,14 @@ test('mentor sees the day of every prompt and can jump to a day', async ({ brows
   await picker.selectOption({ index: 3 }); // the oldest day
   await expect(strips.first()).toBeInViewport();
   await expect(timeline.getByText('ngày hai: thêm test')).toHaveCount(1);
-  await page.screenshot({ path: shotPath('S41', '2-jump-to-day') });
+  await page.screenshot({ path: shotPath('S42', '2-jump-to-day') });
 
   // The command popup shows the day with the time of the prompt.
   await page.getByRole('button', { name: 'Xem chi tiết' }).nth(1).click();
   const popup = page.getByRole('dialog');
   await expect(popup).toBeVisible();
   await expect(popup.getByText(/^\d{2}\/\d{2} \d{2}:\d{2}$/)).toBeVisible();
-  await page.screenshot({ path: shotPath('S41', '3-turn-detail') });
+  await page.screenshot({ path: shotPath('S42', '3-turn-detail') });
   await page.keyboard.press('Escape');
 
   // Hidden content: no picker, no prompt text.
@@ -86,5 +86,5 @@ test('mentor sees the day of every prompt and can jump to a day', async ({ brows
   await expect(member.page).toHaveURL(new RegExp(`/training/${id}`));
   await expect(member.page.getByText('Buổi có thể kéo dài nhiều ngày.')).toBeVisible();
   await expect(member.page.getByText(/kể cả ngoài giờ học/)).toBeVisible();
-  await member.page.screenshot({ path: shotPath('S41', '4-consent-multi-day'), fullPage: true });
+  await member.page.screenshot({ path: shotPath('S42', '4-consent-multi-day'), fullPage: true });
 });
