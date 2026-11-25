@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Trạng thái 5 và 6 · kiểu nổi bật mới trên prompt</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="../ds/designsystem_2e7074/styles.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/fonts.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/colors.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/typography.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/spacing.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/radii.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/elevation.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/motion.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/icons.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/base.css">
+<script src="../ds/designsystem_2e7074/_ds_bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.k{font:600 12px/1.3 var(--font-sans);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-600);margin:0 0 8px}
+.d{font:400 13px/1.5 var(--font-sans);color:var(--ink-700);margin:8px 0 0}
+</style>
+</helmet>
+<div style="width: 1440px; box-sizing: border-box; padding: 48px; background: var(--surface-page); font-family: var(--font-sans); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px 32px; align-items: start">
+  <div style="grid-column: span 3"><h2 style="margin: 0; font: 800 26px/1.25 var(--font-sans); color: var(--ink-900)">Trạng thái 5 · Prompt cũ có sự kiện mới</h2><p class="d" style="max-width: 900px">Prompt 18 đã đọc, rồi có thêm lệnh <code>npm test</code> lúc 10:22. Thẻ không bị đánh “Mới” cả thẻ; chỉ phần mới có dải nền cobalt nhạt, nhãn “Lệnh mới” và chữ “1 mới” trên hàng tóm tắt.</p></div>
+  <div><p class="k">Vừa có lệnh mới</p><dc-import name="PromptCard" n="{{n18}}" time="10:01" text="viết test cho hàm tính tổng giỏ hàng" c="{{two}}" e="{{zero}}" is-new="{{no}}" ev="{{yes}}" stage="fresh" hint-size="100%,130px"></dc-import><p class="d">Dải “Lệnh mới” nằm dưới nội dung prompt: tên lệnh, kết quả, giờ.</p></div>
+  <div><p class="k">Sau ~2 giây trong khung nhìn</p><dc-import name="PromptCard" n="{{n18}}" time="10:01" text="viết test cho hàm tính tổng giỏ hàng" c="{{two}}" e="{{zero}}" is-new="{{no}}" ev="{{yes}}" stage="fading" hint-size="100%,130px"></dc-import><p class="d">Nhãn mờ dần, nền dải về trắng. Dải chưa biến mất để thẻ không đổi chiều cao khi mentor đang nhìn.</p></div>
+  <div><p class="k">Khi thẻ đã ra khỏi khung nhìn</p><dc-import name="PromptCard" n="{{n18}}" time="10:01" text="viết test cho hàm tính tổng giỏ hàng" c="{{two}}" e="{{zero}}" is-new="{{no}}" ev="{{no}}" stage="read" hint-size="100%,90px"></dc-import><p class="d">Dải được bỏ khi thẻ nằm ngoài khung nhìn, có giữ neo cuộn, nên không gây nhảy. Lệnh vẫn xem được trong “Xem chi tiết”.</p></div>
+
+  <div style="grid-column: span 3; margin-top: 16px"><h2 style="margin: 0; font: 800 26px/1.25 var(--font-sans); color: var(--ink-900)">Trạng thái 6 · Đếm 2 giây rồi hết nổi bật</h2><p class="d" style="max-width: 900px">Prompt mới: nhãn “Mới” đứng đầu hàng + viền thẻ <code>--brand-500</code>. Đồng hồ 2 giây chỉ chạy khi thẻ nằm trong khung nhìn, tab đang hiện và không bật ẩn nội dung. Không hiện đồng hồ đếm trên giao diện.</p></div>
+  <div><p class="k">0 giây · vừa vào khung nhìn</p><dc-import name="PromptCard" n="{{n20}}" time="10:22" text="thêm test số âm" c="{{one}}" e="{{zero}}" is-new="{{yes}}" stage="fresh" hint-size="100%,90px"></dc-import></div>
+  <div><p class="k">≈ 2 giây · đang mờ (280ms)</p><dc-import name="PromptCard" n="{{n20}}" time="10:22" text="thêm test số âm" c="{{one}}" e="{{zero}}" is-new="{{yes}}" stage="fading" hint-size="100%,90px"></dc-import><p class="d">Nhãn: opacity 1 → 0, scale 1 → .92; viền: brand-500 → ink-200. <code>--dur-slow</code>, <code>--ease-standard</code>. Giảm chuyển động: đổi ngay.</p></div>
+  <div><p class="k">Đã đọc</p><dc-import name="PromptCard" n="{{n20}}" time="10:22" text="thêm test số âm" c="{{one}}" e="{{zero}}" is-new="{{yes}}" stage="read" hint-size="100%,90px"></dc-import><p class="d">Chỗ của nhãn được thu lại trên cùng một hàng: chỉ đổi bề ngang, không đổi chiều cao.</p></div>
+
+  <div style="grid-column: span 3; margin-top: 16px"><h2 style="margin: 0; font: 800 26px/1.25 var(--font-sans); color: var(--ink-900)">Khi “mới” đi cùng tín hiệu khác</h2><p class="d" style="max-width: 900px">Mỗi tín hiệu có kênh riêng, nên chồng lên nhau vẫn đọc được: mới = nhãn cobalt đặc + viền cobalt; focus = nền vàng nhạt; cờ = chip viền xám; lỗi = riêng con số màu đỏ; ví dụ = nhãn mực đậm có icon.</p></div>
+  <div><p class="k">Mới + có lỗi</p><dc-import name="PromptCard" n="{{n19}}" time="10:20" text="sửa lỗi làm tròn" c="{{one}}" e="{{one}}" is-new="{{yes}}" stage="fresh" hint-size="100%,90px"></dc-import></div>
+  <div><p class="k">Mới + cờ</p><dc-import name="PromptCard" n="{{n11}}" time="20:40" text="thêm test cho hàm giảm giá" c="{{one}}" e="{{zero}}" is-new="{{yes}}" flag="Lặp lệnh lỗi" stage="fresh" hint-size="100%,90px"></dc-import></div>
+  <div><p class="k">Mới + ví dụ</p><dc-import name="PromptCard" n="{{n17}}" time="09:55" text="viết hàm tính tổng giỏ hàng" c="{{four}}" e="{{zero}}" is-new="{{yes}}" ex="{{yes}}" stage="fresh" hint-size="100%,90px"></dc-import></div>
+  <div><p class="k">Mới + focus (vừa nhảy tới)</p><dc-import name="PromptCard" n="{{n13}}" time="23:50" text="gom các thay đổi để chuẩn bị commit" c="{{one}}" e="{{zero}}" is-new="{{yes}}" focus="{{yes}}" stage="fresh" hint-size="100%,90px"></dc-import><p class="d">Nền vàng của focus giữ nguyên; viền vẫn cobalt và nhãn “Mới” vẫn hiện.</p></div>
+  <div><p class="k">Focus, không mới</p><dc-import name="PromptCard" n="{{n9}}" time="14:48" text="chạy npm test và sửa cho tới khi qua" c="{{four}}" e="{{three}}" is-new="{{no}}" flag="Lặp lệnh lỗi" focus="{{yes}}" stage="read" hint-size="100%,90px"></dc-import></div>
+  <div><p class="k">Bình thường</p><dc-import name="PromptCard" n="{{n15}}" time="08:40" text="đọc lại yêu cầu bài tập và lập kế hoạch" c="{{one}}" e="{{zero}}" is-new="{{no}}" stage="read" hint-size="100%,90px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1250}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { yes: true, no: false, zero: 0, one: 1, two: 2, three: 3, four: 4, n9: 9, n11: 11, n13: 13, n15: 15, n17: 17, n18: 18, n19: 19, n20: 20 };
+  }
+}
+</script>
+</body>
+</html>

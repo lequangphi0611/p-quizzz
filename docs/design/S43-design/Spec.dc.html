@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Spec khối phiên và đánh dấu mới</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="../ds/designsystem_2e7074/styles.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/fonts.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/colors.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/typography.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/spacing.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/radii.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/elevation.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/motion.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/icons.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/base.css">
+<script src="../ds/designsystem_2e7074/_ds_bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.sp h2{margin:0 0 6px;font:800 24px/1.25 var(--font-sans);color:var(--ink-900)}
+.sp h3{margin:22px 0 8px;font:700 16px/1.3 var(--font-sans);color:var(--ink-900)}
+.sp p,.sp li{font:400 14px/1.55 var(--font-sans);color:var(--ink-800);margin:0}
+.sp ul{margin:0;padding-left:20px;display:grid;gap:6px}
+.sp code{font:500 12.5px/1.4 var(--font-mono);background:var(--ink-100);padding:1px 5px;border-radius:4px;color:var(--ink-900)}
+.cap{font:600 12px/1.3 var(--font-sans);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-600);margin:14px 0 4px}
+.t{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:999px;background:var(--ink-100);color:var(--ink-700);font:500 12px/1 var(--font-sans);white-space:nowrap}
+.nb{display:inline-flex;align-items:center;height:18px;padding:0 7px;border-radius:999px;background:var(--brand-600);color:var(--paper);font:700 11px/1 var(--font-sans)}
+.bh{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;min-height:32px;padding-right:6px;border-radius:8px}
+.ttl{display:inline-flex;align-items:center;gap:6px;font:600 13px/1.3 var(--font-sans);color:var(--ink-900);white-space:nowrap}
+.mt{font:400 13px/1.45 var(--font-sans);color:var(--ink-600);white-space:nowrap}
+.ln{flex:1 1 24px;border-top:1px dashed var(--ink-300)}
+.rl{margin-left:13px;border-left:2px solid var(--ink-200);padding:0 0 4px 21px}
+.nd{position:absolute;left:-28px;top:10px;width:12px;height:12px;box-sizing:border-box;border-radius:50%}
+</style>
+</helmet>
+<div class="sp" style="width: 1840px; box-sizing: border-box; padding: 56px; background: var(--paper); font-family: var(--font-sans); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 56px; align-items: start">
+
+<section>
+  <h2>Tiêu đề khối phiên · SessionBlockHeader</h2>
+  <p>Cấp 2. Là bản mở rộng của <code>SessionMarker</code> (S42): vẫn nằm trên đường ray của ngày, vẫn có chấm mốc và vạch đứt, nhưng giờ bấm được để mở/thu. Không có nền, không có viền, nên nhẹ hơn hẳn tiêu đề ngày (15px đậm) và thẻ prompt.</p>
+  <div style="margin-top: 14px; padding: 12px 16px; background: var(--surface-page); border: 1px solid var(--ink-200); border-radius: 14px">
+    <div class="cap">Mở · chưa kết thúc · song song</div>
+    <div class="rl"><div class="bh"><span class="nd" style="background: var(--surface-page); border: 2px solid var(--ink-500)"></span><span class="ttl"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="chevron-down" size="{{s14}}" color="var(--ink-600)"></x-import>Phiên Claude Code 7</span><span class="mt">09:55–10:24 · 2 prompt · 5 lệnh · <b style="font-weight: 600; color: var(--wrong-600)">1</b> lỗi</span><span style="display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--ink-300); background: var(--paper); color: var(--ink-800); font: 500 12px/1 var(--font-sans)">Song song với&nbsp;<b style="font-weight: 600">phiên 8</b></span><span class="t" style="background: transparent; border: 1px dashed var(--ink-400)">chưa kết thúc</span><span class="ln"></span></div></div>
+    <div class="cap">Thu · /clear</div>
+    <div class="rl"><div class="bh"><span class="nd" style="background: var(--ink-300); border: 2px solid var(--ink-300)"></span><span class="ttl"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="chevron-right" size="{{s14}}" color="var(--ink-600)"></x-import>Phiên Claude Code 6</span><span class="mt">08:40–09:05 · 2 prompt · 2 lệnh</span><span class="t" style="border-radius: 4px; font-family: var(--font-mono)">/clear</span><span class="ln"></span></div></div>
+    <div class="cap">Thu · có mục mới</div>
+    <div class="rl"><div class="bh"><span class="nd" style="background: var(--ink-300); border: 2px solid var(--ink-300)"></span><span class="ttl"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="chevron-right" size="{{s14}}" color="var(--ink-600)"></x-import>Phiên Claude Code 8</span><span class="mt">10:01–10:22 · 2 prompt · 3 lệnh</span><span class="t" style="background: transparent; border: 1px dashed var(--ink-400)">chưa kết thúc</span><span class="nb">2 mới</span><span class="ln"></span></div></div>
+    <div class="cap">Hover</div>
+    <div class="rl"><div class="bh" style="background: var(--ink-100)"><span class="nd" style="background: var(--ink-300); border: 2px solid var(--ink-300)"></span><span class="ttl"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="chevron-right" size="{{s14}}" color="var(--ink-600)"></x-import>Phiên Claude Code 6</span><span class="mt">08:40–09:05 · 2 prompt · 2 lệnh</span><span class="t" style="border-radius: 4px; font-family: var(--font-mono)">/clear</span><span class="ln"></span></div></div>
+    <div class="cap">Focus (bàn phím)</div>
+    <div class="rl"><div class="bh"><span class="nd" style="background: var(--ink-300); border: 2px solid var(--ink-300)"></span><span class="ttl" style="border-radius: 8px; box-shadow: var(--focus-ring); padding-right: 4px"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="chevron-right" size="{{s14}}" color="var(--ink-600)"></x-import>Phiên Claude Code 6 <span class="mt">· 08:40–09:05 · 2 prompt · 2 lệnh</span></span><span class="t" style="border-radius: 4px; font-family: var(--font-mono)">/clear</span><span class="ln"></span></div></div>
+    <div class="cap">Tiếp từ hôm trước · thoát</div>
+    <div class="rl"><div class="bh"><span class="nd" style="background: var(--ink-300); border: 2px solid var(--ink-300)"></span><span class="ttl"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="chevron-right" size="{{s14}}" color="var(--ink-600)"></x-import>Phiên Claude Code 5</span><span class="mt">00:00–00:20 · 1 prompt · 1 lệnh</span><span class="t">tiếp từ 23/11</span><span class="t">thoát</span><span class="ln"></span></div></div>
+    <div class="cap">Cuối ngày 23 · kéo sang hôm sau</div>
+    <div class="rl"><div class="bh"><span class="nd" style="background: var(--surface-page); border: 2px solid var(--ink-500)"></span><span class="ttl"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="chevron-down" size="{{s14}}" color="var(--ink-600)"></x-import>Phiên Claude Code 5</span><span class="mt">23:50–00:00 · 1 prompt · 1 lệnh</span><span class="t">tiếp sang 24/11</span><span class="ln"></span></div></div>
+    <div class="cap">Ngày chỉ có một phiên · nhãn nhẹ</div>
+    <div class="rl"><div class="bh"><span class="nd" style="background: var(--surface-page); border: 2px solid var(--ink-500)"></span><span style="font: 600 13px/1.3 var(--font-sans); color: var(--ink-800)">Phiên Claude Code 1</span><span class="mt">14:05–14:50</span><span class="t">thoát</span><span class="ln"></span></div></div>
+  </div>
+  <h3>Số đo</h3>
+  <ul>
+    <li>Hàng tối thiểu 32px (vùng bấm 32px trên desktop; bằng với <code>Button sm</code>). Chevron 14 <code>--ink-600</code>, cách tiêu đề 6px.</li>
+    <li>Tiêu đề 600 13px <code>--ink-900</code>; tóm tắt 400 13px <code>--ink-600</code>, số tabular; riêng số lỗi 600 <code>--wrong-600</code>, bỏ “· N lỗi” khi bằng 0.</li>
+    <li>Nhãn kết thúc: “/clear” chữ mono, nền <code>--ink-100</code>, bo 4 (giống một lệnh); “thoát”, “tiếp từ”, “tiếp sang”: nền <code>--ink-100</code> bo tròn. “Chưa kết thúc”: không nền, viền đứt <code>--ink-400</code>. Nghĩa là “chưa có tín hiệu”, không có chấm nhấp nháy, không dùng màu xanh “đang chạy”.</li>
+    <li>“Song song với phiên M” là nút viền <code>--ink-300</code>: bấm sẽ cuộn tới khối M (và mở nó). Chồng với nhiều phiên: “Song song với phiên 7, 9”.</li>
+    <li>Chấm mốc 12px: khối mở = vòng rỗng viền <code>--ink-500</code>; khối thu = chấm đặc <code>--ink-300</code>. Đây là tín hiệu phụ; tín hiệu chính vẫn là chevron và <code>aria-expanded</code>.</li>
+    <li>Hover: nền <code>--ink-100</code> bo 8. Focus: <code>--focus-ring</code> trên nút (chevron + tiêu đề + tóm tắt). Các nhãn bên phải không nằm trong nút.</li>
+    <li>Cột hẹp: phần nhãn tự xuống dòng thứ hai, vạch đứt co lại tối thiểu 24px.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Khối nằm trên đường ray</h2>
+  <ul>
+    <li>Không thêm lớp thụt mới: prompt trong khối vẫn thụt 36px như S42 (13 + ray 2 + 21). Khối chỉ được phân biệt bằng tiêu đề, để màn 800px không mất thêm bề ngang.</li>
+    <li>Khối đầu ngày: đệm trên 2px. Khối sau một khối đang mở: đệm trên 8px, cộng 8px cuối prompt = 16px giữa hai khối. Hai khối thu liền nhau: 4px, thành danh sách 36px/hàng.</li>
+    <li>Tiêu đề khối → prompt đầu: 4px. Giữa hai prompt: 8px (giữ như S42).</li>
+    <li>Kiểm mật độ (frame 2): một khối 1 prompt khi mở cao khoảng 32 + 81px; khi thu chỉ 36px, ít hơn một nửa thẻ prompt.</li>
+  </ul>
+  <h3>Song song: nhãn, không chia làn</h3>
+  <ul>
+    <li>Giờ chồng nhau đã nằm trong khoảng giờ (09:55–10:24 và 10:01–10:22). Nhãn “Song song với phiên M” nói thẳng điều đó, đọc được bằng chữ, và bấm được để nhảy qua lại.</li>
+    <li>Số prompt nhảy cách (17, 19 ở phiên 7; 18, 20 ở phiên 8) là tín hiệu thứ hai, đúng ý PO.</li>
+    <li>Không chia làn: 3 phiên song song ở cột 520px sẽ không đủ chỗ cho thẻ prompt.</li>
+  </ul>
+  <h3>Nhãn “mới” · NewBadge</h3>
+  <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 8px 0 10px"><span class="nb">Mới</span><span class="nb">Lệnh mới</span><span class="nb">2 mới</span><span style="display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 999px; background: var(--brand-600); color: var(--paper); font: 700 11px/1 var(--font-sans)">5 mới</span></div>
+  <ul>
+    <li>Một kiểu duy nhất ở mọi nơi: nền <code>--brand-600</code>, chữ trắng 700 11px (6,6:1), cao 18px (20px ở danh sách member), bo tròn. Luôn có chữ, không bao giờ chỉ là chấm màu.</li>
+    <li>Vì sao cobalt: vàng đã dành cho focus, đỏ cho lỗi, xám viền cho cờ, mực đậm cho “Ví dụ”. Cobalt là màu thương hiệu, không mang nghĩa cảnh báo hay điểm số.</li>
+    <li>Prompt mới: “Mới” đứng đầu hàng + viền thẻ <code>--brand-500</code> 1px. Prompt cũ có sự kiện mới: viền thẻ giữ nguyên; tóm tắt thêm “· 1 mới” (<code>--brand-700</code>) và có dải “Lệnh mới” nền <code>--brand-050</code> viền <code>--brand-200</code> dưới nội dung.</li>
+    <li>Tiêu đề ngày/khối đang thu: “N mới” đặt ngay sau tóm tắt, trước chip cờ. Khi mở thì nhãn rời khỏi tiêu đề và hiện trên từng prompt.</li>
+    <li>“N” ở mọi nơi đều đếm số prompt có mục mới (prompt mới + prompt cũ có sự kiện mới), cùng đơn vị với chip nổi.</li>
+    <li>Trình đọc màn hình: “Mới — prompt mới”, “Lệnh mới — sự kiện mới trong prompt đã đọc”, “2 prompt có mục mới”. Khi hết mới không thông báo (tránh ồn).</li>
+  </ul>
+  <h3>Component mới</h3>
+  <ul>
+    <li><code>SessionBlockHeader</code> { index, range, counts, end: 'clear' | 'exit' | 'open' | 'next', continuedFrom?, parallelWith?: number[], newCount?, expanded, onToggle, variant: 'default' | 'light' }. Thay cho <code>SessionMarker</code>.</li>
+    <li><code>NewBadge</code> { label?: 'Mới' | 'Lệnh mới', count?, size: 'sm' | 'md', fading? }. <code>count</code> có thì hiện “N mới” (từ 100 trở lên: “99+ mới”).</li>
+    <li><code>PromptEventStrip</code> { kind: 'command' | 'permission', text, result, at, fading? }: dải sự kiện mới trong prompt cũ.</li>
+    <li><code>DayGroupHeader</code> (S42) thêm <code>newCount</code>.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Tương tác</h2>
+  <h3>Mở / thu khối</h3>
+  <ul>
+    <li>Giống ngày ở S42: không tạo hiệu ứng chiều cao; chevron xoay 90° trong <code>--dur-fast</code>, nội dung hiện bằng <code>pq-fade</code> <code>--dur-base</code>. Enter/Space để mở/thu; Tab: tiêu đề khối → nút song song → prompt.</li>
+    <li>Khối không dính. Chỉ tiêu đề ngày dính như S42: hai tầng dính sẽ ăn mất khoảng 80px ở khung 640px, trong khi đa số khối ngắn. Bù lại, khi tiêu đề khối đã cuộn qua, tiêu đề ngày đang dính có thêm phần chữ phụ “· Phiên 7” bên phải (chỉ đổi chữ, không tăng chiều cao).</li>
+    <li>“Mở tất cả” mở cả ngày lẫn khối; “Thu tất cả” thu cả hai (frame 2 vẽ theo cách này, cần PO xác nhận).</li>
+  </ul>
+  <h3>Đánh dấu mới</h3>
+  <ul>
+    <li>Đồng hồ 2 giây cho từng prompt: chạy khi ≥ 50% thẻ (hoặc ≥ 200px nếu thẻ cao hơn khung) nằm trong khung nhìn, tab đang hiện, không ẩn nội dung. Ra khỏi khung thì đặt lại về 0.</li>
+    <li>Hết mới: nhãn mờ + thu nhỏ, viền chuyển về <code>--ink-200</code>, <code>--dur-slow</code>. Giảm chuyển động: đổi ngay. Dải “Lệnh mới” chỉ được bỏ khi thẻ đã ra khỏi khung nhìn (có giữ neo), để không đổi chiều cao trước mắt mentor.</li>
+    <li>Mở trang lần đầu trên trình duyệt: lưu mốc “đã thấy” = lúc này; mọi thứ cũ hơn không nổi bật.</li>
+    <li>Chip nổi: “↑ 3 prompt có mục mới” ở mép phía có prompt đó; chỉ hiện khi prompt có mục mới nằm ngoài khung. Bấm: mở ngày/khối, cuộn tới prompt gần nhất, tô kiểu focus vàng rồi nhạt dần; đồng hồ 2 giây vẫn áp dụng.</li>
+  </ul>
+  <h3>Giữ vị trí đọc</h3>
+  <ul>
+    <li>Như S42: neo vào phần tử đầu tiên đang thấy trước mọi thay đổi (sự kiện mới, khối/ngày phía trên mở hoặc thu, dải “Lệnh mới” bị bỏ), rồi trả lại <code>scrollTop</code>.</li>
+    <li>Prompt mới đến trong một khối đang thu phía trên: chỉ cập nhật “N mới” trên tiêu đề khối, không tự mở khối (sẽ đẩy nội dung).</li>
+  </ul>
+  <h3>Cần PO cân nhắc (không tự đổi)</h3>
+  <ul>
+    <li><b>Mặc định mở khối “chưa kết thúc”.</b> Nếu app không nhận được tín hiệu kết thúc (đóng terminal, mất mạng), khối cũ sẽ mãi “chưa kết thúc” và luôn mở, nhất là ở ngày cũ khi bấm “Mở tất cả”. Đề xuất: chỉ mở mặc định khối chưa kết thúc ở ngày mới nhất, hoặc khi sự kiện cuối chưa quá 30 phút.</li>
+    <li><b>Ngưỡng 2 giây chỉ dựa trên tab hiện.</b> Mentor để trang mở ở màn hình phụ trong lúc dạy thì prompt vẫn “được đọc” dù không ai nhìn. Đề xuất thêm điều kiện cửa sổ đang có focus (<code>document.hasFocus()</code>), hoặc có thao tác chuột/phím trong 60 giây gần nhất.</li>
+    <li><b>Chữ trên chip nổi.</b> “N sự kiện mới” mà đếm theo prompt thì lệch nghĩa. Frame dùng “3 prompt có mục mới”. Cần PO chốt chữ.</li>
+    <li><b>Sự kiện mới nhất không nằm ở cuối.</b> Khối xếp theo giờ bắt đầu, nên khi chạy song song, prompt mới nhất có thể nằm ở khối phía trên (phiên 7 bắt đầu trước phiên 8 nhưng prompt 19 đến sau prompt 18). Mục “mở trang thấy sự kiện mới nhất” và “Tải thêm ở cuối ngày mới nhất” của S42 cần định nghĩa lại: đề xuất cuộn tới prompt mới nhất (dù ở khối nào), và “Tải thêm” chèn vào đúng khối.</li>
+    <li><b>Ẩn nội dung có ẩn số mới ở danh sách member không?</b> Frame 12 ẩn cả số đó (có thể lộ ai đang có hoạt động khi chiếu màn hình). Tên học viên vẫn hiện.</li>
+  </ul>
+  <h3>Giả định và chỗ lệch dữ liệu mẫu</h3>
+  <ul>
+    <li><b>Lan “2 mới” không khớp.</b> Hôm nay có 3 prompt có mục mới (19, 20 mới; 18 có lệnh mới) và ngày 23 có 2, tổng 5. Frame hiện “5 mới” theo cùng một cách đếm.</li>
+    <li>Hai prompt có mục mới ở ngày 23 do mình chọn: Prompt 11 và 13. Nội dung các prompt không có trong brief (16, 4–13, 1–3) và toàn bộ dữ liệu của Minh ở frame 2 là giả lập.</li>
+    <li>Khối phiên 5 ngày 23 ghi “23:50–00:00 · tiếp sang 24/11” ở vị trí của nhãn kết thúc.</li>
+    <li>“Ví dụ” và kiểu focus vàng vẽ theo mô tả trong brief, chưa có trong design system. Dev dùng component có sẵn của app.</li>
+  </ul>
+</section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1840,"height":2300}}'>
+class Component extends DCLogic {
+  renderVals() { return { s14: 14 }; }
+}
+</script>
+</body>
+</html>

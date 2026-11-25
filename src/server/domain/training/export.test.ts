@@ -110,7 +110,7 @@ describe('a member file', () => {
     const p = prompt('Viết hàm cộng hai số\nvà thêm test', at(24, 9, 0, 5));
     const t = bash('npm test', true, at(24, 9, 1, 30), { output: { head: 'PASS src/add.test.ts\nTests: 3 passed', tail: null, omittedLines: 0 } });
     const text = lan([p, t]);
-    expect(text).toContain(`#### 09:00:05 · Prompt · #${p.id}\n\n> Viết hàm cộng hai số\n> và thêm test`);
+    expect(text).toContain(`##### 09:00:05 · Prompt · #${p.id}\n\n> Viết hàm cộng hai số\n> và thêm test`);
     expect(text).toContain(`- 09:01:30 · **Bash** \`npm test\` · ✓ · 2,3 giây · #${t.id}`);
     expect(text).toContain('  Output:\n  ```\n  PASS src/add.test.ts\n  Tests: 3 passed\n  ```');
   });
@@ -160,10 +160,44 @@ describe('a member file', () => {
       prompt('hai', at(24, 8, 0), { permissionMode: 'acceptEdits', claudeSessionId: 'deadbeef-bbbb' }),
     ]);
     expect(text.indexOf('### 23/11/2026')).toBeLessThan(text.indexOf('### 24/11/2026'));
-    expect(text).toContain('*Phiên Claude Code c0ffee00*');
-    expect(text).toContain('*Phiên Claude Code deadbeef*');
+    expect(text).toContain('#### Phiên Claude Code 1 · 22:00–22:01 · chưa kết thúc');
+    expect(text).toContain('#### Phiên Claude Code 2 · 08:00–08:00 · chưa kết thúc');
     expect(text.match(/chế độ quyền: plan/g)).toHaveLength(1);
     expect(text).toContain('chế độ quyền: acceptEdits');
+  });
+
+  it('groups day → session → prompt: two interleaved sessions keep each command under the prompt of its own session', () => {
+    const A = 'aaaa', B = 'bbbb';
+    const pa = prompt('prompt A', at(24, 9, 0), { claudeSessionId: A });
+    const pb = prompt('prompt B', at(24, 9, 1), { claudeSessionId: B });
+    const a1 = bash('ls a', true, at(24, 9, 2), { claudeSessionId: A });
+    const b1 = bash('ls b', true, at(24, 9, 3), { claudeSessionId: B });
+    const a2 = bash('ls a2', true, at(24, 9, 4), { claudeSessionId: A });
+    const text = lan([pa, pb, a1, b1, a2]);
+    expect(text.match(/#### Phiên Claude Code/g)).toHaveLength(2);
+    expect(text).toContain('#### Phiên Claude Code 1 · 09:00–09:04 · chưa kết thúc');
+    expect(text).toContain('#### Phiên Claude Code 2 · 09:01–09:03 · chưa kết thúc');
+    const at_ = (e: ExportEvent) => text.indexOf(`#${e.id}`);
+    expect(at_(pa)).toBeLessThan(at_(a1));
+    expect(at_(a1)).toBeLessThan(at_(a2));
+    expect(at_(a2)).toBeLessThan(at_(pb)); // session 1's whole block comes before session 2's
+    expect(at_(pb)).toBeLessThan(at_(b1));
+    expect(text).not.toContain('Trước prompt đầu tiên');
+  });
+
+  it('puts a turn that crosses midnight on the day of its prompt, and says which sessions continue over the night', () => {
+    const A = 'aaaa';
+    const p1 = prompt('muộn', at(23, 23, 50), { claudeSessionId: A });
+    const late = bash('npm test', true, at(24, 0, 5), { claudeSessionId: A });
+    const p2 = prompt('sáng', at(24, 8, 0), { claudeSessionId: A });
+    const quit = ev({ kind: 'session', subtype: 'exit', at: at(24, 8, 30), claudeSessionId: A });
+    const text = lan([p1, late, p2, quit]);
+    const d23 = text.indexOf('### 23/11/2026');
+    const d24 = text.indexOf('### 24/11/2026');
+    expect(text.indexOf(`#${late.id}`)).toBeGreaterThan(d23);
+    expect(text.indexOf(`#${late.id}`)).toBeLessThan(d24); // the command ran after midnight but belongs to the prompt's day
+    expect(text).toContain('#### Phiên Claude Code 1 · 23:50–00:05 · tiếp sang 24/11');
+    expect(text).toContain('#### Phiên Claude Code 1 · 08:00–08:30 · tiếp từ 23/11 · thoát');
   });
 
   it('marks the examples the mentor picked, and lists each flag with the events behind it', () => {

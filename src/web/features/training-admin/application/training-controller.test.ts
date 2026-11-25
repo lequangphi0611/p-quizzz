@@ -3,6 +3,7 @@ import type { TrainingDetail, TrainingEventDetail, TrainingEventRow, TrainingEve
 import { ApiError } from '../../../shared/api-client/http-client.js';
 import type { TrainingAdminGateway } from './training-admin-gateway.js';
 import { TrainingController } from './training-controller.js';
+import { InMemoryTrainingReadStore, type TrainingReadStore } from './training-read-store.js';
 
 const ZERO_COUNTS: TrainingDetail['flagCounts'] = { auto_accept: 0, auto_compact_repeated: 0, dangerous_command: 0, edited_not_verified: 0, fast_approvals: 0, long_without_verify: 0, possible_secret: 0, repeated_failure: 0, repeated_request: 0, touches_tests: 0 };
 
@@ -977,15 +978,15 @@ describe('TrainingController: day groups', () => {
     expect(open(ctrl)).toEqual([D22, D24]);
     ctrl.toggleDay(D24);
     expect(open(ctrl)).toEqual([D22]);
-    ctrl.setAllDays(true);
+    ctrl.setAllOpen(true);
     expect(open(ctrl)).toEqual([D22, D23, D24]);
-    ctrl.setAllDays(false);
+    ctrl.setAllOpen(false);
     expect(open(ctrl)).toEqual([]);
   });
 
   it('another member starts again from the default', async () => {
     const { ctrl } = await opened(days());
-    ctrl.setAllDays(true);
+    ctrl.setAllOpen(true);
     ctrl.select(2);
     await flush();
     expect(open(ctrl)).toEqual([D24]);
@@ -1061,5 +1062,160 @@ describe('TrainingController: day groups', () => {
     ctrl.jumpToLatest();
     expect(open(ctrl)).toEqual([D24]);
     expect(ctrl.getState().timeline?.newCount).toBe(0);
+  });
+});
+
+describe('TrainingController: session blocks and what has been read (S43)', () => {
+  const at = (d: number, h = 9, mi = 0) => new Date(2026, 10, d, h, mi).getTime();
+  const D24 = '2026-11-24';
+  // Two sessions at once on 24/11: A (ended with /clear) and B (no end signal), prompts interleaved. Member 1 was last seen at 8:00 on 24/11, 1 prompt.
+  const sess = (): TrainingEventRow[] => [
+    ev(1, { kind: 'prompt', prompt: 'a1', receivedAt: at(24, 7), claudeSessionId: 'A' }),
+    ev(2, { kind: 'prompt', prompt: 'a2', receivedAt: at(24, 9), claudeSessionId: 'A' }),
+    ev(3, { kind: 'prompt', prompt: 'b1', receivedAt: at(24, 9, 5), claudeSessionId: 'B' }),
+    ev(4, { receivedAt: at(24, 9, 6), claudeSessionId: 'A', hasOutput: true }),
+    ev(5, { receivedAt: at(24, 9, 7), claudeSessionId: 'B', hasOutput: true }),
+    ev(6, { kind: 'session', subtype: 'clear', receivedAt: at(24, 9, 8), claudeSessionId: 'A' }),
+  ];
+  const A = `b${D24}-s1`, B = `b${D24}-s2`;
+  async function opened(rows: TrainingEventRow[], readStore?: TrainingReadStore, lastSeenAt = at(24, 8)) {
+    let all = rows;
+    const events = vi.fn(async (_t: number, _m: number, after = 0): Promise<TrainingEventsPage> => ({ events: all.filter(e => e.id > after), hasMore: false, flags: [] }));
+    const made = make({ events }, detail({ members: [member(1, 'An', { lastSeenAt, promptCount: 1 }), member(2, 'Bình', { lastSeenAt })] }), { readStore });
+    made.ctrl.select(1);
+    await flush();
+    return { ...made, push: (...more: TrainingEventRow[]) => { all = [...all, ...more]; } };
+  }
+  const blocks = (c: TrainingController) => [...c.getState().timeline!.openBlocks].sort();
+
+  it('opens a block with something unread or no end signal; folds an ended one that was read', async () => {
+    // the baseline is 8:00: a2, b1 are new, a1 is not. Block A has unread, block B has no end signal: both open
+    expect(blocks((await opened(sess())).ctrl)).toEqual([A, B]);
+    // nothing unread and A ended: A folds, B stays open
+    expect(blocks((await opened(sess(), undefined, at(24, 23))).ctrl)).toEqual([B]);
+  });
+
+  it('a new session opens by itself; the other blocks keep the state the mentor left', async () => {
+    const { ctrl, push } = await opened(sess(), undefined, at(24, 23));
+    ctrl.toggleBlock(B);
+    expect(blocks(ctrl)).toEqual([]);
+    push(ev(7, { kind: 'prompt', prompt: 'c1', receivedAt: at(24, 10), claudeSessionId: 'C' }));
+    await ctrl.refresh();
+    expect(blocks(ctrl)).toEqual([`b${D24}-s3`]);
+  });
+
+  it('the block is folded again for another member', async () => {
+    const { ctrl } = await opened(sess(), undefined, at(24, 23));
+    ctrl.toggleBlock(A);
+    ctrl.select(2);
+    await flush();
+    expect(blocks(ctrl)).toEqual([B]);
+  });
+
+  it('a flag chip, J / K and the detail of a turn open the folded block as well as the day', async () => {
+    const { ctrl } = await opened(sess(), undefined, at(24, 23));
+    expect(blocks(ctrl)).toEqual([B]);
+    await ctrl.openDetail(5, 'output'); // B's command
+    ctrl.step(-1); // A is shown above B: the previous command is A's, in a folded block
+    expect(ctrl.getState().panel?.eventId).toBe(4);
+    expect(blocks(ctrl)).toEqual([A, B]);
+    ctrl.setAllOpen(false);
+    ctrl.openTurn('t2');
+    expect(ctrl.getState().timeline).toMatchObject({ openDays: [D24], openBlocks: [A] });
+  });
+
+  it('"Mở tất cả" opens days and blocks, "Thu tất cả" folds both', async () => {
+    const { ctrl } = await opened(sess());
+    ctrl.setAllOpen(false);
+    expect(ctrl.getState().timeline).toMatchObject({ openDays: [], openBlocks: [] });
+    ctrl.setAllOpen(true);
+    expect(ctrl.getState().timeline).toMatchObject({ openDays: [D24], openBlocks: [A, B] });
+  });
+
+  it('revealTurn opens the day and block of the turn and asks the page to scroll to its prompt', async () => {
+    const { ctrl } = await opened(sess(), undefined, at(24, 23));
+    ctrl.toggleBlock(B);
+    ctrl.revealTurn('t3');
+    expect(blocks(ctrl)).toEqual([B]);
+    expect(ctrl.getState().timeline).toMatchObject({ revealId: 3, revealToken: 1 });
+  });
+
+  it('"Song song với phiên M" opens that block and its day and asks to scroll to it', async () => {
+    const { ctrl } = await opened(sess(), undefined, at(24, 23));
+    ctrl.setAllOpen(false);
+    ctrl.revealBlock(B);
+    expect(ctrl.getState().timeline).toMatchObject({ openDays: [D24], openBlocks: [B], revealBlockKey: B, revealBlockToken: 1 });
+    ctrl.revealBlock('nope');
+    expect(ctrl.getState().timeline!.revealBlockToken).toBe(1);
+  });
+
+  it('following needs the newest prompt to be shown, wherever its block is', async () => {
+    const { ctrl, push } = await opened(sess(), undefined, at(24, 23));
+    ctrl.reportFollowing(true);
+    ctrl.toggleBlock(B); // b1 is the newest prompt and its block is folded
+    const token = ctrl.getState().timeline!.followToken;
+    push(ev(7, { kind: 'prompt', prompt: 'b2', receivedAt: at(24, 10), claudeSessionId: 'B' }));
+    await ctrl.refresh();
+    expect(ctrl.getState().timeline).toMatchObject({ newCount: 1, followToken: token });
+  });
+
+  it('remembers each member the first time they are seen, and keeps it in the store', async () => {
+    const store = new InMemoryTrainingReadStore();
+    const { ctrl } = await opened(sess(), store);
+    expect(ctrl.getState().read.members['1']).toMatchObject({ baselineAt: at(24, 8), baselinePromptCount: 1 });
+    expect(store.load(5).members['2']).toBeDefined();
+    // another page load starts from what was stored
+    const again = make({}, detail(), { readStore: store });
+    expect(again.ctrl.getState().read.members['1']).toMatchObject({ baselineAt: at(24, 8) });
+  });
+
+  it('markTurnRead reads up to the id given; an event that came after stays new', async () => {
+    const store = new InMemoryTrainingReadStore();
+    const { ctrl } = await opened(sess(), store);
+    ctrl.markTurnRead('2', 2); // turn of prompt a2: its prompt is read, the command 4 is not
+    expect(store.load(5).members['1']!.turns['2']).toBe(2);
+    ctrl.markTurnRead('2', 1); // a lower mark changes nothing
+    expect(store.load(5).members['1']!.turns['2']).toBe(2);
+    ctrl.toggleHidden();
+    ctrl.markTurnRead('3', 3); // hidden content: nothing is counted
+    expect(store.load(5).members['1']!.turns['3']).toBeUndefined();
+  });
+
+  describe('"Đánh dấu đã đọc hết"', () => {
+    it('reads every loaded turn of the member in view, and undo puts it back exactly, within 5 seconds', async () => {
+      vi.useFakeTimers();
+      try {
+        const store = new InMemoryTrainingReadStore();
+        const made = await (async () => { const p = opened(sess(), store); await vi.advanceTimersByTimeAsync(10); return p; })();
+        const { ctrl } = made;
+        const before = ctrl.getState().read.members['1'];
+        ctrl.markAllRead();
+        expect(Object.keys(store.load(5).members['1']!.turns)).toEqual(['1', '2', '3']);
+        expect(ctrl.getState().undo).toEqual({ memberId: 1 });
+        ctrl.undoMarkAllRead();
+        expect(ctrl.getState().undo).toBeNull();
+        expect(store.load(5).members['1']).toEqual(before);
+        ctrl.markAllRead();
+        vi.advanceTimersByTime(5000);
+        expect(ctrl.getState().undo).toBeNull(); // the chance to undo is over, the mark stays
+        expect(Object.keys(store.load(5).members['1']!.turns)).toHaveLength(3);
+        ctrl.undoMarkAllRead(); // nothing to undo any more
+        expect(Object.keys(store.load(5).members['1']!.turns)).toHaveLength(3);
+      } finally { vi.useRealTimers(); }
+    });
+  });
+
+  it('an ended training keeps no record', async () => {
+    const store = new InMemoryTrainingReadStore();
+    const { ctrl } = await opened(sess(), store);
+    expect(store.load(5).members['1']).toBeDefined();
+    await ctrl.confirm(); // no confirm open: nothing
+    ctrl.askStop();
+    await ctrl.confirm();
+    ctrl.askEnd();
+    await ctrl.confirm();
+    expect(ctrl.getState().detail.status).toBe('ended');
+    expect(store.load(5)).toEqual({ members: {} });
+    expect(ctrl.getState().read).toEqual({ members: {} });
   });
 });

@@ -3,7 +3,7 @@ import type { TrainingDetail, TrainingSummary } from '../../../../shared/api/ind
 import { saveBlobFile } from '../../../shared/download/save-blob-file.js';
 import { saveTextFile } from '../../../shared/download/save-text-file.js';
 import { useAdminEvents } from '../../../shared/events/use-session-events.js';
-import { useTrainingAdminGateway } from './training-admin-context.js';
+import { useTrainingAdminGateway, useTrainingReadStore } from './training-admin-context.js';
 import { TrainingController, type TrainingState } from './training-controller.js';
 import { TrainingListController, type TrainingListState } from './training-list-controller.js';
 
@@ -17,9 +17,10 @@ const POLL_OFFLINE_MS = 5_000;
  */
 export function useTraining(initial: TrainingDetail, initialMemberId: number | null): { state: TrainingState; ctrl: TrainingController } {
   const gateway = useTrainingAdminGateway();
-  const [ctrl] = useState(() => new TrainingController(gateway, initial, { initialMemberId, saveFile: saveTextFile, saveBlob: saveBlobFile }));
+  const readStore = useTrainingReadStore();
+  const [ctrl] = useState(() => new TrainingController(gateway, initial, { initialMemberId, saveFile: saveTextFile, saveBlob: saveBlobFile, readStore }));
   const state = useSyncExternalStore(ctrl.subscribe, ctrl.getState);
-  useEffect(() => { ctrl.start(); }, [ctrl]);
+  useEffect(() => { ctrl.start(); return () => ctrl.dispose(); }, [ctrl]);
   useAdminEvents({
     onEvent: () => {},
     onResync: () => { void ctrl.refresh(); },
@@ -39,7 +40,8 @@ export function useTraining(initial: TrainingDetail, initialMemberId: number | n
 /** The list page: member counts move while a training is open, so it reloads on any `training` signal and after a reconnect. */
 export function useTrainingList(initial: TrainingSummary[]): { state: TrainingListState; ctrl: TrainingListController } {
   const gateway = useTrainingAdminGateway();
-  const [ctrl] = useState(() => new TrainingListController(gateway, initial));
+  const readStore = useTrainingReadStore();
+  const [ctrl] = useState(() => new TrainingListController(gateway, initial, readStore));
   const state = useSyncExternalStore(ctrl.subscribe, ctrl.getState);
   useAdminEvents({ onEvent: () => {}, onResync: () => { void ctrl.refresh(); }, onTraining: () => { void ctrl.refresh(); } });
   return { state, ctrl };

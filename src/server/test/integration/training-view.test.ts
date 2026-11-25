@@ -55,6 +55,20 @@ describe('training detail: counts, stuck, still sending', () => {
     expect((await s.detail(t.id)).members.find(m => m.displayName === 'Lan')!.stuck).toBe(false);
   });
 
+  it('judges "stuck" per Claude Code session: another session\'s success does not hide it, and 2 + 1 across sessions is not stuck', async () => {
+    const s = await setup();
+    const t = await s.training();
+    const lan = await s.member(t, 'Lan');
+    const mai = await s.member(t, 'Mai');
+    const inSession = (payload: object, session: string) => ({ ...payload, session_id: session });
+    await s.send(lan.ingestToken,
+      inSession(bashFail(), 'A'), inSession(postToolUseBash, 'B'), inSession(bashFail(), 'A'), inSession(postToolUseBash, 'B'), inSession(bashFail(), 'A'));
+    await s.send(mai.ingestToken, inSession(bashFail(), 'A'), inSession(bashFail(), 'B'), inSession(bashFail(), 'A'));
+    const d = await s.detail(t.id);
+    expect(d.members.find(m => m.displayName === 'Lan')!.stuck).toBe(true);
+    expect(d.members.find(m => m.displayName === 'Mai')!.stuck).toBe(false);
+  });
+
   it('members come in a fixed order (by join), not by how many errors they have', async () => {
     const s = await setup();
     const t = await s.training();

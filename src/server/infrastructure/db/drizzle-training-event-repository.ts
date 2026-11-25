@@ -1,13 +1,16 @@
-import { and, asc, desc, eq, gt, gte, lt, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, gte, inArray, lt, sql } from 'drizzle-orm';
 import {
   FLAG_TEXT_CHARS, OUTPUT_END_CHARS, type EventDetail, type ExportStats, type LightEvent, type MarkedEvent, type MemberCounts, type NewTrainingEvent, type TrainingEventRepository,
 } from '../../application/ports/training-event-repository.js';
 import type { ExportEvent } from '../../domain/training/export.js';
 import type { FlagEvent } from '../../domain/training/flags/flag-event.js';
 import type { Clip } from '../../domain/training/clip.js';
-import type { ToolOutcome } from '../../domain/training/is-stuck.js';
+import type { EventSkeleton } from '../../domain/training/export-selection.js';
 import type { DbAccess } from './drizzle-exam-repository.js';
 import { trainingEventMarks, trainingEvents, trainingMembers } from './schema.js';
+
+/** Ids per query when the export reads events by id. */
+const EXPORT_ID_CHUNK = 500;
 
 const clipOf = (head: string | null, tail: string | null, omitted: number | null): Clip | null => (head === null ? null : { head, tail, omittedLines: omitted ?? 0 });
 
@@ -109,8 +112,26 @@ export class DrizzleTrainingEventRepository implements TrainingEventRepository {
     );
   }
 
-  /** Whole text of every event in the range, one member at a time (S41): the export reads what the mentor's screen never loads in a list. */
-  listForExport(memberId: number, range: { from: Date; to: Date }): Promise<ExportEvent[]> {
+  listEventSkeleton(memberId: number): Promise<EventSkeleton[]> {
+    return this.access(db =>
+      db
+        .select({ id: trainingEvents.id, kind: trainingEvents.kind, claudeSessionId: trainingEvents.claudeSessionId, subtype: trainingEvents.subtype, receivedAt: trainingEvents.receivedAt })
+        .from(trainingEvents)
+        .where(eq(trainingEvents.memberId, memberId))
+        .orderBy(asc(trainingEvents.id))
+        .all()
+        .map(r => ({ ...r, kind: r.kind as EventSkeleton['kind'] })),
+    );
+  }
+
+  /** Whole text of these events, one member at a time (S41): the export reads what the mentor's screen never loads in a list. Ids go to SQLite in chunks (its variable limit). */
+  async listForExportByIds(memberId: number, ids: readonly number[]): Promise<ExportEvent[]> {
+    const out: ExportEvent[] = [];
+    for (let i = 0; i < ids.length; i += EXPORT_ID_CHUNK) out.push(...(await this.exportChunk(memberId, ids.slice(i, i + EXPORT_ID_CHUNK))));
+    return out;
+  }
+
+  private exportChunk(memberId: number, ids: readonly number[]): Promise<ExportEvent[]> {
     return this.access(db =>
       db
         .select({
@@ -136,7 +157,7 @@ export class DrizzleTrainingEventRepository implements TrainingEventRepository {
           marked: sql<number>`exists (select 1 from ${trainingEventMarks} where ${trainingEventMarks.eventId} = ${trainingEvents.id})`,
         })
         .from(trainingEvents)
-        .where(and(eq(trainingEvents.memberId, memberId), gte(trainingEvents.receivedAt, range.from), lt(trainingEvents.receivedAt, range.to)))
+        .where(and(eq(trainingEvents.memberId, memberId), inArray(trainingEvents.id, [...ids])))
         .orderBy(asc(trainingEvents.id))
         .all()
         .map(({ outputHead, outputTail, outputOmitted, changeHead, changeTail, changeOmitted, marked, ...r }) => ({
@@ -225,19 +246,6 @@ export class DrizzleTrainingEventRepository implements TrainingEventRepository {
       output: clipOf(row.outputHead, row.outputTail, row.outputOmitted),
       change: clipOf(row.changeHead, row.changeTail, row.changeOmitted),
     };
-  }
-
-  async recentTools(memberId: number, n: number): Promise<ToolOutcome[]> {
-    const rows = await this.access(db =>
-      db
-        .select({ ok: trainingEvents.ok, toolTarget: trainingEvents.toolTarget })
-        .from(trainingEvents)
-        .where(and(eq(trainingEvents.memberId, memberId), eq(trainingEvents.kind, 'tool')))
-        .orderBy(desc(trainingEvents.id))
-        .limit(n)
-        .all(),
-    );
-    return rows.reverse().map(r => ({ ok: r.ok === true, toolTarget: r.toolTarget }));
   }
 
   async countsByMember(trainingId: number): Promise<Map<number, MemberCounts>> {

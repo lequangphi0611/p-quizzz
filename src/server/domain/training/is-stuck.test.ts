@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { isStuck, STUCK_REPEAT } from './is-stuck.js';
+import { isStuck as isStuckAll, STUCK_REPEAT } from './is-stuck.js';
 
-const fail = (toolTarget: string | null = 'npm test') => ({ ok: false, toolTarget });
-const pass = (toolTarget: string | null = 'npm test') => ({ ok: true, toolTarget });
+const fail = (toolTarget: string | null = 'npm test', claudeSessionId = 'A') => ({ ok: false, toolTarget, claudeSessionId });
+const pass = (toolTarget: string | null = 'npm test', claudeSessionId = 'A') => ({ ok: true, toolTarget, claudeSessionId });
+const isStuck = isStuckAll;
 
 describe('isStuck', () => {
   it('needs 3 failures in a row on the same target', () => {
@@ -29,5 +30,17 @@ describe('isStuck', () => {
 
   it('a call with no target is never counted as a repeat', () => {
     expect(isStuck([fail(null), fail(null), fail(null)])).toBe(false);
+  });
+
+  describe('several Claude Code sessions (PRODUCT.md §7.38c)', () => {
+    it('stuck when one session failed 3 times, even with another session succeeding in between', () => {
+      expect(isStuck([fail(), pass('npm test', 'B'), fail(), pass('ls', 'B'), fail()])).toBe(true);
+    });
+    it('not stuck with 2 failures in A and 1 in B on the same target', () => {
+      expect(isStuck([fail(), fail('npm test', 'B'), fail()])).toBe(false);
+    });
+    it('a success in the same session still breaks the run', () => {
+      expect(isStuck([fail(), fail(), pass(), fail('npm test', 'B'), fail()])).toBe(false);
+    });
   });
 });

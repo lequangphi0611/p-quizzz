@@ -56,3 +56,32 @@ export const SHELL_TOOLS = new Set(['bash', 'powershell']);
 export const EDIT_TOOLS = new Set(['edit', 'write', 'multiedit', 'notebookedit']);
 export const isShell = (e: FlagEvent) => e.kind === 'tool' && e.toolName !== null && SHELL_TOOLS.has(e.toolName.toLowerCase());
 export const isEdit = (e: FlagEvent) => e.kind === 'tool' && e.ok === true && e.toolName !== null && EDIT_TOOLS.has(e.toolName.toLowerCase());
+
+/** Events of each Claude Code session, each group oldest first (the order of `events` is kept). */
+export function bySession(events: readonly FlagEvent[]): FlagEvent[][] {
+  const groups = new Map<string, FlagEvent[]>();
+  for (const e of events) {
+    const g = groups.get(e.claudeSessionId);
+    if (g) g.push(e);
+    else groups.set(e.claudeSessionId, [e]);
+  }
+  return [...groups.values()];
+}
+
+/**
+ * Run a rule that reads a sequence ("in a row", "since the last ...") on each Claude Code session separately (PRODUCT.md §7.38c):
+ * a member may keep several sessions open, and one session's events must not break or extend another's run. The flag is up when
+ * it is up in at least one session; the evidence is merged, oldest first.
+ */
+export const perSession = (rule: FlagRule): FlagRule => (events, ctx) => {
+  let code: FlagHit['code'] | null = null;
+  const ids: number[] = [];
+  for (const group of bySession(events)) {
+    const hit = rule(group, ctx);
+    if (hit) {
+      code = hit.code;
+      ids.push(...hit.eventIds);
+    }
+  }
+  return code ? { code, eventIds: cap([...ids].sort((a, b) => a - b)) } : null;
+};

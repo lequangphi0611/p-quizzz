@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Buổi training AI · khối phiên và đánh dấu mới</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="../ds/designsystem_2e7074/styles.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/fonts.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/colors.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/typography.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/spacing.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/radii.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/elevation.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/motion.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/icons.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/base.css">
+<script src="../ds/designsystem_2e7074/_ds_bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:var(--brand-700)}a:hover{color:var(--brand-800)}
+.pq-clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pq-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>
+</helmet>
+<div style="width: {{w}}px; height: {{h}}px; overflow: hidden; background: var(--surface-page); font-family: var(--font-sans); color: var(--ink-800)">
+<x-import component-from-global-scope="DesignSystem_2e7074.AdminLayout" active="training">
+<div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 16px">
+  <div style="min-width: 0">
+    <a href="#" style="display: inline-flex; align-items: center; gap: 6px; font: 500 13px/1.4 var(--font-sans); text-decoration: none"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="arrow-left" size="{{s14}}"></x-import>Buổi training AI</a>
+    <h1 style="margin: 4px 0 0; font: 700 24px/1.3 var(--font-sans); color: var(--ink-900)">Claude Code: viết test</h1>
+  </div>
+  <div style="font: 400 13px/1.45 var(--font-sans); color: var(--ink-600); white-space: nowrap">20 học viên · 22/11 – 24/11/2026</div>
+</div>
+<div style="display: grid; grid-template-columns: {{leftW}}px minmax(0, 1fr); gap: 16px; height: {{colH}}px">
+  <aside style="background: var(--paper); border: 1px solid var(--ink-200); border-radius: 14px; padding: 12px 8px; overflow: hidden; display: flex; flex-direction: column; gap: 2px">
+    <div style="display: flex; justify-content: space-between; padding: 0 8px 8px; font: 600 12px/1.3 var(--font-sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-600)"><span>Học viên</span><span>20</span></div>
+    <sc-for list="{{people}}" as="p" hint-placeholder-count="8">
+      <button type="button" style="display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 8px 4px 12px; border-radius: 10px; text-align: left; cursor: pointer; font-family: var(--font-sans); {{p.st}}">
+        <span style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+          <span style="font: 500 14px/1.3 var(--font-sans); {{p.nameSt}}">{{p.name}}</span>
+          <sc-if value="{{p.hasMeta}}" hint-placeholder-val="{{false}}"><span style="display: inline-flex; align-items: center; gap: 4px; font: 400 12px/1.35 var(--font-sans); color: var(--ink-600)"><sc-if value="{{p.stuck}}" hint-placeholder-val="{{false}}"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="hourglass" size="{{s12}}"></x-import></sc-if>{{p.meta}}</span></sc-if>
+        </span>
+        <sc-if value="{{p.hasNew}}" hint-placeholder-val="{{false}}"><span style="flex: none; display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 999px; background: var(--brand-600); color: var(--paper); font: 700 11px/1 var(--font-sans); font-variant-numeric: tabular-nums">{{p.n}} mới</span></sc-if>
+      </button>
+    </sc-for>
+  </aside>
+  <section style="min-width: 0; display: flex; flex-direction: column; gap: 12px">
+    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-height: 40px">
+      <h2 style="margin: 0; font: 700 20px/1.3 var(--font-sans); color: var(--ink-900)">{{student}}</h2>
+      <sc-if value="{{showSum}}" hint-placeholder-val="{{true}}"><span style="font: 400 13px/1.45 var(--font-sans); color: var(--ink-600)">{{sumText}}</span></sc-if>
+      <sc-if value="{{showChips}}" hint-placeholder-val="{{true}}">
+        <div style="display: flex; flex-wrap: wrap; gap: 6px">
+          <sc-for list="{{rowChips}}" as="ch" hint-placeholder-count="1">
+            <button type="button" style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--ink-200); background: var(--paper); color: var(--ink-800); font: 600 12px/1 var(--font-sans); cursor: pointer; white-space: nowrap"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="{{ch.icon}}" size="{{s12}}" color="var(--ink-600)"></x-import>{{ch.t}}<span style="font-weight: 400; color: var(--ink-600)">{{ch.d}}</span></button>
+          </sc-for>
+        </div>
+      </sc-if>
+      <span style="flex: 1 1 0; min-width: 0"></span>
+      <sc-if value="{{showRead}}" hint-placeholder-val="{{true}}"><x-import component-from-global-scope="DesignSystem_2e7074.Button" variant="ghost" size="sm" icon="list-checks">Đánh dấu đã đọc hết</x-import></sc-if>
+      <sc-if value="{{showToggle}}" hint-placeholder-val="{{true}}"><x-import component-from-global-scope="DesignSystem_2e7074.Button" variant="ghost" size="sm" icon="list">{{toggleLabel}}</x-import></sc-if>
+      <x-import component-from-global-scope="DesignSystem_2e7074.Button" variant="{{hideVariant}}" size="sm" icon="{{hideIcon}}" shortcut="H">{{hideLabel}}</x-import>
+    </div>
+    <div style="position: relative; height: {{frameH}}px; overflow: hidden; border: 1px solid var(--ink-200); border-radius: 14px; background: var(--surface-page)">
+      <sc-if value="{{isList}}" hint-placeholder-val="{{true}}">
+      <div style="padding: {{listPad}}">
+        <sc-for list="{{rows}}" as="r" hint-placeholder-count="6">
+        <div style="{{r.outer}}">
+          <sc-if value="{{r.isHead}}" hint-placeholder-val="{{false}}">
+            <div style="display: flex; flex-wrap: wrap; align-items: center; column-gap: 12px; padding-right: 8px; border-radius: 10px; {{r.edge}}">
+              <button type="button" aria-expanded="{{r.exp}}" style="flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0; background: transparent; border: 0; border-radius: 10px; text-align: left; cursor: pointer; font-family: var(--font-sans)">
+                <span style="width: 28px; height: 28px; flex: none; display: grid; place-items: center; color: var(--ink-700)"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="{{r.chev}}" size="{{s16}}"></x-import></span>
+                <span style="display: flex; flex-wrap: wrap; align-items: center; column-gap: 10px; min-width: 0; {{r.tg}}">
+                  <span style="display: inline-flex; align-items: center; gap: 8px; font: 700 15px/1.3 var(--font-sans); color: var(--ink-900); white-space: nowrap">{{r.label}}<sc-if value="{{r.today}}" hint-placeholder-val="{{false}}"><span style="font: 600 11px/1 var(--font-sans); padding: 4px 8px; border-radius: 999px; background: var(--brand-100); color: var(--brand-700)">Hôm nay</span></sc-if></span>
+                  <span style="display: inline-flex; align-items: center; gap: 8px; white-space: nowrap"><span style="font: 400 13px/1.45 var(--font-sans); color: var(--ink-600); font-variant-numeric: tabular-nums">{{r.p}} prompt · {{r.c}} lệnh<sc-if value="{{r.hasE}}" hint-placeholder-val="{{false}}"> · <b style="font-weight: 600; color: var(--wrong-600)">{{r.e}}</b> lỗi</sc-if></span><sc-if value="{{r.hasNew}}" hint-placeholder-val="{{false}}"><span style="display: inline-flex; align-items: center; height: 18px; padding: 0 7px; border-radius: 999px; background: var(--brand-600); color: var(--paper); font: 700 11px/1 var(--font-sans)">{{r.newN}} mới<span class="pq-sr"> prompt có mục mới</span></span></sc-if></span>
+                </span>
+              </button>
+              <sc-if value="{{r.hasChips}}" hint-placeholder-val="{{false}}">
+                <div style="display: flex; flex-wrap: wrap; gap: 6px; {{r.chipWrap}}">
+                  <sc-for list="{{r.chips}}" as="ch" hint-placeholder-count="1">
+                    <button type="button" style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--ink-200); background: var(--paper); color: var(--ink-800); font: 600 12px/1 var(--font-sans); cursor: pointer; white-space: nowrap"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="{{ch.icon}}" size="{{s12}}" color="var(--ink-600)"></x-import>{{ch.t}}</button>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+          <sc-if value="{{r.isBlock}}" hint-placeholder-val="{{false}}">
+            <div style="margin-left: 13px; border-left: 2px solid var(--ink-200); padding: {{r.pad}}">
+              <div style="position: relative; display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; row-gap: 4px; min-height: 32px; padding-right: 6px; border-radius: 8px; {{r.hov}}">
+                <span aria-hidden="true" style="position: absolute; left: -28px; top: 10px; width: 12px; height: 12px; box-sizing: border-box; border-radius: 50%; {{r.node}}"></span>
+                <sc-if value="{{r.light}}" hint-placeholder-val="{{false}}">
+                  <span style="display: inline-flex; align-items: center; gap: 8px; min-height: 32px; font: 600 13px/1.3 var(--font-sans); color: var(--ink-800); white-space: nowrap">Phiên Claude Code {{r.n}}<span style="font: 400 13px/1.45 var(--font-sans); color: var(--ink-600); font-variant-numeric: tabular-nums">{{r.range}}</span></span>
+                </sc-if>
+                <sc-if value="{{r.btnOn}}" hint-placeholder-val="{{true}}">
+                  <button type="button" aria-expanded="{{r.exp}}" style="display: inline-flex; flex-wrap: wrap; align-items: center; column-gap: 8px; min-height: 32px; padding: 0 4px 0 0; background: transparent; border: 0; border-radius: 8px; text-align: left; cursor: pointer; font-family: var(--font-sans); {{r.btn}}">
+                    <span style="display: inline-flex; align-items: center; gap: 6px; font: 600 13px/1.3 var(--font-sans); color: var(--ink-900); white-space: nowrap"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="{{r.chev}}" size="{{s14}}" color="var(--ink-600)"></x-import>Phiên Claude Code {{r.n}}</span>
+                    <span style="font: 400 13px/1.45 var(--font-sans); color: var(--ink-600); font-variant-numeric: tabular-nums; white-space: nowrap">{{r.range}} · {{r.p}} prompt · {{r.c}} lệnh<sc-if value="{{r.hasE}}" hint-placeholder-val="{{false}}"> · <b style="font-weight: 600; color: var(--wrong-600)">{{r.e}}</b> lỗi</sc-if></span>
+                  </button>
+                </sc-if>
+                <sc-if value="{{r.hasCont}}" hint-placeholder-val="{{false}}"><span style="display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 999px; background: var(--ink-100); color: var(--ink-700); font: 500 12px/1 var(--font-sans); white-space: nowrap">{{r.cont}}</span></sc-if>
+                <sc-if value="{{r.hasPar}}" hint-placeholder-val="{{false}}"><button type="button" style="display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--ink-300); background: var(--paper); color: var(--ink-800); font: 500 12px/1 var(--font-sans); cursor: pointer; white-space: nowrap">Song song với <b style="font-weight: 600">phiên {{r.par}}</b></button></sc-if>
+                <sc-if value="{{r.endClear}}" hint-placeholder-val="{{false}}"><span style="display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 4px; background: var(--ink-100); color: var(--ink-700); font: 500 12px/1 var(--font-mono)">/clear</span></sc-if>
+                <sc-if value="{{r.endExit}}" hint-placeholder-val="{{false}}"><span style="display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 999px; background: var(--ink-100); color: var(--ink-700); font: 500 12px/1 var(--font-sans)">thoát</span></sc-if>
+                <sc-if value="{{r.endOpen}}" hint-placeholder-val="{{false}}"><span style="display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 999px; border: 1px dashed var(--ink-400); color: var(--ink-700); font: 500 12px/1 var(--font-sans); white-space: nowrap">chưa kết thúc</span></sc-if>
+                <sc-if value="{{r.endNext}}" hint-placeholder-val="{{false}}"><span style="display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 999px; background: var(--ink-100); color: var(--ink-700); font: 500 12px/1 var(--font-sans); white-space: nowrap">tiếp sang 24/11</span></sc-if>
+                <sc-if value="{{r.hasNew}}" hint-placeholder-val="{{false}}"><span style="display: inline-flex; align-items: center; height: 18px; padding: 0 7px; border-radius: 999px; background: var(--brand-600); color: var(--paper); font: 700 11px/1 var(--font-sans)">{{r.newN}} mới<span class="pq-sr"> prompt có mục mới</span></span></sc-if>
+                <span style="flex: 1 1 24px; border-top: 1px dashed var(--ink-300)"></span>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{r.isPrompt}}" hint-placeholder-val="{{true}}">
+            <div style="margin-left: 13px; border-left: 2px solid var(--ink-200); padding: 0 0 8px 21px">
+              <article style="border-radius: 10px; padding: 6px 6px 10px 14px; {{r.card}}">
+                <div style="display: flex; align-items: center; gap: 8px 10px; min-height: 32px; flex-wrap: wrap">
+                  <sc-if value="{{r.isNew}}" hint-placeholder-val="{{false}}"><span style="display: inline-flex; align-items: center; height: 18px; padding: 0 7px; border-radius: 999px; background: var(--brand-600); color: var(--paper); font: 700 11px/1 var(--font-sans); {{r.badgeFx}}">Mới<span class="pq-sr"> — prompt mới</span></span></sc-if>
+                  <span style="font: 600 12px/1.3 var(--font-sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-700)">Prompt {{r.n}}</span>
+                  <span style="font: 400 13px/1.45 var(--font-sans); color: var(--ink-600); font-variant-numeric: tabular-nums; white-space: nowrap">{{r.c}} lệnh<sc-if value="{{r.hasE}}" hint-placeholder-val="{{false}}"> · <b style="font-weight: 600; color: var(--wrong-600)">{{r.e}}</b> lỗi</sc-if><sc-if value="{{r.hasEv}}" hint-placeholder-val="{{false}}"> · <b style="font-weight: 600; color: var(--brand-700)">1 mới</b></sc-if></span>
+                  <sc-if value="{{r.hasFlag}}" hint-placeholder-val="{{false}}"><span style="display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--ink-200); background: var(--paper); color: var(--ink-800); font: 600 12px/1 var(--font-sans); white-space: nowrap"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="flag" size="{{s12}}" color="var(--ink-600)"></x-import>{{r.flag}}</span></sc-if>
+                  <sc-if value="{{r.isEx}}" hint-placeholder-val="{{false}}"><span style="display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 6px; background: var(--ink-800); color: var(--paper); font: 600 12px/1 var(--font-sans); white-space: nowrap"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="bookmark-plus" size="{{s12}}"></x-import>Ví dụ</span></sc-if>
+                  <span style="flex: 1 1 0"></span>
+                  <span style="font: 500 13px/1 var(--font-mono); color: var(--ink-600)">{{r.time}}</span>
+                  <x-import component-from-global-scope="DesignSystem_2e7074.Button" variant="ghost" size="sm">Xem chi tiết</x-import>
+                  <x-import component-from-global-scope="DesignSystem_2e7074.Button" variant="ghost" size="sm" icon="bookmark-plus" aria-label="Đánh dấu làm ví dụ"></x-import>
+                </div>
+                <p class="pq-clamp" style="margin: 0; padding-right: 8px; font: 400 14px/1.5 var(--font-sans); color: var(--ink-900)">{{r.text}}</p>
+                <sc-if value="{{r.hasEv}}" hint-placeholder-val="{{false}}">
+                  <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 8px 8px 0 0; padding: 6px 10px; border-radius: 8px; {{r.evSt}}">
+                    <span style="display: inline-flex; align-items: center; height: 18px; padding: 0 7px; border-radius: 999px; background: var(--brand-600); color: var(--paper); font: 700 11px/1 var(--font-sans); {{r.evBadge}}">Lệnh mới<span class="pq-sr"> — sự kiện mới trong prompt đã đọc</span></span>
+                    <span style="font: 500 13px/1.3 var(--font-mono); color: var(--ink-900)">{{r.evCmd}}</span>
+                    <span style="display: inline-flex; align-items: center; gap: 4px; font: 400 12px/1.4 var(--font-sans); color: var(--ink-600)"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="circle-check" size="{{s12}}"></x-import>chạy xong · {{r.evAt}}</span>
+                  </div>
+                </sc-if>
+              </article>
+            </div>
+          </sc-if>
+        </div>
+        </sc-for>
+      </div>
+      </sc-if>
+      <sc-if value="{{hasChip}}" hint-placeholder-val="{{false}}">
+        <button type="button" style="position: absolute; left: 50%; top: {{chipTop}}px; z-index: 3; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 16px 0 12px; border: 0; border-radius: 999px; background: var(--ink-900); color: var(--paper); font: 600 13px/1 var(--font-sans); box-shadow: var(--shadow-raised); cursor: pointer; white-space: nowrap"><span style="display: inline-flex; transform: rotate(90deg)"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="arrow-left" size="{{s16}}"></x-import></span>3 prompt có mục mới</button>
+      </sc-if>
+      <sc-if value="{{isHidden}}" hint-placeholder-val="{{false}}">
+        <div style="height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 24px; text-align: center">
+          <span style="width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%; background: var(--ink-100); color: var(--ink-700)"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="eye-off" size="{{s20}}"></x-import></span>
+          <div style="font: 600 15px/1.4 var(--font-sans); color: var(--ink-900)">Đang ẩn nội dung</div>
+          <div style="max-width: 360px; font: 400 13px/1.45 var(--font-sans); color: var(--ink-600)">Nhấn <kbd style="font: 600 11px/1 var(--font-mono); padding: 3px 6px; border: 1px solid var(--ink-300); border-radius: 4px; background: var(--paper); color: var(--ink-800)">H</kbd> hoặc bấm “Hiện nội dung” để xem lại dòng thời gian.</div>
+        </div>
+      </sc-if>
+    </div>
+  </section>
+</div>
+</x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"variant":{"editor":"enum","options":["default","all","single","collapsedNew","chip","midnight","flag","hidden"],"default":"default"},"w":{"editor":"int","default":1440},"h":{"editor":"int","default":900},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const v = this.props.variant ?? 'default';
+    const W = this.props.w ?? 1440, H = this.props.h ?? 900;
+    const narrow = W < 1000;
+    const P = (n, time, text, c, e, o) => Object.assign({ n, time, text, c, e }, o || {});
+    const B = (n, range, end, prompts, o) => Object.assign({ n, range, end, prompts }, o || {});
+
+    const LAN = [
+      { label: 'Thứ Ba, 24/11/2026', today: true, p: 7, c: 11, e: 1, chips: [], blocks: [
+        B(5, '00:00–00:20', 'exit', [P(14, '00:12', 'commit phần đã xong', 1, 0)], { cont: 'tiếp từ 23/11' }),
+        B(6, '08:40–09:05', 'clear', [P(15, '08:40', 'đọc lại yêu cầu bài tập và lập kế hoạch', 1, 0), P(16, '08:58', 'tạo khung thư mục src và tests theo kế hoạch', 1, 0)]),
+        B(7, '09:55–10:24', 'open', [P(17, '09:55', 'viết hàm tính tổng giỏ hàng', 4, 0, { ex: true }), P(19, '10:20', 'sửa lỗi làm tròn', 1, 1, { isNew: true })], { par: 8 }),
+        B(8, '10:01–10:22', 'open', [P(18, '10:01', 'viết test cho hàm tính tổng giỏ hàng', 2, 0, { ev: { cmd: 'npm test', at: '10:22' } }), P(20, '10:22', 'thêm test số âm', 1, 0, { isNew: true })], { par: 7 })] },
+      { label: 'Thứ Hai, 23/11/2026', p: 10, c: 14, e: 3, chips: [{ t: 'Lặp lệnh lỗi', icon: 'flag' }], blocks: [
+        B(2, '13:30–14:10', 'clear', [P(4, '13:30', 'giải thích yêu cầu bài tập', 1, 0), P(5, '13:41', 'cài jest', 2, 0), P(6, '14:02', 'tạo file test đầu tiên', 1, 0)]),
+        B(3, '14:15–15:02', 'clear', [P(7, '14:15', 'chạy thử test vừa tạo', 1, 0), P(8, '14:30', 'sửa cấu hình jest để nhận thư mục tests', 1, 0), P(9, '14:48', 'chạy npm test và sửa cho tới khi qua', 4, 3, { flag: 'Lặp lệnh lỗi' })]),
+        B(4, '20:05–21:30', 'clear', [P(10, '20:05', 'viết hàm giảm giá', 1, 0), P(11, '20:40', 'thêm test cho hàm giảm giá', 1, 0, { isNew: true }), P(12, '21:20', 'dọn code', 1, 0)]),
+        B(5, '23:50–00:00', 'next', [P(13, '23:50', 'gom các thay đổi để chuẩn bị commit', 1, 0, { isNew: true })])] },
+      { label: 'Chủ Nhật, 22/11/2026', p: 3, c: 5, e: 0, chips: [], blocks: [
+        B(1, '14:05–14:50', 'exit', [P(1, '14:05', 'khởi tạo dự án và cài đặt thư viện', 2, 0), P(2, '14:20', 'giải thích cấu trúc thư mục', 1, 0), P(3, '14:41', 'viết hàm tính tổng đầu tiên', 2, 0)])] }];
+    const MINH23 = { label: 'Thứ Hai, 23/11/2026', p: 11, c: 12, e: 1, chips: [], blocks: [
+      B(4, '08:30–08:34', 'clear', [P(9, '08:30', 'đọc README và tóm tắt bài tập', 1, 0)]),
+      B(5, '08:35–08:41', 'clear', [P(10, '08:35', 'tạo file sum.js', 1, 0), P(11, '08:39', 'chạy thử', 1, 0)]),
+      B(6, '08:42–08:45', 'clear', [P(12, '08:42', 'giải thích lỗi import', 0, 0)]),
+      B(7, '08:46–08:58', 'clear', [P(13, '08:46', 'sửa import và chạy lại', 2, 1), P(14, '08:55', 'viết test đầu tiên', 1, 0)]),
+      B(8, '09:00–09:03', 'clear', [P(15, '09:00', 'chạy npm test', 1, 0)]),
+      B(9, '09:04–09:20', 'clear', [P(16, '09:04', 'đổi tên hàm cho rõ nghĩa', 1, 0), P(17, '09:15', 'thêm comment', 1, 0)]),
+      B(10, '09:21–09:24', 'clear', [P(18, '09:21', 'xoá file thừa', 1, 0)]),
+      B(11, '09:25–09:40', 'exit', [P(19, '09:25', 'commit', 2, 0)])] };
+
+    const D24 = LAN[0], D23 = LAN[1], D22 = LAN[2];
+    const CARD = 'background:var(--paper);border:1px solid var(--ink-200);box-shadow:var(--shadow-card);';
+    const NEWC = 'background:var(--paper);border:1px solid var(--brand-500);box-shadow:var(--shadow-card);';
+    const FOCUS = 'background:var(--sun-100);border:1px solid var(--sun-500);box-shadow:var(--shadow-card);';
+    const base = { outer: '', isHead: false, isBlock: false, isPrompt: false };
+    const cnt = (b) => b.prompts.filter((x) => x.isNew || x.ev).length;
+    const sumB = (b) => b.prompts.reduce((a, x) => ({ c: a.c + x.c, e: a.e + x.e }), { c: 0, e: 0 });
+    const prompt = (x, o) => {
+      o = o || {};
+      return Object.assign({}, base, x, { isPrompt: true, hasE: x.e > 0, hasFlag: !!x.flag, isEx: !!x.ex, isNew: !!x.isNew, hasEv: !!x.ev,
+        evCmd: x.ev ? x.ev.cmd : '', evAt: x.ev ? x.ev.at : '',
+        evSt: 'background:var(--brand-050);border:1px solid var(--brand-200);', evBadge: '', badgeFx: '',
+        card: o.focus ? (x.isNew ? FOCUS.replace('var(--sun-500)', 'var(--brand-500)') : FOCUS) : (x.isNew ? NEWC : CARD), outer: o.outer || '' });
+    };
+    const block = (b, open, o) => {
+      o = o || {};
+      const s = sumB(b), nn = cnt(b);
+      return Object.assign({}, base, { isBlock: true, n: b.n, range: b.range, p: b.prompts.length, c: s.c, e: s.e, hasE: s.e > 0,
+        light: !!o.light, btnOn: !o.light, chev: open ? 'chevron-down' : 'chevron-right', exp: open ? 'true' : 'false',
+        cont: b.cont || '', hasCont: !!b.cont, par: b.par || '', hasPar: !!b.par,
+        endClear: b.end === 'clear', endExit: b.end === 'exit', endOpen: b.end === 'open', endNext: b.end === 'next',
+        newN: nn, hasNew: !open && nn > 0, pad: o.first ? '2px 0 4px 21px' : (o.afterOpen ? '8px 0 4px 21px' : '0 0 4px 21px'),
+        node: open || o.light ? 'background:var(--surface-page);border:2px solid var(--ink-500);' : 'background:var(--ink-300);border:2px solid var(--ink-300);',
+        hov: o.hover ? 'background:var(--ink-100);' : '', btn: o.focusRing ? 'box-shadow:var(--focus-ring);' : '', outer: o.outer || '' });
+    };
+    // open = { blocks: { n: true } } ; o.first etc.
+    const day = (d, open, o) => {
+      o = o || {};
+      const nn = d.blocks.reduce((a, b) => a + cnt(b), 0);
+      const chips = open ? [] : d.chips;
+      let edge = o.first ? '' : 'border-top:1px solid var(--ink-200);margin-top:' + (o.after ? 12 : 0) + 'px;';
+      const rows = [Object.assign({}, base, { isHead: true, label: d.label, today: !!d.today, p: d.p, c: d.c, e: d.e, hasE: d.e > 0,
+        chev: open ? 'chevron-down' : 'chevron-right', exp: open ? 'true' : 'false', chips, hasChips: chips.length > 0,
+        newN: nn, hasNew: !open && nn > 0, edge, tg: narrow ? 'flex-direction:column;align-items:flex-start;' : '',
+        chipWrap: narrow ? 'flex-basis:100%;padding:0 0 8px 38px;' : '', outer: o.outer || '' })];
+      if (!open) return rows;
+      const single = d.blocks.length === 1;
+      let prevOpen = false;
+      d.blocks.forEach((b, i) => {
+        const bo = single ? true : (o.blocks ? !!o.blocks[b.n] : (cnt(b) > 0 || b.end === 'open'));
+        rows.push(block(b, bo, { first: i === 0, afterOpen: prevOpen, light: single }));
+        if (bo) b.prompts.forEach((x) => rows.push(prompt(x, { focus: o.focusN === x.n })));
+        prevOpen = bo;
+      });
+      return rows;
+    };
+    const STICK = 'position:absolute;top:0;left:0;right:0;z-index:2;padding:4px 16px 0;background:var(--surface-page);box-shadow:0 6px 8px -6px rgba(20,23,28,.20);border-bottom:1px solid var(--ink-200);';
+
+    let rows = [], listPad = '12px 16px 16px', hasChip = false, chipTop = 16, student = 'Lan', minh = false;
+    if (v === 'default' || v === 'hidden') {
+      rows = day(D24, true, { first: true }).concat(day(D23, false, { after: true }), day(D22, false));
+    } else if (v === 'collapsedNew') {
+      rows = day(D24, true, { first: true, blocks: { 7: true } }).concat(day(D23, false, { after: true }), day(D22, false));
+    } else if (v === 'single') {
+      rows = day(D24, false, { first: true }).concat(day(D23, false), day(D22, true));
+    } else if (v === 'midnight') {
+      rows = day(D24, true, { first: true, blocks: { 5: true } }).concat(day(D23, true, { after: true, blocks: { 5: true } }), day(D22, false, { after: true }));
+    } else if (v === 'chip') {
+      const r = day(D23, true, { first: true, blocks: { 2: true, 3: true } });
+      r[0].outer = STICK;
+      rows = r.concat(day(D22, false, { after: true }));
+      listPad = '58px 16px 16px'; hasChip = true; chipTop = 60;
+    } else if (v === 'flag') {
+      const r = day(D23, true, { first: true, blocks: { 3: true, 4: true, 5: true }, focusN: 9 });
+      r[0].outer = STICK;
+      rows = r.slice(0, 2).concat(r.slice(2)).concat(day(D22, false, { after: true }));
+      listPad = '58px 16px 16px';
+    } else if (v === 'all') {
+      student = 'Minh'; minh = true;
+      const r = day(MINH23, true, { first: true, blocks: { 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 1, 10: 1, 11: 1 } });
+      r[0].outer = STICK;
+      rows = r;
+      listPad = '58px 16px 16px';
+    }
+
+    const mem = [
+      { name: 'Lan', n: 5 }, { name: 'Minh', n: 5, meta: 'có thể đang kẹt', stuck: true }, { name: 'Hoa', n: 0 },
+      { name: 'Tuấn', n: 1, meta: 'đã dừng gửi' }, { name: 'An', n: 0, meta: 'chưa nhận tín hiệu' },
+      { name: 'Thảo', n: 0 }, { name: 'Quân', n: 0 }, { name: 'Vy', n: 0 }, { name: 'Ngọc', n: 0 }, { name: 'Khánh', n: 0 }];
+    const hidden = v === 'hidden';
+    const selName = minh ? 'Minh' : 'Lan';
+    const people = mem.map((m) => {
+      const sel = m.name === selName;
+      return { name: m.name, n: m.n, hasNew: !hidden && m.n > 0, meta: m.meta || '', hasMeta: !!m.meta, stuck: !!m.stuck,
+        st: sel ? 'background:var(--brand-050);border:1px solid var(--brand-200);' : 'background:transparent;border:1px solid transparent;',
+        nameSt: sel ? 'color:var(--brand-800);font-weight:600;' : 'color:var(--ink-800);' };
+    });
+    const colH = H - 201;
+    const frameH = colH - (narrow ? 88 : 52);
+    return {
+      w: W, h: H, leftW: narrow ? 210 : 260, colH, frameH, people, rows, listPad, hasChip, chipTop, student,
+      sumText: minh ? '2 ngày · 14 prompt · 16 lệnh' : '3 ngày · 20 prompt · 30 lệnh',
+      rowChips: minh ? [{ t: 'Có thể đang kẹt', d: '24/11', icon: 'hourglass' }] : [{ t: 'Lặp lệnh lỗi', d: '23/11', icon: 'flag' }],
+      isList: !hidden, isHidden: hidden,
+      showSum: !hidden && !narrow, showChips: !hidden, showRead: !hidden, showToggle: !hidden,
+      toggleLabel: v === 'all' ? 'Thu tất cả' : 'Mở tất cả',
+      hideVariant: hidden ? 'secondary' : 'ghost', hideIcon: hidden ? 'eye' : 'eye-off', hideLabel: hidden ? 'Hiện nội dung' : 'Ẩn nội dung',
+      s12: 12, s14: 14, s16: 16, s20: 20
+    };
+  }
+}
+</script>
+</body>
+</html>

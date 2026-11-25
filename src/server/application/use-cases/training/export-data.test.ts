@@ -46,7 +46,7 @@ function build() {
   };
 }
 
-/** A training with `Lan` and `Mai`; Lan sent a prompt on the 23rd and a command on the 24th. */
+/** A training with `Lan` and `Mai`; Lan sent a prompt on the 23rd, a command on the 24th (still that prompt's turn), then a new prompt and command on the 24th. */
 async function scenario() {
   const uc = build();
   clock.set(noon(23));
@@ -57,6 +57,8 @@ async function scenario() {
   const maiRow = (await members.findByToken(mai.token))!;
   await uc.ingest.execute(lanRow.ingestToken, userPromptSubmit);
   clock.set(noon(24));
+  await uc.ingest.execute(lanRow.ingestToken, postToolUseBash);
+  await uc.ingest.execute(lanRow.ingestToken, { ...userPromptSubmit, prompt: 'Sửa lỗi tính tổng' });
   await uc.ingest.execute(lanRow.ingestToken, postToolUseBash);
   return { uc, t, lan: lanRow, mai: maiRow };
 }
@@ -72,8 +74,8 @@ beforeEach(() => {
 describe('GetTrainingExportSummary', () => {
   it('defaults to today and to the whole class, and counts only what falls in the days', async () => {
     const { uc, t } = await scenario();
-    expect(await uc.summary.execute(t.id, {})).toMatchObject({ from: '2026-11-24', to: '2026-11-24', memberCount: 2, eventCount: 1, tooLarge: false });
-    expect(await uc.summary.execute(t.id, { from: '2026-11-23', to: '2026-11-24' })).toMatchObject({ eventCount: 2 });
+    expect(await uc.summary.execute(t.id, {})).toMatchObject({ from: '2026-11-24', to: '2026-11-24', memberCount: 2, eventCount: 2, tooLarge: false }); // the command of the 24th that belongs to the prompt of the 23rd is not counted
+    expect(await uc.summary.execute(t.id, { from: '2026-11-23', to: '2026-11-24' })).toMatchObject({ eventCount: 4 });
   });
 
   it('flags a size over the limit without building anything', async () => {
@@ -99,7 +101,7 @@ describe('ExportTrainingData', () => {
     expect(archive.last.map(f => f.name)).toEqual(['01-lan.md', '02-mai.md', '00-tong-quan.md']);
     expect(out.data.toString()).toBe('zip');
     expect(out.fileName).toBe(`du-lieu-training-${t.id}-2026-11-23_2026-11-24.zip`);
-    expect(out.summary).toMatchObject({ memberCount: 2, eventCount: 2 });
+    expect(out.summary).toMatchObject({ memberCount: 2, eventCount: 4 });
   });
 
   it('with no days, takes today by the clock', async () => {
@@ -130,5 +132,82 @@ describe('ExportTrainingData', () => {
     expect(err).toBeInstanceOf(TrainingExportTooLargeError);
     expect(err.message).toContain('300 MB');
     expect(archive.last).toEqual([]);
+  });
+});
+
+describe('ExportTrainingData: a day of a longer training (PRODUCT.md §7.37a, §7.38e)', () => {
+  const session = (id: string) => ({ session_id: id });
+  const at = (d: number, h: number, m: number) => new Date(2026, 10, d, h, m);
+
+  async function twoDays() {
+    const uc = build();
+    clock.set(noon(23));
+    const t = await uc.create.execute('Buổi 1');
+    const lan = await uc.join.execute({ trainingId: t.id, displayName: 'Lan', roomCode: '111111' });
+    const row = (await members.findByToken(lan.token))!;
+    const send = async (when: Date, payload: object) => { clock.set(when); await uc.ingest.execute(row.ingestToken, payload); };
+    // Yesterday: sessions x and y; a prompt of x at 23:40 whose command runs at 00:05. Today: session z, and x goes on after midnight with its command.
+    await send(at(23, 9, 0), { ...userPromptSubmit, ...session('x'), prompt: 'x1' });
+    await send(at(23, 9, 5), { ...userPromptSubmit, ...session('y'), prompt: 'y1' });
+    await send(at(23, 23, 40), { ...userPromptSubmit, ...session('x'), prompt: 'x2 muộn' });
+    await send(at(24, 0, 5), { ...postToolUseBash, ...session('x'), tool_input: { command: 'echo muộn' } });
+    await send(at(24, 8, 0), { ...userPromptSubmit, ...session('z'), prompt: 'z1' });
+    await send(at(24, 8, 5), { ...postToolUseBash, ...session('z'), tool_input: { command: 'echo z' } });
+    return { uc, t };
+  }
+  const lanFile = () => archive.last.find(f => f.name === '01-lan.md')!.content;
+
+  it('numbers the sessions over the whole training, not over the days exported', async () => {
+    const { uc, t } = await twoDays();
+    clock.set(noon(24));
+    await uc.export.execute(t.id, {}); // today only
+    expect(lanFile()).toContain('#### Phiên Claude Code 3 · 08:00–08:05');
+    expect(lanFile()).not.toContain('Phiên Claude Code 1');
+  });
+
+  it('a command after midnight stays in the file of the day of its prompt, in both directions', async () => {
+    const { uc, t } = await twoDays();
+    clock.set(noon(24));
+    await uc.export.execute(t.id, {});
+    expect(lanFile()).toContain('echo z');
+    expect(lanFile()).not.toContain('echo muộn'); // it is under the prompt of yesterday 23:40
+    expect(lanFile()).not.toContain('Trước prompt đầu tiên');
+    await uc.export.execute(t.id, { from: '2026-11-23', to: '2026-11-23' });
+    expect(lanFile()).toContain('x2 muộn');
+    expect(lanFile()).toContain('echo muộn');
+    expect(lanFile()).toContain('#### Phiên Claude Code 2 · 09:05–09:05');
+    expect(lanFile()).not.toContain('echo z');
+  });
+});
+
+describe('ExportTrainingData: labels of a session that runs past midnight, over the whole training', () => {
+  const at = (d: number, h: number, m: number) => new Date(2026, 10, d, h, m);
+  async function overnight() {
+    const uc = build();
+    clock.set(noon(23));
+    const t = await uc.create.execute('Buổi 1');
+    const lan = await uc.join.execute({ trainingId: t.id, displayName: 'Lan', roomCode: '111111' });
+    const row = (await members.findByToken(lan.token))!;
+    const send = async (when: Date, payload: object) => { clock.set(when); await uc.ingest.execute(row.ingestToken, payload); };
+    const x = { session_id: 'x' };
+    await send(at(23, 23, 50), { ...userPromptSubmit, ...x, prompt: 'khuya' });
+    await send(at(24, 8, 10), { ...userPromptSubmit, ...x, prompt: 'sáng' });
+    await send(at(24, 8, 30), { ...x, hook_event_name: 'SessionEnd', reason: 'prompt_input_exit' });
+    clock.set(noon(24));
+    return { uc, t };
+  }
+  const lanFile = () => archive.last.find(f => f.name === '01-lan.md')!.content;
+
+  it('only the first day says "tiếp sang", not "chưa kết thúc", although the exit is on the next day', async () => {
+    const { uc, t } = await overnight();
+    await uc.export.execute(t.id, { from: '2026-11-23', to: '2026-11-23' });
+    expect(lanFile()).toContain('#### Phiên Claude Code 1 · 23:50–23:50 · tiếp sang 24/11');
+    expect(lanFile()).not.toContain('chưa kết thúc');
+  });
+
+  it('only the second day says "tiếp từ" and how the session ended', async () => {
+    const { uc, t } = await overnight();
+    await uc.export.execute(t.id, {});
+    expect(lanFile()).toContain('#### Phiên Claude Code 1 · 08:10–08:30 · tiếp từ 23/11 · thoát');
   });
 });

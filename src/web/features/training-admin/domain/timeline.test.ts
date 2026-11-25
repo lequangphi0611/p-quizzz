@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { TrainingEventRow } from '../../../../shared/api/index.js';
-import { buildTimeline, stepEvent, turnKeyOf, type TimelineItem } from './timeline.js';
+import { stepEvent } from './day-groups.js';
+import { buildTimeline, sessionIndexes, turnKeyOf, type TimelineItem } from './timeline.js';
 
 let id = 0;
 const prompt = (text: string, session = 's1'): TrainingEventRow => ({ id: ++id, kind: 'prompt', receivedAt: id * 1000, claudeSessionId: session, prompt: text, hasOutput: false, hasChange: false, marked: false });
@@ -24,16 +25,43 @@ describe('buildTimeline', () => {
     expect(turns(items).map(t => [t.promptNumber, t.tools.length])).toEqual([[null, 1], [1, 0]]);
   });
 
-  it('adds dividers between Claude Code sessions only when there is more than one', () => {
+  it('two interleaved sessions: each command sits under the prompt of its own session, with no empty turn', () => {
     id = 0;
-    const one = buildTimeline([prompt('a'), tool('Bash', 'ls', true)], { memberStuck: false });
-    expect(one.some(i => i.kind === 'session')).toBe(false);
+    // A prompt, B prompt, A command, B command, A command
+    const events = [prompt('a', 'A'), prompt('b', 'B'), tool('Bash', 'a1', true, {}, 'A'), tool('Bash', 'b1', true, {}, 'B'), tool('Bash', 'a2', true, {}, 'A')];
+    const t = turns(buildTimeline(events, { memberStuck: false }));
+    expect(t.map(x => [x.prompt?.prompt, x.claudeSessionId, x.sessionIndex, x.tools.map(y => y.event.toolTarget)])).toEqual([
+      ['a', 'A', 1, ['a1', 'a2']],
+      ['b', 'B', 2, ['b1']],
+    ]);
+    expect(t.every(x => x.prompt !== null)).toBe(true);
+    expect(t.map(x => x.promptNumber)).toEqual([1, 2]); // numbered over the whole training
+  });
 
+  it('numbers the sessions over the whole training by their first event; no divider items exist any more', () => {
     id = 0;
-    const many = buildTimeline([prompt('a', 'A'), tool('Bash', 'ls', true, {}, 'A'), tool('Bash', 'pwd', true, {}, 'B'), prompt('b', 'B'), prompt('c', 'A')], { memberStuck: false });
-    expect(many.filter(i => i.kind !== 'day').map(i => (i.kind === 'session' ? `session ${i.index}` : 'turn'))).toEqual(['session 1', 'turn', 'session 2', 'turn', 'turn', 'session 1', 'turn']);
-    // commands of the new session never stay in the previous session's turn
-    expect(turns(many)[1]!.prompt).toBeNull();
+    const events = [tool('Bash', 'x', true, {}, 'B'), prompt('a', 'A'), prompt('b', 'B')];
+    expect([...sessionIndexes(events)]).toEqual([['B', 1], ['A', 2]]);
+    expect(buildTimeline(events, { memberStuck: false }).every(i => i.kind === 'day' || i.kind === 'turn')).toBe(true);
+  });
+
+  it('a turn "before the first prompt" exists only for a session that really ran commands before its own first prompt', () => {
+    id = 0;
+    const events = [prompt('a', 'A'), prompt('b', 'B'), tool('Bash', 'x', true, {}, 'B')];
+    expect(turns(buildTimeline(events, { memberStuck: false })).filter(t => t.prompt === null)).toHaveLength(0);
+    id = 0;
+    const early = [prompt('a', 'A'), tool('Bash', 'x', true, {}, 'B'), prompt('b', 'B')];
+    expect(turns(buildTimeline(early, { memberStuck: false })).map(t => [t.claudeSessionId, t.prompt === null])).toEqual([['A', false], ['B', true], ['B', false]]);
+  });
+
+  it('a failing run is cut per session: 3 failures in A with a success in B between still make a run, 2 + 1 across sessions do not', () => {
+    id = 0;
+    const events = [tool('Bash', 'npm test', false, {}, 'A'), tool('Bash', 'ls', true, {}, 'B'), tool('Bash', 'npm test', false, {}, 'A'), tool('Bash', 'ls', true, {}, 'B'), tool('Bash', 'npm test', false, {}, 'A')];
+    const runs = turns(buildTimeline(events, { memberStuck: true })).flatMap(t => t.tools).map(t => t.run?.length ?? null);
+    expect(runs).toEqual([3, 3, 3, null, null]); // session A's turn, then session B's
+    id = 0;
+    const mixed = [tool('Bash', 'x', false, {}, 'A'), tool('Bash', 'x', false, {}, 'B'), tool('Bash', 'x', false, {}, 'A')];
+    expect(turns(buildTimeline(mixed, { memberStuck: true })).flatMap(t => t.tools).every(t => t.run === null)).toBe(true);
   });
 
   it('flags three failures of the same command in a row, at the first line of the run', () => {
@@ -127,7 +155,7 @@ describe('buildTimeline: days (PRODUCT.md §7.37)', () => {
   const at = (d: number, h: number, mi = 0) => new Date(2026, 10, d, h, mi).getTime();
   const p = (text: string, receivedAt: number, session = 's1'): TrainingEventRow => ({ ...prompt(text, session), receivedAt });
   const t = (receivedAt: number, session = 's1'): TrainingEventRow => ({ ...tool('Bash', 'ls', true, {}, session), receivedAt });
-  const shape = (items: TimelineItem[]) => items.map(i => (i.kind === 'day' ? `day ${i.dayKey}` : i.kind === 'session' ? `session ${i.index}` : `turn ${i.promptNumber}`));
+  const shape = (items: TimelineItem[]) => items.map(i => (i.kind === 'day' ? `day ${i.dayKey}` : `turn ${i.promptNumber}`));
 
   it('puts one day strip before the first item of each day, also for the first day and for a single day', () => {
     id = 0;
@@ -148,24 +176,5 @@ describe('buildTimeline: days (PRODUCT.md §7.37)', () => {
     id = 0;
     const items = buildTimeline([t(at(23, 8)), p('x', at(24, 9))], { memberStuck: false });
     expect(shape(items)).toEqual(['day 2026-11-23', 'turn null', 'day 2026-11-24', 'turn 1']);
-  });
-
-  it('puts the day strip before the session divider that falls in the same place', () => {
-    id = 0;
-    const items = buildTimeline([p('a', at(23, 9), 'A'), p('b', at(24, 9), 'B')], { memberStuck: false });
-    expect(shape(items)).toEqual(['day 2026-11-23', 'session 1', 'turn 1', 'day 2026-11-24', 'session 2', 'turn 2']);
-  });
-
-  it('repeats a session that runs past midnight at the top of the next day, with the same number', () => {
-    id = 0;
-    const items = buildTimeline([p('a', at(23, 9), 'A'), p('b', at(23, 10), 'B'), p('c', at(24, 9), 'B'), p('d', at(25, 9), 'B')], { memberStuck: false });
-    expect(shape(items)).toEqual(['day 2026-11-23', 'session 1', 'turn 1', 'session 2', 'turn 2', 'day 2026-11-24', 'session 2', 'turn 3', 'day 2026-11-25', 'session 2', 'turn 4']);
-    const repeats = items.filter((i): i is Extract<TimelineItem, { kind: 'session' }> => i.kind === 'session' && i.continuedFrom !== undefined);
-    expect(repeats.map(r => r.continuedFrom)).toEqual([at(23, 10), at(24, 9)]);
-  });
-
-  it('does not repeat a session when there is only one, nor when a new session opens on the new day', () => {
-    id = 0;
-    expect(shape(buildTimeline([p('a', at(23, 9)), p('b', at(24, 9))], { memberStuck: false }))).toEqual(['day 2026-11-23', 'turn 1', 'day 2026-11-24', 'turn 2']);
   });
 });

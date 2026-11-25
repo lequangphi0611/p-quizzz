@@ -13,6 +13,7 @@ import { HttpGradingGateway } from '../features/grading/infrastructure/http-grad
 import { HttpSessionAdminGateway } from '../features/session-admin/infrastructure/http-session-admin-gateway.js';
 import { HttpDiscussionGateway } from '../features/discussion/infrastructure/http-discussion-gateway.js';
 import { HttpExamGateway } from '../features/member-exam/infrastructure/http-exam-gateway.js';
+import { LocalStorageTrainingReadStore } from '../features/training-admin/infrastructure/local-storage-training-read-store.js';
 import { HttpTrainingAdminGateway } from '../features/training-admin/infrastructure/http-training-admin-gateway.js';
 import { HttpTrainingMemberGateway } from '../features/training-member/infrastructure/http-training-member-gateway.js';
 import { LocalStorageTrainingTokenStore } from '../features/training-member/infrastructure/local-storage-training-token-store.js';
@@ -50,5 +51,6 @@ export const mentorNoticesGateway = new HttpMentorNoticesGateway(api);
 export const seenStore = new LocalStorageSeenStore();
 export const sharedSessionsGateway = new HttpSharedSessionsGateway(api);
 export const trainingAdminGateway = new HttpTrainingAdminGateway(api);
+export const trainingReadStore = new LocalStorageTrainingReadStore();
 export const trainingMemberGateway = new HttpTrainingMemberGateway(api);
 export const trainingTokenStore = new LocalStorageTrainingTokenStore();

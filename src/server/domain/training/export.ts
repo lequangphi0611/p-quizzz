@@ -1,5 +1,6 @@
 import { FLAG_CODES, FLAG_LABELS, type FlagCode } from '../../../shared/api/training.js';
 import type { Clip } from './clip.js';
+import type { SessionContext } from './export-selection.js';
 import { describeExportRange, type ExportRange } from './export-range.js';
 import { analyzeEvents } from './flags/index.js';
 import { FLAG_TEXT_CHARS, type FlagEvent, type PermissionDecisionInfo } from './flags/flag-event.js';
@@ -31,8 +32,12 @@ export interface ExportMemberInput {
   /** Pressed "Dừng gửi" and the mentor has not approved deleting the data yet (PRODUCT.md §7.35e). */
   stoppedSending: boolean;
   note: string | null;
-  /** Inside the chosen days, oldest first. */
+  /** The turns whose prompt is inside the chosen days (`selectExportEventIds`), oldest first. */
   events: ExportEvent[];
+  /** Each session's number over the whole training; without it sessions are numbered by their order in `events`. */
+  sessionNumbers?: ReadonlyMap<string, number>;
+  /** How sessions ended and which days they ran, over the whole training; without it the labels come from `events` only. */
+  sessionContext?: SessionContext;
 }
 
 /** What every file of the export needs besides the member itself. */
@@ -196,6 +201,108 @@ function analyze(input: ExportMemberInput, index: number, allowAutoAccept: boole
   return { input, fileName: slugifyFileName(index, input.displayName), stats: statsOf(input.events), flags, decisions };
 }
 
+/** One prompt and every event of the same Claude Code session that followed it (a turn); `prompt` is null for events before the session's first prompt. */
+interface ExportTurn {
+  prompt: ExportEvent | null;
+  events: ExportEvent[];
+}
+
+interface ExportBlock {
+  index: number;
+  turns: ExportTurn[];
+  firstAt: Date;
+  lastAt: Date;
+  /** The day of the session's previous block, and of its next one: set when it runs past midnight. */
+  continuedFrom: Date | null;
+  continuesTo: Date | null;
+}
+
+const dm = (d: Date) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
+
+/**
+ * The timeline of a member's file, grouped day → Claude Code session → prompt (PRODUCT.md §7.38). A member may keep several
+ * sessions open at once: every event goes under the prompt of its own session, a turn belongs to the day of its prompt, and a
+ * session is numbered by the order it first appears in the file (the same numbers as the mentor's screen).
+ */
+function timelineLines(events: readonly ExportEvent[], decisions: ReadonlyMap<number, PermissionDecisionInfo>, numbers?: ReadonlyMap<string, number>, context?: SessionContext): string[] {
+  const sessionIndex = new Map<string, number>(numbers ?? []);
+  // Sessions the given numbers do not cover (none, when they come from the whole training) follow the highest number.
+  for (const e of events) if (!sessionIndex.has(e.claudeSessionId)) sessionIndex.set(e.claudeSessionId, Math.max(0, ...sessionIndex.values()) + 1);
+  // Turns in the order they open; each remembers its day.
+  const days: { day: string; at: Date; sessions: Map<string, ExportTurn[]> }[] = [];
+  const current = new Map<string, ExportTurn>();
+  const endedBy = new Map<string, string>();
+  for (const e of events) {
+    if (e.kind === 'session' && (e.subtype === 'clear' || e.subtype === 'exit')) endedBy.set(e.claudeSessionId, e.subtype);
+    else if (e.kind !== 'notice') endedBy.delete(e.claudeSessionId); // resumed after it: not ended
+    let turn = e.kind === 'prompt' ? undefined : current.get(e.claudeSessionId);
+    if (!turn) {
+      turn = { prompt: e.kind === 'prompt' ? e : null, events: [] };
+      current.set(e.claudeSessionId, turn);
+      const key = dayOf(e.at);
+      let day = days[days.length - 1];
+      if (!day || day.day !== key) days.push((day = { day: key, at: e.at, sessions: new Map() }));
+      const list = day.sessions.get(e.claudeSessionId);
+      if (list) list.push(turn); else day.sessions.set(e.claudeSessionId, [turn]);
+    }
+    if (e.kind !== 'prompt') turn.events.push(e);
+  }
+  // Blocks of each day, then what links a session's blocks across days.
+  const sessionOfIndex = new Map([...sessionIndex].map(([sid, i]) => [i, sid]));
+  const blocksByDay = days.map(d =>
+    [...d.sessions].map(([sid, turns]): ExportBlock => {
+      const all = turns.flatMap(t => (t.prompt ? [t.prompt, ...t.events] : t.events));
+      return { index: sessionIndex.get(sid)!, turns, firstAt: all[0]!.at, lastAt: all[all.length - 1]!.at, continuedFrom: null, continuesTo: null };
+    }).sort((a, b) => a.firstAt.getTime() - b.firstAt.getTime() || a.index - b.index),
+  );
+  const lastBlockOf = new Map<number, ExportBlock>();
+  const lastDayOf = new Map<number, Date>();
+  blocksByDay.forEach((blocks, di) => {
+    for (const b of blocks) {
+      const prev = lastBlockOf.get(b.index);
+      if (prev) { b.continuedFrom = lastDayOf.get(b.index)!; prev.continuesTo = days[di]!.at; }
+      lastBlockOf.set(b.index, b);
+      lastDayOf.set(b.index, days[di]!.at);
+      // Over the whole training, a session may also run on days outside the file.
+      const around = context?.days.get(sessionOfIndex.get(b.index)!);
+      if (around) {
+        const before = around.filter(x => x.key < days[di]!.day).at(-1);
+        const after = around.find(x => x.key > days[di]!.day);
+        if (before) b.continuedFrom = before.at;
+        if (after) b.continuesTo = after.at;
+      }
+    }
+  });
+  const ended = context?.endedBy ?? endedBy;
+  const lines: string[] = [];
+  const mode = new Map<string, string>();
+  days.forEach((d, di) => {
+    lines.push(`### ${dmy(d.at)}`, '');
+    for (const b of blocksByDay[di]!) {
+      const sid = sessionOfIndex.get(b.index)!;
+      const end = b.continuesTo ? `tiếp sang ${dm(b.continuesTo)}` : ended.get(sid) === 'clear' ? '/clear' : ended.get(sid) === 'exit' ? 'thoát' : 'chưa kết thúc';
+      const parts = [`${hhmm(b.firstAt)}–${hhmm(b.lastAt)}`, ...(b.continuedFrom ? [`tiếp từ ${dm(b.continuedFrom)}`] : []), end];
+      lines.push(`#### Phiên Claude Code ${b.index} · ${parts.join(' · ')}`, '');
+      for (const t of b.turns) {
+        const first = t.prompt ?? t.events[0]!;
+        const withMode = (e: ExportEvent) => {
+          if (!e.permissionMode || e.permissionMode === mode.get(sid)) return '';
+          mode.set(sid, e.permissionMode);
+          return ` · chế độ quyền: ${e.permissionMode}`;
+        };
+        if (t.prompt) {
+          lines.push(`##### ${hhmmss(t.prompt.at)} · Prompt${withMode(t.prompt)}${t.prompt.marked ? ' · ★ ví dụ đã đánh dấu' : ''} · #${t.prompt.id}`, '', quote(t.prompt.prompt ?? ''), '');
+        } else {
+          lines.push(`##### ${hhmmss(first.at)} · Trước prompt đầu tiên của phiên này`, '');
+        }
+        for (const e of t.events) lines.push(eventLines(e, decisions, withMode(e)));
+        if (t.events.length > 0) lines.push('');
+      }
+    }
+  });
+  return lines;
+}
+
 function memberFile(a: Analyzed, input: ExportContext): string {
   const { events } = a.input;
   const title = `# ${oneLine(a.input.displayName)}${a.input.stoppedSending ? ' (đã dừng gửi)' : ''}`;
@@ -218,29 +325,7 @@ function memberFile(a: Analyzed, input: ExportContext): string {
   if (events.length === 0) {
     lines.push('Không có sự kiện nào trong khoảng này.');
   } else {
-    let day = '';
-    let session = '';
-    let mode: string | null = null;
-    for (const e of events) {
-      if (dayOf(e.at) !== day) {
-        day = dayOf(e.at);
-        lines.push(`### ${dmy(e.at)}`, '');
-      }
-      if (e.claudeSessionId !== session) {
-        session = e.claudeSessionId;
-        lines.push(`*Phiên Claude Code ${session.slice(0, 8)}*`, '');
-      }
-      let extra = '';
-      if (e.permissionMode && e.permissionMode !== mode) {
-        mode = e.permissionMode;
-        extra = ` · chế độ quyền: ${e.permissionMode}`;
-      }
-      if (e.kind === 'prompt') {
-        lines.push(`#### ${hhmmss(e.at)} · Prompt${extra}${e.marked ? ' · ★ ví dụ đã đánh dấu' : ''} · #${e.id}`, '', quote(e.prompt ?? ''), '');
-      } else {
-        lines.push(eventLines(e, a.decisions, extra));
-      }
-    }
+    lines.push(...timelineLines(events, a.decisions, a.input.sessionNumbers, a.input.sessionContext));
   }
   return `${lines.join('\n').trimEnd()}\n`;
 }
@@ -288,6 +373,8 @@ function overviewFile(all: readonly ExportMemberSummary[], input: ExportContext)
     '2. Dán một trong các prompt gợi ý ở dưới.',
     '3. Mỗi nhận xét của AI đều kèm số `#id` của sự kiện: mở file của bạn đó, tìm đúng số để kiểm lại trước khi góp ý.',
     '4. Dữ liệu quá lớn so với giới hạn của AI thì xuất lại theo từng ngày hoặc chỉ một số bạn.',
+    '',
+    'Trong file của từng bạn, dòng thời gian nhóm theo **ngày → phiên Claude Code → prompt**. Một bạn có thể mở nhiều phiên cùng lúc: mỗi lệnh nằm dưới prompt của đúng phiên đã chạy nó, số phiên đánh theo thứ tự xuất hiện, và một prompt chạy qua nửa đêm vẫn nằm ở ngày của prompt.',
     '',
     '## Các file trong gói',
     '',

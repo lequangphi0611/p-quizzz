@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Thẻ prompt · biến thể mới</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="../ds/designsystem_2e7074/styles.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/fonts.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/colors.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/typography.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/spacing.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/radii.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/elevation.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/motion.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/icons.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/base.css">
+<script src="../ds/designsystem_2e7074/_ds_bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>body{margin:0}.pq-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}</style>
+</helmet>
+<article style="box-sizing: border-box; width: 100%; border-radius: 10px; padding: 6px 6px 10px 14px; font-family: var(--font-sans); {{card}}">
+  <div style="display: flex; align-items: center; gap: 8px 10px; min-height: 32px; flex-wrap: wrap">
+    <sc-if value="{{showBadge}}" hint-placeholder-val="{{false}}"><span style="display: inline-flex; align-items: center; height: 18px; padding: 0 7px; border-radius: 999px; background: var(--brand-600); color: var(--paper); font: 700 11px/1 var(--font-sans); {{badgeFx}}">Mới<span class="pq-sr"> — prompt mới</span></span></sc-if>
+    <span style="font: 600 12px/1.3 var(--font-sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-700)">Prompt {{n}}</span>
+    <span style="font: 400 13px/1.45 var(--font-sans); color: var(--ink-600); white-space: nowrap">{{c}} lệnh<sc-if value="{{hasE}}" hint-placeholder-val="{{false}}"> · <b style="font-weight: 600; color: var(--wrong-600)">{{e}}</b> lỗi</sc-if><sc-if value="{{showEv}}" hint-placeholder-val="{{false}}"> · <b style="font-weight: 600; color: var(--brand-700)">1 mới</b></sc-if></span>
+    <sc-if value="{{hasFlag}}" hint-placeholder-val="{{false}}"><span style="display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--ink-200); background: var(--paper); color: var(--ink-800); font: 600 12px/1 var(--font-sans); white-space: nowrap"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="flag" size="{{s12}}" color="var(--ink-600)"></x-import>{{flag}}</span></sc-if>
+    <sc-if value="{{isEx}}" hint-placeholder-val="{{false}}"><span style="display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 6px; background: var(--ink-800); color: var(--paper); font: 600 12px/1 var(--font-sans)"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="bookmark-plus" size="{{s12}}"></x-import>Ví dụ</span></sc-if>
+    <span style="flex: 1 1 0"></span>
+    <span style="font: 500 13px/1 var(--font-mono); color: var(--ink-600)">{{time}}</span>
+    <x-import component-from-global-scope="DesignSystem_2e7074.Button" variant="ghost" size="sm">Xem chi tiết</x-import>
+    <x-import component-from-global-scope="DesignSystem_2e7074.Button" variant="ghost" size="sm" icon="bookmark-plus" aria-label="Đánh dấu làm ví dụ"></x-import>
+  </div>
+  <p style="margin: 0; padding-right: 8px; font: 400 14px/1.5 var(--font-sans); color: var(--ink-900)">{{text}}</p>
+  <sc-if value="{{showStrip}}" hint-placeholder-val="{{false}}">
+    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 8px 8px 0 0; padding: 6px 10px; border-radius: 8px; {{stripSt}}">
+      <span style="display: inline-flex; align-items: center; height: 18px; padding: 0 7px; border-radius: 999px; background: var(--brand-600); color: var(--paper); font: 700 11px/1 var(--font-sans); {{badgeFx}}">Lệnh mới</span>
+      <span style="font: 500 13px/1.3 var(--font-mono); color: var(--ink-900)">{{evCmd}}</span>
+      <span style="display: inline-flex; align-items: center; gap: 4px; font: 400 12px/1.4 var(--font-sans); color: var(--ink-600)"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="circle-check" size="{{s12}}"></x-import>chạy xong · {{evAt}}</span>
+    </div>
+  </sc-if>
+</article>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"n":{"editor":"int","default":20},"time":{"editor":"text","default":"10:22"},"text":{"editor":"text","default":"thêm test số âm"},"c":{"editor":"int","default":1},"e":{"editor":"int","default":0},"isNew":{"editor":"boolean","default":true},"ev":{"editor":"boolean","default":false},"evCmd":{"editor":"text","default":"npm test"},"evAt":{"editor":"text","default":"10:22"},"flag":{"editor":"text","default":""},"ex":{"editor":"boolean","default":false},"focus":{"editor":"boolean","default":false},"stage":{"editor":"enum","options":["fresh","fading","read"],"default":"fresh"},"$preview":{"width":640,"height":120}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const p = this.props;
+    const stage = p.stage ?? 'fresh';
+    const isNew = p.isNew ?? true, ev = !!p.ev, focus = !!p.focus;
+    const live = stage !== 'read';
+    let border = 'var(--ink-200)';
+    if (isNew && stage === 'fresh') border = 'var(--brand-500)';
+    if (isNew && stage === 'fading') border = 'var(--brand-200)';
+    const bg = focus ? 'var(--sun-100)' : 'var(--paper)';
+    if (focus && !(isNew && live)) border = 'var(--sun-500)';
+    return {
+      n: p.n ?? 20, time: p.time ?? '10:22', text: p.text ?? 'thêm test số âm', c: p.c ?? 1, e: p.e ?? 0, hasE: (p.e ?? 0) > 0,
+      flag: p.flag ?? '', hasFlag: !!p.flag, isEx: !!p.ex,
+      showBadge: isNew && live, showEv: ev && live, showStrip: ev && live, evCmd: p.evCmd ?? 'npm test', evAt: p.evAt ?? '10:22',
+      badgeFx: stage === 'fading' ? 'opacity:.45;transform:scale(.92);' : '',
+      stripSt: stage === 'fading' ? 'background:var(--paper);border:1px solid var(--ink-200);' : 'background:var(--brand-050);border:1px solid var(--brand-200);',
+      card: 'background:' + bg + ';border:1px solid ' + border + ';box-shadow:var(--shadow-card);', s12: 12
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-import { cap, type FlagEvent, type FlagRule } from './flag-event.js';
+import { cap, perSession, type FlagEvent, type FlagRule } from './flag-event.js';
 
 /** Prompts in a row that repeat each other before the flag goes up. */
 export const REPEATED_PROMPTS = 3;
@@ -22,7 +22,7 @@ const repeats = (prev: string, next: string): boolean =>
   similarity(prev, next) >= SIMILAR_THRESHOLD || (next.length <= SHORT_PROMPT_CHARS && STILL_BROKEN.test(next));
 
 /** "Lặp yêu cầu": `REPEATED_PROMPTS` prompts in a row where each nearly repeats the one before, or only says that it still fails. */
-export const repeatedRequest: FlagRule = events => {
+const repeatedRequestIn: FlagRule = events => {
   const prompts = events.filter((e): e is FlagEvent & { prompt: string } => e.kind === 'prompt' && e.prompt !== null);
   const hits: number[] = [];
   let run: number[] = [];
@@ -33,3 +33,6 @@ export const repeatedRequest: FlagRule = events => {
   });
   return hits.length > 0 ? { code: 'repeated_request', eventIds: cap(hits) } : null;
 };
+
+/** Per Claude Code session (PRODUCT.md §7.38c). */
+export const repeatedRequest: FlagRule = perSession(repeatedRequestIn);

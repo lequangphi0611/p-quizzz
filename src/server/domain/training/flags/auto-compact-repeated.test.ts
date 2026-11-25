@@ -15,4 +15,11 @@ describe('autoCompactRepeated', () => {
     expect(autoCompactRepeated([session('compact_manual'), session('compact_manual'), session('compact_manual')], ctx())).toBeNull();
     expect(autoCompactRepeated([session('compact_auto'), session('clear'), session('compact_auto')], ctx())).toBeNull();
   });
+
+  it('counts compactions per session: one in each of two sessions is not a repeat, and a /clear in B does not reset A', () => {
+    expect(autoCompactRepeated([session('compact_auto', 1, 'A'), session('compact_auto', 2, 'B')], ctx())).toBeNull();
+    const a1 = session('compact_auto', 1, 'A');
+    const a2 = session('compact_auto', 3, 'A');
+    expect(autoCompactRepeated([a1, session('clear', 2, 'B'), a2], ctx())?.eventIds).toEqual([a1.id, a2.id]);
+  });
 });

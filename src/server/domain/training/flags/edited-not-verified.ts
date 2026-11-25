@@ -4,26 +4,42 @@ import { cap, isEdit, isShell, type FlagEvent, type FlagRule } from './flag-even
 /** Turns that changed files and ended with no check before the next prompt, before the (soft) flag goes up. */
 export const EDITED_NOT_VERIFIED_TURNS = 2;
 
+const isCheck = (e: FlagEvent) => isShell(e) && e.toolTarget !== null && isVerifyCommand(e.toolTarget);
+
 /**
  * "Sửa xong chưa chạy kiểm tra": a hint only, because the member may have run the checks in another window, which the app never sees.
- * A turn is what happens between two prompts; it counts when it edited a file, ran no check at all (passed or failed) and was
- * followed by another prompt.
+ * A turn is what one Claude Code session does between two of its own prompts; it counts when it edited a file, no check ran at
+ * all (passed or failed) and its session got another prompt after it.
+ *
+ * The check is NOT per session (PRODUCT.md §7.38c): a member's sessions share one folder, so a check run in session B while
+ * session A was in its turn also covers A's edits. Only the turns are cut per session, so another session's prompt never ends
+ * a turn early.
  */
 export const editedNotVerified: FlagRule = events => {
   const evidence: number[] = [];
+  const firstIndex = new Map<string, number>();
+  const promptIndexes = new Map<string, number[]>();
+  events.forEach((e, i) => {
+    if (!firstIndex.has(e.claudeSessionId)) firstIndex.set(e.claudeSessionId, i);
+    if (e.kind === 'prompt') promptIndexes.set(e.claudeSessionId, [...(promptIndexes.get(e.claudeSessionId) ?? []), i]);
+  });
   let turns = 0;
-  let edits: FlagEvent[] = [];
-  let checked = false;
-  for (const e of events) {
-    if (e.kind === 'prompt') {
-      if (edits.length > 0 && !checked) {
-        turns++;
-        evidence.push(edits[edits.length - 1]!.id);
+  for (const [session, start] of firstIndex) {
+    const bounds = [start, ...(promptIndexes.get(session) ?? [])];
+    for (let k = 0; k + 1 < bounds.length; k++) {
+      const [from, to] = [bounds[k]!, bounds[k + 1]!];
+      let lastEdit: FlagEvent | null = null;
+      let checked = false;
+      for (let i = from; i < to; i++) {
+        const e = events[i]!;
+        if (isCheck(e)) checked = true;
+        else if (e.claudeSessionId === session && isEdit(e)) lastEdit = e;
       }
-      edits = [];
-      checked = false;
-    } else if (isEdit(e)) edits.push(e);
-    else if (isShell(e) && e.toolTarget !== null && isVerifyCommand(e.toolTarget)) checked = true;
+      if (lastEdit && !checked) {
+        turns++;
+        evidence.push(lastEdit.id);
+      }
+    }
   }
-  return turns >= EDITED_NOT_VERIFIED_TURNS ? { code: 'edited_not_verified', eventIds: cap(evidence) } : null;
+  return turns >= EDITED_NOT_VERIFIED_TURNS ? { code: 'edited_not_verified', eventIds: cap(evidence.sort((a, b) => a - b)) } : null;
 };

@@ -27,7 +27,7 @@ const moment = (daysBack: number, h: number, m: number) => { const d = new Date(
 
 const box = async (l: Locator) => (await l.boundingBox())!;
 const frame = (page: Page) => page.getByLabel(/^Các sự kiện, ngày mới nhất ở trên/);
-const dayButtons = (page: Page) => frame(page).getByRole('button', { expanded: true }).or(frame(page).getByRole('button', { expanded: false }));
+const dayButtons = (page: Page) => frame(page).locator('button[id^="day-"][aria-expanded]');
 
 test('mentor reads a training of several days: day groups, flags, sticky header, reading position, hiding', async ({ browser, baseURL }) => {
   test.setTimeout(180_000);
@@ -137,13 +137,13 @@ test('mentor reads a training of several days: day groups, flags, sticky header,
   expect(stacked).toBe(true); // the summary is under the label
   await page.setViewportSize(DESKTOP);
 
-  // Open all: the sessions are marked; a session that runs past midnight is repeated at the top of the next day.
+  // Open all: the sessions are blocks of their day (S43); a session that runs past midnight is in the next day too, with "tiếp từ".
   await toggle.click();
   await expect(page.getByRole('button', { name: 'Thu tất cả' })).toBeVisible();
-  await expect(timeline.getByText(/Phiên Claude Code 2 · tiếp từ \d\d\/\d\d/)).toBeVisible();
-  await expect(timeline.getByText(/Phiên Claude Code 1 · tiếp từ \d\d\/\d\d/)).toBeVisible();
-  await expect(timeline.getByText(/Phiên Claude Code 2 · mở lúc 22:10/)).toBeVisible();
-  await expect(timeline.getByText(/Phiên Claude Code 1 · mở lúc 09:15/)).toBeVisible();
+  await expect(timeline.getByText('Phiên Claude Code 2', { exact: true })).toHaveCount(2); // yesterday night (a block) and today (the only one that day: a plain line)
+  await expect(timeline.getByText('Phiên Claude Code 1', { exact: true })).toHaveCount(2); // the first day (plain) and yesterday (a block)
+  await expect(timeline.getByText(/^tiếp từ \d\d\/\d\d$/)).toHaveCount(2);
+  await expect(timeline.getByText('22:10–00:03', { exact: false })).toBeVisible();
 
   // The header of the open day is pinned while it is read (and the one before it is gone); folding it from there brings it to the top.
   const yesterday = timeline.locator('[data-day-group]').nth(1);
@@ -163,7 +163,7 @@ test('mentor reads a training of several days: day groups, flags, sticky header,
   await expect(reading).toBeInViewport();
   const before = (await box(reading)).y;
   expect((await send(prompt('ngày nay: prompt mới', s2))).status()).toBe(204);
-  const newChip = page.getByRole('button', { name: /1 sự kiện mới/ });
+  const newChip = page.locator('[data-unread-chip]');
   await expect(newChip).toBeVisible();
   await expect(newChip).toHaveAttribute('data-side', 'above');
   expect(Math.abs((await box(reading)).y - before)).toBeLessThan(2);

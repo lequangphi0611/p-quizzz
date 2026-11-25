@@ -1,6 +1,7 @@
 import { TRAINING_NAME_MAX, type CreatedTraining, type TrainingSummary } from '../../../../shared/api/index.js';
 import { ApiError } from '../../../shared/api-client/http-client.js';
 import type { TrainingAdminGateway } from './training-admin-gateway.js';
+import type { TrainingReadStore } from './training-read-store.js';
 
 export interface TrainingListState {
   /** Newest first, as the server sends them. */
@@ -26,8 +27,14 @@ export class TrainingListController {
   private listeners = new Set<() => void>();
   private seq = 0; // drops a list that arrives after a newer one
 
-  constructor(private gateway: TrainingAdminGateway, initial: TrainingSummary[]) {
+  constructor(private gateway: TrainingAdminGateway, initial: TrainingSummary[], private readStore?: TrainingReadStore) {
     this.state = { items: initial, name: '', allowAutoAccept: false, creating: false, createError: '', loading: false, loadError: '' };
+    this.dropStaleReadRecords(initial);
+  }
+
+  /** What the mentor read is kept only for trainings that are still going: the record of one that is gone or ended is deleted (S43). */
+  private dropStaleReadRecords(items: readonly TrainingSummary[]): void {
+    this.readStore?.clearExcept(items.filter(t => t.status !== 'ended').map(t => t.id));
   }
 
   getState = (): TrainingListState => this.state;
@@ -45,7 +52,7 @@ export class TrainingListController {
     const n = ++this.seq;
     try {
       const items = await this.gateway.list();
-      if (n === this.seq) this.set({ items });
+      if (n === this.seq) { this.set({ items }); this.dropStaleReadRecords(items); }
     } catch { /* the next signal or the retry button refreshes */ }
   };
 
@@ -55,7 +62,7 @@ export class TrainingListController {
     this.set({ loading: true, loadError: '' });
     try {
       const items = await this.gateway.list();
-      if (n === this.seq) this.set({ items, loading: false });
+      if (n === this.seq) { this.set({ items, loading: false }); this.dropStaleReadRecords(items); }
     } catch (err) {
       if (n === this.seq) this.set({ loading: false, loadError: errorText(err, 'Không tải được danh sách buổi training') });
     }

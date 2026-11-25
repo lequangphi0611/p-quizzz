@@ -47,4 +47,14 @@ describe('inferPermissionDecision', () => {
     expect(out.get(p1.id)?.decision).toBe('allowed');
     expect(out.get(p2.id)?.decision).toBe('denied');
   });
+
+  it('reads each session on its own (PRODUCT.md §7.38c)', () => {
+    const p = perm('Bash', 'npm test', 10, 'A');
+    const out = inferPermissionDecision([p, prompt('other window', 11, 'B'), tool('Bash', 'npm test', true, { atSec: 14, durationMs: 1000, claudeSessionId: 'A' })]);
+    expect(out.get(p.id)).toEqual({ decision: 'allowed', decisionMs: 3000 });
+    const q = perm('Bash', 'ls', 20, 'A');
+    expect(inferPermissionDecision([q, prompt('other', 21, 'B'), tool('Read', 'x', true, { claudeSessionId: 'B' })]).get(q.id)?.decision).toBe('pending');
+    const r = perm('Bash', 'rm x', 30, 'A');
+    expect(inferPermissionDecision([r, prompt('other', 31, 'B'), prompt('next in A', 32, 'A')]).get(r.id)?.decision).toBe('denied');
+  });
 });
