@@ -68,6 +68,14 @@ test('two sessions at once: blocks, new marks that fade after 2 seconds, the mem
   const { id, roomCode } = await newTraining(mentor, 'Hai phiên cùng lúc');
   const sendLan = await join(api, id, roomCode, 'Lan', '10.43.0.1');
   const sendMai = await join(api, id, roomCode, 'Mai', '10.43.0.2');
+  // Members whose rows are the widest: long flag chips and "có thể đang kẹt" (they get their events after the first look, so they have "N mới" too).
+  const sendNam = await join(api, id, roomCode, 'Nam', '10.43.0.6');
+  const sendOanh = await join(api, id, roomCode, 'Oanh', '10.43.0.7');
+  const sendPhuc = await join(api, id, roomCode, 'Phúc', '10.43.0.8');
+  const N = 'cccc3333-0000-4000-8000-0000000000c1';
+  await sendNam(prompt('Nam: bắt đầu', N));
+  await sendOanh(prompt('Oanh: bắt đầu', N));
+  await sendPhuc(prompt('Phúc: bắt đầu', N));
   const A = 'cccc3333-0000-4000-8000-00000000000a';
   const B = 'cccc3333-0000-4000-8000-00000000000b';
 
@@ -129,6 +137,9 @@ test('two sessions at once: blocks, new marks that fade after 2 seconds, the mem
   await page.goto(`/admin/trainings/${id}`);
   await expect(page.getByRole('button', { name: 'Lan', exact: true })).toBeVisible();
   await sendLan(prompt('B: prompt mới nhất', B), prompt('A: viết test cho giỏ hàng', A), bash('npm test', A));
+  await sendNam(prompt('Nam: sửa 1', N), edit('src/cart.test.ts', "it('a', () => {", "it.skip('a', () => {", N), prompt('Nam: sửa 2', N), edit('src/b.ts', 'x', 'y', N), prompt('Nam: sửa 3', N));
+  await sendOanh(prompt('Oanh: dọn dẹp', N), bash('rm -rf /', N));
+  await sendPhuc(prompt('Phúc: chạy test', N), bash('npm test', N, false), bash('npm test', N, false), bash('npm test', N, false));
   // The list counts new prompts only, with the word "mới"; the command of an old prompt would not be counted.
   const lanRow = page.locator('tr', { has: page.getByRole('button', { name: 'Lan', exact: true }) });
   await expect(lanRow.locator('[data-member-new]')).toContainText('2 mới');
@@ -138,13 +149,22 @@ test('two sessions at once: blocks, new marks that fade after 2 seconds, the mem
   for (const width of [1280, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     const scrollBox = page.getByRole('table', { name: 'Học viên' }).locator('xpath=..');
+    await expect(page.locator('[data-flag="dangerous_command"]').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('[data-flag="edited_not_verified"]').first()).toBeVisible();
+    await expect(page.locator('[data-member-status]').filter({ hasText: 'có thể đang kẹt' })).toBeVisible();
     expect(await scrollBox.evaluate(el => el.scrollWidth <= el.clientWidth), `no horizontal overflow at ${width}`).toBe(true);
     const outer = await box(scrollBox);
-    const badgeBox = await box(lanRow.locator('[data-member-new]'));
-    expect(badgeBox.x).toBeGreaterThanOrEqual(outer.x);
-    expect(badgeBox.x + badgeBox.width).toBeLessThanOrEqual(outer.x + outer.width + 0.5);
-    expect(outer.x + outer.width - (badgeBox.x + badgeBox.width)).toBeLessThan(24);
+    const marks = page.locator('[data-member-new]');
+    expect(await marks.count()).toBeGreaterThanOrEqual(4);
+    for (const b of await marks.all()) {
+      const r = await box(b);
+      expect(r.x).toBeGreaterThanOrEqual(outer.x);
+      expect(r.x + r.width).toBeLessThanOrEqual(outer.x + outer.width + 0.5);
+      expect(outer.x + outer.width - (r.x + r.width)).toBeLessThan(24);
+    }
     await expect(lanRow.locator('[data-member-new]')).toContainText('2 mới');
+    // The state line stays on one line (its height is one line of 12px text).
+    expect((await box(page.locator('[data-member-status]').filter({ hasText: 'có thể đang kẹt' }))).height).toBeLessThan(20);
   }
   await page.setViewportSize(DESKTOP);
   await page.screenshot({ path: shotPath('S43', 'members') });
@@ -186,7 +206,7 @@ test('two sessions at once: blocks, new marks that fade after 2 seconds, the mem
   await page.reload();
   await expect(frame(page).getByText('B: prompt mới nhất')).toBeVisible();
   await expect(badges(page)).toHaveCount(0);
-  await expect(page.locator('[data-member-new]')).toHaveCount(0);
+  await expect(lanRow.locator('[data-member-new]')).toHaveCount(0);
 
   // An event in an old prompt: it does not add to the list; the old prompt says "· 1 mới" and gets a strip "Lệnh mới".
   await setFocus(false);
@@ -200,7 +220,7 @@ test('two sessions at once: blocks, new marks that fade after 2 seconds, the mem
   await expect(old.locator('[data-new-events]')).toHaveText('1 mới');
   await expect(old.locator('[data-event-strip="command"]')).toContainText('npm run lint');
   await expect(old.locator('[data-new-badge="Lệnh mới"]')).toBeVisible();
-  await expect(page.locator('[data-member-new]')).toHaveCount(0);
+  await expect(lanRow.locator('[data-member-new]')).toHaveCount(0);
   await old.screenshot({ path: shotPath('S43', 'card-new-command') });
 
   // The chip: unread prompts out of the frame, on the edge of their side; a click goes to the nearest one.

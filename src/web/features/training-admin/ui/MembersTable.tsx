@@ -12,7 +12,8 @@ import { ConnectionChip, FlagChip, visuallyHidden } from './chips.js';
 import { NewBadge } from './NewBadge.js';
 
 const tight = { padding: '10px 6px' } as const;
-const num = { ...td, ...tight, textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' } as const;
+const numTight = { padding: '10px 4px' } as const;
+const num = { ...td, ...numTight, textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' } as const;
 
 /**
  * The members of a training, sorted by name and kept that way: no column sorts by errors, there is no score or rank.
@@ -40,7 +41,7 @@ export function MembersTable({ members, selectedId, onSelect, onPurge, compact, 
         <table aria-label="Học viên" style={{ width: '100%', borderCollapse: 'collapse' }}>
           {!compact && (
             <thead style={{ position: 'sticky', top: 0, background: 'var(--surface-card)', zIndex: 1 }}>
-              <tr><th style={{ ...th, ...tight }}>Học viên</th><th style={{ ...th, ...tight }}>Kết nối</th><th style={{ ...th, ...tight, textAlign: 'right' }}>Prompt</th><th style={{ ...th, ...tight, textAlign: 'right' }}>Lệnh</th><th style={{ ...th, ...tight, textAlign: 'right' }}>Lỗi</th><th style={{ ...th, ...tight }}>Cờ gợi ý</th><th style={{ ...th, ...tight }}>Lần cuối</th></tr>
+              <tr><th style={{ ...th, ...tight }}>Học viên</th><th style={{ ...th, ...tight }}>Kết nối</th><th style={{ ...th, ...numTight, textAlign: 'right' }}>Prompt</th><th style={{ ...th, ...numTight, textAlign: 'right' }}>Lệnh</th><th style={{ ...th, ...numTight, textAlign: 'right' }}>Lỗi</th><th style={{ ...th, ...tight }}>Cờ gợi ý</th><th style={{ ...th, ...tight }}>Lần cuối</th></tr>
             </thead>
           )}
           <tbody ref={body} onKeyDown={onKeyDown}>
@@ -87,10 +88,10 @@ export function MembersTable({ members, selectedId, onSelect, onPurge, compact, 
                       <td style={num}>{m.promptCount}</td>
                       <td style={num}>{m.toolCount}</td>
                       <td style={num}>{m.failedCount}</td>
-                      <td style={{ ...td, ...tight, whiteSpace: 'normal' }}>
-                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{visibleFlags(m).map(code => <FlagChip key={code} code={code} />)}</div>
+                      <td style={{ ...td, ...tight, whiteSpace: 'normal', width: 130, maxWidth: 160 }}>
+                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{visibleFlags(m).map(code => <FlagChip key={code} code={code} wrap />)}</div>
                       </td>
-                      <td style={{ ...td, ...tight, color: 'var(--text-meta)', fontVariantNumeric: 'tabular-nums' }}>
+                      <td style={{ ...td, ...tight, color: 'var(--text-meta)', fontVariantNumeric: 'tabular-nums', position: 'sticky', right: 0, background: 'var(--surface-card)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                           <span style={{ whiteSpace: 'nowrap' }}>{formatLastSeen(m.lastSeenAt, now)}</span>
                           {badge}
