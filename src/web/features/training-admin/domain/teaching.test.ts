@@ -45,8 +45,8 @@ describe('teaching examples (web domain)', () => {
   });
 
   it('names the file without accents', () => {
-    expect(teachingFileName('Claude Code buổi 4: ví dụ')).toBe('vi-du-day-claude-code-buoi-4-vi-du.md');
-    expect(teachingFileName('???')).toBe('vi-du-day-training.md');
+    expect(teachingFileName('Claude Code buổi 4: ví dụ')).toBe('vi-du-claude-code-buoi-4-vi-du.md');
+    expect(teachingFileName('???')).toBe('vi-du-training.md');
   });
 
   it('finds the name of any member in the prompt, context, comment or better version, ignoring case and accents', () => {

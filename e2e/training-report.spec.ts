@@ -59,13 +59,13 @@ test('mark examples, write a note, preview and download the report, and the prom
   await dialog.getByRole('button', { name: 'Đóng' }).click();
 
   // ── Mark the first prompt and the command; write a note ────────────────────────────────────────────
-  const markButtons = timeline.getByRole('button', { name: 'Đánh dấu làm ví dụ cho báo cáo' });
+  const markButtons = timeline.getByRole('button', { name: 'Đánh dấu cho báo cáo' });
   await markButtons.first().click();
-  await expect(timeline.getByRole('button', { name: 'Bỏ đánh dấu ví dụ' })).toHaveCount(1);
+  await expect(timeline.getByRole('button', { name: 'Bỏ đánh dấu cho báo cáo' })).toHaveCount(1);
   const popup = page.getByRole('dialog', { name: /Chi tiết các lệnh/ });
   await timeline.getByRole('button', { name: 'Xem chi tiết' }).click();
-  await popup.locator('li', { hasText: 'npm test' }).getByRole('button', { name: 'Đánh dấu làm ví dụ cho báo cáo' }).click();
-  await expect(popup.getByRole('button', { name: 'Bỏ đánh dấu ví dụ' })).toHaveCount(1);
+  await popup.locator('li', { hasText: 'npm test' }).getByRole('button', { name: 'Đánh dấu cho báo cáo' }).click();
+  await expect(popup.getByRole('button', { name: 'Bỏ đánh dấu cho báo cáo' })).toHaveCount(1);
   await page.keyboard.press('Escape');
   await expect(popup).toHaveCount(0);
   await page.getByRole('button', { name: 'Ghi chú', exact: true }).click();
@@ -77,7 +77,7 @@ test('mark examples, write a note, preview and download the report, and the prom
   // The marks and the note survive a reload.
   await page.reload();
   await page.getByRole('button', { name: 'Lan', exact: true }).click();
-  await expect(timeline.getByRole('button', { name: 'Bỏ đánh dấu ví dụ' })).toHaveCount(1);
+  await expect(timeline.getByRole('button', { name: 'Bỏ đánh dấu cho báo cáo' })).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Ghi chú ✓' })).toBeVisible();
 
   await shot(page, 'M27-danh-sach-prompt');

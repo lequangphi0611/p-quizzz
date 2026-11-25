@@ -1,6 +1,6 @@
 # S44: Training: xuất ví dụ prompt giấu tên để dạy khoá sau
 
-**Phụ thuộc:** S40, S43 · **Trạng thái:** 🔄 đang làm
+**Phụ thuộc:** S40, S43 · **Trạng thái:** ✅ xong
 
 ## Bối cảnh
 Mentor muốn dạy khoá training sau bằng ví dụ thật: chọn prompt của member, gắn nhãn tốt / chưa tốt, viết nhận xét, rồi xuất thành tài liệu **không có tên**. Member phải đồng ý riêng (mặc định không). App không giữ tài liệu sau Kết thúc. Business: [PRODUCT.md §7.39](../PRODUCT.md), cùng §7.34a, b và §7.35e, j.
@@ -37,8 +37,9 @@ Contract: `architecture.md` §11.11.
 8. [x] Member đã dừng gửi (chưa duyệt xoá) vẫn có ví dụ trong file. Duyệt xoá member → ví dụ của họ mất theo (cascade).
 9. [x] Nhãn, nhận xét, ví dụ **không** xuất hiện trong: `report.md` (S40), zip (S41), `TrainingMemberRow`, cờ, `flagCounts`, mọi route member, màn hình chiếu.
 10. [x] Kết thúc xoá mọi ví dụ. Xuất ví dụ không ghi `report_exported_at`.
-11. [ ] Tên (PO chốt): nút trên prompt là "Ví dụ" (đã là ví dụ: "Ví dụ: Tốt" / "Ví dụ: Chưa tốt"), nút đầu trang "Xuất ví dụ"; tên file, tiêu đề hộp thoại và câu chữ trên UI không còn "lớp sau" / "dạy lớp sau". Dấu đánh dấu của S40 đổi tooltip/aria-label thành "Đánh dấu cho báo cáo" / "Bỏ đánh dấu cho báo cáo".
-12. [ ] Bấm Kết thúc khi còn ví dụ chưa xuất (chưa tải lần nào, hoặc có ví dụ tạo/sửa sau lần tải gần nhất) thì hộp thoại Kết thúc nhắc "Còn N ví dụ chưa xuất" với nút mở màn xuất ví dụ; vẫn cho Kết thúc. Gộp với lời nhắc báo cáo S40 trong cùng hộp thoại.
+11. [x] Tên (PO chốt): nút trên prompt là "Ví dụ" (đã là ví dụ: "Ví dụ: Tốt" / "Ví dụ: Chưa tốt"), nút đầu trang "Xuất ví dụ"; tên file, tiêu đề hộp thoại và câu chữ trên UI không còn "lớp sau" / "dạy lớp sau". Dấu đánh dấu của S40 đổi tooltip/aria-label thành "Đánh dấu cho báo cáo" / "Bỏ đánh dấu cho báo cáo".
+12. [x] Bấm Kết thúc khi còn ví dụ chưa xuất (chưa tải lần nào, hoặc có ví dụ tạo/sửa sau lần tải gần nhất) thì hộp thoại Kết thúc nhắc "Còn N ví dụ chưa xuất" với nút mở màn xuất ví dụ; vẫn cho Kết thúc. Gộp với lời nhắc báo cáo S40 trong cùng hộp thoại.
+
 
 ## Test
 - Domain: dựng bối cảnh của lượt (phiên song song, lượt không có lệnh), dựng Markdown (thứ tự nhóm, xáo ổn định, bản sửa thắng bản gốc, che bí mật ở bước cuối), quét không có tên/ngày/output.
@@ -57,3 +58,4 @@ Contract: `architecture.md` §11.11.
 - Nút khoá hiển thị chữ ngắn "Không dùng làm ví dụ" (đa số member mới sẽ khoá, nên không lặp cả câu); lý do đầy đủ nằm ở tooltip và chữ cho trình đọc màn hình. Cần PO/designer xem lại.
 - Ảnh chụp: `docs/design/S44-assets/` (1-man-dong-y, 2-hop-thoai-vi-du, 3-nut-khoa, 4-man-ra-soat).
 - Sau review: màn rà sửa được cả nhận xét và phiên bản tốt hơn tại chỗ (lưu khi rời ô, sửa gì cũng bỏ tick "đã rà"); cảnh báo tên dùng `nameHits` (domain web, có test); lời nhắc ở màn rà nói rõ phải kiểm tra đường dẫn và tên người dùng máy trong các lệnh; `TimelineCache` phía server cache Promise.
+- AC 11/12 (PO 2026-11-25): migration `0019_flimsy_jackpot.sql` thêm `trainings.examples_exported_at`; `unexportedExampleCount` đếm ví dụ có `updated_at` sau lần tải gần nhất (cùng mili giây coi như đã xuất). Test migration 0018 giờ cắt journal ở trước 0018 (idx < 18). Ảnh `6-nhac-khi-ket-thuc.png` mới.

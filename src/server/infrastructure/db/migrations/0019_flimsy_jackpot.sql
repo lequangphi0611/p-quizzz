@@ -1,0 +1,1 @@
+ALTER TABLE `trainings` ADD `examples_exported_at` integer;

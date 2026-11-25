@@ -5,6 +5,7 @@ import { buildTeachingExamplesFile, buildTurnContext } from '../../../domain/tra
 import type { Clock } from '../../ports/clock.js';
 import type { TeachingExampleRecord, TrainingEventReader } from '../../ports/training-event-repository.js';
 import type { TrainingMemberReader, TrainingReader, TrainingUnitContext } from '../../ports/training-repository.js';
+import type { TrainingSignals } from '../../ports/training-signals.js';
 import type { UnitOfWork } from '../../ports/unit-of-work.js';
 import type { FlagEvent } from '../../../domain/training/flags/flag-event.js';
 
@@ -123,11 +124,12 @@ export class ListTeachingExamples {
  * change goes in. It does not count as exporting the report: `report_exported_at` stays as it was.
  */
 export class ExportTeachingExamples {
-  constructor(private readonly deps: { trainings: TrainingReader; members: TrainingMemberReader; events: TrainingEventReader }) {}
+  constructor(private readonly deps: { trainings: TrainingReader; members: TrainingMemberReader; events: TrainingEventReader; unitOfWork: UnitOfWork<TrainingUnitContext>; clock: Clock; signals: TrainingSignals }) {}
 
   async execute(trainingId: number, options: { confirmed: boolean }): Promise<string> {
     const training = await openTraining(this.deps.trainings, trainingId);
     if (!options.confirmed) throw new TeachingReviewNotConfirmedError();
+    const exportedAt = this.deps.clock.now();
     const records = await this.deps.events.listTeachingExamples(trainingId);
     if (records.length === 0) throw new TeachingExamplesEmptyError();
     const cache = new TimelineCache(this.deps.events);
@@ -145,6 +147,10 @@ export class ExportTeachingExamples {
         };
       }),
     );
-    return buildTeachingExamplesFile(training.name, examples);
+    const text = buildTeachingExamplesFile(training.name, examples);
+    // `exportedAt` was taken before the examples were read, so an example saved while the file was being built is newer than it and counts as not exported.
+    await this.deps.unitOfWork.run(({ trainings }) => trainings.update(trainingId, { examplesExportedAt: exportedAt }));
+    await this.deps.signals.signal(trainingId);
+    return text;
   }
 }

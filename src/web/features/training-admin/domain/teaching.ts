@@ -106,8 +106,8 @@ export const reviewBody = (i: ReviewItem): TeachingExampleBody => ({
 /** The text of a draft is over the server's limit: said before the request, so the mentor can cut it. */
 export const draftTooLong = (i: ReviewItem): boolean => [...i.promptDraft].length > TEACHING_TEXT_MAX || [...i.contextDraft].length > TEACHING_TEXT_MAX || [...i.betterDraft].length > TEACHING_TEXT_MAX;
 
-/** `vi-du-day-buoi-1.md` */
-export const teachingFileName = (trainingName: string): string => `vi-du-day-${slugOf(trainingName) || 'training'}.md`;
+/** `vi-du-buoi-1.md` */
+export const teachingFileName = (trainingName: string): string => `vi-du-${slugOf(trainingName) || 'training'}.md`;
 
 export { betterOf };
 

@@ -91,7 +91,7 @@ describe('schema', () => {
     cpSync(full, partial, { recursive: true });
     const journalFile = join(partial, 'meta', '_journal.json');
     const journal = JSON.parse(readFileSync(journalFile, 'utf8')) as { entries: { tag: string }[] };
-    journal.entries = journal.entries.filter(e => !e.tag.startsWith('0018_'));
+    journal.entries = journal.entries.filter(e => Number(e.tag.slice(0, 4)) < 18);
     writeFileSync(journalFile, JSON.stringify(journal));
 
     const sqlite = new Database(join(dir, 'x.db'));

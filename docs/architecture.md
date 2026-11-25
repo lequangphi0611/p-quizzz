@@ -526,6 +526,7 @@ Contract dự kiến; story nào chạm thì chốt lại tại đây. Payload t
   - `DELETE /trainings/:id/events/:eventId/teaching-example` (idempotent).
   - `GET /trainings/:id/teaching-examples` → `{ examples: TeachingExampleRow[] }`, mỗi dòng có `eventId`, `memberId`, các trường trên, `defaultPrompt` và `defaultContext` (đã che) để màn rà hiện. Chỉ dùng trên màn mentor; có tên member là bình thường ở đây.
   - `GET /trainings/:id/teaching-examples.md?confirmed=1` → `text/markdown`, file đính kèm. Thiếu `confirmed` → 400 `review_not_confirmed`; không có ví dụ → 404 `no_examples`.
+- Nhắc khi Kết thúc (AC 11-12): `trainings.examples_exported_at` (ghi khi `teaching-examples.md?confirmed=1` thành công, không đụng `report_exported_at`); `TrainingDetail.unexportedExampleCount` = số ví dụ chưa tải lần nào hoặc có `updated_at` sau lần tải gần nhất (0 khi `ended`). Tên file tải về `vi-du-<id>.md`.
 - `TrainingEventRow` (dòng prompt) thêm `teachingExample: { label } | null`; `TrainingMemberRow` thêm `teachingConsent: boolean` (để khoá nút). Không thêm gì vào route member, `report.md`, zip, cờ.
 - Domain thuần `domain/training/teaching-examples.ts`: `buildTurnContext(events)` (lượt theo phiên như S43, chỉ `tool`: `✓|✗ <toolName> <toolTarget rút gọn>`), `buildTeachingExamplesFile(trainingName, examples)`, thứ tự xáo ổn định theo `event_id`. `maskSecrets` ở bước cuối.
 

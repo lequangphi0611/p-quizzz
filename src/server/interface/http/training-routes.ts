@@ -177,7 +177,7 @@ export const trainingAdminRoutes = (uc: Pick<TrainingUseCases, 'create' | 'list'
         return reply
           .header('Content-Type', 'text/markdown; charset=utf-8')
           .header('Cache-Control', 'no-store')
-          .header('Content-Disposition', `attachment; filename="vi-du-day-lop-sau-${id}.md"`)
+          .header('Content-Disposition', `attachment; filename="vi-du-${id}.md"`)
           .send(text);
       } catch (err) {
         return sendDomainError(reply, err);

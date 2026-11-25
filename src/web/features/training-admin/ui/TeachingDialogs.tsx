@@ -12,14 +12,14 @@ import { FIELD_NAME, isDirty, nameHits, teachingCountText, teachingFormError, ty
 const note = { display: 'flex', gap: 8, alignItems: 'flex-start', padding: '10px 12px', borderRadius: 'var(--radius-md)', font: 'var(--type-meta)' } as const;
 const hiddenBox = { padding: 16, textAlign: 'center', borderRadius: 'var(--radius-md)', background: 'var(--surface-sunken)', color: 'var(--text-meta)' } as const;
 
-/** "Ví dụ dạy lớp sau" of one prompt: label (required), topic, comment (required), a better version (optional), or drop the example. */
+/** "Ví dụ" of one prompt: label (required), topic, comment (required), a better version (optional), or drop the example. */
 export function TeachingEditDialog({ state, ctrl }: { state: TrainingState; ctrl: TrainingController }) {
   const e = state.teachingEdit!;
   const topicId = useId();
   const problem = teachingFormError(e.form);
   const ready = e.phase === 'ready';
   return (
-    <ConfirmDialog title="Ví dụ dạy lớp sau" width={640} confirmLabel="Lưu ví dụ" cancelLabel="Đóng" busy={e.saving} confirmDisabled={!ready || problem !== ''} disabledReason={ready ? problem : undefined}
+    <ConfirmDialog title="Ví dụ" width={640} confirmLabel="Lưu ví dụ" cancelLabel="Đóng" busy={e.saving} confirmDisabled={!ready || problem !== ''} disabledReason={ready ? problem : undefined}
       onConfirm={() => void ctrl.saveTeaching()} onCancel={() => ctrl.closeTeaching()}>
       <p style={{ margin: 0, font: 'var(--type-meta)', color: 'var(--text-meta)' }}>
         Nhãn và nhận xét là của <b>ví dụ</b>, không phải của {state.hidden ? 'bạn ấy' : e.memberName}. Bạn ấy không thấy, và không vào số liệu, cờ hay báo cáo.
@@ -65,7 +65,7 @@ export function TeachingEditDialog({ state, ctrl }: { state: TrainingState; ctrl
 }
 
 /**
- * "Xuất ví dụ dạy lớp sau": every example with its prompt and its context to rewrite (already masked), the "đã rà" tick, then the file.
+ * "Xuất ví dụ": every example with its prompt and its context to rewrite (already masked), the "đã rà" tick, then the file.
  * The mentor reviews what would leave the app, so with "Ẩn nội dung" on nothing is drawn and the file is not offered.
  */
 export function TeachingReviewDialog({ state, ctrl }: { state: TrainingState; ctrl: TrainingController }) {
@@ -76,7 +76,7 @@ export function TeachingReviewDialog({ state, ctrl }: { state: TrainingState; ct
   const canDownload = ready && r.items.length > 0 && r.reviewed && !hidden;
   const reason = !ready || r.items.length === 0 ? undefined : hidden ? 'Nội dung đang ẩn: nhấn H để hiện rồi rà trước khi tải' : !r.reviewed ? 'Tick "Tôi đã rà…" ở cuối để tải file' : undefined;
   return (
-    <ConfirmDialog title="Xuất ví dụ dạy lớp sau" width={860} confirmLabel={r.saved ? 'Tải lại file' : 'Tải file .md'} cancelLabel="Đóng" busy={r.saving} confirmDisabled={!canDownload} disabledReason={reason}
+    <ConfirmDialog title="Xuất ví dụ" width={860} confirmLabel={r.saved ? 'Tải lại file' : 'Tải file .md'} cancelLabel="Đóng" busy={r.saving} confirmDisabled={!canDownload} disabledReason={reason}
       onConfirm={() => void ctrl.downloadTeaching()} onCancel={() => ctrl.closeTeachingReview()}>
       <p style={{ margin: 0 }}>
         Một file Markdown <b>không có tên, ngày giờ, số phiên, output hay nội dung file</b>: mỗi ví dụ có nhãn, prompt, danh sách lệnh của lượt đó, nhận xét và phiên bản tốt hơn. Ví dụ xếp theo chủ đề rồi theo nhãn, thứ tự xáo trộn.
@@ -92,7 +92,7 @@ export function TeachingReviewDialog({ state, ctrl }: { state: TrainingState; ct
           : r.items.length === 0 ? (
             <div role="status" style={{ ...note, background: 'var(--surface-sunken)', color: 'var(--text-body)', fontWeight: 600 }}>
               <Icon name="info" size={16} style={{ marginTop: 2, flex: 'none' }} />
-              <span>Chưa có ví dụ nào. Đóng hộp thoại này, bấm "Ví dụ dạy lớp sau" ở một prompt rồi quay lại.</span>
+              <span>Chưa có ví dụ nào. Đóng hộp thoại này, bấm "Ví dụ" ở một prompt rồi quay lại.</span>
             </div>
           ) : hidden ? <div style={hiddenBox}>Nội dung đang ẩn nên không rà ở đây. Nhấn H (hoặc nút "Hiện nội dung") để hiện, rà xong mới tải được file.</div>
           : (

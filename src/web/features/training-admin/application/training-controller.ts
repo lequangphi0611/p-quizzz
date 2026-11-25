@@ -97,7 +97,7 @@ export interface DataExportState {
   saved: boolean;
 }
 
-/** The "Ví dụ dạy lớp sau" dialog of one prompt (PRODUCT.md §7.39b): label, topic, comment, a better version, or drop the example. */
+/** The "Ví dụ" dialog of one prompt (PRODUCT.md §7.39b): label, topic, comment, a better version, or drop the example. */
 export interface TeachingEditState {
   eventId: number;
   memberName: string;
@@ -114,7 +114,7 @@ export interface TeachingEditState {
   error: string;
 }
 
-/** The "Xuất ví dụ dạy lớp sau" review screen (PRODUCT.md §7.39c): every example with its prompt and context to rewrite, the "đã rà" tick, then the file. */
+/** The "Xuất ví dụ" review screen (PRODUCT.md §7.39c): every example with its prompt and context to rewrite, the "đã rà" tick, then the file. */
 export interface TeachingReviewState {
   phase: 'loading' | 'ready' | 'error';
   items: ReviewItem[];
@@ -1003,6 +1003,7 @@ export class TrainingController {
       await this.gateway.saveTeachingExample(this.state.detail.id, eventId, reviewBody(sent));
       if (token !== this.teachingToken) return true;
       this.changeReviewItem(eventId, i => ({ ...i, saving: false, savedPrompt: editedPromptOf(sent), savedContext: editedContextOf(sent), comment: sent.commentDraft.trim(), betterPrompt: betterOf(sent) }));
+      void this.refresh(); // `unexportedExampleCount` on the training changed
       return true;
     } catch (err) {
       if (token !== this.teachingToken) return false;
@@ -1031,11 +1032,18 @@ export class TrainingController {
       this.saveFile(teachingFileName(this.state.detail.name), text);
       const now = this.state.teachingReview;
       if (now) this.set({ teachingReview: { ...now, saving: false, saved: true, saveError: '' } });
+      void this.refresh(); // `unexportedExampleCount` changed
     } catch (err) {
       const now = this.state.teachingReview;
       if (token !== this.teachingToken || !now) return;
       this.set({ teachingReview: { ...now, saving: false, saveError: errorText(err, 'Không tải được file') } });
     }
+  }
+
+  /** From the "Kết thúc" prompt: back out of it and open the examples export instead (S44). */
+  exportExamplesBeforeEnding(): void {
+    this.cancelConfirm();
+    void this.openTeachingReview();
   }
 
   /** From the "Kết thúc" prompt: back out of it and open the report instead. */
@@ -1056,7 +1064,12 @@ export class TrainingController {
   // ── Stop / end / remove (each behind a confirmation) ─────────────────────────────────────────────
 
   askStop(): void { if (this.state.detail.status === 'open') this.set({ confirm: { kind: 'stop' }, actionError: '' }); }
-  askEnd(): void { if (this.state.detail.status === 'stopped') this.set({ confirm: { kind: 'end' }, actionError: '' }); }
+  /** Opens the prompt at once and reloads the training under it: `unexportedExampleCount` may have changed by edits on the review screen, and a stopped training has no live signal to say so. */
+  askEnd(): void {
+    if (this.state.detail.status !== 'stopped') return;
+    this.set({ confirm: { kind: 'end' }, actionError: '' });
+    void this.refresh();
+  }
   askRemove(memberId: number): void {
     const m = this.state.detail.members.find(x => x.id === memberId);
     if (m && this.state.detail.status !== 'ended') this.set({ confirm: { kind: 'remove', memberId, name: m.displayName }, actionError: '' });

@@ -20,6 +20,8 @@ export interface Training {
   allowAutoAccept: boolean;
   /** When the mentor last downloaded the report (S40). */
   reportExportedAt: Date | null;
+  /** When the teaching examples file was last downloaded (S44). */
+  examplesExportedAt: Date | null;
 }
 
 export interface TrainingMember {

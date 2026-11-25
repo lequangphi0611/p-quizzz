@@ -264,6 +264,8 @@ export const trainings = sqliteTable(
     allowAutoAccept: integer('allow_auto_accept', { mode: 'boolean' }).notNull().default(false),
     // S40: when the mentor last downloaded the report (the prompt before "Kết thúc" asks while this is empty).
     reportExportedAt: ts('report_exported_at'),
+    // S44: when the teaching examples file was last downloaded (the "Kết thúc" prompt counts examples saved after it).
+    examplesExportedAt: ts('examples_exported_at'),
   },
   t => [uniqueIndex('trainings_room_code_uq').on(t.roomCode)],
 );

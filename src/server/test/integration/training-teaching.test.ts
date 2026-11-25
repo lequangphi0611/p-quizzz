@@ -186,7 +186,7 @@ describe('the file (S44)', () => {
     const ok = await s.file(t);
     expect(ok.statusCode).toBe(200);
     expect(ok.headers['content-type']).toBe('text/markdown; charset=utf-8');
-    expect(ok.headers['content-disposition']).toBe(`attachment; filename="vi-du-day-lop-sau-${t.id}.md"`);
+    expect(ok.headers['content-disposition']).toBe(`attachment; filename="vi-du-${t.id}.md"`);
     expect(ok.headers['cache-control']).toBe('no-store');
   });
 
@@ -252,6 +252,46 @@ describe('the file (S44)', () => {
     expect((await s.file(t)).statusCode).toBe(409);
     expect((await s.admin('GET', `/trainings/${t.id}/teaching-examples`)).statusCode).toBe(409);
     expect(s.db.$client.prepare('select count(*) as n from training_teaching_examples').get()).toEqual({ n: 0 });
+  });
+});
+
+describe('the reminder before ending (S44)', () => {
+  it('counts examples never downloaded, drops to 0 after a download, and counts again an example saved or edited after it', async () => {
+    const s = await setup();
+    const t = await s.training();
+    const an = await s.agreed(t);
+    const mai = await s.agreed(t, 'Mai');
+    expect((await s.detail(t.id)).unexportedExampleCount).toBe(0);
+
+    await s.put(t, an.prompt.id);
+    await s.put(t, mai.prompt.id);
+    expect((await s.detail(t.id)).unexportedExampleCount).toBe(2);
+
+    s.clock.advance(1000);
+    expect((await s.file(t, '?confirmed=0')).statusCode).toBe(400); // a refused download exports nothing
+    expect((await s.detail(t.id)).unexportedExampleCount).toBe(2);
+    expect((await s.file(t)).statusCode).toBe(200);
+    expect((await s.detail(t.id)).unexportedExampleCount).toBe(0);
+
+    s.clock.advance(1000);
+    await s.put(t, an.prompt.id, { ...BODY, comment: 'sửa sau khi xuất' });
+    expect((await s.detail(t.id)).unexportedExampleCount).toBe(1);
+    s.clock.advance(1000);
+    await s.put(t, an.prompt.id, { ...BODY, comment: 'sửa sau khi xuất' }); // unchanged: still 1, not 2
+    expect((await s.detail(t.id)).unexportedExampleCount).toBe(1);
+    await s.admin('DELETE', `/trainings/${t.id}/events/${an.prompt.id}/teaching-example`);
+    expect((await s.detail(t.id)).unexportedExampleCount).toBe(0);
+  });
+
+  it('exporting the examples does not touch the report export time', async () => {
+    const s = await setup();
+    const t = await s.training();
+    const an = await s.agreed(t);
+    await s.put(t, an.prompt.id);
+    await s.file(t);
+    const d = await s.detail(t.id);
+    expect(d.reportExportedAt).toBeNull();
+    expect(d.unexportedExampleCount).toBe(0);
   });
 });
 

@@ -17,7 +17,7 @@ export interface NewTrainingMember {
   teachingConsent: boolean;
 }
 
-export type TrainingPatch = Partial<Pick<Training, 'status' | 'roomCode' | 'stoppedAt' | 'endedAt' | 'memberCount' | 'reportExportedAt'>>;
+export type TrainingPatch = Partial<Pick<Training, 'status' | 'roomCode' | 'stoppedAt' | 'endedAt' | 'memberCount' | 'reportExportedAt' | 'examplesExportedAt'>>;
 
 /** A training in the list, with how many members it has (counted live until it ends). */
 export interface TrainingListItem extends Training {

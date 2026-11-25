@@ -29,7 +29,7 @@ export class InMemoryTrainingRepository implements TrainingRepository, TrainingR
   }
 
   async create(t: NewTraining) {
-    const row: Training = { id: this.nextId++, name: t.name, status: 'open', roomCode: t.roomCode, createdAt: t.createdAt, stoppedAt: null, endedAt: null, memberCount: null, allowAutoAccept: t.allowAutoAccept, reportExportedAt: null };
+    const row: Training = { id: this.nextId++, name: t.name, status: 'open', roomCode: t.roomCode, createdAt: t.createdAt, stoppedAt: null, endedAt: null, memberCount: null, allowAutoAccept: t.allowAutoAccept, reportExportedAt: null, examplesExportedAt: null };
     this.rows.set(row.id, row);
     return row;
   }

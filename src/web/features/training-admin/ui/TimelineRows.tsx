@@ -21,7 +21,7 @@ export const rowBox = (active: boolean, focused: boolean): CSSProperties => ({
 /** Picks a row as an example for the report (or drops it). A bookmark with a tick when it is picked. */
 export function MarkButton({ id, marked, onToggle }: { id: number; marked: boolean; onToggle: (id: number) => void }) {
   return (
-    <button type="button" data-mark={id} aria-pressed={marked} title={marked ? 'Bỏ đánh dấu ví dụ' : 'Đánh dấu làm ví dụ cho báo cáo'} aria-label={marked ? 'Bỏ đánh dấu ví dụ' : 'Đánh dấu làm ví dụ cho báo cáo'} onClick={() => onToggle(id)}
+    <button type="button" data-mark={id} aria-pressed={marked} title={marked ? 'Bỏ đánh dấu cho báo cáo' : 'Đánh dấu cho báo cáo'} aria-label={marked ? 'Bỏ đánh dấu cho báo cáo' : 'Đánh dấu cho báo cáo'} onClick={() => onToggle(id)}
       style={{ display: 'inline-grid', placeItems: 'center', width: 28, height: 28, padding: 0, border: 0, borderRadius: 'var(--radius-sm)', cursor: 'pointer', flex: 'none', background: marked ? 'var(--brand-050)' : 'transparent', color: marked ? 'var(--brand-700)' : 'var(--ink-500)' }}>
       <Icon name={marked ? 'bookmark-check' : 'bookmark-plus'} size={16} />
     </button>

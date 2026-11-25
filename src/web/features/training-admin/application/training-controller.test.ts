@@ -10,7 +10,7 @@ const ZERO_COUNTS: TrainingDetail['flagCounts'] = { auto_accept: 0, auto_compact
 const member = (id: number, displayName: string, over: Partial<TrainingMemberRow> = {}): TrainingMemberRow =>
   ({ id, displayName, connection: 'connected', lastSeenAt: 1, promptCount: 1, toolCount: 1, failedCount: 0, stuck: false, stillSending: false, stoppedSending: false, flags: [], clearCount: 0, compactCount: 0, permissionCount: 0, mentorNote: null, markedCount: 0, teachingConsent: true, ...over });
 const detail = (over: Partial<TrainingDetail> = {}): TrainingDetail =>
-  ({ id: 5, name: 'Buổi 1', status: 'open', roomCode: '482913', createdAt: 0, stoppedAt: null, endedAt: null, uninstalled: null, allowAutoAccept: false, reportExportedAt: null, flagCounts: ZERO_COUNTS, members: [member(1, 'An'), member(2, 'Bình')], ...over });
+  ({ id: 5, name: 'Buổi 1', status: 'open', roomCode: '482913', createdAt: 0, stoppedAt: null, endedAt: null, uninstalled: null, allowAutoAccept: false, reportExportedAt: null, unexportedExampleCount: 0, flagCounts: ZERO_COUNTS, members: [member(1, 'An'), member(2, 'Bình')], ...over });
 const ev = (id: number, over: Partial<TrainingEventRow> = {}): TrainingEventRow =>
   ({ id, kind: 'tool', receivedAt: id, claudeSessionId: 's', toolName: 'Bash', toolTarget: 'ls', ok: true, hasOutput: false, hasChange: false, marked: false, teachingExample: null, ...over });
 const page = (ids: number[], hasMore = false): TrainingEventsPage => ({ events: ids.map(i => ev(i)), hasMore, flags: [] });
@@ -1336,7 +1336,7 @@ describe('TrainingController: teaching examples (S44)', () => {
       ctrl.setTeachingReviewed(true);
       await ctrl.downloadTeaching();
       expect(gateway.exportTeachingExamples).toHaveBeenCalledWith(5);
-      expect(saveFile).toHaveBeenCalledWith('vi-du-day-buoi-1.md', '# Ví dụ');
+      expect(saveFile).toHaveBeenCalledWith('vi-du-buoi-1.md', '# Ví dụ');
       expect(ctrl.getState().teachingReview).toMatchObject({ saved: true, saving: false });
     });
 
@@ -1392,6 +1392,40 @@ describe('TrainingController: teaching examples (S44)', () => {
       ctrl.setTeachingReviewed(true);
       await ctrl.downloadTeaching();
       expect(ctrl.getState().teachingReview).toMatchObject({ saved: false, saveError: 'Chưa có ví dụ nào để xuất' });
+    });
+
+    it('from the "Kết thúc" prompt the examples export opens in its place, and a download reloads the count', async () => {
+      const m = make({ teachingExamples: vi.fn(async () => rows()) }, detail({ status: 'stopped', roomCode: null, unexportedExampleCount: 2 }));
+      m.ctrl.askEnd();
+      expect(m.ctrl.getState().confirm).toEqual({ kind: 'end' });
+      m.ctrl.exportExamplesBeforeEnding();
+      expect(m.ctrl.getState().confirm).toBeNull();
+      await flush();
+      expect(m.ctrl.getState().teachingReview).toMatchObject({ phase: 'ready' });
+      m.ctrl.setTeachingReviewed(true);
+      const before = (m.gateway.get as ReturnType<typeof vi.fn>).mock.calls.length;
+      await m.ctrl.downloadTeaching();
+      await flush();
+      expect((m.gateway.get as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(before);
+    });
+
+    it('an edit saved on the review screen reloads the training, and "Kết thúc" reloads it again, so the example reminder is never stale', async () => {
+      const stopped = (n: number) => detail({ status: 'stopped', roomCode: null, unexportedExampleCount: n });
+      const get = vi.fn(async () => stopped(0));
+      const m = make({ teachingExamples: vi.fn(async () => rows()), get }, stopped(0));
+      await m.ctrl.openTeachingReview();
+      get.mockResolvedValue(stopped(1)); // the server now counts the edited example
+      m.ctrl.editReviewPrompt(10, 'sửa');
+      await m.ctrl.commitReviewItem(10);
+      await flush();
+      expect(m.ctrl.getState().detail.unexportedExampleCount).toBe(1);
+
+      m.ctrl.closeTeachingReview();
+      get.mockResolvedValue(stopped(2)); // changed behind the page's back (no live signal once stopped)
+      m.ctrl.askEnd();
+      expect(m.ctrl.getState().confirm).toEqual({ kind: 'end' });
+      await flush();
+      expect(m.ctrl.getState().detail.unexportedExampleCount).toBe(2);
     });
 
     it('opening the report or the data export closes the review, and the end of the training closes everything', async () => {

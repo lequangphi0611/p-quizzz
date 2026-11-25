@@ -56,7 +56,7 @@ export class TrainingExportTooLargeError extends DomainError {
 /** Only a prompt can become a teaching example (S44). */
 export class TeachingExampleNotPromptError extends DomainError {
   constructor() {
-    super('invalid', 'Chỉ chọn được prompt làm ví dụ dạy lớp sau', 'not_a_prompt');
+    super('invalid', 'Chỉ chọn được prompt làm ví dụ', 'not_a_prompt');
   }
 }
 

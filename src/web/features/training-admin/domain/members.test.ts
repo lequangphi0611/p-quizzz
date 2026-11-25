@@ -8,7 +8,7 @@ const ZERO_COUNTS: TrainingDetail['flagCounts'] = { auto_accept: 0, auto_compact
 const row = (id: number, displayName: string, over: Partial<TrainingMemberRow> = {}): TrainingMemberRow =>
   ({ id, displayName, connection: 'waiting', lastSeenAt: null, promptCount: 0, toolCount: 0, failedCount: 0, stuck: false, stillSending: false, stoppedSending: false, flags: [], clearCount: 0, compactCount: 0, permissionCount: 0, mentorNote: null, markedCount: 0, teachingConsent: true, ...over });
 const detail = (members: TrainingMemberRow[], over: Partial<TrainingDetail> = {}): TrainingDetail =>
-  ({ id: 1, name: 'T', status: 'open', roomCode: '482913', createdAt: 0, stoppedAt: null, endedAt: null, uninstalled: null, allowAutoAccept: false, reportExportedAt: null, flagCounts: ZERO_COUNTS, members, ...over });
+  ({ id: 1, name: 'T', status: 'open', roomCode: '482913', createdAt: 0, stoppedAt: null, endedAt: null, uninstalled: null, allowAutoAccept: false, reportExportedAt: null, unexportedExampleCount: 0, flagCounts: ZERO_COUNTS, members, ...over });
 
 describe('sortMembers', () => {
   it('sorts by name (Vietnamese order, case and accents aside) and never by errors', () => {

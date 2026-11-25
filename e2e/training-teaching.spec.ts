@@ -81,8 +81,8 @@ test('a member ticks the teaching consent; the mentor makes, reviews and downloa
   const timeline = page.getByLabel('Các sự kiện, ngày mới nhất ở trên');
   await expect(timeline.getByText('chạy lại test')).toBeVisible({ timeout: 6_000 });
   const lanFirst = timeline.locator('[data-turn-key]', { hasText: 'Cafe Hoa Mai' });
-  await lanFirst.getByRole('button', { name: 'Ví dụ dạy lớp sau' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Ví dụ dạy lớp sau' });
+  await lanFirst.getByRole('button', { name: 'Ví dụ' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Ví dụ' });
   await expect(dialog.getByRole('button', { name: 'Lưu ví dụ' })).toBeDisabled(); // no label, no comment yet
   await dialog.getByRole('radio', { name: /Chưa tốt/ }).click();
   await dialog.getByLabel('Chủ đề').selectOption('verify');
@@ -101,13 +101,13 @@ test('a member ticks the teaching consent; the mentor makes, reviews and downloa
   await expect(locked).toHaveAttribute('title', 'Bạn này không đồng ý cho dùng làm ví dụ');
   await expect(locked).toHaveAttribute('aria-disabled', 'true');
   await locked.click({ force: true });
-  await expect(page.getByRole('dialog', { name: 'Ví dụ dạy lớp sau' })).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'Ví dụ' })).toHaveCount(0);
   await page.waitForTimeout(300);
   await page.screenshot({ path: shotPath('S44', '3-nut-khoa') });
 
   // ── Review: edit the prompt, tick, download ────────────────────────────────────────────────────────
-  await page.getByRole('button', { name: 'Xuất ví dụ dạy lớp sau' }).click();
-  const review = page.getByRole('dialog', { name: 'Xuất ví dụ dạy lớp sau' });
+  await page.getByRole('button', { name: 'Xuất ví dụ' }).click();
+  const review = page.getByRole('dialog', { name: 'Xuất ví dụ' });
   const download = review.getByRole('button', { name: 'Tải file .md' });
   await expect(download).toBeDisabled();
   const promptBox = review.getByLabel('Prompt trong file');
@@ -138,7 +138,7 @@ test('a member ticks the teaching consent; the mentor makes, reviews and downloa
   await review.getByLabel('Tôi đã rà, không còn chi tiết nhận ra người viết').check();
 
   const [file] = await Promise.all([page.waitForEvent('download'), download.click()]);
-  expect(file.suggestedFilename()).toBe('vi-du-day-claude-code-buoi-5-vi-du.md');
+  expect(file.suggestedFilename()).toBe('vi-du-claude-code-buoi-5-vi-du.md');
   const text = await readFile((await file.path())!, 'utf8');
   expect(text).toContain('# Ví dụ prompt để dạy: Claude Code buổi 5: ví dụ');
   expect(text).toContain('Sửa lỗi giỏ hàng của dự án giúp mình'); // the edit wins over the original
@@ -153,7 +153,7 @@ test('a member ticks the teaching consent; the mentor makes, reviews and downloa
   // ── "Ẩn nội dung" (H): the review shows no content and offers no file ───────────────────────────────
   await review.getByRole('button', { name: 'Đóng' }).click();
   await page.keyboard.press('h');
-  await page.getByRole('button', { name: 'Xuất ví dụ dạy lớp sau' }).click();
+  await page.getByRole('button', { name: 'Xuất ví dụ' }).click();
   await expect(review.getByText('Nội dung đang ẩn nên không rà ở đây')).toBeVisible();
   await expect(review.getByLabel('Prompt trong file')).toHaveCount(0);
   await expect(review.getByRole('button', { name: /^Tải/ })).toBeDisabled();
@@ -166,11 +166,44 @@ test('a member ticks the teaching consent; the mentor makes, reviews and downloa
   await lanFirst.getByRole('button', { name: 'Ví dụ: Chưa tốt' }).click();
   await expect(dialog.getByLabel('Nhận xét (bắt buộc)')).toHaveValue(/Không nói cách kiểm tra/);
   await dialog.getByRole('button', { name: 'Bỏ ví dụ này' }).click();
-  await expect(lanFirst.getByRole('button', { name: 'Ví dụ dạy lớp sau' })).toBeVisible();
-  await page.getByRole('button', { name: 'Xuất ví dụ dạy lớp sau' }).click();
+  await expect(lanFirst.getByRole('button', { name: 'Ví dụ' })).toBeVisible();
+  await page.getByRole('button', { name: 'Xuất ví dụ' }).click();
   await expect(review.getByText('Chưa có ví dụ nào.')).toBeVisible();
   await expect(review.getByRole('button', { name: /^Tải/ })).toBeDisabled();
   await review.getByRole('button', { name: 'Đóng' }).click();
+
+  // ── "Kết thúc" reminds about examples not exported yet ─────────────────────────────────────────────
+  await lanFirst.getByRole('button', { name: 'Ví dụ' }).click();
+  await dialog.getByRole('radio', { name: /Tốt/ }).click();
+  await dialog.getByLabel('Nhận xét (bắt buộc)').fill('Rõ ràng, có tiêu chí xong việc.');
+  await dialog.getByRole('button', { name: 'Lưu ví dụ' }).click();
+  await expect(dialog).toHaveCount(0);
+  await page.getByRole('button', { name: 'Dừng thu' }).click();
+  await page.getByRole('dialog', { name: 'Dừng thu?' }).getByRole('button', { name: 'Dừng thu' }).click();
+  await page.getByRole('button', { name: 'Kết thúc', exact: true }).click();
+  const endDialog = page.getByRole('dialog', { name: 'Kết thúc và xoá dữ liệu?' });
+  await expect(endDialog.getByText('Còn 1 ví dụ chưa xuất.')).toBeVisible();
+  await expect(endDialog.getByText('Bạn chưa xuất báo cáo.')).toBeVisible(); // the two reminders sit together
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: shotPath('S44', '6-nhac-khi-ket-thuc') });
+  await endDialog.getByRole('button', { name: 'Xuất ví dụ trước' }).click();
+  await expect(review.getByLabel('Prompt trong file')).toBeVisible();
+  await review.getByLabel('Tôi đã rà, không còn chi tiết nhận ra người viết').check();
+  await Promise.all([page.waitForEvent('download'), review.getByRole('button', { name: 'Tải file .md' }).click()]);
+  await review.getByRole('button', { name: 'Đóng' }).click();
+  await page.getByRole('button', { name: 'Kết thúc', exact: true }).click();
+  await expect(endDialog.getByText(/ví dụ chưa xuất/)).toHaveCount(0); // exported: no reminder, ending is still allowed
+  await endDialog.getByRole('button', { name: 'Huỷ' }).click();
+
+  // An edit made on the review screen after the download makes the example count again (the training is stopped: no live signal).
+  await page.getByRole('button', { name: 'Xuất ví dụ' }).click();
+  await review.getByLabel('Prompt trong file').fill('Sửa lỗi giỏ hàng, chạy npm test rồi báo kết quả');
+  await review.getByLabel('Prompt trong file').blur();
+  await expect(review.getByText('Đã lưu bản sửa')).toBeVisible();
+  await review.getByRole('button', { name: 'Đóng' }).click();
+  await page.getByRole('button', { name: 'Kết thúc', exact: true }).click();
+  await expect(endDialog.getByText('Còn 1 ví dụ chưa xuất.')).toBeVisible();
+  await endDialog.getByRole('button', { name: 'Huỷ' }).click();
 
   for (const step of ['stop', 'end']) await mentor.context.request.post(`/api/admin/trainings/${training.id}/${step}`);
 });

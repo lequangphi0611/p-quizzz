@@ -35,9 +35,18 @@ export function TrainingDialogs({ state, ctrl }: { state: TrainingState; ctrl: T
           <div role="note" style={{ display: 'grid', gap: 8, marginTop: 14, padding: '12px 14px', borderRadius: 'var(--radius-md)', background: 'var(--sun-100)', border: '1px solid var(--sun-200)', color: 'var(--ink-900)' }}>
             <span style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
               <Icon name="triangle-alert" size={18} style={{ marginTop: 2, flex: 'none', color: 'var(--sun-ink)' }} />
-              <span><b>Bạn chưa xuất báo cáo.</b> Ví dụ đã đánh dấu và ghi chú cũng mất khi kết thúc.</span>
+              <span><b>Bạn chưa xuất báo cáo.</b> Các dấu đánh dấu cho báo cáo và ghi chú cũng mất khi kết thúc.</span>
             </span>
             <div><Button variant="secondary" size="sm" icon="download" onClick={() => ctrl.exportBeforeEnding()}>Xuất báo cáo trước</Button></div>
+          </div>
+        )}
+        {detail.unexportedExampleCount > 0 && (
+          <div role="note" data-unexported-examples style={{ display: 'grid', gap: 8, marginTop: 14, padding: '12px 14px', borderRadius: 'var(--radius-md)', background: 'var(--sun-100)', border: '1px solid var(--sun-200)', color: 'var(--ink-900)' }}>
+            <span style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <Icon name="triangle-alert" size={18} style={{ marginTop: 2, flex: 'none', color: 'var(--sun-ink)' }} />
+              <span><b>Còn {detail.unexportedExampleCount} ví dụ chưa xuất.</b> Các ví dụ cũng mất khi kết thúc.</span>
+            </span>
+            <div><Button variant="secondary" size="sm" icon="library" onClick={() => ctrl.exportExamplesBeforeEnding()}>Xuất ví dụ trước</Button></div>
           </div>
         )}
         {error}

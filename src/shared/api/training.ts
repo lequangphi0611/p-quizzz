@@ -115,7 +115,7 @@ export interface TrainingMemberRow {
   mentorNote: string | null;
   /** Events of this member marked as examples for the report. */
   markedCount: number;
-  /** S44: the member agreed to their prompts becoming teaching examples (the "Ví dụ dạy lớp sau" button is locked without it). Mentor screen only. */
+  /** S44: the member agreed to their prompts becoming teaching examples (the "Ví dụ" button is locked without it). Mentor screen only. */
   teachingConsent: boolean;
 }
 
@@ -136,6 +136,8 @@ export interface TrainingDetail {
   flagCounts: Record<FlagCode, number>;
   /** When the mentor last downloaded the report; null if never (the "Kết thúc" prompt asks while it is null). */
   reportExportedAt: number | null;
+  /** S44: examples never downloaded or saved after the last download; 0 when there are none. The "Kết thúc" prompt shows it. */
+  unexportedExampleCount: number;
   members: TrainingMemberRow[];
 }
 

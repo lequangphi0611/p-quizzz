@@ -29,7 +29,7 @@ export const toCreatedTrainingDto = (t: Training): CreatedTraining => ({
   memberCount: 0,
 });
 
-export const toTrainingDetailDto = ({ training, uninstalled, flagCounts, members }: TrainingDetailView): TrainingDetail => ({
+export const toTrainingDetailDto = ({ training, uninstalled, flagCounts, unexportedExampleCount, members }: TrainingDetailView): TrainingDetail => ({
   id: training.id,
   name: training.name,
   status: training.status,
@@ -40,6 +40,7 @@ export const toTrainingDetailDto = ({ training, uninstalled, flagCounts, members
   uninstalled,
   allowAutoAccept: training.allowAutoAccept,
   flagCounts,
+  unexportedExampleCount,
   reportExportedAt: ms(training.reportExportedAt),
   members: members.map(m => ({
     id: m.id,

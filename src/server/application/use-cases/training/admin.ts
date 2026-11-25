@@ -70,6 +70,8 @@ export interface TrainingDetailView {
   uninstalled: { count: number; total: number } | null;
   /** How many members have each flag: numbers only, no names (PRODUCT.md §7.35d). */
   flagCounts: Record<FlagCode, number>;
+  /** Teaching examples never downloaded, or saved after the last download (S44): the "Kết thúc" prompt says how many. */
+  unexportedExampleCount: number;
   /** Empty once `ended`: the members are gone. */
   members: TrainingMemberView[];
 }
@@ -111,6 +113,7 @@ export class GetTrainingDetail {
       // A member who passed the removal check counts only while nothing came after it.
       uninstalled: training.status === 'stopped' ? { count: views.filter(v => v.connection === 'uninstalled').length, total: members.length } : null,
       flagCounts,
+      unexportedExampleCount: training.status === 'ended' ? 0 : (await this.deps.events.listTeachingExamples(id)).filter(e => !training.examplesExportedAt || e.updatedAt > training.examplesExportedAt).length,
       members: views,
     };
   }

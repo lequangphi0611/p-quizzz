@@ -291,7 +291,7 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}, aiOptions:
       saveTeachingExample: new SaveTeachingExample({ unitOfWork: trainingUnitOfWork, events: trainingEventReader, clock: ports.clock }),
       deleteTeachingExample: new DeleteTeachingExample({ unitOfWork: trainingUnitOfWork }),
       listTeachingExamples: new ListTeachingExamples({ trainings: trainingReader, members: trainingMemberReader, events: trainingEventReader }),
-      exportTeachingExamples: new ExportTeachingExamples({ trainings: trainingReader, members: trainingMemberReader, events: trainingEventReader }),
+      exportTeachingExamples: new ExportTeachingExamples({ trainings: trainingReader, members: trainingMemberReader, events: trainingEventReader, ...trainingDeps }),
       exportSummary: new GetTrainingExportSummary(trainingExportDeps),
       exportData: new ExportTrainingData(trainingExportDeps),
       join: new JoinTraining({ ...trainingDeps, tokens: ports.tokens }),
