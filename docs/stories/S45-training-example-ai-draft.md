@@ -3,7 +3,7 @@
 **Phụ thuộc:** S26, S44 · **Trạng thái:** ⏳
 
 ## Bối cảnh
-Mentor viết nhãn, chủ đề, nhận xét, phiên bản tốt hơn cho từng ví dụ (S44) mất thời gian. Trong hộp thoại ví dụ, mentor bấm "AI điền nháp": app gọi Claude CLI trên máy mentor (dùng lại cấu hình và cách chạy an toàn của S26), đổ nháp vào các ô, mentor đọc, sửa rồi Lưu. Để nháp theo đúng chuẩn và giọng của mentor, app gửi kèm tối đa 5 ví dụ mentor đã chốt **trong cùng buổi** làm mẫu. Business: [PRODUCT.md §7.40](../PRODUCT.md), cùng §7.39, §7.28e, g, h và ngoại lệ hẹp ở §7.36i. Contract: [architecture.md §11.12](../architecture.md).
+Mentor viết nhãn, chủ đề, nhận xét, phiên bản tốt hơn cho từng ví dụ (S44) mất thời gian. Trong hộp thoại ví dụ, mentor bấm "AI điền nháp": app gọi Claude CLI trên máy mentor (dùng lại cấu hình và cách chạy an toàn của S26), đổ nháp vào các ô, mentor đọc, sửa rồi Lưu. Để nháp theo đúng chuẩn và giọng của mentor, app gửi kèm **mọi** ví dụ mentor đã chốt **trong cùng buổi** làm mẫu (PO chốt: gửi hết, chỉ giới hạn an toàn theo độ dài). Business: [PRODUCT.md §7.40](../PRODUCT.md), cùng §7.39, §7.28e, g, h và ngoại lệ hẹp ở §7.36i. Contract: [architecture.md §11.12](../architecture.md).
 
 Đây là phương án A. Phương án B (kho ví dụ lâu dài qua nhiều buổi) sẽ gắn vào sau, nên **nguồn mẫu phải là một port riêng** (`ExampleSampleSource`): A lấy từ buổi hiện tại, B thêm một nguồn khác mà không đổi use case, prompt hay UI.
 
@@ -15,11 +15,11 @@ Mentor viết nhãn, chủ đề, nhận xét, phiên bản tốt hơn cho từn
   - `ExampleDraftInput = { prompt: string; earlierPrompts: string[]; turnActivity: string; samples: ExampleSample[] }`. **Không** có tên, email, id, ngày giờ.
   - `ExampleSample = { prompt, turnActivity, label, topic, comment, betterPrompt: string | null }`.
   - `RawExampleDraft = { label, topic, comment, betterPrompt, suspicious, suspiciousReason, model }`.
-- **Port** `application/ports/example-sample-source.ts`: `ExampleSampleSource.samplesFor({ trainingId, excludeEventId, limit }): Promise<ExampleSample[]>`. Bản A: `CurrentTrainingSampleSource` trong `application/use-cases/training/` dùng `TrainingEventReader` + domain bên dưới. Composition gắn bản A.
+- **Port** `application/ports/example-sample-source.ts`: `ExampleSampleSource.samplesFor({ trainingId, excludeEventId, maxChars }): Promise<ExampleSample[]>`. Bản A: `CurrentTrainingSampleSource` trong `application/use-cases/training/` dùng `TrainingEventReader` + domain bên dưới. Composition gắn bản A.
 - **Adapter** `infrastructure/ai-grader/claude-cli-example-drafter.ts` + `example-draft-prompts.ts` (system prompt, schema, `buildExampleDraftPrompt`). Prompt > `maxAnswerChars` của cấu hình → `too_long`, không gọi CLI.
 - **Domain thuần** `domain/training/example-draft.ts`:
   - `earlierPromptsInSession(events, eventId, n = 2)`: tối đa 2 prompt liền trước trong **cùng phiên Claude Code** (cách gom phiên của S43), cũ trước mới sau; mỗi cái cắt còn 1 500 ký tự kèm "…(đã cắt)"; đã qua `maskForExample`.
-  - `pickSamples(examples, excludeEventId, limit = 5)`: bỏ ví dụ có `origin = 'ai_kept'` và chính ví dụ đang xét; mới nhất trước (`updated_at`); xen kẽ nhãn (tốt, chưa tốt, tốt…) khi đủ cả hai để mẫu đa dạng; dùng bản đã rà (`editedPrompt`/`editedContext`) khi có, không thì bản mặc định đã che; prompt mẫu cắt 1 500 ký tự.
+  - `pickSamples(examples, excludeEventId, maxChars = 40_000)`: bỏ ví dụ có `origin = 'ai_kept'` và chính ví dụ đang xét; lấy **tất cả** phần còn lại, mới nhất trước (`updated_at`), **không** xen kẽ hay cân bằng nhãn (giữ tỉ lệ thật của mentor); dùng bản đã rà (`editedPrompt`/`editedContext`) khi có, không thì bản mặc định đã che; prompt mẫu cắt 1 500 ký tự. Tổng độ dài các mẫu (prompt + bối cảnh + nhận xét + bản tốt hơn) vượt `maxChars` thì dừng thêm (bỏ các ví dụ cũ hơn). Giới hạn này chỉ là lưới an toàn (một buổi thường vài chục ví dụ, xa dưới mức này); phương án B sẽ cần cách chọn khác khi kho có hàng trăm ví dụ.
   - `normalizeExampleDraft(raw)`: `label`, `topic` đúng enum; `comment` cắt khoảng trắng, rỗng → `bad_output`, tối đa 1 000 ký tự (dài hơn → cắt); `betterPrompt` rỗng → `null`, tối đa 4 000 ký tự; `suspiciousReason` rỗng khi `suspicious = false`.
   - `exampleOrigin(saved, aiDraft)`: `null` draft → `'mentor'`; cả 4 trường (`label`, `topic`, `comment` đã trim, `betterPrompt` với `null` ≡ `''`) giống nháp → `'ai_kept'`; khác → `'ai_edited'`.
 - **DB** (migration): `training_teaching_examples` thêm `ai_draft` (text JSON `{ label, topic, comment, betterPrompt }`, nullable) và `origin` (text, not null, default `'mentor'`).
@@ -34,7 +34,7 @@ Mentor viết nhãn, chủ đề, nhận xét, phiên bản tốt hơn cho từn
 - Leak-guard: `aiDraft`, `origin`, `aiDraftAvailable` chỉ có ở `/api/admin/*` (thêm vào danh sách key bị chặn nếu leak-guard của S26 dùng danh sách).
 
 ### System prompt và cách dựng prompt (hợp đồng, PO xem trước khi code)
-Dựa trên hướng dẫn của Anthropic: [Claude Code best practices](https://code.claude.com/docs/en/best-practices), [Prompting best practices](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices), [Effective context engineering](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents). Những nguyên tắc đã áp vào chính prompt này: vai trò ngay câu đầu; giải thích **lý do** thay vì luật trống; chia phần bằng thẻ XML; tài liệu dài (mẫu) đặt trước, yêu cầu đặt cuối; 3–5 mẫu đa dạng bọc trong `<example>`; nói điều cần làm thay vì cấm; không dùng CHỮ HOA để nhấn.
+Dựa trên hướng dẫn của Anthropic: [Claude Code best practices](https://code.claude.com/docs/en/best-practices), [Prompting best practices](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices), [Effective context engineering](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents). Những nguyên tắc đã áp vào chính prompt này: vai trò ngay câu đầu; giải thích **lý do** thay vì luật trống; chia phần bằng thẻ XML; tài liệu dài (mẫu) đặt trước, yêu cầu đặt cuối; mẫu bọc trong `<example>`; nói điều cần làm thay vì cấm; không dùng CHỮ HOA để nhấn.
 
 `SYSTEM_PROMPT` (tiếng Anh, giống `prompts.ts` của S26; output tiếng Việt). Coder chép nguyên văn; sửa câu chữ thì cập nhật story này:
 
@@ -128,7 +128,7 @@ Draft the label, topic, comment and betterPrompt for the prompt above.
 2. Bấm "AI điền nháp" → nháp đổ vào nhãn, chủ đề, nhận xét, phiên bản tốt hơn; có khung "Nháp của AI…" và dòng số ví dụ mẫu. **Chưa lưu gì** cho tới khi mentor bấm Lưu.
 3. Nhận xét hoặc phiên bản tốt hơn đang có chữ → hỏi trước khi thay; chọn không thay thì giữ nguyên.
 4. Input gửi AI không có tên, email, id, ngày giờ, output hay nội dung file; prompt và bối cảnh đã che bí mật và đường dẫn thư mục người dùng; có tối đa 2 prompt liền trước **cùng phiên Claude Code**.
-5. Mẫu: tối đa 5 ví dụ đã chốt trong cùng buổi, không gồm ví dụ đang xét và ví dụ `ai_kept`; xen kẽ nhãn khi có cả hai; dùng bản đã rà khi có.
+5. Mẫu: mọi ví dụ đã chốt trong cùng buổi, không gồm ví dụ đang xét và ví dụ `ai_kept`; mới nhất trước, không cân bằng nhãn; dùng bản đã rà khi có; vượt 40 000 ký tự thì bỏ ví dụ cũ nhất.
 6. Lưu kèm `aiDraft`: `origin` đúng (`mentor` / `ai_kept` / `ai_edited`). Sửa ở màn rà một ví dụ `ai_kept` → `ai_edited`. `aiDraft: null` → `mentor`. Đổi nguồn gốc không đổi `reviewed_at`/`updated_at`.
 7. AI đánh dấu nghi ngờ → cảnh báo kèm lý do; Lưu khoá tới khi tick "Đã đọc kỹ prompt".
 8. Lỗi (timeout, too_long, bad_output, process_failed) → 502 kèm message tiếng Việt; hộp thoại báo lỗi, ô giữ nguyên, thử lại được.
@@ -139,7 +139,7 @@ Draft the label, topic, comment and betterPrompt for the prompt above.
 13. `ClaudeCliGrader` (S26) hoạt động như cũ sau khi tách runner (test cũ xanh, không sửa kỳ vọng).
 
 ## Test bắt buộc
-- Domain: `earlierPromptsInSession` (khác phiên không lấy, cắt độ dài, che), `pickSamples` (bỏ `ai_kept`, bỏ chính nó, xen kẽ nhãn, giới hạn 5, ưu tiên bản đã rà), `normalizeExampleDraft`, `exampleOrigin`.
+- Domain: `earlierPromptsInSession` (khác phiên không lấy, cắt độ dài, che), `pickSamples` (bỏ `ai_kept`, bỏ chính nó, lấy hết, giữ thứ tự mới nhất, cắt theo `maxChars`, ưu tiên bản đã rà), `normalizeExampleDraft`, `exampleOrigin`.
 - `buildExampleDraftPrompt`: thứ tự khối (mẫu trước, yêu cầu cuối), `defuse` thẻ, không có tên/id trong output với input có tên member ở dữ liệu nguồn.
 - Adapter bằng script giả CLI (như test của S26): thành công, `too_long` không gọi CLI, output sai → `bad_output`, timeout.
 - Use case với fake drafter và fake sample source: kiểm consent, không lưu, `sampleCount`.
