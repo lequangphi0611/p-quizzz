@@ -1,6 +1,6 @@
 # S44: Training: xuất ví dụ prompt giấu tên để dạy khoá sau
 
-**Phụ thuộc:** S40, S43 · **Trạng thái:** ✅ xong
+**Phụ thuộc:** S40, S43 · **Trạng thái:** 🔄 đang làm
 
 ## Bối cảnh
 Mentor muốn dạy khoá training sau bằng ví dụ thật: chọn prompt của member, gắn nhãn tốt / chưa tốt, viết nhận xét, rồi xuất thành tài liệu **không có tên**. Member phải đồng ý riêng (mặc định không). App không giữ tài liệu sau Kết thúc. Business: [PRODUCT.md §7.39](../PRODUCT.md), cùng §7.34a, b và §7.35e, j.
@@ -40,6 +40,16 @@ Contract: `architecture.md` §11.11.
 11. [x] Tên (PO chốt): nút trên prompt là "Ví dụ" (đã là ví dụ: "Ví dụ: Tốt" / "Ví dụ: Chưa tốt"), nút đầu trang "Xuất ví dụ"; tên file, tiêu đề hộp thoại và câu chữ trên UI không còn "lớp sau" / "dạy lớp sau". Dấu đánh dấu của S40 đổi tooltip/aria-label thành "Đánh dấu cho báo cáo" / "Bỏ đánh dấu cho báo cáo".
 12. [x] Bấm Kết thúc khi còn ví dụ chưa xuất (chưa tải lần nào, hoặc có ví dụ tạo/sửa sau lần tải gần nhất) thì hộp thoại Kết thúc nhắc "Còn N ví dụ chưa xuất" với nút mở màn xuất ví dụ; vẫn cho Kết thúc. Gộp với lời nhắc báo cáo S40 trong cùng hộp thoại.
 
+
+### Sau khi designer rà (PO duyệt 2026-11-25, PRODUCT §7.39j)
+Thiết kế: https://claude.ai/artifact/WFH84qNFHt7FKamvweVFJs (artboard `Main` = màn rà, `Timeline` = dòng thời gian + menu Xuất, `Consent` = màn đồng ý điện thoại). Mockup dùng Google Fonts: khi code dùng font đã bundle (offline). Câu chữ theo thiết kế, trừ chỗ ghi khác dưới đây.
+
+13. [ ] **Rà từng ví dụ**: `training_teaching_examples.reviewed_at?`. Route `PUT|DELETE .../teaching-example/reviewed` (idempotent, 409 khi `ended`). Mọi lần lưu làm đổi nội dung ví dụ (nhãn, chủ đề, nhận xét, bản tốt hơn, bản sửa prompt/bối cảnh) thì xoá `reviewed_at`. `TeachingExampleRow.reviewed`. Tải file: thay `confirmed=1` bằng điều kiện **mọi ví dụ đã rà**, còn ví dụ chưa rà → 400 `examples_not_reviewed` (kèm số). Bỏ ô tick chung.
+14. **Màn rà theo thiết kế `Main`**: cột trái nhóm theo chủ đề, mỗi ví dụ có trạng thái (chưa rà / đã rà / N chỗ nghi là tên / N trường đã sửa); đầu màn "Đã rà N/M" + thanh tiến độ + dãy gợi ý "Tìm và sửa"; nút "Đã rà ví dụ này, sang tiếp" (sang ví dụ chưa rà kế tiếp); "Trước"; nút tải ghi "Tải file .md · còn N chưa rà" và khoá khi N > 0. Cảnh báo tên (từ `nameHits`): tô nổi chữ trong ô, nút "Thay bằng “[bạn]”" (thay mọi chỗ của tên đó trong ví dụ) và "Không phải tên" (bỏ cảnh báo tên đó cho ví dụ đó, chỉ trong trình duyệt). Nhãn "Đã sửa" trên ô đã sửa; nút "Khôi phục bản app đã che". Lỗi lưu: chữ đỏ + "Thử lại". Ẩn nội dung (H) vẫn như cũ.
+15. **Che đường dẫn thư mục người dùng** (domain thuần, có test): trong prompt và bối cảnh mặc định của ví dụ, `/home/<tên>`, `/Users/<tên>`, `C:\Users\<tên>`, `C:/Users/<tên>` (mọi ổ đĩa, không phân biệt hoa thường của `Users`) → `~`. Chạy lại ở bước cuối khi dựng file (cùng chỗ `maskSecrets`). Không áp cho `report.md` và zip. Trên màn rà, phần đã tự che hiện như ô xám (title "App đã tự che") như thiết kế.
+16. **Dòng thời gian theo thiết kế `Timeline`**: nút trên prompt "Làm ví dụ" (chưa chọn), "Ví dụ: Tốt" (xanh), "Ví dụ: Chưa tốt" (xám trung tính); vạch ngăn; dấu S40 có chữ "Báo cáo" (aria-label vẫn "Đánh dấu cho báo cáo" / "Bỏ đánh dấu cho báo cáo"). Member không đồng ý: **không render nút** trên prompt; chip khoá "Không dùng làm ví dụ" ở đầu khung member. AC 11 được thay bằng AC này ở chỗ khác nhau.
+17. **Menu "Xuất"** thay 3 nút: mục "Báo cáo buổi" (Có tên), "Dữ liệu thô để phân tích (.zip)" (Có tên + output), "Rà & xuất ví dụ…" (Không tên), mỗi mục một dòng mô tả. Bàn phím: mở bằng Enter/Space, ↑/↓, Esc đóng và trả focus. Lời nhắc khi Kết thúc vẫn mở đúng màn tương ứng.
+18. **Màn đồng ý theo thiết kế `Consent`**: khung tuỳ chọn riêng (nhãn "Tuỳ chọn") đặt trước phần "Bắt buộc để tham gia"; tiêu đề khung **"Dùng prompt của bạn làm ví dụ"** (không nói "lớp sau"/"khoá sau"); thêm câu "File không có tên bạn, nhưng người cùng lớp vẫn có thể đoán ra từ nội dung."; dòng tóm tắt "Bạn đang chọn: … · Làm ví dụ: Có/Không". Giữ các ý bắt buộc của AC 1. Kiểm ở 390px không tràn ngang, ô tick ≥ 44px.
 
 ## Test
 - Domain: dựng bối cảnh của lượt (phiên song song, lượt không có lệnh), dựng Markdown (thứ tự nhóm, xáo ổn định, bản sửa thắng bản gốc, che bí mật ở bước cuối), quét không có tên/ngày/output.

@@ -71,7 +71,7 @@ Mỗi story là một file tự đủ ngữ cảnh để một model/người im
 | [S41](S41-training-export.md) | Training: xuất dữ liệu thô (zip, mỗi member một file) theo ngày để phân tích bằng AI cá nhân | S40 | ✅ |
 | [S42](S42-training-multi-day.md) | Training nhiều ngày: nhóm theo ngày (mới nhất ở trên, thu gọn) trên dòng thời gian | S35, S39, S40, S41 | ✅ |
 | [S43](S43-training-session-blocks.md) | Training: gom theo phiên Claude Code (kể cả song song) trong ngày, cờ theo phiên, đánh dấu prompt mới | S39, S41, S42 | ✅ |
-| [S44](S44-training-teaching-examples.md) | Training: xuất ví dụ prompt tốt / chưa tốt giấu tên để dạy khoá sau | S40, S43 | ✅ |
+| [S44](S44-training-teaching-examples.md) | Training: xuất ví dụ prompt tốt / chưa tốt giấu tên để dạy khoá sau | S40, S43 | 🔄 |
 
 ## Thứ tự & song song
 
