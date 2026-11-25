@@ -531,6 +531,15 @@ Contract dự kiến; story nào chạm thì chốt lại tại đây. Payload t
 - `TrainingEventRow` (dòng prompt) thêm `teachingExample: { label } | null`; `TrainingMemberRow` thêm `teachingConsent: boolean` (để khoá nút). Không thêm gì vào route member, `report.md`, zip, cờ.
 - Domain thuần `domain/training/teaching-examples.ts`: `buildTurnContext(events)` (lượt theo phiên như S43, chỉ `tool`: `✓|✗ <toolName> <toolTarget rút gọn>`), `buildTeachingExamplesFile(trainingName, examples)`, thứ tự xáo ổn định theo `event_id`. `maskSecrets` ở bước cuối.
 
+### 11.12 AI điền nháp ví dụ (S45, PRODUCT.md §7.40; chưa làm)
+
+- `training_teaching_examples` thêm `ai_draft` (text JSON `{ label, topic, comment, betterPrompt }`, nullable) và `origin` (`mentor` | `ai_kept` | `ai_edited`, default `mentor`).
+- Route mentor: `POST /api/admin/trainings/:id/events/:eventId/teaching-example/ai-draft` → `{ draft: { label, topic, comment, betterPrompt, suspicious, suspiciousReason }, sampleCount, model }`; không lưu. Lỗi: 404; 409 `ended`; 400 `not_a_prompt`; 409 `no_teaching_consent`; 503 `ai_unavailable`; 502 `ai_draft_failed` (`reason`, `message`). Đồng bộ, không hàng đợi.
+- `PUT …/teaching-example` nhận thêm `aiDraft?: {…} | null` (object: lưu + tính `origin`; vắng: giữ nháp, tính lại `origin`; `null`: xoá, `mentor`). Đổi nháp/nguồn gốc không đụng `reviewed_at`, `updated_at`.
+- `TrainingDetail.aiDraftAvailable`, `TeachingExampleRow.origin`: chỉ ở `/api/admin`.
+- Port `TeachingExampleDrafter` (adapter `infrastructure/ai-grader/claude-cli-example-drafter.ts`, cùng file cấu hình và cùng runner `claude-cli-runner.ts` tách từ §11.6) và port `ExampleSampleSource` (bản A `CurrentTrainingSampleSource`: ví dụ đã chốt trong buổi, bỏ `ai_kept`, tối đa 5, xen kẽ nhãn). Phương án B thêm một nguồn mẫu khác mà không đổi use case.
+- Domain `domain/training/example-draft.ts`: `earlierPromptsInSession`, `pickSamples`, `normalizeExampleDraft`, `exampleOrigin`. System prompt, schema và cách dựng prompt: xem story S45.
+
 ## 12. Web: hạ tầng dùng chung (P4-1, issue #18)
 
 Các port phía web nằm ở `src/web/shared/`, implementation được chọn tại `src/web/app/composition.ts` (composition root phía web).
