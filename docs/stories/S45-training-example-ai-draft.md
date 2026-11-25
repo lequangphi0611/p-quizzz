@@ -112,7 +112,7 @@ Draft the label, topic, comment and betterPrompt for the prompt above.
   - Lỗi: báo trong hộp thoại bằng `message` từ server, các ô giữ nguyên, bấm lại được.
   - Lưu: gửi `aiDraft` = nháp AI **gần nhất trong lần mở hộp thoại này** (4 trường như AI trả, sau chuẩn hoá). Không chạy AI trong lần mở này → không gửi `aiDraft` (giữ nguồn gốc cũ).
 - Màn rà (S44): mỗi ví dụ có `origin = 'ai_kept'` hiện chip trung tính "Giữ nguyên nháp AI" để mentor đọc kỹ hơn. Không hiện gì cho `mentor`/`ai_edited`.
-- Dùng lại `ConfirmDialog`, nút, ô nhập trong `src/web/shared/ui`; khung nháp theo kiểu khối gợi ý của S26 (viền đứt). Không cần designer (dùng lại UI hiện có).
+- Dùng lại `ConfirmDialog`, nút, ô nhập trong `src/web/shared/ui`; khung nháp theo kiểu khối gợi ý của S26 (viền đứt). **Chờ designer** (PO yêu cầu 2026-11-25, prompt: [S45-ai-draft-ui-prompt.md](../design/S45-ai-draft-ui-prompt.md)): phần server và domain làm trước được; phần UI làm theo bản thiết kế PO duyệt, các mục UI trên đây có thể đổi.
 
 ### Web member (màn đồng ý)
 - `consent-copy.ts`: câu của ô tick làm ví dụ (§7.39a) thêm "Prompt của bạn (đã bỏ tên) có thể được gửi tới dịch vụ AI (Anthropic) từ máy mentor để viết nháp nhận xét." (PRODUCT §7.40h).
