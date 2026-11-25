@@ -1,39 +1,56 @@
 # S45: Training: AI điền nháp ví dụ prompt, học từ ví dụ mentor đã chốt
 
-**Phụ thuộc:** S26, S44 · **Trạng thái:** ⏳
+**Phụ thuộc:** S26, S44 · **Trạng thái:** ⏳ chờ thiết kế UI (PO: duyệt spec, chờ design rồi mới code)
 
 ## Bối cảnh
-Mentor viết nhãn, chủ đề, nhận xét, phiên bản tốt hơn cho từng ví dụ (S44) mất thời gian. Trong hộp thoại ví dụ, mentor bấm "AI điền nháp": app gọi Claude CLI trên máy mentor (dùng lại cấu hình và cách chạy an toàn của S26), đổ nháp vào các ô, mentor đọc, sửa rồi Lưu. Để nháp theo đúng chuẩn và giọng của mentor, app gửi kèm **mọi** ví dụ mentor đã chốt **trong cùng buổi** làm mẫu (PO chốt: gửi hết, chỉ giới hạn an toàn theo độ dài). Business: [PRODUCT.md §7.40](../PRODUCT.md), cùng §7.39, §7.28e, g, h và ngoại lệ hẹp ở §7.36i. Contract: [architecture.md §11.12](../architecture.md).
+Mentor viết nhãn, chủ đề, nhận xét, phiên bản tốt hơn cho từng ví dụ (S44) mất thời gian. Khi mentor bấm "Làm ví dụ" trên một prompt, app gọi Claude CLI trên máy mentor **chạy nền** (dùng lại cấu hình, cách chạy an toàn và kiểu hàng đợi của S26); nháp xong thì đổ thẳng vào các ô của hộp thoại ví dụ, mentor đọc, sửa rồi Lưu. Để nháp theo đúng chuẩn và giọng của mentor, app gửi kèm **mọi** ví dụ mentor đã chốt **trong cùng buổi** làm mẫu (chỉ giới hạn an toàn theo độ dài). Business: [PRODUCT.md §7.40](../PRODUCT.md), cùng §7.39, §7.28e, g, h và ngoại lệ hẹp ở §7.36i. Contract: [architecture.md §11.12](../architecture.md). UI: chờ bản thiết kế theo [S45-ai-draft-ui-prompt.md](../design/S45-ai-draft-ui-prompt.md).
 
 Đây là phương án A. Phương án B (kho ví dụ lâu dài qua nhiều buổi) sẽ gắn vào sau, nên **nguồn mẫu phải là một port riêng** (`ExampleSampleSource`): A lấy từ buổi hiện tại, B thêm một nguồn khác mà không đổi use case, prompt hay UI.
+
+## Quyết định của PO (phỏng vấn 2026-11-25)
+- AI **tự chạy nền khi mentor bấm "Làm ví dụ"**; nháp đổ thẳng vào ô; đóng hộp thoại được, nháp vẫn chạy.
+- Báo xong bằng **trạng thái trên nút ví dụ** của prompt (đang viết nháp / có nháp chưa xem / lỗi), không có thông báo nổi.
+- Nháp giữ ở server tới khi Lưu, Bỏ nháp hoặc Kết thúc.
+- Mẫu: mọi ví dụ đã chốt trong buổi (trừ ví dụ giữ nguyên nháp AI), giới hạn an toàn 40 000 ký tự.
+- Gửi kèm tối đa 2 prompt liền trước cùng phiên Claude Code.
+- Nghi ngờ: Lưu khoá tới khi tick "Đã đọc kỹ prompt".
+- **Không** thêm câu ở màn đồng ý; **không** hiện nguồn gốc nháp ở màn rà (chỉ lưu dữ liệu).
+- System prompt bên dưới: duyệt; code sau khi có thiết kế.
 
 ## Phạm vi
 
 ### Server
-- **Tách phần chạy CLI** khỏi `claude-cli-grader.ts` thành `infrastructure/ai-grader/claude-cli-runner.ts`: `runClaudeCli({ config, schema, systemPrompt, stdin })` gồm spawn không shell, thư mục tạm rỗng, stdin, timeout, giới hạn output, `findEnvelope`, và các tham số luôn thêm ở cuối (`fixedArgs(schema, systemPrompt)`). `ClaudeCliGrader` dùng lại nó, hành vi không đổi (test hiện có vẫn xanh). Cùng file cấu hình `config/ai-grader.local.json` (mentor không phải cấu hình hai lần).
-- **Port** `application/ports/teaching-example-drafter.ts`: `TeachingExampleDrafter { available(): Promise<boolean>; draft(input: ExampleDraftInput): Promise<RawExampleDraft> }`. Lỗi `ExampleDrafterError` cùng các `reason` của `EssayGraderError` (`unavailable | timeout | too_long | bad_output | process_failed`), message tiếng Việt: "AI chưa được bật", "Quá thời gian", "Prompt quá dài để AI đọc", "AI trả kết quả không hợp lệ", "Mất kết nối tới AI".
+- **Tách phần chạy CLI** khỏi `claude-cli-grader.ts` thành `infrastructure/ai-grader/claude-cli-runner.ts`: `runClaudeCli({ config, schema, systemPrompt, stdin })` gồm spawn không shell, thư mục tạm rỗng, stdin, timeout, giới hạn output, `findEnvelope`, và các tham số luôn thêm ở cuối (`fixedArgs(schema, systemPrompt)`). `ClaudeCliGrader` dùng lại nó, hành vi không đổi (test hiện có vẫn xanh). Cùng file cấu hình `config/ai-grader.local.json`.
+- **Port** `application/ports/teaching-example-drafter.ts`: `TeachingExampleDrafter { available(): Promise<boolean>; concurrency(): Promise<number>; draft(input: ExampleDraftInput): Promise<RawExampleDraft> }`. Lỗi `ExampleDrafterError` cùng các `reason` của `EssayGraderError` (`unavailable | timeout | too_long | bad_output | process_failed`), message tiếng Việt: "AI chưa được bật", "Quá thời gian", "Prompt quá dài để AI đọc", "AI trả kết quả không hợp lệ", "Mất kết nối tới AI".
   - `ExampleDraftInput = { prompt: string; earlierPrompts: string[]; turnActivity: string; samples: ExampleSample[] }`. **Không** có tên, email, id, ngày giờ.
   - `ExampleSample = { prompt, turnActivity, label, topic, comment, betterPrompt: string | null }`.
   - `RawExampleDraft = { label, topic, comment, betterPrompt, suspicious, suspiciousReason, model }`.
-- **Port** `application/ports/example-sample-source.ts`: `ExampleSampleSource.samplesFor({ trainingId, excludeEventId, maxChars }): Promise<ExampleSample[]>`. Bản A: `CurrentTrainingSampleSource` trong `application/use-cases/training/` dùng `TrainingEventReader` + domain bên dưới. Composition gắn bản A.
+- **Port** `application/ports/example-sample-source.ts`: `ExampleSampleSource.samplesFor({ trainingId, excludeEventId, maxChars })`. Bản A: `CurrentTrainingSampleSource` trong `application/use-cases/training/` dùng `TrainingEventReader` + domain bên dưới. Composition gắn bản A. Mẫu được đọc **lúc nháp bắt đầu chạy** (không phải lúc xếp hàng).
 - **Adapter** `infrastructure/ai-grader/claude-cli-example-drafter.ts` + `example-draft-prompts.ts` (system prompt, schema, `buildExampleDraftPrompt`). Prompt > `maxAnswerChars` của cấu hình → `too_long`, không gọi CLI.
+- **Hàng đợi**: dùng lại `suggestion-queue.ts` (tổng quát hoá nếu cần) hoặc một hàng đợi cùng kiểu, trong process, số việc song song = `concurrency` của cấu hình. Khởi động server: nháp `queued`/`running` còn sót → `failed` ("Server đã khởi động lại").
 - **Domain thuần** `domain/training/example-draft.ts`:
   - `earlierPromptsInSession(events, eventId, n = 2)`: tối đa 2 prompt liền trước trong **cùng phiên Claude Code** (cách gom phiên của S43), cũ trước mới sau; mỗi cái cắt còn 1 500 ký tự kèm "…(đã cắt)"; đã qua `maskForExample`.
-  - `pickSamples(examples, excludeEventId, maxChars = 40_000)`: bỏ ví dụ có `origin = 'ai_kept'` và chính ví dụ đang xét; lấy **tất cả** phần còn lại, mới nhất trước (`updated_at`), **không** xen kẽ hay cân bằng nhãn (giữ tỉ lệ thật của mentor); dùng bản đã rà (`editedPrompt`/`editedContext`) khi có, không thì bản mặc định đã che; prompt mẫu cắt 1 500 ký tự. Tổng độ dài các mẫu (prompt + bối cảnh + nhận xét + bản tốt hơn) vượt `maxChars` thì dừng thêm (bỏ các ví dụ cũ hơn). Giới hạn này chỉ là lưới an toàn (một buổi thường vài chục ví dụ, xa dưới mức này); phương án B sẽ cần cách chọn khác khi kho có hàng trăm ví dụ.
+  - `pickSamples(examples, excludeEventId, maxChars = 40_000)`: bỏ ví dụ có `origin = 'ai_kept'` và chính ví dụ đang xét; lấy **tất cả** phần còn lại, mới nhất trước (`updated_at`), **không** xen kẽ hay cân bằng nhãn (giữ tỉ lệ thật của mentor); dùng bản đã rà (`editedPrompt`/`editedContext`) khi có, không thì bản mặc định đã che; prompt mẫu cắt 1 500 ký tự. Tổng độ dài các mẫu vượt `maxChars` thì dừng thêm (bỏ các ví dụ cũ hơn). Giới hạn này chỉ là lưới an toàn; phương án B sẽ cần cách chọn khác.
   - `normalizeExampleDraft(raw)`: `label`, `topic` đúng enum; `comment` cắt khoảng trắng, rỗng → `bad_output`, tối đa 1 000 ký tự (dài hơn → cắt); `betterPrompt` rỗng → `null`, tối đa 4 000 ký tự; `suspiciousReason` rỗng khi `suspicious = false`.
-  - `exampleOrigin(saved, aiDraft)`: `null` draft → `'mentor'`; cả 4 trường (`label`, `topic`, `comment` đã trim, `betterPrompt` với `null` ≡ `''`) giống nháp → `'ai_kept'`; khác → `'ai_edited'`.
-- **DB** (migration): `training_teaching_examples` thêm `ai_draft` (text JSON `{ label, topic, comment, betterPrompt }`, nullable) và `origin` (text, not null, default `'mentor'`).
-- **Use case** `DraftTeachingExample` (`use-cases/training/teaching-examples.ts` hoặc file mới): kiểm buổi chưa `ended`, sự kiện là `prompt`, member có `teaching_consent` (như PUT của S44), AI khả dụng; dựng input từ `TimelineCache` (prompt và bối cảnh mặc định đã che, prompt trước) + `ExampleSampleSource`; gọi port; chuẩn hoá. **Không lưu gì.**
-- **Lưu ví dụ** (PUT S44) nhận thêm `aiDraft?: { label, topic, comment, betterPrompt } | null`:
-  - object → lưu `ai_draft`, tính `origin` theo `exampleOrigin`.
-  - vắng → giữ `ai_draft` đang có, **tính lại** `origin` so với nội dung mới (sửa ở màn rà làm `ai_kept` thành `ai_edited`).
-  - `null` → xoá `ai_draft`, `origin = 'mentor'`.
-  - Việc đổi `ai_draft`/`origin` không tính là "đổi nội dung" cho `reviewed_at` và `updated_at` (chỉ 4 trường nội dung và bản sửa như S44).
-- **Route** (trong `/api/admin`): `POST /trainings/:id/events/:eventId/teaching-example/ai-draft` → 200 `{ draft: { label, topic, comment, betterPrompt, suspicious, suspiciousReason }, sampleCount, model }`. Lỗi: 404 buổi/sự kiện; 409 buổi `ended`; 400 `not_a_prompt`; 409 `no_teaching_consent`; 503 `ai_unavailable`; 502 `ai_draft_failed` kèm `reason` và `message` (timeout, too_long, bad_output, process_failed). Chạy đồng bộ, không hàng đợi.
-- `TrainingDetail` thêm `aiDraftAvailable: boolean`. `TeachingExampleRow` thêm `origin`.
-- Leak-guard: `aiDraft`, `origin`, `aiDraftAvailable` chỉ có ở `/api/admin/*` (thêm vào danh sách key bị chặn nếu leak-guard của S26 dùng danh sách).
-
-### System prompt và cách dựng prompt (hợp đồng, PO xem trước khi code)
+  - `exampleOrigin(saved, aiDraft)`: không có nháp `done` → `'mentor'`; cả 4 trường (`label`, `topic`, `comment` đã trim, `betterPrompt` với `null` ≡ `''`) giống nháp → `'ai_kept'`; khác → `'ai_edited'`.
+- **DB** (migration):
+  - Bảng mới `training_example_drafts (event_id PK → training_events.id cascade, status 'queued'|'running'|'done'|'failed', label?, topic?, comment?, better_prompt?, suspicious, suspicious_reason?, sample_count?, error?, seen_at?, created_at, finished_at?)`. Một nháp cho mỗi prompt; "Viết lại nháp" ghi đè.
+  - `training_teaching_examples` thêm `ai_draft` (text JSON `{ label, topic, comment, betterPrompt }`, nullable) và `origin` (text, not null, default `'mentor'`).
+- **Use case** (trong `use-cases/training/`):
+  - `RequestExampleDraft(trainingId, eventId)`: kiểm buổi chưa `ended`, sự kiện là `prompt`, member có `teaching_consent`, AI khả dụng; ghi/ghi đè dòng nháp `queued` rồi đưa vào hàng đợi. Đã có nháp `queued`/`running` → trả trạng thái hiện tại, không xếp thêm.
+  - `RunExampleDraft(eventId)`: chỉ chạy khi dòng còn `queued`; `running` → dựng input từ `TimelineCache` (prompt và bối cảnh mặc định đã che, prompt trước) + `ExampleSampleSource` → gọi port → chuẩn hoá → `done` (kèm `sample_count`) hoặc `failed` (kèm message). Dòng đã bị bỏ trong lúc chạy thì bỏ kết quả.
+  - `DiscardExampleDraft(eventId)`: xoá dòng nháp.
+  - `MarkExampleDraftSeen(eventId)`: đặt `seen_at` (để nút thôi hiện "có nháp chưa xem").
+- **Lưu ví dụ** (PUT S44), không đổi body: trong cùng unit, nếu có nháp `done` thì tính `origin` bằng `exampleOrigin`, chép nháp sang `ai_draft` của ví dụ và **xoá dòng nháp**; không có nháp `done` thì giữ `ai_draft`/`origin` đang có của ví dụ và **tính lại** `origin` so với nội dung mới (sửa ở màn rà làm `ai_kept` thành `ai_edited`). Ví dụ mới không có nháp → `mentor`. Đổi `ai_draft`/`origin` không đổi `reviewed_at`, `updated_at`. Nháp `queued`/`running` lúc Lưu → huỷ (xoá dòng), `origin = 'mentor'`.
+- **Route** (trong `/api/admin`, 409 khi buổi `ended`):
+  - `POST /trainings/:id/events/:eventId/example-draft` → 202 `ExampleDraftRow`. Lỗi: 404; 400 `not_a_prompt`; 409 `no_teaching_consent`; 503 `ai_unavailable`.
+  - `GET /trainings/:id/events/:eventId/example-draft` → `ExampleDraftRow` hoặc 404 `no_draft`.
+  - `DELETE /trainings/:id/events/:eventId/example-draft` (idempotent).
+  - `PUT /trainings/:id/events/:eventId/example-draft/seen`.
+  - `ExampleDraftRow = { eventId, status, draft: { label, topic, comment, betterPrompt, suspicious, suspiciousReason } | null, sampleCount: number | null, error: string | null, seen: boolean }`.
+- `TrainingEventRow` (dòng prompt) thêm `exampleDraft: { status, seen } | null` để nút hiện trạng thái; `TrainingDetail` thêm `aiDraftAvailable: boolean`. Trang buổi tự làm mới khi còn nháp `queued`/`running` (poll vài giây như màn chấm S26, hoặc sự kiện SSE nếu trang buổi đã có).
+- Leak-guard: `exampleDraft`, `aiDraft`, `origin`, `aiDraftAvailable` chỉ có ở `/api/admin/*`.
+### System prompt và cách dựng prompt (hợp đồng, PO duyệt 2026-11-25)
 Dựa trên hướng dẫn của Anthropic: [Claude Code best practices](https://code.claude.com/docs/en/best-practices), [Prompting best practices](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices), [Effective context engineering](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents). Những nguyên tắc đã áp vào chính prompt này: vai trò ngay câu đầu; giải thích **lý do** thay vì luật trống; chia phần bằng thẻ XML; tài liệu dài (mẫu) đặt trước, yêu cầu đặt cuối; mẫu bọc trong `<example>`; nói điều cần làm thay vì cấm; không dùng CHỮ HOA để nhấn.
 
 `SYSTEM_PROMPT` (tiếng Anh, giống `prompts.ts` của S26; output tiếng Việt). Coder chép nguyên văn; sửa câu chữ thì cập nhật story này:
@@ -103,51 +120,53 @@ Draft the label, topic, comment and betterPrompt for the prompt above.
 ```
 - Mọi văn bản đưa vào đi qua `defuse` (như S26) cho các tên thẻ ở trên, để nội dung không đóng khối sớm được.
 
-### Web mentor (`features/training-admin`)
-- Hộp thoại sửa ví dụ (`TeachingDialogs`): nút phụ **"AI điền nháp"**.
-  - `aiDraftAvailable = false`: nút khoá, cạnh đó link "Cách bật AI" → `/admin/ai-grader-help`.
-  - Đang chạy: "AI đang viết nháp…" kèm nút "Huỷ" (huỷ phía trình duyệt); các ô khoá trong lúc chạy.
-  - Có kết quả: nếu nhận xét hoặc phiên bản tốt hơn đang có chữ → `ConfirmDialog` "Thay nội dung đang có bằng nháp AI?". Đổ nháp vào 4 ô; khung viền đứt "Nháp của AI, đọc và sửa trước khi lưu" và dòng "AI dựa trên N ví dụ bạn đã chốt trong buổi này" (N = 0: "Chưa có ví dụ nào bạn đã chốt trong buổi này, AI dùng chuẩn chung").
-  - `suspicious`: cảnh báo nổi bật kèm lý do; nút Lưu khoá tới khi tick "Đã đọc kỹ prompt".
-  - Lỗi: báo trong hộp thoại bằng `message` từ server, các ô giữ nguyên, bấm lại được.
-  - Lưu: gửi `aiDraft` = nháp AI **gần nhất trong lần mở hộp thoại này** (4 trường như AI trả, sau chuẩn hoá). Không chạy AI trong lần mở này → không gửi `aiDraft` (giữ nguồn gốc cũ).
-- Màn rà (S44): mỗi ví dụ có `origin = 'ai_kept'` hiện chip trung tính "Giữ nguyên nháp AI" để mentor đọc kỹ hơn. Không hiện gì cho `mentor`/`ai_edited`.
-- Dùng lại `ConfirmDialog`, nút, ô nhập trong `src/web/shared/ui`; khung nháp theo kiểu khối gợi ý của S26 (viền đứt). **Chờ designer** (PO yêu cầu 2026-11-25, prompt: [S45-ai-draft-ui-prompt.md](../design/S45-ai-draft-ui-prompt.md)): phần server và domain làm trước được; phần UI làm theo bản thiết kế PO duyệt, các mục UI trên đây có thể đổi.
 
-### Web member (màn đồng ý)
-- `consent-copy.ts`: câu của ô tick làm ví dụ (§7.39a) thêm "Prompt của bạn (đã bỏ tên) có thể được gửi tới dịch vụ AI (Anthropic) từ máy mentor để viết nháp nhận xét." (PRODUCT §7.40h).
+### Web mentor (`features/training-admin`): làm theo bản thiết kế PO duyệt
+Các mục dưới đây là luồng tối thiểu; bản thiết kế có thể đổi cách hiển thị, không đổi luật ở "Quyết định của PO".
+- Bấm "Làm ví dụ" trên prompt (AI khả dụng, chưa là ví dụ): gọi POST example-draft, mở hộp thoại như S44.
+- Nút ví dụ trên prompt có thêm trạng thái: **đang viết nháp**, **có nháp chưa xem**, **lỗi nháp** (biểu tượng + chữ, không chỉ màu), ngoài các trạng thái của S44.
+- Hộp thoại ví dụ:
+  - Đang viết: chỉ báo "AI đang viết nháp…"; mentor gõ được; đóng được (nháp chạy tiếp).
+  - Nháp xong khi hộp thoại đang mở: đổ vào 4 ô; nếu mentor đã gõ vào nhận xét hoặc phiên bản tốt hơn → hỏi trước khi thay (`ConfirmDialog`). Mở hộp thoại khi đã có nháp `done`: đổ thẳng, đánh dấu đã xem.
+  - Có nháp: dòng "Nháp của AI, đọc và sửa trước khi lưu" và "AI dựa trên N ví dụ bạn đã chốt trong buổi này" (N = 0: "Chưa có ví dụ nào bạn đã chốt trong buổi này, AI dùng chuẩn chung"); nút **"Viết lại nháp"**, **"Bỏ nháp"**.
+  - `suspicious`: cảnh báo kèm lý do; Lưu khoá tới khi tick "Đã đọc kỹ prompt".
+  - Lỗi: message từ server, nút "Viết lại nháp".
+  - AI không khả dụng: hộp thoại như S44, kèm link "Cách bật AI" → `/admin/ai-grader-help`.
+- Màn rà: **không đổi**.
+- Dùng lại component trong `src/web/shared/ui`; khung nháp theo kiểu khối gợi ý của S26 nếu thiết kế không nói khác.
 
 ## Ngoài phạm vi
 - Kho ví dụ lâu dài qua nhiều buổi (phương án B), AI tự đề xuất prompt đáng làm ví dụ (phương án C).
-- Hàng đợi, chạy hàng loạt, "AI điền tất cả".
+- "AI điền tất cả", lưu hàng loạt.
+- Thông báo nổi khi nháp xong; hiện nguồn gốc nháp ở màn rà hay nơi khác.
+- Thêm câu ở màn đồng ý của member.
 - Ghi gì về AI trong file ví dụ xuất ra, báo cáo, zip.
 - Thống kê độ lệch AI và mentor trên giao diện (chỉ lưu dữ liệu).
 
 ## Acceptance criteria
-1. Không có cấu hình AI: `aiDraftAvailable = false`, nút "AI điền nháp" khoá, có link hướng dẫn; POST trả 503 `ai_unavailable`.
-2. Bấm "AI điền nháp" → nháp đổ vào nhãn, chủ đề, nhận xét, phiên bản tốt hơn; có khung "Nháp của AI…" và dòng số ví dụ mẫu. **Chưa lưu gì** cho tới khi mentor bấm Lưu.
-3. Nhận xét hoặc phiên bản tốt hơn đang có chữ → hỏi trước khi thay; chọn không thay thì giữ nguyên.
-4. Input gửi AI không có tên, email, id, ngày giờ, output hay nội dung file; prompt và bối cảnh đã che bí mật và đường dẫn thư mục người dùng; có tối đa 2 prompt liền trước **cùng phiên Claude Code**.
-5. Mẫu: mọi ví dụ đã chốt trong cùng buổi, không gồm ví dụ đang xét và ví dụ `ai_kept`; mới nhất trước, không cân bằng nhãn; dùng bản đã rà khi có; vượt 40 000 ký tự thì bỏ ví dụ cũ nhất.
-6. Lưu kèm `aiDraft`: `origin` đúng (`mentor` / `ai_kept` / `ai_edited`). Sửa ở màn rà một ví dụ `ai_kept` → `ai_edited`. `aiDraft: null` → `mentor`. Đổi nguồn gốc không đổi `reviewed_at`/`updated_at`.
-7. AI đánh dấu nghi ngờ → cảnh báo kèm lý do; Lưu khoá tới khi tick "Đã đọc kỹ prompt".
-8. Lỗi (timeout, too_long, bad_output, process_failed) → 502 kèm message tiếng Việt; hộp thoại báo lỗi, ô giữ nguyên, thử lại được.
-9. Prompt của member không đồng ý → 409 `no_teaching_consent`; sự kiện không phải prompt → 400; buổi `ended` → 409.
-10. Màn rà hiện chip "Giữ nguyên nháp AI" cho ví dụ `ai_kept`.
-11. `aiDraft`, `origin`, `aiDraftAvailable` không xuất hiện ở API member/công khai; file ví dụ xuất ra không đổi so với S44.
-12. Màn đồng ý có câu mới về việc gửi tới dịch vụ AI.
-13. `ClaudeCliGrader` (S26) hoạt động như cũ sau khi tách runner (test cũ xanh, không sửa kỳ vọng).
+1. Không có cấu hình AI: `aiDraftAvailable = false`; "Làm ví dụ" như S44, không gọi AI; hộp thoại có link hướng dẫn; POST example-draft → 503 `ai_unavailable`.
+2. Bấm "Làm ví dụ" → nháp chạy nền; đóng hộp thoại, nháp vẫn chạy; nút trên prompt hiện "đang viết nháp" rồi "có nháp chưa xem"; mở lại thì 4 ô có nháp, nút thôi hiện "chưa xem". **Chưa lưu ví dụ** cho tới khi mentor bấm Lưu.
+3. Nháp về khi mentor đã gõ nhận xét hoặc phiên bản tốt hơn → hỏi trước khi thay; chọn không thay thì giữ nội dung mentor.
+4. F5 không mất nháp; Bỏ nháp xoá; Kết thúc buổi xoá; server khởi động lại giữa chừng → nháp lỗi "Server đã khởi động lại", "Viết lại nháp" chạy lại được.
+5. Input gửi AI không có tên, email, id, ngày giờ, output hay nội dung file; prompt và bối cảnh đã che bí mật và đường dẫn thư mục người dùng; có tối đa 2 prompt liền trước **cùng phiên Claude Code**.
+6. Mẫu: mọi ví dụ đã chốt trong cùng buổi, không gồm ví dụ đang xét và ví dụ `ai_kept`; mới nhất trước, không cân bằng nhãn; dùng bản đã rà khi có; vượt 40 000 ký tự thì bỏ ví dụ cũ nhất. Dòng "AI dựa trên N ví dụ" đúng N.
+7. Lưu: `origin` đúng (`mentor` / `ai_kept` / `ai_edited`), nháp chép sang ví dụ và dòng nháp bị xoá. Sửa ở màn rà một ví dụ `ai_kept` → `ai_edited`. Đổi nguồn gốc không đổi `reviewed_at`/`updated_at`.
+8. AI đánh dấu nghi ngờ → cảnh báo kèm lý do; Lưu khoá tới khi tick "Đã đọc kỹ prompt".
+9. Lỗi (timeout, too_long, bad_output, process_failed) → nút và hộp thoại báo lỗi bằng message tiếng Việt; viết tay vẫn được.
+10. Prompt của member không đồng ý → 409 `no_teaching_consent`; sự kiện không phải prompt → 400; buổi `ended` → 409.
+11. `exampleDraft`, `aiDraft`, `origin`, `aiDraftAvailable` không xuất hiện ở API member/công khai; file ví dụ xuất ra, màn rà, màn đồng ý không đổi so với S44.
+12. `ClaudeCliGrader` (S26) hoạt động như cũ sau khi tách runner (test cũ xanh, không sửa kỳ vọng).
 
 ## Test bắt buộc
 - Domain: `earlierPromptsInSession` (khác phiên không lấy, cắt độ dài, che), `pickSamples` (bỏ `ai_kept`, bỏ chính nó, lấy hết, giữ thứ tự mới nhất, cắt theo `maxChars`, ưu tiên bản đã rà), `normalizeExampleDraft`, `exampleOrigin`.
 - `buildExampleDraftPrompt`: thứ tự khối (mẫu trước, yêu cầu cuối), `defuse` thẻ, không có tên/id trong output với input có tên member ở dữ liệu nguồn.
 - Adapter bằng script giả CLI (như test của S26): thành công, `too_long` không gọi CLI, output sai → `bad_output`, timeout.
-- Use case với fake drafter và fake sample source: kiểm consent, không lưu, `sampleCount`.
-- Integration HTTP: POST ai-draft (thành công với fake, 503, 409, 400), PUT với `aiDraft` (3 trường hợp origin + màn rà), leak-guard.
-- E2E (`e2e/training-teaching.spec.ts` hoặc file mới): trạng thái AI tắt (nút khoá + link); với CLI giả như `s26-ai-grading.spec.ts`: bấm "AI điền nháp" → nháp hiện → sửa → Lưu → màn rà không có chip; một ví dụ giữ nguyên nháp → có chip; trường hợp nghi ngờ khoá Lưu. Ảnh vào `docs/design/S45-assets/`.
+- Use case với fake drafter và fake sample source: consent, xếp hàng không trùng, chạy → `done`/`failed`, bỏ trong lúc chạy thì không ghi kết quả, lưu ví dụ chép nháp + tính origin + xoá nháp, khởi động lại → `failed`.
+- Integration HTTP: POST/GET/DELETE/seen example-draft, PUT ví dụ với 3 trường hợp origin + sửa ở màn rà, leak-guard.
+- E2E: AI tắt (như S44, có link); với CLI giả như `s26-ai-grading.spec.ts`: "Làm ví dụ" → đóng hộp thoại → nút "có nháp chưa xem" → mở → nháp trong ô → sửa → Lưu; nghi ngờ khoá Lưu; F5 giữ nháp. Ảnh vào `docs/design/S45-assets/`.
 - **Không** gọi AI thật trong `npm test`/`npm run e2e`.
 
 ## Module bị chạm
-`infrastructure/ai-grader/` (runner tách ra, drafter, prompt mới), `application/ports/` (2 port mới), `application/use-cases/training/`, `domain/training/example-draft.ts`, `infrastructure/db/schema.ts` + migration, repository ví dụ, `interface/http/training-routes.ts` + presenter, `composition.ts`, `src/shared/api/training.ts`, `features/training-admin` (hộp thoại ví dụ, màn rà, gateway), `features/training-member/domain/consent-copy.ts`.
+`infrastructure/ai-grader/` (runner tách ra, drafter, prompt mới, hàng đợi), `application/ports/` (2 port mới), `application/use-cases/training/`, `domain/training/example-draft.ts`, `infrastructure/db/schema.ts` + migration, repository training, `interface/http/training-routes.ts` + presenter, `composition.ts`, lúc khởi động server (nháp sót), `src/shared/api/training.ts`, `features/training-admin` (nút ví dụ, hộp thoại ví dụ, gateway, làm mới khi có nháp đang chạy).
 
 ## Ghi chú khi làm
