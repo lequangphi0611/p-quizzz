@@ -35,22 +35,17 @@ export const blockKeyOf = (dayKey: string, sessionIndex: number): string => `b${
 
 const eventsOfTurn = (t: Turn): TrainingEventRow[] => (t.prompt ? [t.prompt, ...t.tools.map(x => x.event)] : t.tools.map(x => x.event));
 
-/**
- * How each session ended: the last `/clear` or exit event of the session over all the turns given (the one with the biggest id),
- * unless the session sent more (a notice aside) after it, e.g. it was resumed: then it has not ended.
- */
+/** How each session ended: the last `/clear` or exit event of the session over all the turns given (the one with the biggest id). */
 export function endedByOf(allTurns: readonly Turn[]): Map<string, 'clear' | 'exit'> {
   const last = new Map<string, { id: number; by: 'clear' | 'exit' }>();
-  const lastEvent = new Map<string, number>();
   for (const t of allTurns) {
-    for (const e of eventsOfTurn(t)) {
-      if (e.kind !== 'notice') lastEvent.set(e.claudeSessionId, Math.max(lastEvent.get(e.claudeSessionId) ?? 0, e.id));
+    for (const { event: e } of t.tools) {
       if (e.kind !== 'session' || (e.subtype !== 'clear' && e.subtype !== 'exit')) continue;
       const prev = last.get(e.claudeSessionId);
       if (!prev || e.id > prev.id) last.set(e.claudeSessionId, { id: e.id, by: e.subtype });
     }
   }
-  return new Map([...last].filter(([sid, v]) => (lastEvent.get(sid) ?? 0) <= v.id).map(([sid, v]) => [sid, v.by]));
+  return new Map([...last].map(([sid, v]) => [sid, v.by]));
 }
 
 /**
