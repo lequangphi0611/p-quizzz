@@ -17,7 +17,7 @@ describe('HttpTrainingMemberGateway', () => {
     expect(calls[0]).toEqual(['POST', '/api/rooms/resolve', { 'Content-Type': 'application/json' }]);
     expect(JSON.parse((f.mock.calls[0]![1] as RequestInit).body as string)).toEqual({ roomCode: '123456' });
     expect(calls[1]).toEqual(['POST', '/api/trainings/5/join', { 'Content-Type': 'application/json' }]);
-    expect(JSON.parse((f.mock.calls[1]![1] as RequestInit).body as string)).toEqual({ displayName: 'Lan', roomCode: '123456', consent: true });
+    expect(JSON.parse((f.mock.calls[1]![1] as RequestInit).body as string)).toEqual({ displayName: 'Lan', roomCode: '123456', consent: true, teachingConsent: false });
     expect(calls.slice(2).map(c => [c[0], c[1]])).toEqual([
       ['GET', '/api/training/me'], ['GET', '/api/training/me/hook-config'], ['POST', '/api/training/me/uninstall-check'],
       ['POST', '/api/training/me/uninstall-check/finish'], ['DELETE', '/api/training/me'],

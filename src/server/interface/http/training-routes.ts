@@ -1,9 +1,10 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { CreateTrainingBody, JoinTrainingBody, MemberNoteBody, TrainingExportQuery, type HookConfig, type JoinTrainingResponse, type MyTraining, type TrainingDetail, type TrainingEventDetail, type TrainingEventsPage, type TrainingExportSummary, type UninstallCheckResult } from '../../../shared/api/training.js';
+import { CreateTrainingBody, JoinTrainingBody, MemberNoteBody, TeachingExampleBody, TrainingExportQuery, type HookConfig, type JoinTrainingResponse, type MyTraining, type TrainingDetail, type TrainingEventDetail, type TeachingExamplesResponse, type TrainingEventsPage, type TrainingExportSummary, type UninstallCheckResult } from '../../../shared/api/training.js';
 import { WrongRoomCodeError } from '../../domain/participant/errors.js';
 import { TrainingEventNotFoundError, TrainingMemberNotFoundError, TrainingNotFoundError } from '../../domain/training/errors.js';
 import type { CreateTraining, EndTraining, GetTrainingDetail, ListTrainings, MarkTrainingEvent, PurgeTrainingMember, RemoveTrainingMember, SaveMemberNote, StopTraining } from '../../application/use-cases/training/admin.js';
 import type { ExportTrainingData, GetTrainingExportSummary } from '../../application/use-cases/training/export-data.js';
+import type { DeleteTeachingExample, ExportTeachingExamples, ListTeachingExamples, SaveTeachingExample } from '../../application/use-cases/training/teaching-examples.js';
 import type { ExportTrainingReport } from '../../application/use-cases/training/report.js';
 import type { GetTrainingEventDetail, ListMemberEvents } from '../../application/use-cases/training/view.js';
 import type { IngestHookEvent } from '../../application/use-cases/training/ingest.js';
@@ -27,6 +28,10 @@ export interface TrainingUseCases {
   markEvent: MarkTrainingEvent;
   saveNote: SaveMemberNote;
   report: ExportTrainingReport;
+  saveTeachingExample: SaveTeachingExample;
+  deleteTeachingExample: DeleteTeachingExample;
+  listTeachingExamples: ListTeachingExamples;
+  exportTeachingExamples: ExportTeachingExamples;
   exportSummary: GetTrainingExportSummary;
   exportData: ExportTrainingData;
   memberEvents: ListMemberEvents;
@@ -44,7 +49,7 @@ export interface TrainingUseCases {
 const badBody = (issue: { message: string } | undefined) => ({ error: issue?.message ?? 'Dữ liệu không hợp lệ' });
 
 // Mentor routes (PRODUCT.md §7.34). Registered inside the requireMentor scope of /api/admin, so they only answer on the mentor's machine.
-export const trainingAdminRoutes = (uc: Pick<TrainingUseCases, 'create' | 'list' | 'detail' | 'stop' | 'end' | 'removeMember' | 'purgeMember' | 'memberEvents' | 'eventDetail' | 'markEvent' | 'saveNote' | 'report' | 'exportSummary' | 'exportData'>): FastifyPluginAsync =>
+export const trainingAdminRoutes = (uc: Pick<TrainingUseCases, 'create' | 'list' | 'detail' | 'stop' | 'end' | 'removeMember' | 'purgeMember' | 'memberEvents' | 'eventDetail' | 'markEvent' | 'saveNote' | 'report' | 'exportSummary' | 'exportData' | 'saveTeachingExample' | 'deleteTeachingExample' | 'listTeachingExamples' | 'exportTeachingExamples'>): FastifyPluginAsync =>
   async app => {
     app.post('/trainings', async (req, reply) => {
       const body = CreateTrainingBody.safeParse(req.body);
@@ -120,6 +125,60 @@ export const trainingAdminRoutes = (uc: Pick<TrainingUseCases, 'create' | 'list'
         if (!body.success) return reply.code(400).send(badBody(body.error.issues[0]));
         await uc.saveNote.execute(id, memberId, body.data.note);
         return reply.code(204).send();
+      } catch (err) {
+        return sendDomainError(reply, err);
+      }
+    });
+
+    // S44 (PRODUCT.md §7.39): prompts picked as anonymous examples for the next course. Nothing here is reachable by members, the report or the zip.
+    app.put<{ Params: { id: string; eventId: string } }>('/trainings/:id/events/:eventId/teaching-example', async (req, reply) => {
+      try {
+        const id = parseId(req.params.id);
+        const eventId = parseId(req.params.eventId);
+        if (!id) throw new TrainingNotFoundError();
+        if (!eventId) throw new TrainingEventNotFoundError();
+        const body = TeachingExampleBody.safeParse(req.body);
+        if (!body.success) return reply.code(400).send(badBody(body.error.issues[0]));
+        return await uc.saveTeachingExample.execute(id, eventId, body.data);
+      } catch (err) {
+        return sendDomainError(reply, err);
+      }
+    });
+
+    app.delete<{ Params: { id: string; eventId: string } }>('/trainings/:id/events/:eventId/teaching-example', async (req, reply) => {
+      try {
+        const id = parseId(req.params.id);
+        const eventId = parseId(req.params.eventId);
+        if (!id) throw new TrainingNotFoundError();
+        if (!eventId) throw new TrainingEventNotFoundError();
+        await uc.deleteTeachingExample.execute(id, eventId);
+        return reply.code(204).send();
+      } catch (err) {
+        return sendDomainError(reply, err);
+      }
+    });
+
+    app.get<{ Params: { id: string } }>('/trainings/:id/teaching-examples', async (req, reply): Promise<TeachingExamplesResponse | undefined> => {
+      try {
+        const id = parseId(req.params.id);
+        if (!id) throw new TrainingNotFoundError();
+        return { examples: await uc.listTeachingExamples.execute(id) };
+      } catch (err) {
+        return sendDomainError(reply, err);
+      }
+    });
+
+    // Needs `confirmed=1` (the mentor's "Tôi đã rà" tick). Not the report: nothing is recorded as exported.
+    app.get<{ Params: { id: string }; Querystring: { confirmed?: string } }>('/trainings/:id/teaching-examples.md', async (req, reply) => {
+      try {
+        const id = parseId(req.params.id);
+        if (!id) throw new TrainingNotFoundError();
+        const text = await uc.exportTeachingExamples.execute(id, { confirmed: req.query.confirmed === '1' });
+        return reply
+          .header('Content-Type', 'text/markdown; charset=utf-8')
+          .header('Cache-Control', 'no-store')
+          .header('Content-Disposition', `attachment; filename="vi-du-day-lop-sau-${id}.md"`)
+          .send(text);
       } catch (err) {
         return sendDomainError(reply, err);
       }
@@ -227,7 +286,7 @@ export const trainingMemberRoutes = (uc: Pick<TrainingUseCases, 'join' | 'resume
       const body = JoinTrainingBody.safeParse(req.body);
       if (!body.success) return reply.code(400).send(badBody(body.error.issues[0]));
       try {
-        const { token, member } = await uc.join.execute({ trainingId, displayName: body.data.displayName, roomCode: body.data.roomCode });
+        const { token, member } = await uc.join.execute({ trainingId, displayName: body.data.displayName, roomCode: body.data.roomCode, teachingConsent: body.data.teachingConsent });
         const res: JoinTrainingResponse = { token, member: { displayName: member.displayName } };
         return reply.code(201).send(res);
       } catch (err) {

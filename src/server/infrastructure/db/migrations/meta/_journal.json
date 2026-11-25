@@ -127,6 +127,13 @@
       "when": 1795239049684,
       "tag": "0017_ambitious_loki",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1795603378571,
+      "tag": "0018_skinny_plazm",
+      "breakpoints": true
     }
   ]
 }

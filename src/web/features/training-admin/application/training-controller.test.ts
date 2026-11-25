@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { TrainingDetail, TrainingEventDetail, TrainingEventRow, TrainingEventsPage, TrainingExportSummary, TrainingMemberRow } from '../../../../shared/api/index.js';
+import type { TeachingExampleBody, TeachingExampleRow, TrainingDetail, TrainingEventDetail, TrainingEventRow, TrainingEventsPage, TrainingExportSummary, TrainingMemberRow } from '../../../../shared/api/index.js';
 import { ApiError } from '../../../shared/api-client/http-client.js';
 import type { TrainingAdminGateway } from './training-admin-gateway.js';
 import { TrainingController } from './training-controller.js';
@@ -8,12 +8,17 @@ import { InMemoryTrainingReadStore, type TrainingReadStore } from './training-re
 const ZERO_COUNTS: TrainingDetail['flagCounts'] = { auto_accept: 0, auto_compact_repeated: 0, dangerous_command: 0, edited_not_verified: 0, fast_approvals: 0, long_without_verify: 0, possible_secret: 0, repeated_failure: 0, repeated_request: 0, touches_tests: 0 };
 
 const member = (id: number, displayName: string, over: Partial<TrainingMemberRow> = {}): TrainingMemberRow =>
-  ({ id, displayName, connection: 'connected', lastSeenAt: 1, promptCount: 1, toolCount: 1, failedCount: 0, stuck: false, stillSending: false, stoppedSending: false, flags: [], clearCount: 0, compactCount: 0, permissionCount: 0, mentorNote: null, markedCount: 0, ...over });
+  ({ id, displayName, connection: 'connected', lastSeenAt: 1, promptCount: 1, toolCount: 1, failedCount: 0, stuck: false, stillSending: false, stoppedSending: false, flags: [], clearCount: 0, compactCount: 0, permissionCount: 0, mentorNote: null, markedCount: 0, teachingConsent: true, ...over });
 const detail = (over: Partial<TrainingDetail> = {}): TrainingDetail =>
   ({ id: 5, name: 'Buổi 1', status: 'open', roomCode: '482913', createdAt: 0, stoppedAt: null, endedAt: null, uninstalled: null, allowAutoAccept: false, reportExportedAt: null, flagCounts: ZERO_COUNTS, members: [member(1, 'An'), member(2, 'Bình')], ...over });
 const ev = (id: number, over: Partial<TrainingEventRow> = {}): TrainingEventRow =>
-  ({ id, kind: 'tool', receivedAt: id, claudeSessionId: 's', toolName: 'Bash', toolTarget: 'ls', ok: true, hasOutput: false, hasChange: false, marked: false, ...over });
+  ({ id, kind: 'tool', receivedAt: id, claudeSessionId: 's', toolName: 'Bash', toolTarget: 'ls', ok: true, hasOutput: false, hasChange: false, marked: false, teachingExample: null, ...over });
 const page = (ids: number[], hasMore = false): TrainingEventsPage => ({ events: ids.map(i => ev(i)), hasMore, flags: [] });
+
+const teachingRow = (eventId: number, body: Partial<TeachingExampleBody> = {}, over: Partial<TeachingExampleRow> = {}): TeachingExampleRow => ({
+  eventId, memberId: 1, memberName: 'An', label: 'good', topic: 'other', comment: 'ok', betterPrompt: null, editedPrompt: null, editedContext: null,
+  defaultPrompt: 'prompt gốc', defaultContext: '✓ Bash ls', updatedAt: 1, ...body, ...over,
+});
 
 const exportSummary = (over: Partial<TrainingExportSummary> = {}): TrainingExportSummary => ({ from: '2026-11-24', to: '2026-11-24', memberCount: 2, eventCount: 12, approxBytes: 4096, tooLarge: false, ...over });
 
@@ -38,6 +43,10 @@ function make(over: Partial<TrainingAdminGateway> = {}, initial = detail(), opts
     exportReport: vi.fn(async () => '# Báo cáo\nđầy đủ'),
     exportSummary: vi.fn(async () => exportSummary()),
     exportData: vi.fn(async () => new Blob(['zip'])),
+    saveTeachingExample: vi.fn(async (_t: number, eventId: number, body) => teachingRow(eventId, body)),
+    deleteTeachingExample: vi.fn(async () => {}),
+    teachingExamples: vi.fn(async () => []),
+    exportTeachingExamples: vi.fn(async () => '# Ví dụ'),
     getJoinHosts: vi.fn(async () => ['192.168.1.5:3000']),
     readHideContent: () => hide,
     writeHideContent: vi.fn((h: boolean) => { hide = h; }),
@@ -1217,5 +1226,182 @@ describe('TrainingController: session blocks and what has been read (S43)', () =
     expect(ctrl.getState().detail.status).toBe('ended');
     expect(store.load(5)).toEqual({ members: {} });
     expect(ctrl.getState().read).toEqual({ members: {} });
+  });
+});
+
+
+describe('TrainingController: teaching examples (S44)', () => {
+  const withPrompt = (over: Partial<TrainingEventRow> = {}) => ({ events: vi.fn(async () => ({ events: [ev(10, { kind: 'prompt', prompt: 'viết hàm add', ...over, toolName: undefined, toolTarget: undefined, ok: undefined })], hasMore: false, flags: [] })) });
+  const open = async (over: Partial<TrainingAdminGateway> = {}, initial = detail()) => {
+    const m = make({ ...withPrompt(), ...over }, initial, { initialMemberId: 1 });
+    m.ctrl.start();
+    await flush();
+    return m;
+  };
+
+  it('does not open for a member who did not agree, nor for a row that is not a prompt', async () => {
+    const { ctrl } = await open({}, detail({ members: [member(1, 'An', { teachingConsent: false })] }));
+    ctrl.openTeaching(10);
+    expect(ctrl.getState().teachingEdit).toBeNull();
+    const ok = await open();
+    ok.ctrl.openTeaching(99);
+    expect(ok.ctrl.getState().teachingEdit).toBeNull();
+  });
+
+  it('opens empty for a new example, needs a label and a comment, and saves with the form (null for what is empty)', async () => {
+    const { ctrl, gateway } = await open();
+    ctrl.openTeaching(10);
+    expect(ctrl.getState().teachingEdit).toMatchObject({ eventId: 10, memberName: 'An', prompt: 'viết hàm add', exists: false, phase: 'ready', form: { label: '', topic: 'other', comment: '', betterPrompt: '' } });
+    await ctrl.saveTeaching();
+    expect(gateway.saveTeachingExample).not.toHaveBeenCalled(); // no label, no comment
+
+    ctrl.setTeachingForm({ label: 'needs_work', topic: 'verify' });
+    await ctrl.saveTeaching();
+    expect(gateway.saveTeachingExample).not.toHaveBeenCalled(); // still no comment
+    ctrl.setTeachingForm({ comment: '  Chưa nói cách kiểm tra  ' });
+    await ctrl.saveTeaching();
+    expect(gateway.saveTeachingExample).toHaveBeenCalledWith(5, 10, { label: 'needs_work', topic: 'verify', comment: 'Chưa nói cách kiểm tra', betterPrompt: null, editedPrompt: null, editedContext: null });
+    expect(ctrl.getState().teachingEdit).toBeNull();
+    expect(ctrl.getState().timeline!.events.find(e => e.id === 10)!.teachingExample).toEqual({ label: 'needs_work' }); // the row shows what the server answered
+  });
+
+  it('fills the form from the existing example, keeps the review edits on save, and can drop it', async () => {
+    const existing = teachingRow(10, { label: 'good', topic: 'stuck', comment: 'Rõ ràng', betterPrompt: 'tốt hơn' }, { editedPrompt: 'đã sửa', editedContext: null });
+    const { ctrl, gateway } = await open({ ...withPrompt({ teachingExample: { label: 'good' } }), teachingExamples: vi.fn(async () => [existing]) });
+    ctrl.openTeaching(10);
+    expect(ctrl.getState().teachingEdit).toMatchObject({ exists: true, phase: 'loading' });
+    await flush();
+    expect(ctrl.getState().teachingEdit).toMatchObject({ phase: 'ready', form: { label: 'good', topic: 'stuck', comment: 'Rõ ràng', betterPrompt: 'tốt hơn' } });
+    ctrl.setTeachingForm({ comment: 'Rõ ràng, có ví dụ' });
+    await ctrl.saveTeaching();
+    expect(gateway.saveTeachingExample).toHaveBeenCalledWith(5, 10, expect.objectContaining({ comment: 'Rõ ràng, có ví dụ', editedPrompt: 'đã sửa', editedContext: null }));
+
+    ctrl.openTeaching(10);
+    await flush();
+    await ctrl.removeTeaching();
+    expect(gateway.deleteTeachingExample).toHaveBeenCalledWith(5, 10);
+    expect(ctrl.getState().timeline!.events.find(e => e.id === 10)!.teachingExample).toBeNull();
+    expect(ctrl.getState().teachingEdit).toBeNull();
+  });
+
+  it('shows the server\'s reason in the dialog and keeps it open (the member did not agree)', async () => {
+    const { ctrl } = await open({ saveTeachingExample: vi.fn(async () => { throw new ApiError(409, 'Bạn này không đồng ý cho dùng làm ví dụ', 'no_teaching_consent'); }) });
+    ctrl.openTeaching(10);
+    ctrl.setTeachingForm({ label: 'good', comment: 'ok' });
+    await ctrl.saveTeaching();
+    expect(ctrl.getState().teachingEdit).toMatchObject({ saving: false, error: 'Bạn này không đồng ý cho dùng làm ví dụ' });
+  });
+
+  it('a failed load of the existing example can be retried', async () => {
+    const load = vi.fn().mockRejectedValueOnce(new ApiError(0, 'Không kết nối được')).mockResolvedValue([teachingRow(10, { comment: 'Rõ' })]);
+    const { ctrl } = await open({ ...withPrompt({ teachingExample: { label: 'good' } }), teachingExamples: load });
+    ctrl.openTeaching(10);
+    await flush();
+    expect(ctrl.getState().teachingEdit).toMatchObject({ phase: 'error', error: 'Không kết nối được' });
+    ctrl.retryTeaching();
+    await flush();
+    expect(ctrl.getState().teachingEdit).toMatchObject({ phase: 'ready', form: { comment: 'Rõ' } });
+  });
+
+  describe('the review screen', () => {
+    const rows = () => [teachingRow(10, {}, { memberName: 'An' }), teachingRow(11, { label: 'needs_work' }, { memberName: 'Bình', editedPrompt: 'đã bỏ tên', defaultPrompt: 'gốc có tên' })];
+    const review = async (over: Partial<TrainingAdminGateway> = {}, saveFile = vi.fn()) => {
+      const m = make({ teachingExamples: vi.fn(async () => rows()), ...over }, detail(), { saveFile });
+      await m.ctrl.openTeachingReview();
+      return { ...m, saveFile };
+    };
+
+    it('loads every example with the masked original as the starting text, or the stored edit', async () => {
+      const { ctrl } = await review();
+      const r = ctrl.getState().teachingReview!;
+      expect(r).toMatchObject({ phase: 'ready', reviewed: false });
+      expect(r.items.map(i => [i.promptDraft, i.contextDraft])).toEqual([['prompt gốc', '✓ Bash ls'], ['đã bỏ tên', '✓ Bash ls']]);
+    });
+
+    it('says there is nothing to export when there is no example, and says when loading failed', async () => {
+      const { ctrl } = await review({ teachingExamples: vi.fn(async () => []) });
+      expect(ctrl.getState().teachingReview).toMatchObject({ phase: 'ready', items: [] });
+      await ctrl.downloadTeaching();
+      const bad = await review({ teachingExamples: vi.fn(async () => { throw new ApiError(0, 'Mất mạng'); }) });
+      expect(bad.ctrl.getState().teachingReview).toMatchObject({ phase: 'error', error: 'Mất mạng' });
+    });
+
+    it('does not download without the "đã rà" tick, and any edit takes the tick away', async () => {
+      const { ctrl, gateway, saveFile } = await review();
+      await ctrl.downloadTeaching();
+      expect(gateway.exportTeachingExamples).not.toHaveBeenCalled();
+      ctrl.setTeachingReviewed(true);
+      ctrl.editReviewPrompt(10, 'prompt đã bỏ tên dự án');
+      expect(ctrl.getState().teachingReview!.reviewed).toBe(false);
+      ctrl.setTeachingReviewed(true);
+      await ctrl.downloadTeaching();
+      expect(gateway.exportTeachingExamples).toHaveBeenCalledWith(5);
+      expect(saveFile).toHaveBeenCalledWith('vi-du-day-buoi-1.md', '# Ví dụ');
+      expect(ctrl.getState().teachingReview).toMatchObject({ saved: true, saving: false });
+    });
+
+    it('saves an edit when the box loses focus: only what differs from the original is sent, and an unchanged draft sends nothing', async () => {
+      const { ctrl, gateway } = await review();
+      expect(await ctrl.commitReviewItem(10)).toBe(true);
+      expect(gateway.saveTeachingExample).not.toHaveBeenCalled();
+      ctrl.editReviewContext(10, '✓ Bash ls\n✗ Bash npm test');
+      await ctrl.commitReviewItem(10);
+      expect(gateway.saveTeachingExample).toHaveBeenCalledWith(5, 10, expect.objectContaining({ label: 'good', editedPrompt: null, editedContext: '✓ Bash ls\n✗ Bash npm test' }));
+      expect(ctrl.getState().teachingReview!.items[0]).toMatchObject({ saving: false, savedContext: '✓ Bash ls\n✗ Bash npm test', error: '' });
+    });
+
+    it('"Về bản gốc" puts both texts back to the original and saves that (editedPrompt / editedContext null)', async () => {
+      const { ctrl, gateway } = await review();
+      ctrl.resetReviewItem(11);
+      await flush();
+      expect(ctrl.getState().teachingReview!.items[1]).toMatchObject({ promptDraft: 'gốc có tên', contextDraft: '✓ Bash ls' });
+      expect(gateway.saveTeachingExample).toHaveBeenCalledWith(5, 11, expect.objectContaining({ editedPrompt: null, editedContext: null }));
+    });
+
+    it('download first saves the unsaved edits; a save that fails stops the download and says which', async () => {
+      const save = vi.fn(async () => { throw new ApiError(500, 'Lỗi máy chủ'); });
+      const { ctrl, gateway } = await review({ saveTeachingExample: save });
+      ctrl.editReviewPrompt(10, 'sửa');
+      ctrl.setTeachingReviewed(true);
+      await ctrl.downloadTeaching();
+      expect(gateway.exportTeachingExamples).not.toHaveBeenCalled();
+      const r = ctrl.getState().teachingReview!;
+      expect(r.saveError).toMatch(/Chưa lưu được bản sửa của 1 ví dụ/);
+      expect(r.items[0]).toMatchObject({ error: 'Lỗi máy chủ', saving: false });
+      expect(r.saving).toBe(false);
+    });
+
+    it('a text over the limit is refused before any request', async () => {
+      const { ctrl, gateway } = await review();
+      ctrl.editReviewPrompt(10, 'x'.repeat(4001));
+      expect(await ctrl.commitReviewItem(10)).toBe(false);
+      expect(gateway.saveTeachingExample).not.toHaveBeenCalled();
+      expect(ctrl.getState().teachingReview!.items[0]!.error).toMatch(/quá dài/);
+    });
+
+    it('does not download while the content is hidden (the mentor cannot review what is not shown)', async () => {
+      const { ctrl, gateway } = await review();
+      ctrl.setTeachingReviewed(true);
+      ctrl.setHidden(true);
+      await ctrl.downloadTeaching();
+      expect(gateway.exportTeachingExamples).not.toHaveBeenCalled();
+    });
+
+    it('shows the server\'s message when the file cannot be made (no examples left), and does not mark it saved', async () => {
+      const { ctrl } = await review({ exportTeachingExamples: vi.fn(async () => { throw new ApiError(404, 'Chưa có ví dụ nào để xuất', 'no_examples'); }) });
+      ctrl.setTeachingReviewed(true);
+      await ctrl.downloadTeaching();
+      expect(ctrl.getState().teachingReview).toMatchObject({ saved: false, saveError: 'Chưa có ví dụ nào để xuất' });
+    });
+
+    it('opening the report or the data export closes the review, and the end of the training closes everything', async () => {
+      const { ctrl } = await review();
+      await ctrl.openReport();
+      expect(ctrl.getState().teachingReview).toBeNull();
+      await ctrl.openTeachingReview();
+      expect(ctrl.getState().report).toBeNull();
+      ctrl.openDataExport();
+      expect(ctrl.getState().teachingReview).toBeNull();
+    });
   });
 });

@@ -58,6 +58,7 @@ export const toTrainingDetailDto = ({ training, uninstalled, flagCounts, members
     permissionCount: m.permissionCount,
     mentorNote: m.mentorNote,
     markedCount: m.markedCount,
+    teachingConsent: m.teachingConsent,
   })),
 });
 
@@ -76,6 +77,7 @@ const toEventRowDto = (e: TimelineEvent): TrainingEventRow => ({
   hasOutput: e.hasOutput,
   hasChange: e.hasChange,
   marked: e.marked,
+  teachingExample: e.kind === 'prompt' && e.teachingLabel ? { label: e.teachingLabel } : null,
   ...(e.note !== null ? { note: e.note } : {}),
   ...(e.subtype !== null ? { subtype: e.subtype } : {}),
   ...(e.decision !== null ? { decision: e.decision } : {}),

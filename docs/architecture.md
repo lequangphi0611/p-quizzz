@@ -517,7 +517,7 @@ Contract dự kiến; story nào chạm thì chốt lại tại đây. Payload t
 - Domain thuần (`domain/training/export.ts`, `export-range.ts`): `buildExportFiles(...)` dựng `00-tong-quan.md` và file từng member; `resolveExportRange` đổi ngày thành `[from, to)` theo giờ địa phương; `slugifyFileName(index, displayName)` → `03-nguyen-van-an.md` (bỏ dấu, `đ` → `d`, chỉ `[a-z0-9-]`, rỗng thì `member`); toàn bộ văn bản qua `maskSecrets` ở bước cuối như báo cáo S40.
 - Khác `report.md` (§11.9): có output và nội dung sửa file; không ghi `report_exported_at`.
 
-### 11.11 Ví dụ dạy khoá sau (S44, PRODUCT.md §7.39; chưa làm)
+### 11.11 Ví dụ dạy khoá sau (S44, PRODUCT.md §7.39; xong)
 
 - `training_members` thêm `teaching_consent` (boolean; migration đặt **true** cho dòng đã có, theo PRODUCT.md §7.39a; dòng mới mặc định false). `TrainingJoinRequest` thêm `teachingConsent?: boolean`. Không có route đổi.
 - Bảng `training_teaching_examples (event_id PK → training_events.id cascade, label, topic, comment, better_prompt?, edited_prompt?, edited_context?, updated_at)`. `label`: `good` | `needs_work`; `topic`: `verify` | `delegation` | `stuck` | `risk` | `other`.

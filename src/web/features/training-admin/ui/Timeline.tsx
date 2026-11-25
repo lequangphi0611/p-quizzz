@@ -24,6 +24,8 @@ import { NewBadge } from './NewBadge.js';
 import { PromptEventStrip } from './PromptEventStrip.js';
 import { SessionBlockHeader } from './SessionBlockHeader.js';
 import { MarkButton } from './TimelineRows.js';
+import { TeachingButton } from './TeachingButton.js';
+import { teachingLockReason } from '../domain/teaching.js';
 import { NoteBox } from './NoteBox.js';
 
 const mono = 'var(--font-mono)';
@@ -55,7 +57,7 @@ function stripOf(e: TrainingEventRow): { kind: 'command' | 'permission'; text: s
  * A new prompt has the "Mới" badge and a brand border; an older prompt with new commands keeps its border and gets "· N mới" and
  * a strip per new command (S43).
  */
-function PromptBlock({ event, number, turnKey, focused, flash, onMark, detail, fresh = NO_NEWNESS }: { event: TrainingEventRow | null; number: number | null; turnKey: string; focused: boolean; flash: boolean; onMark: (id: number) => void; detail: Detail | null; fresh?: CardNewness }) {
+function PromptBlock({ event, number, turnKey, focused, flash, onMark, onTeach, lockReason, detail, fresh = NO_NEWNESS }: { event: TrainingEventRow | null; number: number | null; turnKey: string; focused: boolean; flash: boolean; onMark: (id: number) => void; onTeach: (id: number) => void; lockReason: string | null; detail: Detail | null; fresh?: CardNewness }) {
   const mode = modeLabel(event?.permissionMode);
   const isNew = fresh.badge !== null;
   const box = {
@@ -82,6 +84,7 @@ function PromptBlock({ event, number, turnKey, focused, flash, onMark, detail, f
         <span style={{ flex: '1 1 0' }} />
         {event && <span style={{ font: `500 13px/1 ${mono}`, color: 'var(--ink-600)' }}>{formatClock(event.receivedAt)}</span>}
         {detail && <Button variant="ghost" size="sm" icon="panel-right-open" onClick={detail.onOpen}>Xem chi tiết</Button>}
+        {event && <TeachingButton id={event.id} label={event.teachingExample?.label ?? null} lockReason={lockReason} onOpen={onTeach} />}
         {event && <MarkButton id={event.id} marked={event.marked} onToggle={onMark} />}
       </div>
       {event && <p title={event.prompt} style={{ margin: 0, paddingRight: 8, font: '400 14px/1.5 var(--font-sans)', color: 'var(--ink-900)', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{event.prompt}</p>}
@@ -134,6 +137,7 @@ export function Timeline({ member, timeline, panel, hidden, markError, read, ctr
   const hiddenRef = useRef(hidden);
   hiddenRef.current = hidden;
   const onMark = (id: number) => void ctrl.toggleMark(id);
+  const onTeach = (id: number) => ctrl.openTeaching(id);
   const groups: DayGroup[] = useMemo(() => (hidden ? [] : groupByDay(buildTimeline(timeline.events, { memberStuck: member.stuck }))), [hidden, timeline.events, member.stuck]);
   const single = groups.length === 1;
   const allOpen = groups.length > 0 && groups.every(g => timeline.openDays.includes(g.dayKey) && g.blocks.every(b => g.blocks.length === 1 || timeline.openBlocks.includes(b.key)));
@@ -473,7 +477,7 @@ export function Timeline({ member, timeline, panel, hidden, markError, read, ctr
                                 return (
                                   <div key={item.key} style={{ marginTop: ti === 0 ? 4 : 8 }}>
                                     <PromptBlock event={item.prompt} number={item.promptNumber} turnKey={turnReadKey(item)} focused={item.prompt !== null && timeline.focusId === item.prompt.id} flash={item.prompt !== null && flashId === item.prompt.id}
-                                      onMark={onMark} detail={detail} fresh={cardNewness(item)} />
+                                      onMark={onMark} onTeach={onTeach} lockReason={teachingLockReason(member)} detail={detail} fresh={cardNewness(item)} />
                                   </div>
                                 );
                               })}

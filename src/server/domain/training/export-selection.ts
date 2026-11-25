@@ -63,3 +63,21 @@ export function sessionContext(skeleton: readonly EventSkeleton[]): SessionConte
   for (const list of days.values()) list.sort((a, b) => (a.key < b.key ? -1 : 1));
   return { endedBy, days };
 }
+
+/**
+ * The events of one turn: the prompt `promptId` and the events of the same Claude Code session that follow it up to that session's
+ * next prompt (S43's grouping, read for one prompt). Events of other sessions running in parallel are not part of it. `events` is
+ * oldest first. An unknown id gives an empty list.
+ */
+export function turnOf<T extends Pick<EventSkeleton, 'id' | 'kind' | 'claudeSessionId'>>(events: readonly T[], promptId: number): T[] {
+  const start = events.findIndex(e => e.id === promptId && e.kind === 'prompt');
+  if (start < 0) return [];
+  const prompt = events[start]!;
+  const turn: T[] = [prompt];
+  for (const e of events.slice(start + 1)) {
+    if (e.claudeSessionId !== prompt.claudeSessionId) continue;
+    if (e.kind === 'prompt') break;
+    turn.push(e);
+  }
+  return turn;
+}

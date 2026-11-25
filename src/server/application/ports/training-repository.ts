@@ -14,6 +14,7 @@ export interface NewTrainingMember {
   token: string;
   ingestToken: string;
   consentedAt: Date;
+  teachingConsent: boolean;
 }
 
 export type TrainingPatch = Partial<Pick<Training, 'status' | 'roomCode' | 'stoppedAt' | 'endedAt' | 'memberCount' | 'reportExportedAt'>>;

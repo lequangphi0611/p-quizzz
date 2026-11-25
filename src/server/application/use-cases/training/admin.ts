@@ -61,6 +61,7 @@ export interface TrainingMemberView {
   permissionCount: number;
   mentorNote: string | null;
   markedCount: number;
+  teachingConsent: boolean;
 }
 
 export interface TrainingDetailView {
@@ -132,6 +133,7 @@ const memberView = (training: Training, m: TrainingMember, counts: MemberCounts 
   permissionCount: counts?.permissionCount ?? 0,
   mentorNote: m.mentorNote,
   markedCount: counts?.markedCount ?? 0,
+  teachingConsent: m.teachingConsent,
 });
 
 /** "Dừng thu": the code stops working at once; reviewing stays possible. */

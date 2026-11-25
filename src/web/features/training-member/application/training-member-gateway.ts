@@ -4,8 +4,8 @@ import type { HookConfig, JoinTrainingResponse, MyTraining, ResolvedRoom, Uninst
 export interface TrainingMemberGateway {
   /** What a room code opens (shared with exam sessions; 403 wrong code or not open, 429 too many wrong codes). Gives the consent screen the training's title. */
   resolveRoom(roomCode: string): Promise<ResolvedRoom>;
-  /** Joins with the room code; `consent` is always `true` (the server refuses anything else). */
-  join(trainingId: number, input: { displayName: string; roomCode: string }): Promise<JoinTrainingResponse>;
+  /** Joins with the room code; `consent` is always `true` (the server refuses anything else); `teachingConsent` is the separate optional tick (S44), false when absent. */
+  join(trainingId: number, input: { displayName: string; roomCode: string; teachingConsent?: boolean }): Promise<JoinTrainingResponse>;
   me(token: string): Promise<MyTraining>;
   /** Only while the training is open. */
   hookConfig(token: string): Promise<HookConfig>;

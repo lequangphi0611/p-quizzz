@@ -40,6 +40,8 @@ export const JoinTrainingBody = DisplayNameBody.extend({
     .transform(normalizeRoomCode)
     .refine(s => s.length === ROOM_CODE_LENGTH, `Mã phòng gồm ${ROOM_CODE_LENGTH} chữ số`),
   consent: z.literal(true, { error: 'Cần đồng ý thì mới tham gia được' }),
+  /** S44 (PRODUCT.md §7.39a): the separate, optional tick. Absent = false; it is never required to join. */
+  teachingConsent: z.boolean({ error: 'Lựa chọn dùng làm ví dụ không hợp lệ' }).optional().default(false),
 });
 
 /** POST /api/rooms/resolve: a room code now leads to a session or to a training. */
@@ -113,6 +115,8 @@ export interface TrainingMemberRow {
   mentorNote: string | null;
   /** Events of this member marked as examples for the report. */
   markedCount: number;
+  /** S44: the member agreed to their prompts becoming teaching examples (the "Ví dụ dạy lớp sau" button is locked without it). Mentor screen only. */
+  teachingConsent: boolean;
 }
 
 export interface TrainingDetail {
@@ -211,6 +215,8 @@ export interface TrainingEventRow {
   permissionMode?: string;
   /** The mentor picked this row as an example for the report. */
   marked: boolean;
+  /** S44, `prompt` rows only: the row is a teaching example for the next course (the label is the example's, not the person's). */
+  teachingExample: { label: TeachingLabel } | null;
 }
 
 export interface TrainingEventsPage {
@@ -270,3 +276,70 @@ export interface TrainingExportSummary {
   /** Above `TRAINING_EXPORT_MAX_BYTES`: the file would not be built. */
   tooLarge: boolean;
 }
+
+// S44 (PRODUCT.md §7.39): prompts the mentor picks as anonymous examples for the next course.
+
+export const TEACHING_LABELS = ['good', 'needs_work'] as const;
+export type TeachingLabel = (typeof TEACHING_LABELS)[number];
+export const TEACHING_LABEL_TEXT: Record<TeachingLabel, string> = { good: 'Tốt', needs_work: 'Chưa tốt' };
+
+/** The four groups of PRODUCT.md §7.35 plus "other". */
+export const TEACHING_TOPICS = ['verify', 'delegation', 'stuck', 'risk', 'other'] as const;
+export type TeachingTopic = (typeof TEACHING_TOPICS)[number];
+export const TEACHING_TOPIC_TEXT: Record<TeachingTopic, string> = {
+  verify: 'Kiểm chứng',
+  delegation: 'Cách giao việc',
+  stuck: 'Kẹt',
+  risk: 'Hành vi rủi ro',
+  other: 'Khác',
+};
+
+export const TEACHING_COMMENT_MAX = 2000;
+export const TEACHING_TEXT_MAX = 4000;
+
+const teachingText = (what: string) =>
+  z
+    .string({ error: `${what} không hợp lệ` })
+    .refine(s => [...s].length <= TEACHING_TEXT_MAX, `${what} tối đa ${TEACHING_TEXT_MAX} ký tự`)
+    .nullish()
+    .transform(s => s ?? null);
+
+// PUT /api/admin/trainings/:id/events/:eventId/teaching-example. Replaces the whole example; an absent or null field clears that field.
+export const TeachingExampleBody = z.object({
+  label: z.enum(TEACHING_LABELS, { error: 'Chọn nhãn: tốt hoặc chưa tốt' }),
+  topic: z.enum(TEACHING_TOPICS, { error: 'Chủ đề không hợp lệ' }).optional().default('other'),
+  comment: z
+    .string({ error: 'Nhập nhận xét' })
+    .transform(s => s.trim())
+    .refine(s => s.length > 0, 'Nhận xét không được để trống')
+    .refine(s => [...s].length <= TEACHING_COMMENT_MAX, `Nhận xét tối đa ${TEACHING_COMMENT_MAX} ký tự`),
+  betterPrompt: teachingText('Phiên bản tốt hơn').transform(s => (s === null || s.trim() === '' ? null : s)),
+  editedPrompt: teachingText('Prompt đã sửa'),
+  editedContext: teachingText('Bối cảnh đã sửa'),
+});
+export type TeachingExampleBody = z.infer<typeof TeachingExampleBody>;
+
+/** One example as the mentor's review screen shows it. Names the member: it never leaves the mentor's screen. */
+export interface TeachingExampleRow {
+  eventId: number;
+  memberId: number;
+  memberName: string;
+  label: TeachingLabel;
+  topic: TeachingTopic;
+  comment: string;
+  betterPrompt: string | null;
+  editedPrompt: string | null;
+  editedContext: string | null;
+  /** The prompt and the turn's commands as they would go in the file when not edited (secrets already masked). */
+  defaultPrompt: string;
+  defaultContext: string;
+  updatedAt: number;
+}
+
+// GET /api/admin/trainings/:id/teaching-examples
+export interface TeachingExamplesResponse {
+  examples: TeachingExampleRow[];
+}
+
+/** The example just saved (PUT). */
+export type TeachingExample = TeachingExampleRow;

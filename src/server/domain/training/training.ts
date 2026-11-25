@@ -40,6 +40,8 @@ export interface TrainingMember {
   uninstalledAt: Date | null;
   /** The mentor's note for the report (S40). */
   mentorNote: string | null;
+  /** The member agreed to their prompts becoming anonymous teaching examples (S44, PRODUCT.md §7.39a). Chosen at joining, never changed. */
+  teachingConsent: boolean;
 }
 
 const ACTIONS = { stop: ['open', 'stopped'], end: ['stopped', 'ended'] } as const;

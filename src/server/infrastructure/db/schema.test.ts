@@ -4,7 +4,7 @@ import { createDb } from './client.js';
 import { answers, attempts, exams, options, participants, questions, sessions } from './schema.js';
 import { seedExam } from './testing/seed-exam.js';
 
-const TABLES = ['ai_suggestions', 'answers', 'app_meta', 'attempts', 'exams', 'group_emails', 'groups', 'options', 'participants', 'questions', 'rejoin_requests', 'session_roster', 'sessions', 'training_event_marks', 'training_events', 'training_members', 'trainings'];
+const TABLES = ['ai_suggestions', 'answers', 'app_meta', 'attempts', 'exams', 'group_emails', 'groups', 'options', 'participants', 'questions', 'rejoin_requests', 'session_roster', 'sessions', 'training_event_marks', 'training_events', 'training_members', 'training_teaching_examples', 'trainings'];
 
 function setup() {
   const db = createDb(':memory:');
@@ -76,5 +76,39 @@ describe('schema', () => {
     const file = join(mkdtempSync(join(tmpdir(), 'pq-')), 'x.db');
     createDb(file);
     expect(() => createDb(file)).not.toThrow();
+  });
+  it('migration 0018 marks training members that already existed as agreed to teaching examples; new rows default to false', async () => {
+    const { mkdtempSync, cpSync, readFileSync, writeFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const { fileURLToPath } = await import('node:url');
+    const Database = (await import('better-sqlite3')).default;
+    const { drizzle } = await import('drizzle-orm/better-sqlite3');
+    const { migrate } = await import('drizzle-orm/better-sqlite3/migrator');
+    const full = fileURLToPath(new URL('./migrations', import.meta.url));
+    const dir = mkdtempSync(join(tmpdir(), 'pq-mig-'));
+    const partial = join(dir, 'before');
+    cpSync(full, partial, { recursive: true });
+    const journalFile = join(partial, 'meta', '_journal.json');
+    const journal = JSON.parse(readFileSync(journalFile, 'utf8')) as { entries: { tag: string }[] };
+    journal.entries = journal.entries.filter(e => !e.tag.startsWith('0018_'));
+    writeFileSync(journalFile, JSON.stringify(journal));
+
+    const sqlite = new Database(join(dir, 'x.db'));
+    sqlite.pragma('foreign_keys = ON');
+    const raw = drizzle(sqlite);
+    migrate(raw, { migrationsFolder: partial }); // the database as it was before S44
+    const now = Date.now();
+    sqlite.prepare('insert into trainings (name, created_at) values (?, ?)').run('Cũ', now);
+    sqlite
+      .prepare('insert into training_members (training_id, display_name, token, ingest_token, consented_at) values (1, ?, ?, ?, ?)')
+      .run('Cũ', 't-old', 'i-old', now);
+    migrate(raw, { migrationsFolder: full });
+    sqlite
+      .prepare('insert into training_members (training_id, display_name, token, ingest_token, consented_at) values (1, ?, ?, ?, ?)')
+      .run('Mới', 't-new', 'i-new', now);
+    const rows = sqlite.prepare('select display_name as n, teaching_consent as c from training_members order by id').all();
+    sqlite.close();
+    expect(rows).toEqual([{ n: 'Cũ', c: 1 }, { n: 'Mới', c: 0 }]);
   });
 });

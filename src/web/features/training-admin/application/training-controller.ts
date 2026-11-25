@@ -5,6 +5,10 @@ import { dayGroupsOf, newestPromptOf, placeOfTurn, placesByEvent, reconcileOpenB
 import { exportFileName, exportInputError, paramsFor, type ExportMode } from '../domain/export.js';
 import { evidenceOf } from '../domain/flags.js';
 import { reportFileName } from '../domain/report.js';
+import {
+  betterOf, draftTextError, draftTooLong, editedContextOf, editedPromptOf, emptyTeachingForm, formFromRow, isDirty, reviewBody, reviewItemOf, teachingBody, teachingFileName, teachingFormError, teachingLockReason,
+  type ReviewItem, type TeachingForm,
+} from '../domain/teaching.js';
 import { turnKeyOf, type Turn } from '../domain/timeline.js';
 import { markAllRead, markTurnsRead, restoreMemberRead, turnReadKey, unreadTurnCount, withBaselines, type MemberRead, type ReadState } from '../domain/unread.js';
 import type { TrainingAdminGateway } from './training-admin-gateway.js';
@@ -93,6 +97,36 @@ export interface DataExportState {
   saved: boolean;
 }
 
+/** The "Ví dụ dạy lớp sau" dialog of one prompt (PRODUCT.md §7.39b): label, topic, comment, a better version, or drop the example. */
+export interface TeachingEditState {
+  eventId: number;
+  memberName: string;
+  /** The prompt as the mentor sees it on the timeline (not masked: this is the mentor's own screen). */
+  prompt: string;
+  /** An example already exists for this prompt: the form is filled from it and "Bỏ ví dụ" is offered. */
+  exists: boolean;
+  /** `loading` while an existing example is fetched to fill the form; `error` when that failed. */
+  phase: 'loading' | 'ready' | 'error';
+  form: TeachingForm;
+  /** The edits made on the review screen: a save from this dialog keeps them, because the server replaces the whole example. */
+  edited: { editedPrompt: string | null; editedContext: string | null };
+  saving: boolean;
+  error: string;
+}
+
+/** The "Xuất ví dụ dạy lớp sau" review screen (PRODUCT.md §7.39c): every example with its prompt and context to rewrite, the "đã rà" tick, then the file. */
+export interface TeachingReviewState {
+  phase: 'loading' | 'ready' | 'error';
+  items: ReviewItem[];
+  /** "Tôi đã rà, không còn chi tiết nhận ra người viết": cleared by any edit. */
+  reviewed: boolean;
+  error: string;
+  /** The file is being fetched. */
+  saving: boolean;
+  saved: boolean;
+  saveError: string;
+}
+
 export type Confirm = { kind: 'stop' } | { kind: 'end' } | { kind: 'remove'; memberId: number; name: string } | { kind: 'purge'; memberId: number; name: string };
 
 export interface TrainingState {
@@ -115,6 +149,8 @@ export interface TrainingState {
   endedMemberCount: number | null;
   report: ReportState | null;
   dataExport: DataExportState | null;
+  teachingEdit: TeachingEditState | null;
+  teachingReview: TeachingReviewState | null;
   /** The prompt whose commands are open in the popup (key from `buildTimeline`), or null. */
   turnKey: string | null;
   /** Why the last mark / unmark failed (the row went back to how it was). Cleared by the next one that works. */
@@ -167,6 +203,7 @@ export class TrainingController {
   private undoTimer: ReturnType<typeof setTimeout> | undefined;
   private reportToken = 0; // bumped on every open / close of the report dialog
   private exportToken = 0; // bumped on every change of what the data export dialog shows, and on close
+  private teachingToken = 0; // bumped on every open / close of the teaching dialog and the review screen
   private started = false;
   private inView = true; // the newest event is in (or near) the viewport
   private detailGen = 0; // bumped when an action's own answer is newer than any reload in flight
@@ -184,7 +221,7 @@ export class TrainingController {
     const known = id !== null && initial.status !== 'ended' && initial.members.some(m => m.id === id);
     this.state = {
       detail: initial, selectedId: known ? id : null, timeline: known ? this.freshTimeline(id) : null, panel: null, confirm: null,
-      working: false, actionError: '', hidden: gateway.readHideContent(), offline: false, announcement: '', endedMemberCount: null, report: null, dataExport: null, turnKey: null, markError: '',
+      working: false, actionError: '', hidden: gateway.readHideContent(), offline: false, announcement: '', endedMemberCount: null, report: null, dataExport: null, teachingEdit: null, teachingReview: null, turnKey: null, markError: '',
       read: this.loadRead(initial), undo: null,
     };
   }
@@ -267,7 +304,7 @@ export class TrainingController {
       patch.panel = null;
       patch.turnKey = null;
     }
-    if (next.status === 'ended') { this.panelToken++; this.reportToken++; this.exportToken++; patch.panel = null; patch.turnKey = null; patch.report = null; patch.dataExport = null; }
+    if (next.status === 'ended') { this.panelToken++; this.reportToken++; this.exportToken++; patch.panel = null; patch.turnKey = null; patch.report = null; patch.dataExport = null; this.teachingToken++; patch.teachingEdit = null; patch.teachingReview = null; }
     if (this.state.confirm && !this.state.working && !confirmStillMakesSense(this.state.confirm, next)) patch.confirm = null;
     if (next.status === 'ended') {
       if (prev.status !== 'ended' || Object.keys(this.state.read.members).length > 0) { this.readStore.clear(next.id); patch.read = { members: {} }; patch.undo = null; }
@@ -654,7 +691,8 @@ export class TrainingController {
     if (this.state.detail.status === 'ended') return;
     const token = ++this.reportToken;
     this.exportToken++;
-    this.set({ dataExport: null, report: { phase: 'loading', text: '', error: '', saving: false, saved: false } });
+    this.teachingToken++;
+    this.set({ dataExport: null, teachingEdit: null, teachingReview: null, report: { phase: 'loading', text: '', error: '', saving: false, saved: false } });
     try {
       const text = await this.gateway.reportPreview(this.state.detail.id);
       if (token !== this.reportToken) return;
@@ -696,7 +734,8 @@ export class TrainingController {
     if (this.state.detail.status === 'ended') return;
     this.reportToken++;
     const dataExport: DataExportState = { mode: 'today', from: '', to: '', memberIds: null, phase: 'loading', summary: null, error: '', saveError: '', saving: false, saved: false };
-    this.set({ report: null, dataExport });
+    this.teachingToken++;
+    this.set({ report: null, teachingEdit: null, teachingReview: null, dataExport });
     void this.reloadDataExport();
   }
 
@@ -792,6 +831,210 @@ export class TrainingController {
     } catch (err) {
       if (token !== this.exportToken || !this.state.dataExport) return;
       this.set({ dataExport: { ...this.state.dataExport, saving: false, saveError: errorText(err, 'Không tải được file') } });
+    }
+  }
+
+  // ── Teaching examples for the next course (S44, PRODUCT.md §7.39) ───────────────────────────────────
+
+  /** Opens the dialog of a prompt of the open timeline. Does nothing for a member who did not agree (the button is locked) or an ended training. */
+  openTeaching(eventId: number): void {
+    const tl = this.state.timeline;
+    const event = tl?.events.find(e => e.id === eventId && e.kind === 'prompt');
+    const member = this.state.detail.members.find(m => m.id === tl?.memberId);
+    if (!tl || !event || !member || this.state.detail.status === 'ended' || teachingLockReason(member)) return;
+    const token = ++this.teachingToken;
+    this.reportToken++;
+    this.exportToken++;
+    const exists = event.teachingExample !== null;
+    const edit: TeachingEditState = {
+      eventId, memberName: member.displayName, prompt: event.prompt ?? '', exists, phase: exists ? 'loading' : 'ready',
+      form: emptyTeachingForm(), edited: { editedPrompt: null, editedContext: null }, saving: false, error: '',
+    };
+    this.set({ report: null, dataExport: null, teachingReview: null, teachingEdit: edit });
+    if (exists) void this.loadTeaching(eventId, token);
+  }
+
+  private async loadTeaching(eventId: number, token: number): Promise<void> {
+    try {
+      const row = (await this.gateway.teachingExamples(this.state.detail.id)).find(r => r.eventId === eventId);
+      const edit = this.state.teachingEdit;
+      if (token !== this.teachingToken || !edit) return;
+      if (!row) { this.set({ teachingEdit: { ...edit, exists: false, phase: 'ready' } }); return; } // dropped meanwhile: starts empty
+      this.set({ teachingEdit: { ...edit, phase: 'ready', form: formFromRow(row), edited: { editedPrompt: row.editedPrompt, editedContext: row.editedContext } } });
+    } catch (err) {
+      const edit = this.state.teachingEdit;
+      if (token !== this.teachingToken || !edit) return;
+      this.set({ teachingEdit: { ...edit, phase: 'error', error: errorText(err, 'Không tải được ví dụ') } });
+    }
+  }
+
+  retryTeaching(): void {
+    const edit = this.state.teachingEdit;
+    if (!edit || edit.phase !== 'error') return;
+    this.set({ teachingEdit: { ...edit, phase: 'loading', error: '' } });
+    void this.loadTeaching(edit.eventId, this.teachingToken);
+  }
+
+  closeTeaching(): void {
+    const edit = this.state.teachingEdit;
+    if (!edit || edit.saving) return;
+    this.teachingToken++;
+    this.set({ teachingEdit: null });
+  }
+
+  setTeachingForm(patch: Partial<TeachingForm>): void {
+    const edit = this.state.teachingEdit;
+    if (!edit || edit.saving || edit.phase !== 'ready') return;
+    this.set({ teachingEdit: { ...edit, form: { ...edit.form, ...patch }, error: '' } });
+  }
+
+  /** The row of the timeline shows the example's label (or none) at once, without waiting for the reload. */
+  private showTeachingOnRow(eventId: number, example: TrainingEventRow['teachingExample']): void {
+    const tl = this.state.timeline;
+    if (!tl) return;
+    this.set({ timeline: { ...tl, events: tl.events.map(e => (e.id === eventId ? { ...e, teachingExample: example } : e)) } });
+  }
+
+  /** "Lưu ví dụ". The form's own rules are checked first; the server's answer (e.g. the member did not agree) is shown in the dialog. */
+  async saveTeaching(): Promise<void> {
+    const edit = this.state.teachingEdit;
+    if (!edit || edit.saving || edit.phase !== 'ready' || teachingFormError(edit.form)) return;
+    const token = this.teachingToken;
+    this.set({ teachingEdit: { ...edit, saving: true, error: '' } });
+    try {
+      const row = await this.gateway.saveTeachingExample(this.state.detail.id, edit.eventId, teachingBody(edit.form, edit.edited));
+      this.showTeachingOnRow(edit.eventId, { label: row.label });
+      if (token === this.teachingToken) this.set({ teachingEdit: null });
+      void this.refresh();
+    } catch (err) {
+      const now = this.state.teachingEdit;
+      if (token !== this.teachingToken || !now) return;
+      this.set({ teachingEdit: { ...now, saving: false, error: errorText(err, 'Không lưu được ví dụ') } });
+    }
+  }
+
+  /** "Bỏ ví dụ". */
+  async removeTeaching(): Promise<void> {
+    const edit = this.state.teachingEdit;
+    if (!edit || edit.saving || !edit.exists) return;
+    const token = this.teachingToken;
+    this.set({ teachingEdit: { ...edit, saving: true, error: '' } });
+    try {
+      await this.gateway.deleteTeachingExample(this.state.detail.id, edit.eventId);
+      this.showTeachingOnRow(edit.eventId, null);
+      if (token === this.teachingToken) this.set({ teachingEdit: null });
+      void this.refresh();
+    } catch (err) {
+      const now = this.state.teachingEdit;
+      if (token !== this.teachingToken || !now) return;
+      this.set({ teachingEdit: { ...now, saving: false, error: errorText(err, 'Không bỏ được ví dụ') } });
+    }
+  }
+
+  /** Opens the review screen and loads every example with its prompt and context. */
+  async openTeachingReview(): Promise<void> {
+    if (this.state.detail.status === 'ended') return;
+    const token = ++this.teachingToken;
+    this.reportToken++;
+    this.exportToken++;
+    const fresh: TeachingReviewState = { phase: 'loading', items: [], reviewed: false, error: '', saving: false, saved: false, saveError: '' };
+    this.set({ report: null, dataExport: null, teachingEdit: null, teachingReview: fresh });
+    try {
+      const rows = await this.gateway.teachingExamples(this.state.detail.id);
+      if (token !== this.teachingToken) return;
+      this.set({ teachingReview: { ...fresh, phase: 'ready', items: rows.map(reviewItemOf) } });
+    } catch (err) {
+      if (token !== this.teachingToken) return;
+      this.set({ teachingReview: { ...fresh, phase: 'error', error: errorText(err, 'Không tải được các ví dụ') } });
+    }
+  }
+
+  closeTeachingReview(): void {
+    this.teachingToken++;
+    if (this.state.teachingReview) this.set({ teachingReview: null });
+  }
+
+  private changeReviewItem(eventId: number, change: (i: ReviewItem) => ReviewItem, rest: Partial<TeachingReviewState> = {}): void {
+    const r = this.state.teachingReview;
+    if (!r || r.phase !== 'ready') return;
+    this.set({ teachingReview: { ...r, ...rest, items: r.items.map(i => (i.eventId === eventId ? change(i) : i)) } });
+  }
+
+  /** Any edit takes the "đã rà" tick away: what was reviewed is no longer what would be written. */
+  editReviewPrompt(eventId: number, text: string): void {
+    this.changeReviewItem(eventId, i => ({ ...i, promptDraft: text, error: '' }), { reviewed: false, saved: false, saveError: '' });
+  }
+
+  editReviewComment(eventId: number, text: string): void {
+    this.changeReviewItem(eventId, i => ({ ...i, commentDraft: text, error: '' }), { reviewed: false, saved: false, saveError: '' });
+  }
+
+  editReviewBetter(eventId: number, text: string): void {
+    this.changeReviewItem(eventId, i => ({ ...i, betterDraft: text, error: '' }), { reviewed: false, saved: false, saveError: '' });
+  }
+
+  editReviewContext(eventId: number, text: string): void {
+    this.changeReviewItem(eventId, i => ({ ...i, contextDraft: text, error: '' }), { reviewed: false, saved: false, saveError: '' });
+  }
+
+  /** "Về bản gốc": both texts go back to the masked original (and are saved so). */
+  resetReviewItem(eventId: number): void {
+    this.changeReviewItem(eventId, i => ({ ...i, promptDraft: i.defaultPrompt, contextDraft: i.defaultContext, error: '' }), { reviewed: false, saved: false, saveError: '' });
+    void this.commitReviewItem(eventId);
+  }
+
+  setTeachingReviewed(reviewed: boolean): void {
+    const r = this.state.teachingReview;
+    if (r && r.phase === 'ready' && !r.saving) this.set({ teachingReview: { ...r, reviewed } });
+  }
+
+  /** Saves the edits of one example (the text box lost focus). Answers true when it is saved or there was nothing to save. */
+  async commitReviewItem(eventId: number): Promise<boolean> {
+    const item = this.state.teachingReview?.items.find(i => i.eventId === eventId);
+    if (!item) return true;
+    if (!isDirty(item)) return true;
+    if (draftTooLong(item)) { this.changeReviewItem(eventId, i => ({ ...i, error: 'Văn bản quá dài (tối đa 4000 ký tự), hãy rút gọn' })); return false; }
+    const textError = draftTextError(item);
+    if (textError) { this.changeReviewItem(eventId, i => ({ ...i, error: textError })); return false; }
+    const token = this.teachingToken;
+    const sent = item;
+    this.changeReviewItem(eventId, i => ({ ...i, saving: true, error: '' }));
+    try {
+      await this.gateway.saveTeachingExample(this.state.detail.id, eventId, reviewBody(sent));
+      if (token !== this.teachingToken) return true;
+      this.changeReviewItem(eventId, i => ({ ...i, saving: false, savedPrompt: editedPromptOf(sent), savedContext: editedContextOf(sent), comment: sent.commentDraft.trim(), betterPrompt: betterOf(sent) }));
+      return true;
+    } catch (err) {
+      if (token !== this.teachingToken) return false;
+      this.changeReviewItem(eventId, i => ({ ...i, saving: false, error: errorText(err, 'Không lưu được bản sửa') }));
+      return false;
+    }
+  }
+
+  /** "Tải file .md": saves the edits that are not saved yet, then fetches the file (the server needs `confirmed=1`: the tick). Not the report. */
+  async downloadTeaching(): Promise<void> {
+    const r = this.state.teachingReview;
+    if (!r || r.phase !== 'ready' || r.saving || !r.reviewed || r.items.length === 0 || this.state.hidden) return;
+    const token = this.teachingToken;
+    this.set({ teachingReview: { ...r, saving: true, saveError: '' } });
+    let unsaved = 0;
+    for (const item of r.items) if (!(await this.commitReviewItem(item.eventId))) unsaved++;
+    if (token !== this.teachingToken) return;
+    if (unsaved > 0) {
+      const now = this.state.teachingReview;
+      if (now) this.set({ teachingReview: { ...now, saving: false, saveError: `Chưa lưu được bản sửa của ${unsaved} ví dụ. Xem lỗi ở từng ví dụ rồi tải lại.` } });
+      return;
+    }
+    try {
+      const text = await this.gateway.exportTeachingExamples(this.state.detail.id);
+      if (token !== this.teachingToken) return;
+      this.saveFile(teachingFileName(this.state.detail.name), text);
+      const now = this.state.teachingReview;
+      if (now) this.set({ teachingReview: { ...now, saving: false, saved: true, saveError: '' } });
+    } catch (err) {
+      const now = this.state.teachingReview;
+      if (token !== this.teachingToken || !now) return;
+      this.set({ teachingReview: { ...now, saving: false, saveError: errorText(err, 'Không tải được file') } });
     }
   }
 

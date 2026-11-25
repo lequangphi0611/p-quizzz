@@ -1,3 +1,4 @@
+import type { TeachingLabel, TeachingTopic } from '../../../shared/api/training.js';
 import type { Clip } from '../../domain/training/clip.js';
 import type { ExportEvent } from '../../domain/training/export.js';
 import type { EventSkeleton } from '../../domain/training/export-selection.js';
@@ -31,6 +32,27 @@ export interface LightEvent {
   hasChange: boolean;
   /** The mentor picked it as an example for the report. */
   marked: boolean;
+  /** S44: the label when the prompt is a teaching example, else null. */
+  teachingLabel: TeachingLabel | null;
+}
+
+/** A teaching example as stored (S44). The texts the mentor edited are null until edited. */
+export interface TeachingExampleRecord {
+  eventId: number;
+  label: TeachingLabel;
+  topic: TeachingTopic;
+  comment: string;
+  betterPrompt: string | null;
+  editedPrompt: string | null;
+  editedContext: string | null;
+  updatedAt: Date;
+}
+
+/** Whose event it is: enough to check it belongs to the training in the URL and to the right member. */
+export interface EventOwner {
+  trainingId: number;
+  memberId: number;
+  kind: LightEvent['kind'];
 }
 
 /** A marked event with the member it belongs to. */
@@ -73,6 +95,11 @@ export interface TrainingEventReader {
   listEventSkeleton(memberId: number): Promise<EventSkeleton[]>;
   /** These events of the member (ids from `listEventSkeleton`), oldest first, with the output and the change whole as stored (S41). */
   listForExportByIds(memberId: number, ids: readonly number[]): Promise<ExportEvent[]>;
+  /** Who the event belongs to; null when there is no such event (S44). */
+  getEventOwner(eventId: number): Promise<EventOwner | null>;
+  getTeachingExample(eventId: number): Promise<TeachingExampleRecord | null>;
+  /** Every teaching example of the training with the member it belongs to, by event id (S44). */
+  listTeachingExamples(trainingId: number): Promise<(TeachingExampleRecord & { memberId: number })[]>;
   /** Per member of the training: the events received in `[from, to)` and roughly how many bytes of text they carry. Members with none are absent. */
   exportStats(trainingId: number, range: { from: Date; to: Date }): Promise<Map<number, ExportStats>>;
 }
@@ -87,4 +114,8 @@ export interface TrainingEventRepository extends TrainingEventReader {
   append(event: NewTrainingEvent): Promise<void>;
   /** Marks or unmarks an event; doing it twice changes nothing. */
   setMark(eventId: number, marked: boolean): Promise<void>;
+  /** Creates or replaces the example of a prompt (S44). */
+  saveTeachingExample(example: TeachingExampleRecord): Promise<void>;
+  /** Drops the example; doing it twice changes nothing. */
+  deleteTeachingExample(eventId: number): Promise<void>;
 }

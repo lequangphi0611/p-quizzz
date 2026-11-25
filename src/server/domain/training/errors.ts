@@ -52,3 +52,31 @@ export class TrainingExportTooLargeError extends DomainError {
     super('invalid', `Dữ liệu quá lớn (khoảng ${Math.ceil(approxBytes / (1024 * 1024))} MB). Chọn ít ngày hoặc ít bạn hơn.`, 'export_too_large');
   }
 }
+
+/** Only a prompt can become a teaching example (S44). */
+export class TeachingExampleNotPromptError extends DomainError {
+  constructor() {
+    super('invalid', 'Chỉ chọn được prompt làm ví dụ dạy lớp sau', 'not_a_prompt');
+  }
+}
+
+/** The member did not tick the teaching consent (S44, PRODUCT.md §7.39a). */
+export class TeachingConsentMissingError extends DomainError {
+  constructor() {
+    super('conflict', 'Bạn này không đồng ý cho dùng làm ví dụ', 'no_teaching_consent');
+  }
+}
+
+/** The "Tôi đã rà" tick is missing (S44, PRODUCT.md §7.39c). */
+export class TeachingReviewNotConfirmedError extends DomainError {
+  constructor() {
+    super('invalid', 'Cần rà lại các ví dụ và tick xác nhận trước khi tải', 'review_not_confirmed');
+  }
+}
+
+/** No example to put in the file (S44). */
+export class TeachingExamplesEmptyError extends DomainError {
+  constructor() {
+    super('not_found', 'Chưa có ví dụ nào để xuất', 'no_examples');
+  }
+}

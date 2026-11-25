@@ -1,4 +1,4 @@
-import type { CreatedTraining, TrainingDetail, TrainingEventDetail, TrainingEventsPage, TrainingExportSummary, TrainingSummary } from '../../../../shared/api/index.js';
+import type { CreatedTraining, TeachingExampleBody, TeachingExampleRow, TrainingDetail, TrainingEventDetail, TrainingEventsPage, TrainingExportSummary, TrainingSummary } from '../../../../shared/api/index.js';
 import type { ExportParams } from '../domain/export.js';
 
 /** Port: the mentor's view of AI trainings (`/api/admin/trainings`, PRODUCT.md §7.34). */
@@ -27,6 +27,14 @@ export interface TrainingAdminGateway {
   reportPreview(trainingId: number): Promise<string>;
   /** The report as Markdown for the file: the server records that it was exported. */
   exportReport(trainingId: number): Promise<string>;
+  /** Makes (or replaces) a prompt as a teaching example (S44). 409 `no_teaching_consent` when the member did not tick. */
+  saveTeachingExample(trainingId: number, eventId: number, body: TeachingExampleBody): Promise<TeachingExampleRow>;
+  /** Drops the example; idempotent. */
+  deleteTeachingExample(trainingId: number, eventId: number): Promise<void>;
+  /** Every example with the prompt and context as they would go in the file, for the review screen. */
+  teachingExamples(trainingId: number): Promise<TeachingExampleRow[]>;
+  /** The Markdown file of the examples (needs the mentor's "đã rà" tick). Not the report: nothing is recorded as exported. */
+  exportTeachingExamples(trainingId: number): Promise<string>;
   /** How many members and events the chosen days and members hold, and how big the zip would be (S41). Nothing is built. */
   exportSummary(trainingId: number, params: ExportParams): Promise<TrainingExportSummary>;
   /** The zip of the raw data for the mentor's own AI (S41). It is not the report: nothing is recorded as exported. */

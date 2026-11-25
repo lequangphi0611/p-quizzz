@@ -42,6 +42,20 @@ export const PERMISSION_RISK =
 export const SECRET_WARNING =
   'Output của lệnh và nội dung file có thể chứa mật khẩu hoặc mã bí mật nếu chúng xuất hiện ở đó. Đừng chạy lệnh in ra bí mật trong thời gian buổi training.';
 
+/**
+ * The separate, optional tick for teaching examples (PRODUCT.md §7.39a). Not part of "Tôi đã đọc và đồng ý": unticked by default,
+ * and the member joins either way. The wording says what the mentor will know and what cannot be taken back.
+ */
+export const TEACHING_TITLE = 'Dùng làm ví dụ dạy các khoá sau (không bắt buộc)';
+export const TEACHING_CHECKBOX_LABEL = 'Cho mentor dùng prompt của tôi (đã bỏ tên) làm ví dụ dạy các khoá sau';
+export const TEACHING_ITEMS: readonly ConsentItem[] = [
+  { icon: 'user-check', lead: 'Không bắt buộc, mặc định không tick.', text: 'Không tick thì bạn vẫn tham gia và học bình thường. Chọn ngay lúc này, sau đó không đổi được trong app.' },
+  { icon: 'flag', lead: 'Có thể bị gắn nhãn "chưa tốt".', text: 'Mentor có thể chọn prompt của bạn làm ví dụ, gắn nhãn tốt hoặc "chưa tốt" kèm nhận xét về cách viết prompt đó. Nhãn nói về prompt, không nói về bạn, và bạn không thấy nhãn này.' },
+  { icon: 'eye', lead: 'Mentor sẽ biết bạn đã tick.', text: 'Mentor chỉ chọn được prompt của người đã tick. Trong file ví dụ không có tên bạn, ngày giờ hay output, nhưng người cùng lớp vẫn có thể đoán ra bạn từ nội dung prompt.' },
+  { icon: 'log-out', lead: 'Dừng gửi không rút lại việc dùng prompt đã gửi.', text: 'Prompt đã gửi vẫn có thể là ví dụ cho tới khi mentor duyệt xoá dữ liệu của bạn hoặc bấm "Kết thúc".' },
+  { icon: 'download', lead: 'File ví dụ đã xuất thì app không thu hồi được,', text: 'kể cả sau khi mentor bấm "Kết thúc".' },
+];
+
 /** "Ai xem, giữ bao lâu, rút lại thế nào". */
 export const HANDLING_ITEMS: readonly ConsentItem[] = [
   { icon: 'eye', lead: 'Chỉ mentor xem.', text: 'Bạn không xem lại được dữ liệu đã gửi, và các bạn khác cũng không xem được.' },

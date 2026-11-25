@@ -80,7 +80,7 @@ export class InMemoryTrainingMemberRepository implements TrainingMemberRepositor
   /** Mimics the database's name index (same training, ASCII case-insensitive). */
   async add(m: NewTrainingMember) {
     if ([...this.rows.values()].some(o => o.trainingId === m.trainingId && o.displayName.toLowerCase() === m.displayName.toLowerCase())) throw new NameTakenError('identity_in_use');
-    const row: TrainingMember = { ...m, id: this.nextId++, firstSeenAt: null, lastSeenAt: null, stoppedSendingAt: null, seenAfterStopAt: null, uninstallCheckAt: null, uninstalledAt: null, mentorNote: null };
+    const row: TrainingMember = { ...m, id: this.nextId++, firstSeenAt: null, lastSeenAt: null, stoppedSendingAt: null, seenAfterStopAt: null, uninstallCheckAt: null, uninstalledAt: null, mentorNote: null, teachingConsent: m.teachingConsent };
     this.rows.set(row.id, row);
     return row;
   }

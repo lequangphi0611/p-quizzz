@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HANDLING_ITEMS, NOT_SENT_ITEMS, OTHER_FOLDER_CAVEAT, PERMISSION_RISK, SECRET_WARNING, SENT_ITEMS, type ConsentItem } from './consent-copy.js';
+import { HANDLING_ITEMS, TEACHING_CHECKBOX_LABEL, TEACHING_ITEMS, TEACHING_TITLE, NOT_SENT_ITEMS, OTHER_FOLDER_CAVEAT, PERMISSION_RISK, SECRET_WARNING, SENT_ITEMS, type ConsentItem } from './consent-copy.js';
 
 const all = (items: readonly ConsentItem[]) => items.map(i => `${i.lead} ${i.text}`).join('\n');
 
@@ -67,9 +67,20 @@ describe('consent copy holds to the contract (PRODUCT.md §7.34)', () => {
     const h = all(HANDLING_ITEMS);
     for (const must of ['Chỉ mentor xem', 'không xem lại được', 'Kết thúc', 'Dừng gửi bất cứ lúc nào', 'không mã hoá', 'Không tham gia vẫn học bình thường']) expect(h).toContain(must);
   });
+  it('the teaching tick is optional, unticked, and says what the mentor will know and what cannot be taken back (§7.39a)', () => {
+    const t = all(TEACHING_ITEMS);
+    expect(TEACHING_TITLE).toMatch(/không bắt buộc/);
+    expect(TEACHING_CHECKBOX_LABEL).toMatch(/đã bỏ tên/);
+    expect(t).toMatch(/mặc định không tick/);
+    expect(t).toMatch(/vẫn tham gia/);
+    expect(t).toMatch(/"chưa tốt" kèm nhận xét/);
+    expect(t).toMatch(/Mentor sẽ biết bạn đã tick/);
+    expect(t).toMatch(/Dừng gửi không rút lại việc dùng prompt đã gửi/);
+    expect(t).toMatch(/không thu hồi được,? kể cả sau khi mentor bấm "Kết thúc"/);
+  });
   it('uses only icons that exist in the app', async () => {
     const { readdirSync } = await import('node:fs');
     const have = new Set(readdirSync('src/web/assets/icons').map(f => f.replace(/\.svg$/, '')));
-    for (const i of [...SENT_ITEMS, ...NOT_SENT_ITEMS, ...HANDLING_ITEMS]) expect(have.has(i.icon), i.icon).toBe(true);
+    for (const i of [...SENT_ITEMS, ...NOT_SENT_ITEMS, ...HANDLING_ITEMS, ...TEACHING_ITEMS]) expect(have.has(i.icon), i.icon).toBe(true);
   });
 });

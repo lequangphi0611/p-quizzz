@@ -23,14 +23,14 @@ export interface TrainingMemberContext {
 export class JoinTraining {
   constructor(private readonly deps: { unitOfWork: UnitOfWork<TrainingUnitContext>; clock: Clock; tokens: TokenGenerator; signals: TrainingSignals }) {}
 
-  async execute(input: { trainingId: number; displayName: string; roomCode: string }): Promise<{ token: string; member: TrainingMember }> {
+  async execute(input: { trainingId: number; displayName: string; roomCode: string; teachingConsent?: boolean }): Promise<{ token: string; member: TrainingMember }> {
     const token = this.deps.tokens.generate();
     const ingestToken = this.deps.tokens.generate();
     const member = await this.deps.unitOfWork.run(async ({ trainings, members }) => {
       const training = await trainings.findById(input.trainingId);
       if (!training || training.status !== 'open' || !training.roomCode || !roomCodeMatches(training.roomCode, input.roomCode)) throw new WrongRoomCodeError();
       assertTrainingNameFree(await members.listByTraining(training.id), input.displayName);
-      return members.add({ trainingId: training.id, displayName: input.displayName, token, ingestToken, consentedAt: this.deps.clock.now() });
+      return members.add({ trainingId: training.id, displayName: input.displayName, token, ingestToken, consentedAt: this.deps.clock.now(), teachingConsent: input.teachingConsent ?? false });
     });
     await this.deps.signals.signal(input.trainingId);
     return { token, member };
