@@ -60,7 +60,7 @@ Học viên hay mở **2–3 cửa sổ Claude Code cùng lúc** (ví dụ một
 - Font, icon có sẵn trong design system (app chạy offline).
 
 ## Các trạng thái cần thiết kế
-1. **Hôm nay, 3 phiên, có 2 phiên song song**: phiên 2 (đã `/clear`) thu; phiên 3 và 4 song song, mở; vài prompt mới nổi bật.
+1. **Hôm nay, 4 phiên, có 2 phiên song song** (theo dữ liệu mẫu): phiên 5 (tiếp từ 23/11, đã thoát) và phiên 6 (đã `/clear`) thu; phiên 7 và 8 song song, mở; vài prompt mới nổi bật.
 2. **Mở tất cả**: ngày cũ có nhiều phiên ngắn (thêm dữ liệu giả nếu cần để có 6+ phiên 1–2 prompt). Kiểm mật độ.
 3. **Ngày chỉ có một phiên**: biến thể nhẹ (có cần tiêu đề khối không?).
 4. **Khối đang thu có mục mới**: "N mới" trên tiêu đề khối; và ngày đang thu có mục mới: "N mới" trên tiêu đề ngày, cạnh chip cờ của ngày.
