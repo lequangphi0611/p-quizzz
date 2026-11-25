@@ -1,7 +1,7 @@
 import { TRAINING_EXPORT_MAX_BYTES, type TrainingExportQuery, type TrainingExportSummary } from '../../../../shared/api/training.js';
 import { TrainingExportEmptyError, TrainingExportTooLargeError, TrainingMemberNotFoundError, TrainingNotFoundError, TrainingStateError } from '../../../domain/training/errors.js';
 import { buildMemberExport, buildOverviewExport, type ExportContext, type ExportMemberSummary } from '../../../domain/training/export.js';
-import { selectExportEventIds, sessionNumbers } from '../../../domain/training/export-selection.js';
+import { selectExportEventIds, sessionContext, sessionNumbers } from '../../../domain/training/export-selection.js';
 import { resolveExportRange, type ExportRange } from '../../../domain/training/export-range.js';
 import type { Training, TrainingMember } from '../../../domain/training/training.js';
 import type { ArchiveFile, ArchiveWriter } from '../../ports/archive-writer.js';
@@ -93,7 +93,7 @@ export class ExportTrainingData {
         const skeleton = await events.listEventSkeleton(m.id);
         const input = {
           displayName: m.displayName, stoppedSending: m.stoppedSendingAt !== null, note: m.mentorNote,
-          events: await events.listForExportByIds(m.id, selectExportEventIds(skeleton, range)), sessionNumbers: sessionNumbers(skeleton),
+          events: await events.listForExportByIds(m.id, selectExportEventIds(skeleton, range)), sessionNumbers: sessionNumbers(skeleton), sessionContext: sessionContext(skeleton),
         };
         const built = buildMemberExport(input, i + 1, context);
         summaries.push(built.summary);

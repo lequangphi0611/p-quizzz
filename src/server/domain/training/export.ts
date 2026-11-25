@@ -1,5 +1,6 @@
 import { FLAG_CODES, FLAG_LABELS, type FlagCode } from '../../../shared/api/training.js';
 import type { Clip } from './clip.js';
+import type { SessionContext } from './export-selection.js';
 import { describeExportRange, type ExportRange } from './export-range.js';
 import { analyzeEvents } from './flags/index.js';
 import { FLAG_TEXT_CHARS, type FlagEvent, type PermissionDecisionInfo } from './flags/flag-event.js';
@@ -35,6 +36,8 @@ export interface ExportMemberInput {
   events: ExportEvent[];
   /** Each session's number over the whole training; without it sessions are numbered by their order in `events`. */
   sessionNumbers?: ReadonlyMap<string, number>;
+  /** How sessions ended and which days they ran, over the whole training; without it the labels come from `events` only. */
+  sessionContext?: SessionContext;
 }
 
 /** What every file of the export needs besides the member itself. */
@@ -221,7 +224,7 @@ const dm = (d: Date) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
  * sessions open at once: every event goes under the prompt of its own session, a turn belongs to the day of its prompt, and a
  * session is numbered by the order it first appears in the file (the same numbers as the mentor's screen).
  */
-function timelineLines(events: readonly ExportEvent[], decisions: ReadonlyMap<number, PermissionDecisionInfo>, numbers?: ReadonlyMap<string, number>): string[] {
+function timelineLines(events: readonly ExportEvent[], decisions: ReadonlyMap<number, PermissionDecisionInfo>, numbers?: ReadonlyMap<string, number>, context?: SessionContext): string[] {
   const sessionIndex = new Map<string, number>(numbers ?? []);
   // Sessions the given numbers do not cover (none, when they come from the whole training) follow the highest number.
   for (const e of events) if (!sessionIndex.has(e.claudeSessionId)) sessionIndex.set(e.claudeSessionId, Math.max(0, ...sessionIndex.values()) + 1);
@@ -244,6 +247,7 @@ function timelineLines(events: readonly ExportEvent[], decisions: ReadonlyMap<nu
     if (e.kind !== 'prompt') turn.events.push(e);
   }
   // Blocks of each day, then what links a session's blocks across days.
+  const sessionOfIndex = new Map([...sessionIndex].map(([sid, i]) => [i, sid]));
   const blocksByDay = days.map(d =>
     [...d.sessions].map(([sid, turns]): ExportBlock => {
       const all = turns.flatMap(t => (t.prompt ? [t.prompt, ...t.events] : t.events));
@@ -258,16 +262,24 @@ function timelineLines(events: readonly ExportEvent[], decisions: ReadonlyMap<nu
       if (prev) { b.continuedFrom = lastDayOf.get(b.index)!; prev.continuesTo = days[di]!.at; }
       lastBlockOf.set(b.index, b);
       lastDayOf.set(b.index, days[di]!.at);
+      // Over the whole training, a session may also run on days outside the file.
+      const around = context?.days.get(sessionOfIndex.get(b.index)!);
+      if (around) {
+        const before = around.filter(x => x.key < days[di]!.day).at(-1);
+        const after = around.find(x => x.key > days[di]!.day);
+        if (before) b.continuedFrom = before.at;
+        if (after) b.continuesTo = after.at;
+      }
     }
   });
-  const sessionOfIndex = new Map([...sessionIndex].map(([sid, i]) => [i, sid]));
+  const ended = context?.endedBy ?? endedBy;
   const lines: string[] = [];
   const mode = new Map<string, string>();
   days.forEach((d, di) => {
     lines.push(`### ${dmy(d.at)}`, '');
     for (const b of blocksByDay[di]!) {
       const sid = sessionOfIndex.get(b.index)!;
-      const end = b.continuesTo ? `tiếp sang ${dm(b.continuesTo)}` : endedBy.get(sid) === 'clear' ? '/clear' : endedBy.get(sid) === 'exit' ? 'thoát' : 'chưa kết thúc';
+      const end = b.continuesTo ? `tiếp sang ${dm(b.continuesTo)}` : ended.get(sid) === 'clear' ? '/clear' : ended.get(sid) === 'exit' ? 'thoát' : 'chưa kết thúc';
       const parts = [`${hhmm(b.firstAt)}–${hhmm(b.lastAt)}`, ...(b.continuedFrom ? [`tiếp từ ${dm(b.continuedFrom)}`] : []), end];
       lines.push(`#### Phiên Claude Code ${b.index} · ${parts.join(' · ')}`, '');
       for (const t of b.turns) {
@@ -312,7 +324,7 @@ function memberFile(a: Analyzed, input: ExportContext): string {
   if (events.length === 0) {
     lines.push('Không có sự kiện nào trong khoảng này.');
   } else {
-    lines.push(...timelineLines(events, a.decisions, a.input.sessionNumbers));
+    lines.push(...timelineLines(events, a.decisions, a.input.sessionNumbers, a.input.sessionContext));
   }
   return `${lines.join('\n').trimEnd()}\n`;
 }

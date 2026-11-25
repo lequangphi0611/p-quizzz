@@ -66,7 +66,7 @@ export class InMemoryTrainingEventRepository implements TrainingEventRepository,
   }
 
   async listEventSkeleton(memberId: number): Promise<EventSkeleton[]> {
-    return (await this.all()).filter(e => e.memberId === memberId).map(e => ({ id: e.id, kind: e.kind, claudeSessionId: e.claudeSessionId, receivedAt: e.receivedAt }));
+    return (await this.all()).filter(e => e.memberId === memberId).map(e => ({ id: e.id, kind: e.kind, claudeSessionId: e.claudeSessionId, subtype: e.kind === 'session' || e.kind === 'notice' ? e.subtype : null, receivedAt: e.receivedAt }));
   }
 
   async listForExportByIds(memberId: number, ids: readonly number[]): Promise<ExportEvent[]> {

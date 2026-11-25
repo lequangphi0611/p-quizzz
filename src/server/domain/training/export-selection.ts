@@ -3,6 +3,8 @@ export interface EventSkeleton {
   id: number;
   kind: 'prompt' | 'tool' | 'permission' | 'session' | 'notice';
   claudeSessionId: string;
+  /** `session` events (`clear`, `exit`, ...): how a Claude Code session ended. */
+  subtype: string | null;
   receivedAt: Date;
 }
 
@@ -29,4 +31,33 @@ export function sessionNumbers(skeleton: readonly Pick<EventSkeleton, 'claudeSes
   const out = new Map<string, number>();
   for (const e of skeleton) if (!out.has(e.claudeSessionId)) out.set(e.claudeSessionId, out.size + 1);
   return out;
+}
+
+const pad = (n: number) => String(n).padStart(2, '0');
+const dayKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+/** What the labels of a session's blocks need from the **whole** training, so a partial export says the same as the mentor's screen (S43). */
+export interface SessionContext {
+  /** The last `/clear` or exit of each session, over the whole training. */
+  endedBy: ReadonlyMap<string, 'clear' | 'exit'>;
+  /** The days each session has a turn (the day of the turn's prompt), oldest first: a moment of each day, keyed by `yyyy-mm-dd`. */
+  days: ReadonlyMap<string, readonly { key: string; at: Date }[]>;
+}
+
+export function sessionContext(skeleton: readonly EventSkeleton[]): SessionContext {
+  const endedBy = new Map<string, 'clear' | 'exit'>();
+  const days = new Map<string, { key: string; at: Date }[]>();
+  const seen = new Set<string>();
+  for (const e of skeleton) {
+    if (e.kind === 'session' && (e.subtype === 'clear' || e.subtype === 'exit')) endedBy.set(e.claudeSessionId, e.subtype);
+    if (e.kind === 'prompt' || !seen.has(e.claudeSessionId)) {
+      seen.add(e.claudeSessionId);
+      const list = days.get(e.claudeSessionId) ?? [];
+      const key = dayKey(e.receivedAt);
+      if (!list.some(d => d.key === key)) list.push({ key, at: e.receivedAt });
+      days.set(e.claudeSessionId, list);
+    }
+  }
+  for (const list of days.values()) list.sort((a, b) => (a.key < b.key ? -1 : 1));
+  return { endedBy, days };
 }

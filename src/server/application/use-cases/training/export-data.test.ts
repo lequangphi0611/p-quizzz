@@ -179,3 +179,35 @@ describe('ExportTrainingData: a day of a longer training (PRODUCT.md §7.37a, §
     expect(lanFile()).not.toContain('echo z');
   });
 });
+
+describe('ExportTrainingData: labels of a session that runs past midnight, over the whole training', () => {
+  const at = (d: number, h: number, m: number) => new Date(2026, 10, d, h, m);
+  async function overnight() {
+    const uc = build();
+    clock.set(noon(23));
+    const t = await uc.create.execute('Buổi 1');
+    const lan = await uc.join.execute({ trainingId: t.id, displayName: 'Lan', roomCode: '111111' });
+    const row = (await members.findByToken(lan.token))!;
+    const send = async (when: Date, payload: object) => { clock.set(when); await uc.ingest.execute(row.ingestToken, payload); };
+    const x = { session_id: 'x' };
+    await send(at(23, 23, 50), { ...userPromptSubmit, ...x, prompt: 'khuya' });
+    await send(at(24, 8, 10), { ...userPromptSubmit, ...x, prompt: 'sáng' });
+    await send(at(24, 8, 30), { ...x, hook_event_name: 'SessionEnd', reason: 'prompt_input_exit' });
+    clock.set(noon(24));
+    return { uc, t };
+  }
+  const lanFile = () => archive.last.find(f => f.name === '01-lan.md')!.content;
+
+  it('only the first day says "tiếp sang", not "chưa kết thúc", although the exit is on the next day', async () => {
+    const { uc, t } = await overnight();
+    await uc.export.execute(t.id, { from: '2026-11-23', to: '2026-11-23' });
+    expect(lanFile()).toContain('#### Phiên Claude Code 1 · 23:50–23:50 · tiếp sang 24/11');
+    expect(lanFile()).not.toContain('chưa kết thúc');
+  });
+
+  it('only the second day says "tiếp từ" and how the session ended', async () => {
+    const { uc, t } = await overnight();
+    await uc.export.execute(t.id, {});
+    expect(lanFile()).toContain('#### Phiên Claude Code 1 · 08:10–08:30 · tiếp từ 23/11 · thoát');
+  });
+});

@@ -134,10 +134,21 @@ test('two sessions at once: blocks, new marks that fade after 2 seconds, the mem
   await expect(lanRow.locator('[data-member-new]')).toContainText('2 mới');
   await expect(page.getByRole('button', { name: 'Lan', exact: true })).toHaveAccessibleDescription('2 prompt có mục mới');
   // "N mới" sits at the right edge of the row, after the last column; the state of a learner is a line under the name.
-  const table = await box(page.getByRole('table', { name: 'Học viên' }));
-  const badgeBox = await box(lanRow.locator('[data-member-new]'));
-  expect(table.x + table.width - (badgeBox.x + badgeBox.width)).toBeLessThan(24);
+  // The wide table fits its box at 1280 and 1440: no sideways scroll, and the badge is whole inside the scroll box, at the row's right edge.
+  for (const width of [1280, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const scrollBox = page.getByRole('table', { name: 'Học viên' }).locator('xpath=..');
+    expect(await scrollBox.evaluate(el => el.scrollWidth <= el.clientWidth), `no horizontal overflow at ${width}`).toBe(true);
+    const outer = await box(scrollBox);
+    const badgeBox = await box(lanRow.locator('[data-member-new]'));
+    expect(badgeBox.x).toBeGreaterThanOrEqual(outer.x);
+    expect(badgeBox.x + badgeBox.width).toBeLessThanOrEqual(outer.x + outer.width + 0.5);
+    expect(outer.x + outer.width - (badgeBox.x + badgeBox.width)).toBeLessThan(24);
+    await expect(lanRow.locator('[data-member-new]')).toContainText('2 mới');
+  }
+  await page.setViewportSize(DESKTOP);
   await page.screenshot({ path: shotPath('S43', 'members') });
+  await page.screenshot({ path: shotPath('S43', 'members-wide') });
   await page.getByRole('button', { name: 'Mai', exact: true }).click(); // Lan is not in view
   await expect(frame(page).getByText('Mai: một prompt')).toBeVisible();
 

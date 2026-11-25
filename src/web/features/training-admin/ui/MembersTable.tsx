@@ -11,7 +11,7 @@ import { Icon } from '../../../shared/ui/Icon.js';
 import { ConnectionChip, FlagChip, visuallyHidden } from './chips.js';
 import { NewBadge } from './NewBadge.js';
 
-const tight = { padding: '10px 10px' } as const;
+const tight = { padding: '10px 6px' } as const;
 const num = { ...td, ...tight, textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' } as const;
 
 /**
@@ -40,7 +40,7 @@ export function MembersTable({ members, selectedId, onSelect, onPurge, compact, 
         <table aria-label="Học viên" style={{ width: '100%', borderCollapse: 'collapse' }}>
           {!compact && (
             <thead style={{ position: 'sticky', top: 0, background: 'var(--surface-card)', zIndex: 1 }}>
-              <tr><th style={{ ...th, ...tight }}>Học viên</th><th style={{ ...th, ...tight }}>Kết nối</th><th style={{ ...th, ...tight, textAlign: 'right' }}>Prompt</th><th style={{ ...th, ...tight, textAlign: 'right' }}>Lệnh</th><th style={{ ...th, ...tight, textAlign: 'right' }}>Lỗi</th><th style={{ ...th, ...tight }}>Cờ gợi ý</th><th style={{ ...th, ...tight }}>Lần cuối</th><th style={{ ...th, ...tight }}><span style={visuallyHidden}>Prompt mới chưa đọc</span></th></tr>
+              <tr><th style={{ ...th, ...tight }}>Học viên</th><th style={{ ...th, ...tight }}>Kết nối</th><th style={{ ...th, ...tight, textAlign: 'right' }}>Prompt</th><th style={{ ...th, ...tight, textAlign: 'right' }}>Lệnh</th><th style={{ ...th, ...tight, textAlign: 'right' }}>Lỗi</th><th style={{ ...th, ...tight }}>Cờ gợi ý</th><th style={{ ...th, ...tight }}>Lần cuối</th></tr>
             </thead>
           )}
           <tbody ref={body} onKeyDown={onKeyDown}>
@@ -62,7 +62,7 @@ export function MembersTable({ members, selectedId, onSelect, onPurge, compact, 
               );
               return (
                 <tr key={m.id} onClick={() => onSelect(m.id)} style={{ cursor: 'pointer', background: on ? 'var(--selected-bg)' : undefined, boxShadow: on ? 'inset 3px 0 0 var(--brand-600)' : undefined }}>
-                  <td style={{ ...td, ...tight, whiteSpace: 'normal', minWidth: 0 }}>
+                  <td style={{ ...td, ...tight, whiteSpace: 'normal', minWidth: compact ? 0 : 132 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <button type="button" data-member={m.id} aria-pressed={on} aria-describedby={fresh > 0 ? `member-new-${m.id}` : undefined} onClick={e => { e.stopPropagation(); onSelect(m.id); }}
                         style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', font: 'var(--type-ui)', fontWeight: 600, color: 'var(--text-title)', textAlign: 'left', overflowWrap: 'anywhere' }}>{m.displayName}</button>
@@ -71,8 +71,8 @@ export function MembersTable({ members, selectedId, onSelect, onPurge, compact, 
                       {compact && badge}
                     </div>
                     {status.length > 0 && (
-                      <div data-member-status={m.id} style={{ display: 'flex', flexWrap: 'wrap', gap: '0 10px', marginTop: 2, font: '400 12px/1.35 var(--font-sans)', color: 'var(--ink-600)' }}>
-                        {status.map(x => <span key={x.text} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name={x.icon} size={12} />{x.text}</span>)}
+                      <div data-member-status={m.id} style={{ display: 'flex', flexWrap: 'wrap', gap: '0 10px', marginTop: 2, font: '400 12px/1.35 var(--font-sans)', color: 'var(--ink-600)', whiteSpace: 'nowrap' }}>
+                        {status.map(x => <span key={x.text} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}><Icon name={x.icon} size={12} />{x.text}</span>)}
                       </div>
                     )}
                     {m.stoppedSending && (
@@ -90,8 +90,12 @@ export function MembersTable({ members, selectedId, onSelect, onPurge, compact, 
                       <td style={{ ...td, ...tight, whiteSpace: 'normal' }}>
                         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{visibleFlags(m).map(code => <FlagChip key={code} code={code} />)}</div>
                       </td>
-                      <td style={{ ...td, ...tight, color: 'var(--text-meta)', fontVariantNumeric: 'tabular-nums' }}>{formatLastSeen(m.lastSeenAt, now)}</td>
-                      <td style={{ ...td, ...tight, textAlign: 'right', width: 1 }}>{badge}</td>
+                      <td style={{ ...td, ...tight, color: 'var(--text-meta)', fontVariantNumeric: 'tabular-nums' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                          <span style={{ whiteSpace: 'nowrap' }}>{formatLastSeen(m.lastSeenAt, now)}</span>
+                          {badge}
+                        </div>
+                      </td>
                     </>
                   )}
                 </tr>

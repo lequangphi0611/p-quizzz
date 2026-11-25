@@ -115,7 +115,7 @@ export class DrizzleTrainingEventRepository implements TrainingEventRepository {
   listEventSkeleton(memberId: number): Promise<EventSkeleton[]> {
     return this.access(db =>
       db
-        .select({ id: trainingEvents.id, kind: trainingEvents.kind, claudeSessionId: trainingEvents.claudeSessionId, receivedAt: trainingEvents.receivedAt })
+        .select({ id: trainingEvents.id, kind: trainingEvents.kind, claudeSessionId: trainingEvents.claudeSessionId, subtype: trainingEvents.subtype, receivedAt: trainingEvents.receivedAt })
         .from(trainingEvents)
         .where(eq(trainingEvents.memberId, memberId))
         .orderBy(asc(trainingEvents.id))
