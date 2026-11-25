@@ -234,6 +234,7 @@ function timelineLines(events: readonly ExportEvent[], decisions: ReadonlyMap<nu
   const endedBy = new Map<string, string>();
   for (const e of events) {
     if (e.kind === 'session' && (e.subtype === 'clear' || e.subtype === 'exit')) endedBy.set(e.claudeSessionId, e.subtype);
+    else if (e.kind !== 'notice') endedBy.delete(e.claudeSessionId); // resumed after it: not ended
     let turn = e.kind === 'prompt' ? undefined : current.get(e.claudeSessionId);
     if (!turn) {
       turn = { prompt: e.kind === 'prompt' ? e : null, events: [] };

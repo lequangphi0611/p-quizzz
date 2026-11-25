@@ -38,7 +38,7 @@ const dayKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d
 
 /** What the labels of a session's blocks need from the **whole** training, so a partial export says the same as the mentor's screen (S43). */
 export interface SessionContext {
-  /** The last `/clear` or exit of each session, over the whole training. */
+  /** The last `/clear` or exit of each session, over the whole training, when nothing but notices came after it. */
   endedBy: ReadonlyMap<string, 'clear' | 'exit'>;
   /** The days each session has a turn (the day of the turn's prompt), oldest first: a moment of each day, keyed by `yyyy-mm-dd`. */
   days: ReadonlyMap<string, readonly { key: string; at: Date }[]>;
@@ -49,7 +49,9 @@ export function sessionContext(skeleton: readonly EventSkeleton[]): SessionConte
   const days = new Map<string, { key: string; at: Date }[]>();
   const seen = new Set<string>();
   for (const e of skeleton) {
+    // A session that sends more after its `/clear` or exit (resumed) has not ended; notices do not count.
     if (e.kind === 'session' && (e.subtype === 'clear' || e.subtype === 'exit')) endedBy.set(e.claudeSessionId, e.subtype);
+    else if (e.kind !== 'notice') endedBy.delete(e.claudeSessionId);
     if (e.kind === 'prompt' || !seen.has(e.claudeSessionId)) {
       seen.add(e.claudeSessionId);
       const list = days.get(e.claudeSessionId) ?? [];

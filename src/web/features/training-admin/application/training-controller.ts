@@ -326,7 +326,8 @@ export class TrainingController {
     // A block opens by default when it holds something unread or its session sent no end signal; one that appears later opens by itself.
     const rec = this.state.read.members[String(memberId)];
     const blocks = fresh.length > 0
-      ? reconcileOpenBlocks({ open: tl.openBlocks, known: tl.knownBlocks }, groups.flatMap(g => g.blocks).map(b => ({ key: b.key, isDefaultOpen: b.endedBy === null || unreadTurnCount(b.turns, rec) > 0 })))
+      // A day's only block is always drawn open (the light header has no toggle), so it is kept open here too.
+      ? reconcileOpenBlocks({ open: tl.openBlocks, known: tl.knownBlocks }, groups.flatMap(g => g.blocks.map(b => ({ key: b.key, isDefaultOpen: g.blocks.length === 1 || b.endedBy === null || unreadTurnCount(b.turns, rec) > 0 }))))
       : { open: tl.openBlocks, known: tl.knownBlocks };
     this.set({ timeline: { ...tl, events, hasMore: fetched.hasMore, flags: fetched.flags, phase: 'ready', loadingMore: false, error: '', newCount, followToken, openDays: days.open, knownDays: days.known, openBlocks: blocks.open, knownBlocks: blocks.known } });
   }
@@ -447,7 +448,9 @@ export class TrainingController {
     const newest = newestPromptOf(tl.events);
     const place = newest ? placesByEvent(tl.events).get(newest.id) : undefined;
     const newestDay = dayGroupsOf(tl.events)[0]?.dayKey;
-    const shown = place ? tl.openDays.includes(place.dayKey) && tl.openBlocks.includes(place.blockKey) : newestDay === undefined || tl.openDays.includes(newestDay);
+    // A day with a single block draws it open whatever `openBlocks` says (the light header cannot fold it).
+    const lone = place ? dayGroupsOf(tl.events).find(g => g.dayKey === place.dayKey)?.blocks.length === 1 : false;
+    const shown = place ? tl.openDays.includes(place.dayKey) && (lone || tl.openBlocks.includes(place.blockKey)) : newestDay === undefined || tl.openDays.includes(newestDay);
     return this.inView && shown;
   }
 

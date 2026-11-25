@@ -200,7 +200,8 @@ export function Timeline({ member, timeline, panel, hidden, markError, read, ctr
     if (newestPrompt) {
       const card = el.querySelector(`#ev-${newestPrompt.id}`);
       if (card) return card;
-      const place = newest?.blocks.find(b => b.turns.some(t => t.prompt?.id === newestPrompt.id));
+      // Usually in the newest day, but a later day may hold only a session's turn before its first prompt.
+      const place = groups.flatMap(g => g.blocks).find(b => b.turns.some(t => t.prompt?.id === newestPrompt.id));
       const header = place ? el.querySelector(`#block-${place.key}-row`) : null;
       if (header) return header;
     }

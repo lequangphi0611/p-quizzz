@@ -6,7 +6,7 @@ import { bySession, type FlagEvent, type PermissionDecisionInfo } from './flag-e
  *    `decisionMs` ≈ when the tool finished minus its duration minus when the request arrived (never below 0). Each tool event
  *    answers one request, so two identical requests need two runs.
  *  - `pending`: nothing happened since the request: the member may still be deciding.
- *  - `denied`: the turn moved on without it (a prompt, another tool, a new session) and the tool never ran.
+ *  - `denied`: the turn moved on without it (a prompt, another tool, a `/clear` or exit of the same session) and the tool never ran.
  * Each Claude Code session is read on its own (PRODUCT.md §7.38c): a prompt or tool in another session never means "moved on".
  * Events must be oldest first.
  */
