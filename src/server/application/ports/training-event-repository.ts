@@ -45,6 +45,8 @@ export interface TeachingExampleRecord {
   betterPrompt: string | null;
   editedPrompt: string | null;
   editedContext: string | null;
+  /** The mentor's "Đã rà ví dụ này"; null = not reviewed (any change of content clears it). */
+  reviewedAt: Date | null;
   updatedAt: Date;
 }
 
@@ -116,6 +118,8 @@ export interface TrainingEventRepository extends TrainingEventReader {
   setMark(eventId: number, marked: boolean): Promise<void>;
   /** Creates or replaces the example of a prompt (S44). */
   saveTeachingExample(example: TeachingExampleRecord): Promise<void>;
+  /** Sets or clears the review mark without touching the content or `updated_at`. */
+  setTeachingReviewed(eventId: number, at: Date | null): Promise<void>;
   /** Drops the example; doing it twice changes nothing. */
   deleteTeachingExample(eventId: number): Promise<void>;
 }

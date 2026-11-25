@@ -40,7 +40,11 @@ export class HttpTrainingAdminGateway implements TrainingAdminGateway {
   async teachingExamples(trainingId: number): Promise<TeachingExampleRow[]> {
     return (await this.http.get<TeachingExamplesResponse>(`/api/admin/trainings/${trainingId}/teaching-examples`)).examples;
   }
-  exportTeachingExamples(trainingId: number): Promise<string> { return this.http.get<string>(`/api/admin/trainings/${trainingId}/teaching-examples.md?confirmed=1`, { as: 'text' }); }
+  async setTeachingReviewed(trainingId: number, eventId: number, reviewed: boolean): Promise<void> {
+    const path = `/api/admin/trainings/${trainingId}/events/${eventId}/teaching-example/reviewed`;
+    await (reviewed ? this.http.put(path) : this.http.delete(path));
+  }
+  exportTeachingExamples(trainingId: number): Promise<string> { return this.http.get<string>(`/api/admin/trainings/${trainingId}/teaching-examples.md`, { as: 'text' }); }
   exportSummary(trainingId: number, params: ExportParams): Promise<TrainingExportSummary> {
     return this.http.get<TrainingExportSummary>(`/api/admin/trainings/${trainingId}/export/summary${exportQueryString(params)}`);
   }

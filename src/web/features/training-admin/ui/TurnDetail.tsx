@@ -6,7 +6,6 @@ import { Icon } from '../../../shared/ui/Icon.js';
 import type { PanelKind, PanelState, TimelineState, TrainingController } from '../application/training-controller.js';
 import { modeLabel } from '../domain/row-text.js';
 import { buildTimeline } from '../domain/timeline.js';
-import { teachingLockReason } from '../domain/teaching.js';
 import { TeachingButton } from './TeachingButton.js';
 import { NoticeRow, PermissionRow, SessionRow, ToolRow } from './TimelineRows.js';
 
@@ -43,7 +42,7 @@ export function TurnDetail({ turnKey, member, timeline, panel, ctrl }: { turnKey
             {turn.prompt && <p style={{ margin: 0, maxHeight: '24vh', overflow: 'auto', font: '500 16px/1.5 var(--font-sans)', color: 'var(--text-title)', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{turn.prompt.prompt}</p>}
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-            {turn.prompt && <TeachingButton id={turn.prompt.id} label={turn.prompt.teachingExample?.label ?? null} lockReason={teachingLockReason(member)} onOpen={id => ctrl.openTeaching(id)} />}
+            {turn.prompt && member.teachingConsent && <TeachingButton id={turn.prompt.id} label={turn.prompt.teachingExample?.label ?? null} onOpen={id => ctrl.openTeaching(id)} />}
             <Button variant="ghost" size="sm" icon="x" ariaLabel="Đóng (Esc)" onClick={() => ctrl.closeTurn()} />
           </div>
         </header>

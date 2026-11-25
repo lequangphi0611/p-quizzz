@@ -4,7 +4,7 @@ import { WrongRoomCodeError } from '../../domain/participant/errors.js';
 import { TrainingEventNotFoundError, TrainingMemberNotFoundError, TrainingNotFoundError } from '../../domain/training/errors.js';
 import type { CreateTraining, EndTraining, GetTrainingDetail, ListTrainings, MarkTrainingEvent, PurgeTrainingMember, RemoveTrainingMember, SaveMemberNote, StopTraining } from '../../application/use-cases/training/admin.js';
 import type { ExportTrainingData, GetTrainingExportSummary } from '../../application/use-cases/training/export-data.js';
-import type { DeleteTeachingExample, ExportTeachingExamples, ListTeachingExamples, SaveTeachingExample } from '../../application/use-cases/training/teaching-examples.js';
+import type { DeleteTeachingExample, ExportTeachingExamples, ListTeachingExamples, SaveTeachingExample, SetTeachingReviewed } from '../../application/use-cases/training/teaching-examples.js';
 import type { ExportTrainingReport } from '../../application/use-cases/training/report.js';
 import type { GetTrainingEventDetail, ListMemberEvents } from '../../application/use-cases/training/view.js';
 import type { IngestHookEvent } from '../../application/use-cases/training/ingest.js';
@@ -32,6 +32,7 @@ export interface TrainingUseCases {
   deleteTeachingExample: DeleteTeachingExample;
   listTeachingExamples: ListTeachingExamples;
   exportTeachingExamples: ExportTeachingExamples;
+  setTeachingReviewed: SetTeachingReviewed;
   exportSummary: GetTrainingExportSummary;
   exportData: ExportTrainingData;
   memberEvents: ListMemberEvents;
@@ -49,7 +50,7 @@ export interface TrainingUseCases {
 const badBody = (issue: { message: string } | undefined) => ({ error: issue?.message ?? 'Dữ liệu không hợp lệ' });
 
 // Mentor routes (PRODUCT.md §7.34). Registered inside the requireMentor scope of /api/admin, so they only answer on the mentor's machine.
-export const trainingAdminRoutes = (uc: Pick<TrainingUseCases, 'create' | 'list' | 'detail' | 'stop' | 'end' | 'removeMember' | 'purgeMember' | 'memberEvents' | 'eventDetail' | 'markEvent' | 'saveNote' | 'report' | 'exportSummary' | 'exportData' | 'saveTeachingExample' | 'deleteTeachingExample' | 'listTeachingExamples' | 'exportTeachingExamples'>): FastifyPluginAsync =>
+export const trainingAdminRoutes = (uc: Pick<TrainingUseCases, 'create' | 'list' | 'detail' | 'stop' | 'end' | 'removeMember' | 'purgeMember' | 'memberEvents' | 'eventDetail' | 'markEvent' | 'saveNote' | 'report' | 'exportSummary' | 'exportData' | 'saveTeachingExample' | 'deleteTeachingExample' | 'listTeachingExamples' | 'exportTeachingExamples' | 'setTeachingReviewed'>): FastifyPluginAsync =>
   async app => {
     app.post('/trainings', async (req, reply) => {
       const body = CreateTrainingBody.safeParse(req.body);
@@ -158,6 +159,21 @@ export const trainingAdminRoutes = (uc: Pick<TrainingUseCases, 'create' | 'list'
       }
     });
 
+    for (const [method, reviewed] of [['put', true], ['delete', false]] as const) {
+      app[method]<{ Params: { id: string; eventId: string } }>('/trainings/:id/events/:eventId/teaching-example/reviewed', async (req, reply) => {
+        try {
+          const id = parseId(req.params.id);
+          const eventId = parseId(req.params.eventId);
+          if (!id) throw new TrainingNotFoundError();
+          if (!eventId) throw new TrainingEventNotFoundError();
+          await uc.setTeachingReviewed.execute(id, eventId, reviewed);
+          return reply.code(204).send();
+        } catch (err) {
+          return sendDomainError(reply, err);
+        }
+      });
+    }
+
     app.get<{ Params: { id: string } }>('/trainings/:id/teaching-examples', async (req, reply): Promise<TeachingExamplesResponse | undefined> => {
       try {
         const id = parseId(req.params.id);
@@ -168,12 +184,12 @@ export const trainingAdminRoutes = (uc: Pick<TrainingUseCases, 'create' | 'list'
       }
     });
 
-    // Needs `confirmed=1` (the mentor's "Tôi đã rà" tick). Not the report: nothing is recorded as exported.
-    app.get<{ Params: { id: string }; Querystring: { confirmed?: string } }>('/trainings/:id/teaching-examples.md', async (req, reply) => {
+    // Needs every example reviewed (400 `examples_not_reviewed`). Not the report: nothing is recorded as exported.
+    app.get<{ Params: { id: string } }>('/trainings/:id/teaching-examples.md', async (req, reply) => {
       try {
         const id = parseId(req.params.id);
         if (!id) throw new TrainingNotFoundError();
-        const text = await uc.exportTeachingExamples.execute(id, { confirmed: req.query.confirmed === '1' });
+        const text = await uc.exportTeachingExamples.execute(id);
         return reply
           .header('Content-Type', 'text/markdown; charset=utf-8')
           .header('Cache-Control', 'no-store')

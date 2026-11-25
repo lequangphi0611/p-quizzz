@@ -332,6 +332,8 @@ export interface TeachingExampleRow {
   betterPrompt: string | null;
   editedPrompt: string | null;
   editedContext: string | null;
+  /** The mentor marked it reviewed ("Đã rà ví dụ này"); any change of content clears it. */
+  reviewed: boolean;
   /** The prompt and the turn's commands as they would go in the file when not edited (secrets already masked). */
   defaultPrompt: string;
   defaultContext: string;

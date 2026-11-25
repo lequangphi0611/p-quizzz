@@ -67,10 +67,10 @@ export class TeachingConsentMissingError extends DomainError {
   }
 }
 
-/** The "Tôi đã rà" tick is missing (S44, PRODUCT.md §7.39c). */
-export class TeachingReviewNotConfirmedError extends DomainError {
-  constructor() {
-    super('invalid', 'Cần rà lại các ví dụ và tick xác nhận trước khi tải', 'review_not_confirmed');
+/** Some examples are not marked reviewed: the file is not built (S44, PRODUCT.md §7.39j). */
+export class TeachingExamplesNotReviewedError extends DomainError {
+  constructor(unreviewed: number) {
+    super('invalid', `Còn ${unreviewed} ví dụ chưa rà. Rà hết rồi mới tải được file.`, 'examples_not_reviewed', { unreviewed });
   }
 }
 

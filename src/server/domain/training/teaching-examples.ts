@@ -1,5 +1,6 @@
 import { TEACHING_LABEL_TEXT, TEACHING_LABELS, TEACHING_TOPIC_TEXT, TEACHING_TOPICS, type TeachingLabel, type TeachingTopic } from '../../../shared/api/training.js';
 import { turnOf } from './export-selection.js';
+import { maskHomePaths } from './mask-paths.js';
 import { maskSecrets } from './secrets.js';
 
 // Teaching examples (PRODUCT.md §7.39): prompts the mentor picked to teach the next course. The file built here carries no member
@@ -14,6 +15,9 @@ export interface ContextEvent {
   toolTarget: string | null;
   ok: boolean | null;
 }
+
+/** The prompt as the file would carry it before the mentor edits it: secrets and home folders masked. */
+export const maskForExample = (text: string): string => maskHomePaths(maskSecrets(text));
 
 const TARGET_CHARS = 120;
 
@@ -31,7 +35,7 @@ export function buildTurnContext(events: readonly ContextEvent[], promptId: numb
   const lines = turnOf(events, promptId)
     .filter(e => e.kind === 'tool')
     .map(e => `${e.ok === true ? '✓' : '✗'} ${oneLine(e.toolName ?? 'Công cụ')}${e.toolTarget ? ` ${clip(oneLine(e.toolTarget), TARGET_CHARS)}` : ''}`);
-  return maskSecrets(lines.join('\n'));
+  return maskHomePaths(maskSecrets(lines.join('\n')));
 }
 
 /** One example ready for the file: the texts are the ones to print (the mentor's edit when there is one, else the masked original). */
@@ -101,5 +105,5 @@ export function buildTeachingExamplesFile(trainingName: string, examples: readon
       for (const e of group) parts.push(exampleSection(e, ++n), '');
     }
   }
-  return maskSecrets(parts.join('\n'));
+  return maskHomePaths(maskSecrets(parts.join('\n')));
 }

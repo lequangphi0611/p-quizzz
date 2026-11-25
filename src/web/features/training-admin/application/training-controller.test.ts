@@ -16,7 +16,7 @@ const ev = (id: number, over: Partial<TrainingEventRow> = {}): TrainingEventRow 
 const page = (ids: number[], hasMore = false): TrainingEventsPage => ({ events: ids.map(i => ev(i)), hasMore, flags: [] });
 
 const teachingRow = (eventId: number, body: Partial<TeachingExampleBody> = {}, over: Partial<TeachingExampleRow> = {}): TeachingExampleRow => ({
-  eventId, memberId: 1, memberName: 'An', label: 'good', topic: 'other', comment: 'ok', betterPrompt: null, editedPrompt: null, editedContext: null,
+  eventId, memberId: 1, memberName: 'An', label: 'good', topic: 'other', comment: 'ok', betterPrompt: null, editedPrompt: null, editedContext: null, reviewed: false,
   defaultPrompt: 'prompt gốc', defaultContext: '✓ Bash ls', updatedAt: 1, ...body, ...over,
 });
 
@@ -45,6 +45,7 @@ function make(over: Partial<TrainingAdminGateway> = {}, initial = detail(), opts
     exportData: vi.fn(async () => new Blob(['zip'])),
     saveTeachingExample: vi.fn(async (_t: number, eventId: number, body) => teachingRow(eventId, body)),
     deleteTeachingExample: vi.fn(async () => {}),
+    setTeachingReviewed: vi.fn(async () => {}),
     teachingExamples: vi.fn(async () => []),
     exportTeachingExamples: vi.fn(async () => '# Ví dụ'),
     getJoinHosts: vi.fn(async () => ['192.168.1.5:3000']),
@@ -1314,7 +1315,8 @@ describe('TrainingController: teaching examples (S44)', () => {
     it('loads every example with the masked original as the starting text, or the stored edit', async () => {
       const { ctrl } = await review();
       const r = ctrl.getState().teachingReview!;
-      expect(r).toMatchObject({ phase: 'ready', reviewed: false });
+      expect(r).toMatchObject({ phase: 'ready', selectedId: 10 });
+      expect(r.items.map(i => i.reviewed)).toEqual([false, false]);
       expect(r.items.map(i => [i.promptDraft, i.contextDraft])).toEqual([['prompt gốc', '✓ Bash ls'], ['đã bỏ tên', '✓ Bash ls']]);
     });
 
@@ -1326,18 +1328,79 @@ describe('TrainingController: teaching examples (S44)', () => {
       expect(bad.ctrl.getState().teachingReview).toMatchObject({ phase: 'error', error: 'Mất mạng' });
     });
 
-    it('does not download without the "đã rà" tick, and any edit takes the tick away', async () => {
+    const markAll = async (ctrl: TrainingController) => { for (const i of [...ctrl.getState().teachingReview!.items]) await ctrl.markReviewed(i.eventId); };
+
+    it('does not download until every example is reviewed, and any edit takes that example back to "chưa rà"', async () => {
       const { ctrl, gateway, saveFile } = await review();
       await ctrl.downloadTeaching();
       expect(gateway.exportTeachingExamples).not.toHaveBeenCalled();
-      ctrl.setTeachingReviewed(true);
+      await ctrl.markReviewed(10);
+      expect(gateway.setTeachingReviewed).toHaveBeenCalledWith(5, 10, true);
+      await ctrl.downloadTeaching();
+      expect(gateway.exportTeachingExamples).not.toHaveBeenCalled(); // one is left
       ctrl.editReviewPrompt(10, 'prompt đã bỏ tên dự án');
-      expect(ctrl.getState().teachingReview!.reviewed).toBe(false);
-      ctrl.setTeachingReviewed(true);
+      expect(ctrl.getState().teachingReview!.items[0]!.reviewed).toBe(false);
+      await markAll(ctrl);
       await ctrl.downloadTeaching();
       expect(gateway.exportTeachingExamples).toHaveBeenCalledWith(5);
       expect(saveFile).toHaveBeenCalledWith('vi-du-buoi-1.md', '# Ví dụ');
       expect(ctrl.getState().teachingReview).toMatchObject({ saved: true, saving: false });
+    });
+
+    it('"Đã rà ví dụ này, sang tiếp" saves the edits first, marks it and moves to the next example not reviewed (wrapping round)', async () => {
+      const { ctrl, gateway } = await review();
+      ctrl.selectReviewItem(11);
+      ctrl.editReviewPrompt(11, 'đã sửa nữa');
+      await ctrl.markReviewed(11);
+      expect(gateway.saveTeachingExample).toHaveBeenCalledWith(5, 11, expect.objectContaining({ editedPrompt: 'đã sửa nữa' }));
+      expect(gateway.setTeachingReviewed).toHaveBeenCalledWith(5, 11, true);
+      expect(ctrl.getState().teachingReview).toMatchObject({ selectedId: 10 }); // wrapped round to the first one left
+      await ctrl.markReviewed(10);
+      expect(ctrl.getState().teachingReview).toMatchObject({ selectedId: 10 }); // nothing left: stays
+    });
+
+    it('a click on "Đã rà ví dụ này" right after typing waits for the save the blur started: nothing is lost, and the order is save, then mark', async () => {
+      const gate = deferred<TeachingExampleRow>();
+      const calls: string[] = [];
+      const save = vi.fn(async () => { calls.push('save'); return gate.promise; });
+      const set = vi.fn(async () => { calls.push('mark'); });
+      const { ctrl } = await review({ saveTeachingExample: save, setTeachingReviewed: set });
+      ctrl.editReviewPrompt(10, 'đã sửa');
+      void ctrl.commitReviewItem(10); // the blur
+      await flush();
+      expect(ctrl.getState().teachingReview!.items[0]!.saving).toBe(true);
+      const click = ctrl.markReviewed(10); // the click, while that save is running
+      await flush();
+      expect(set).not.toHaveBeenCalled();
+      gate.resolve(teachingRow(10));
+      await click;
+      expect(calls).toEqual(['save', 'mark']);
+      expect(save).toHaveBeenCalledTimes(1); // the click found nothing left to save
+      expect(ctrl.getState().teachingReview!.items[0]).toMatchObject({ reviewed: true, saving: false });
+    });
+
+    it('a failed save of "đã rà" says so on the example and keeps it not reviewed; it can be taken back', async () => {
+      const set = vi.fn().mockRejectedValueOnce(new ApiError(500, 'Lỗi máy chủ')).mockResolvedValue(undefined);
+      const { ctrl } = await review({ setTeachingReviewed: set });
+      await ctrl.markReviewed(10);
+      expect(ctrl.getState().teachingReview!.items[0]).toMatchObject({ reviewed: false, error: 'Lỗi máy chủ', saving: false });
+      await ctrl.markReviewed(10);
+      expect(ctrl.getState().teachingReview!.items[0]).toMatchObject({ reviewed: true, error: '' });
+      await ctrl.unmarkReviewed(10);
+      expect(set).toHaveBeenLastCalledWith(5, 10, false);
+      expect(ctrl.getState().teachingReview!.items[0]!.reviewed).toBe(false);
+    });
+
+    it('the examples a name was suspected in: "Thay bằng [bạn]" replaces every whole-word place with the same accents (case ignored; "Binh" stays) and saves; "Không phải tên" only hides the warning here', async () => {
+      const { ctrl, gateway } = await review({ teachingExamples: vi.fn(async () => [teachingRow(10, {}, { editedPrompt: 'Bình đây, bình sửa lỗi', defaultPrompt: 'x', comment: 'Anh Bình hay quên, Binh thì không' })]) });
+      ctrl.replaceReviewName(10, 'Bình');
+      const i = ctrl.getState().teachingReview!.items[0]!;
+      expect(i).toMatchObject({ promptDraft: '[bạn] đây, [bạn] sửa lỗi', commentDraft: 'Anh [bạn] hay quên, Binh thì không', reviewed: false });
+      await flush();
+      expect(gateway.saveTeachingExample).toHaveBeenCalledWith(5, 10, expect.objectContaining({ comment: 'Anh [bạn] hay quên, Binh thì không', editedPrompt: '[bạn] đây, [bạn] sửa lỗi' }));
+      ctrl.dismissReviewName(10, 'An');
+      expect(ctrl.getState().teachingReview!.items[0]!.dismissed).toEqual(['An']);
+      expect(gateway.saveTeachingExample).toHaveBeenCalledTimes(1); // nothing sent for a dismissal
     });
 
     it('saves an edit when the box loses focus: only what differs from the original is sent, and an unchanged draft sends nothing', async () => {
@@ -1361,13 +1424,13 @@ describe('TrainingController: teaching examples (S44)', () => {
     it('download first saves the unsaved edits; a save that fails stops the download and says which', async () => {
       const save = vi.fn(async () => { throw new ApiError(500, 'Lỗi máy chủ'); });
       const { ctrl, gateway } = await review({ saveTeachingExample: save });
+      await markAll(ctrl);
       ctrl.editReviewPrompt(10, 'sửa');
-      ctrl.setTeachingReviewed(true);
       await ctrl.downloadTeaching();
-      expect(gateway.exportTeachingExamples).not.toHaveBeenCalled();
+      expect(gateway.exportTeachingExamples).not.toHaveBeenCalled(); // edited again: that example is not reviewed any more
+      expect(await ctrl.commitReviewItem(10)).toBe(false);
       const r = ctrl.getState().teachingReview!;
-      expect(r.saveError).toMatch(/Chưa lưu được bản sửa của 1 ví dụ/);
-      expect(r.items[0]).toMatchObject({ error: 'Lỗi máy chủ', saving: false });
+      expect(r.items[0]).toMatchObject({ error: 'Lỗi máy chủ', saving: false, reviewed: false });
       expect(r.saving).toBe(false);
     });
 
@@ -1381,7 +1444,7 @@ describe('TrainingController: teaching examples (S44)', () => {
 
     it('does not download while the content is hidden (the mentor cannot review what is not shown)', async () => {
       const { ctrl, gateway } = await review();
-      ctrl.setTeachingReviewed(true);
+      await markAll(ctrl);
       ctrl.setHidden(true);
       await ctrl.downloadTeaching();
       expect(gateway.exportTeachingExamples).not.toHaveBeenCalled();
@@ -1389,7 +1452,7 @@ describe('TrainingController: teaching examples (S44)', () => {
 
     it('shows the server\'s message when the file cannot be made (no examples left), and does not mark it saved', async () => {
       const { ctrl } = await review({ exportTeachingExamples: vi.fn(async () => { throw new ApiError(404, 'Chưa có ví dụ nào để xuất', 'no_examples'); }) });
-      ctrl.setTeachingReviewed(true);
+      await markAll(ctrl);
       await ctrl.downloadTeaching();
       expect(ctrl.getState().teachingReview).toMatchObject({ saved: false, saveError: 'Chưa có ví dụ nào để xuất' });
     });
@@ -1402,7 +1465,7 @@ describe('TrainingController: teaching examples (S44)', () => {
       expect(m.ctrl.getState().confirm).toBeNull();
       await flush();
       expect(m.ctrl.getState().teachingReview).toMatchObject({ phase: 'ready' });
-      m.ctrl.setTeachingReviewed(true);
+      for (const i of [...m.ctrl.getState().teachingReview!.items]) await m.ctrl.markReviewed(i.eventId);
       const before = (m.gateway.get as ReturnType<typeof vi.fn>).mock.calls.length;
       await m.ctrl.downloadTeaching();
       await flush();

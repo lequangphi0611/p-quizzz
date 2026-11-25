@@ -132,6 +132,11 @@ export class InMemoryTrainingEventRepository implements TrainingEventRepository,
     this.teaching.set(example.eventId, example);
   }
 
+  async setTeachingReviewed(eventId: number, at: Date | null) {
+    const e = this.teaching.get(eventId);
+    if (e) this.teaching.set(eventId, { ...e, reviewedAt: at });
+  }
+
   async deleteTeachingExample(eventId: number) {
     this.teaching.delete(eventId);
   }

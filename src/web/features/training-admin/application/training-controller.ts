@@ -6,7 +6,7 @@ import { exportFileName, exportInputError, paramsFor, type ExportMode } from '..
 import { evidenceOf } from '../domain/flags.js';
 import { reportFileName } from '../domain/report.js';
 import {
-  betterOf, draftTextError, draftTooLong, editedContextOf, editedPromptOf, emptyTeachingForm, formFromRow, isDirty, reviewBody, reviewItemOf, teachingBody, teachingFileName, teachingFormError, teachingLockReason,
+  NAME_PLACEHOLDER, betterOf, replaceName, sortReviewItems, draftTextError, draftTooLong, editedContextOf, editedPromptOf, emptyTeachingForm, formFromRow, isDirty, reviewBody, reviewItemOf, teachingBody, teachingFileName, teachingFormError, teachingLockReason,
   type ReviewItem, type TeachingForm,
 } from '../domain/teaching.js';
 import { turnKeyOf, type Turn } from '../domain/timeline.js';
@@ -114,12 +114,13 @@ export interface TeachingEditState {
   error: string;
 }
 
-/** The "Xuất ví dụ" review screen (PRODUCT.md §7.39c): every example with its prompt and context to rewrite, the "đã rà" tick, then the file. */
+/** The "Xuất ví dụ" review screen (PRODUCT.md §7.39c): one example at a time with its prompt and context to rewrite, "Đã rà ví dụ này" for each, then the file once all are reviewed. */
 export interface TeachingReviewState {
   phase: 'loading' | 'ready' | 'error';
+  /** In the order of the list on the left (topic, label). */
   items: ReviewItem[];
-  /** "Tôi đã rà, không còn chi tiết nhận ra người viết": cleared by any edit. */
-  reviewed: boolean;
+  /** The example shown on the right. */
+  selectedId: number | null;
   error: string;
   /** The file is being fetched. */
   saving: boolean;
@@ -203,6 +204,8 @@ export class TrainingController {
   private undoTimer: ReturnType<typeof setTimeout> | undefined;
   private reportToken = 0; // bumped on every open / close of the report dialog
   private exportToken = 0; // bumped on every change of what the data export dialog shows, and on close
+  private commits = new Map<number, Promise<boolean>>(); // the save of each example on the review screen that is running
+  private marking = new Set<number>(); // examples whose "đã rà" is being saved
   private teachingToken = 0; // bumped on every open / close of the teaching dialog and the review screen
   private started = false;
   private inView = true; // the newest event is in (or near) the viewport
@@ -937,12 +940,13 @@ export class TrainingController {
     const token = ++this.teachingToken;
     this.reportToken++;
     this.exportToken++;
-    const fresh: TeachingReviewState = { phase: 'loading', items: [], reviewed: false, error: '', saving: false, saved: false, saveError: '' };
+    const fresh: TeachingReviewState = { phase: 'loading', items: [], selectedId: null, error: '', saving: false, saved: false, saveError: '' };
     this.set({ report: null, dataExport: null, teachingEdit: null, teachingReview: fresh });
     try {
       const rows = await this.gateway.teachingExamples(this.state.detail.id);
       if (token !== this.teachingToken) return;
-      this.set({ teachingReview: { ...fresh, phase: 'ready', items: rows.map(reviewItemOf) } });
+      const items = sortReviewItems(rows.map(reviewItemOf));
+      this.set({ teachingReview: { ...fresh, phase: 'ready', items, selectedId: (items.find(i => !i.reviewed) ?? items[0])?.eventId ?? null } });
     } catch (err) {
       if (token !== this.teachingToken) return;
       this.set({ teachingReview: { ...fresh, phase: 'error', error: errorText(err, 'Không tải được các ví dụ') } });
@@ -960,36 +964,72 @@ export class TrainingController {
     this.set({ teachingReview: { ...r, ...rest, items: r.items.map(i => (i.eventId === eventId ? change(i) : i)) } });
   }
 
-  /** Any edit takes the "đã rà" tick away: what was reviewed is no longer what would be written. */
-  editReviewPrompt(eventId: number, text: string): void {
-    this.changeReviewItem(eventId, i => ({ ...i, promptDraft: text, error: '' }), { reviewed: false, saved: false, saveError: '' });
+  /** Any edit takes the item back to "chưa rà" at once (the server does the same when the edit is saved): what was reviewed is no longer what would be written. */
+  private edit(eventId: number, patch: Partial<ReviewItem>): void {
+    this.changeReviewItem(eventId, i => ({ ...i, ...patch, reviewed: false, error: '' }), { saved: false, saveError: '' });
   }
 
-  editReviewComment(eventId: number, text: string): void {
-    this.changeReviewItem(eventId, i => ({ ...i, commentDraft: text, error: '' }), { reviewed: false, saved: false, saveError: '' });
-  }
+  editReviewPrompt(eventId: number, text: string): void { this.edit(eventId, { promptDraft: text }); }
+  editReviewComment(eventId: number, text: string): void { this.edit(eventId, { commentDraft: text }); }
+  editReviewBetter(eventId: number, text: string): void { this.edit(eventId, { betterDraft: text }); }
+  editReviewContext(eventId: number, text: string): void { this.edit(eventId, { contextDraft: text }); }
 
-  editReviewBetter(eventId: number, text: string): void {
-    this.changeReviewItem(eventId, i => ({ ...i, betterDraft: text, error: '' }), { reviewed: false, saved: false, saveError: '' });
-  }
-
-  editReviewContext(eventId: number, text: string): void {
-    this.changeReviewItem(eventId, i => ({ ...i, contextDraft: text, error: '' }), { reviewed: false, saved: false, saveError: '' });
-  }
-
-  /** "Về bản gốc": both texts go back to the masked original (and are saved so). */
+  /** "Khôi phục bản app đã che": prompt and context go back to the masked original (and are saved so). */
   resetReviewItem(eventId: number): void {
-    this.changeReviewItem(eventId, i => ({ ...i, promptDraft: i.defaultPrompt, contextDraft: i.defaultContext, error: '' }), { reviewed: false, saved: false, saveError: '' });
+    this.edit(eventId, {});
+    this.changeReviewItem(eventId, i => ({ ...i, promptDraft: i.defaultPrompt, contextDraft: i.defaultContext }));
     void this.commitReviewItem(eventId);
   }
 
-  setTeachingReviewed(reviewed: boolean): void {
+  selectReviewItem(eventId: number): void {
     const r = this.state.teachingReview;
-    if (r && r.phase === 'ready' && !r.saving) this.set({ teachingReview: { ...r, reviewed } });
+    if (r && r.phase === 'ready' && r.items.some(i => i.eventId === eventId) && r.selectedId !== eventId) {
+      void this.commitReviewItem(r.selectedId ?? -1); // leaving an example saves what was typed there
+      this.set({ teachingReview: { ...r, selectedId: eventId } });
+    }
   }
 
-  /** Saves the edits of one example (the text box lost focus). Answers true when it is saved or there was nothing to save. */
-  async commitReviewItem(eventId: number): Promise<boolean> {
+  /** "Trước" / "Sau": the neighbour in the list. */
+  stepReview(delta: -1 | 1): void {
+    const r = this.state.teachingReview;
+    if (!r || r.phase !== 'ready') return;
+    const at = r.items.findIndex(i => i.eventId === r.selectedId);
+    const next = r.items[at + delta];
+    if (next) this.selectReviewItem(next.eventId);
+  }
+
+  /** "Thay bằng [bạn]": every whole-word place of the name in this example's four texts (same accents, any case), saved at once. */
+  replaceReviewName(eventId: number, name: string): void {
+    this.edit(eventId, {});
+    this.changeReviewItem(eventId, i => ({
+      ...i,
+      promptDraft: replaceName(i.promptDraft, name, NAME_PLACEHOLDER), contextDraft: replaceName(i.contextDraft, name, NAME_PLACEHOLDER),
+      commentDraft: replaceName(i.commentDraft, name, NAME_PLACEHOLDER), betterDraft: replaceName(i.betterDraft, name, NAME_PLACEHOLDER),
+    }));
+    void this.commitReviewItem(eventId);
+  }
+
+  /** "Không phải tên": the warning for this name goes away for this example (in this browser only; nothing is sent). */
+  dismissReviewName(eventId: number, name: string): void {
+    this.changeReviewItem(eventId, i => ({ ...i, dismissed: [...i.dismissed, name] }));
+  }
+
+  /**
+   * Saves the edits of one example (the text box lost focus). Answers true when it is saved or there was nothing to save. Saves of one
+   * example run one after the other: a click on "Đã rà ví dụ này" right after typing waits for the save the blur started, it is not lost.
+   */
+  commitReviewItem(eventId: number): Promise<boolean> {
+    const before = this.commits.get(eventId);
+    const run = (async () => {
+      if (before) await before;
+      return this.commitNow(eventId);
+    })();
+    this.commits.set(eventId, run);
+    void run.finally(() => { if (this.commits.get(eventId) === run) this.commits.delete(eventId); });
+    return run;
+  }
+
+  private async commitNow(eventId: number): Promise<boolean> {
     const item = this.state.teachingReview?.items.find(i => i.eventId === eventId);
     if (!item) return true;
     if (!isDirty(item)) return true;
@@ -1002,7 +1042,7 @@ export class TrainingController {
     try {
       await this.gateway.saveTeachingExample(this.state.detail.id, eventId, reviewBody(sent));
       if (token !== this.teachingToken) return true;
-      this.changeReviewItem(eventId, i => ({ ...i, saving: false, savedPrompt: editedPromptOf(sent), savedContext: editedContextOf(sent), comment: sent.commentDraft.trim(), betterPrompt: betterOf(sent) }));
+      this.changeReviewItem(eventId, i => ({ ...i, saving: false, reviewed: false, savedPrompt: editedPromptOf(sent), savedContext: editedContextOf(sent), comment: sent.commentDraft.trim(), betterPrompt: betterOf(sent) }));
       void this.refresh(); // `unexportedExampleCount` on the training changed
       return true;
     } catch (err) {
@@ -1012,10 +1052,50 @@ export class TrainingController {
     }
   }
 
-  /** "Tải file .md": saves the edits that are not saved yet, then fetches the file (the server needs `confirmed=1`: the tick). Not the report. */
+  /** "Đã rà ví dụ này, sang tiếp": saves the edits (after any save already running), marks it reviewed on the server, then goes to the next example not reviewed yet (wrapping round). */
+  async markReviewed(eventId: number): Promise<void> {
+    if (!this.state.teachingReview?.items.some(i => i.eventId === eventId) || this.marking.has(eventId)) return;
+    this.marking.add(eventId);
+    try {
+      if (!(await this.commitReviewItem(eventId))) return;
+      const token = this.teachingToken;
+      this.changeReviewItem(eventId, i => ({ ...i, saving: true, error: '' }));
+      try {
+        await this.gateway.setTeachingReviewed(this.state.detail.id, eventId, true);
+      } catch (err) {
+        if (token === this.teachingToken) this.changeReviewItem(eventId, i => ({ ...i, saving: false, error: errorText(err, 'Không lưu được trạng thái đã rà') }));
+        return;
+      }
+      if (token !== this.teachingToken) return;
+      this.changeReviewItem(eventId, i => ({ ...i, saving: false, reviewed: true }), { saved: false, saveError: '' });
+      const r = this.state.teachingReview;
+      if (!r) return;
+      const at = r.items.findIndex(i => i.eventId === eventId);
+      const next = [...r.items.slice(at + 1), ...r.items.slice(0, at)].find(i => !i.reviewed);
+      if (next) this.set({ teachingReview: { ...r, selectedId: next.eventId } });
+    } finally {
+      this.marking.delete(eventId);
+    }
+  }
+
+  /** Takes "đã rà" back (the file is locked again until it is marked once more). */
+  async unmarkReviewed(eventId: number): Promise<void> {
+    const item = this.state.teachingReview?.items.find(i => i.eventId === eventId);
+    if (!item || item.saving || !item.reviewed) return;
+    const token = this.teachingToken;
+    this.changeReviewItem(eventId, i => ({ ...i, saving: true, error: '' }));
+    try {
+      await this.gateway.setTeachingReviewed(this.state.detail.id, eventId, false);
+      if (token === this.teachingToken) this.changeReviewItem(eventId, i => ({ ...i, saving: false, reviewed: false }), { saved: false, saveError: '' });
+    } catch (err) {
+      if (token === this.teachingToken) this.changeReviewItem(eventId, i => ({ ...i, saving: false, error: errorText(err, 'Không lưu được trạng thái đã rà') }));
+    }
+  }
+
+  /** "Tải file .md": only when every example is reviewed (the server checks too: 400 `examples_not_reviewed`). Not the report. */
   async downloadTeaching(): Promise<void> {
     const r = this.state.teachingReview;
-    if (!r || r.phase !== 'ready' || r.saving || !r.reviewed || r.items.length === 0 || this.state.hidden) return;
+    if (!r || r.phase !== 'ready' || r.saving || r.items.length === 0 || r.items.some(i => !i.reviewed || i.saving) || this.state.hidden) return;
     const token = this.teachingToken;
     this.set({ teachingReview: { ...r, saving: true, saveError: '' } });
     let unsaved = 0;

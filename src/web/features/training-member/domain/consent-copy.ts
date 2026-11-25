@@ -46,12 +46,16 @@ export const SECRET_WARNING =
  * The separate, optional tick for teaching examples (PRODUCT.md §7.39a). Not part of "Tôi đã đọc và đồng ý": unticked by default,
  * and the member joins either way. The wording says what the mentor will know and what cannot be taken back.
  */
-export const TEACHING_TITLE = 'Dùng làm ví dụ dạy các khoá sau (không bắt buộc)';
-export const TEACHING_CHECKBOX_LABEL = 'Cho mentor dùng prompt của tôi (đã bỏ tên) làm ví dụ dạy các khoá sau';
+export const TEACHING_TITLE = 'Dùng prompt của bạn làm ví dụ';
+/** The badge next to the title: this box is apart from what is required to join. */
+export const TEACHING_BADGE = 'Tuỳ chọn';
+export const REQUIRED_TITLE = 'Bắt buộc để tham gia';
+export const TEACHING_CHECKBOX_LABEL = 'Cho mentor dùng prompt của tôi (đã bỏ tên) làm ví dụ';
+export const REQUIRED_CHECKBOX_LABEL = 'Tôi đã đọc và đồng ý tham gia buổi này';
 export const TEACHING_ITEMS: readonly ConsentItem[] = [
   { icon: 'user-check', lead: 'Không bắt buộc, mặc định không tick.', text: 'Không tick thì bạn vẫn tham gia và học bình thường. Chọn ngay lúc này, sau đó không đổi được trong app.' },
   { icon: 'flag', lead: 'Có thể bị gắn nhãn "chưa tốt".', text: 'Mentor có thể chọn prompt của bạn làm ví dụ, gắn nhãn tốt hoặc "chưa tốt" kèm nhận xét về cách viết prompt đó. Nhãn nói về prompt, không nói về bạn, và bạn không thấy nhãn này.' },
-  { icon: 'eye', lead: 'Mentor sẽ biết bạn đã tick.', text: 'Mentor chỉ chọn được prompt của người đã tick. Trong file ví dụ không có tên bạn, ngày giờ hay output, nhưng người cùng lớp vẫn có thể đoán ra bạn từ nội dung prompt.' },
+  { icon: 'eye', lead: 'Mentor sẽ biết bạn đã tick.', text: 'Mentor chỉ chọn được prompt của người đã tick. File không có tên bạn, nhưng người cùng lớp vẫn có thể đoán ra từ nội dung.' },
   { icon: 'log-out', lead: 'Dừng gửi không rút lại việc dùng prompt đã gửi.', text: 'Prompt đã gửi vẫn có thể là ví dụ cho tới khi mentor duyệt xoá dữ liệu của bạn hoặc bấm "Kết thúc".' },
   { icon: 'download', lead: 'File ví dụ đã xuất thì app không thu hồi được,', text: 'kể cả sau khi mentor bấm "Kết thúc".' },
 ];
@@ -67,3 +71,8 @@ export const HANDLING_ITEMS: readonly ConsentItem[] = [
   { icon: 'sparkles', lead: 'Mentor có thể xuất toàn bộ dữ liệu của bạn, có tên,', text: 'kể cả output lệnh và nội dung file thay đổi, rồi đưa vào dịch vụ AI do mentor chọn để phân tích. File đã tải và dữ liệu đã đưa vào dịch vụ đó thì app không quản lý hay xoá được, kể cả sau khi mentor bấm "Kết thúc".' },
   { icon: 'user-check', lead: 'Không tham gia vẫn học bình thường.', text: 'Mentor không thấy tên người không tham gia.' },
 ];
+
+/** "Bạn đang chọn: Tham gia · Làm ví dụ: Không": what the two boxes add up to, so nothing is a surprise at the button. */
+export function consentSummary(joined: boolean, teaching: boolean): string {
+  return `Bạn đang chọn: ${joined ? 'Tham gia' : 'Chưa đồng ý tham gia'} · Làm ví dụ: ${teaching ? 'Có' : 'Không'}`;
+}

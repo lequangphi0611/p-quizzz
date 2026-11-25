@@ -225,6 +225,10 @@ export class DrizzleTrainingEventRepository implements TrainingEventRepository {
     await this.access(db => db.insert(trainingTeachingExamples).values(example).onConflictDoUpdate({ target: trainingTeachingExamples.eventId, set: fields }).run());
   }
 
+  async setTeachingReviewed(eventId: number, at: Date | null): Promise<void> {
+    await this.access(db => db.update(trainingTeachingExamples).set({ reviewedAt: at }).where(eq(trainingTeachingExamples.eventId, eventId)).run());
+  }
+
   async deleteTeachingExample(eventId: number): Promise<void> {
     await this.access(db => db.delete(trainingTeachingExamples).where(eq(trainingTeachingExamples.eventId, eventId)).run());
   }

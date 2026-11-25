@@ -32,7 +32,14 @@ async function setup() {
   const detail = async (id: number) => (await admin('GET', `/trainings/${id}`)).json<TrainingDetail>();
   const put = (t: CreatedTraining, eventId: number, body: object = BODY) => admin('PUT', `/trainings/${t.id}/events/${eventId}/teaching-example`, body);
   const list = async (t: CreatedTraining) => (await admin('GET', `/trainings/${t.id}/teaching-examples`)).json<TeachingExamplesResponse>().examples;
-  const file = (t: CreatedTraining, query = '?confirmed=1') => admin('GET', `/trainings/${t.id}/teaching-examples.md${query}`);
+  const fileRaw = (t: CreatedTraining) => admin('GET', `/trainings/${t.id}/teaching-examples.md`);
+  const review = (t: CreatedTraining, eventId: number, reviewed = true) => admin(reviewed ? 'PUT' : 'DELETE', `/trainings/${t.id}/events/${eventId}/teaching-example/reviewed`);
+  /** Marks every example reviewed (as the mentor does on the review screen), then downloads. */
+  const file = async (t: CreatedTraining) => {
+    const listed = await admin('GET', `/trainings/${t.id}/teaching-examples`);
+    if (listed.statusCode === 200) for (const e of listed.json<TeachingExamplesResponse>().examples) await review(t, e.eventId);
+    return fileRaw(t);
+  };
   /** A member who agreed, with one prompt followed by a command. */
   const agreed = async (t: CreatedTraining, name = 'Nguyễn Văn An') => {
     const m = await member(t, name, true);
@@ -41,7 +48,7 @@ async function setup() {
     const [prompt, toolRow] = await timeline(t, m.id);
     return { ...m, prompt: prompt!, tool: toolRow! };
   };
-  return { app, db, clock, headers, admin, training, member, ingest, timeline, detail, put, list, file, agreed };
+  return { app, db, clock, headers, admin, training, member, ingest, timeline, detail, put, list, file, fileRaw, review, agreed };
 }
 
 describe('the teaching consent at joining (S44)', () => {
@@ -142,7 +149,7 @@ describe('making an example (S44)', () => {
 
   it('needs the mentor', async () => {
     const s = await setup();
-    for (const [method, url] of [['PUT', '/events/1/teaching-example'], ['DELETE', '/events/1/teaching-example'], ['GET', '/teaching-examples'], ['GET', '/teaching-examples.md?confirmed=1']] as const) {
+    for (const [method, url] of [['PUT', '/events/1/teaching-example'], ['DELETE', '/events/1/teaching-example'], ['GET', '/teaching-examples'], ['GET', '/teaching-examples.md'], ['PUT', '/events/1/teaching-example/reviewed'], ['DELETE', '/events/1/teaching-example/reviewed']] as const) {
       expect((await s.app.inject({ method, url: `/api/admin/trainings/1${url}` })).statusCode).toBe(401);
     }
   });
@@ -170,20 +177,25 @@ describe('the review list (S44)', () => {
 });
 
 describe('the file (S44)', () => {
-  it('needs confirmed=1 (400 review_not_confirmed) and at least one example (404 no_examples)', async () => {
+  it('needs at least one example (404 no_examples) and every example reviewed (400 examples_not_reviewed, with the count)', async () => {
     const s = await setup();
     const t = await s.training();
     const an = await s.agreed(t);
-    const empty = await s.file(t);
+    const mai = await s.agreed(t, 'Mai');
+    const empty = await s.fileRaw(t);
     expect(empty.statusCode).toBe(404);
     expect(empty.json()).toMatchObject({ code: 'no_examples' });
     await s.put(t, an.prompt.id);
-    for (const q of ['', '?confirmed=0', '?confirmed=true']) {
-      const res = await s.file(t, q);
-      expect(res.statusCode).toBe(400);
-      expect(res.json()).toMatchObject({ code: 'review_not_confirmed' });
-    }
-    const ok = await s.file(t);
+    await s.put(t, mai.prompt.id);
+    const none = await s.fileRaw(t);
+    expect(none.statusCode).toBe(400);
+    expect(none.json()).toMatchObject({ code: 'examples_not_reviewed', unreviewed: 2 });
+    await s.review(t, an.prompt.id);
+    const one = await s.fileRaw(t);
+    expect(one.statusCode).toBe(400);
+    expect(one.json()).toMatchObject({ code: 'examples_not_reviewed', unreviewed: 1 });
+    await s.review(t, mai.prompt.id);
+    const ok = await s.fileRaw(t);
     expect(ok.statusCode).toBe(200);
     expect(ok.headers['content-type']).toBe('text/markdown; charset=utf-8');
     expect(ok.headers['content-disposition']).toBe(`attachment; filename="vi-du-${t.id}.md"`);
@@ -255,6 +267,69 @@ describe('the file (S44)', () => {
   });
 });
 
+describe('reviewing each example (S44)', () => {
+  it('is saved on the server, idempotent, taken back by DELETE, and shown in the list', async () => {
+    const s = await setup();
+    const t = await s.training();
+    const an = await s.agreed(t);
+    await s.put(t, an.prompt.id);
+    expect((await s.list(t))[0]!.reviewed).toBe(false);
+    for (let i = 0; i < 2; i++) expect((await s.review(t, an.prompt.id)).statusCode).toBe(204);
+    expect((await s.list(t))[0]!.reviewed).toBe(true);
+    for (let i = 0; i < 2; i++) expect((await s.review(t, an.prompt.id, false)).statusCode).toBe(204);
+    expect((await s.list(t))[0]!.reviewed).toBe(false);
+  });
+
+  it('is cleared by any save that changes the content, but not by the same content again', async () => {
+    const s = await setup();
+    const t = await s.training();
+    const an = await s.agreed(t);
+    await s.put(t, an.prompt.id);
+    await s.review(t, an.prompt.id);
+    await s.put(t, an.prompt.id); // same content
+    expect((await s.list(t))[0]!.reviewed).toBe(true);
+    for (const change of [{ label: 'good' }, { topic: 'risk' }, { comment: 'khác' }, { betterPrompt: 'tốt hơn' }, { editedPrompt: 'đã sửa' }, { editedContext: '✓ Bash x' }]) {
+      await s.review(t, an.prompt.id);
+      expect((await s.put(t, an.prompt.id, { ...BODY, ...change })).json<TeachingExampleRow>().reviewed, JSON.stringify(change)).toBe(false);
+      await s.put(t, an.prompt.id, BODY);
+    }
+  });
+
+  it('refuses an event without an example, another training, an unknown event (404), and an ended training (409)', async () => {
+    const s = await setup();
+    const a = await s.training();
+    const b = await s.training();
+    const an = await s.agreed(a);
+    expect((await s.review(a, an.prompt.id)).statusCode).toBe(404); // no example yet
+    await s.put(a, an.prompt.id);
+    expect((await s.review(b, an.prompt.id)).statusCode).toBe(404);
+    expect((await s.review(a, 9999)).statusCode).toBe(404);
+    await s.admin('POST', `/trainings/${a.id}/stop`);
+    await s.admin('POST', `/trainings/${a.id}/end`);
+    expect((await s.review(a, an.prompt.id)).statusCode).toBe(409);
+  });
+});
+
+describe('home folders in the file (S44)', () => {
+  it('are masked in the default prompt and context, and again in edited text and comments; the report keeps what was collected', async () => {
+    const s = await setup();
+    const t = await s.training();
+    const an = await s.member(t, 'An', true);
+    await s.ingest(an.ingestToken, { ...userPromptSubmit, prompt: 'đọc /home/lan/bai-tap/a.ts và C:\\Users\\Lan\\x' });
+    await s.ingest(an.ingestToken, { ...postToolUseBash, tool_input: { command: 'cat /Users/lan/bai-tap/b.ts' } });
+    const [prompt] = await s.timeline(t, an.id);
+    await s.admin('PUT', `/trainings/${t.id}/members/${an.id}/note`, { note: 'ok' });
+    await s.admin('PUT', `/trainings/${t.id}/events/${prompt!.id}/mark`);
+    const row = (await s.put(t, prompt!.id, { ...BODY, comment: 'xem /home/mai/y' })).json<TeachingExampleRow>();
+    expect(row.defaultPrompt).toBe('đọc ~/bai-tap/a.ts và ~\\x');
+    expect(row.defaultContext).toBe('✓ Bash cat ~/bai-tap/b.ts');
+    const { body } = await s.file(t);
+    for (const leaked of ['/home/lan', '/Users/lan', 'C:\\Users', '/home/mai']) expect(body).not.toContain(leaked);
+    expect(body).toContain('xem ~/y');
+    expect((await s.admin('GET', `/trainings/${t.id}/report.md`)).body).toContain('/home/lan/bai-tap/a.ts'); // not touched
+  });
+});
+
 describe('the reminder before ending (S44)', () => {
   it('counts examples never downloaded, drops to 0 after a download, and counts again an example saved or edited after it', async () => {
     const s = await setup();
@@ -268,7 +343,7 @@ describe('the reminder before ending (S44)', () => {
     expect((await s.detail(t.id)).unexportedExampleCount).toBe(2);
 
     s.clock.advance(1000);
-    expect((await s.file(t, '?confirmed=0')).statusCode).toBe(400); // a refused download exports nothing
+    expect((await s.fileRaw(t)).statusCode).toBe(400); // not reviewed: a refused download exports nothing
     expect((await s.detail(t.id)).unexportedExampleCount).toBe(2);
     expect((await s.file(t)).statusCode).toBe(200);
     expect((await s.detail(t.id)).unexportedExampleCount).toBe(0);

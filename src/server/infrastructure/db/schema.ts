@@ -344,6 +344,8 @@ export const trainingTeachingExamples = sqliteTable('training_teaching_examples'
   betterPrompt: text('better_prompt'),
   editedPrompt: text('edited_prompt'),
   editedContext: text('edited_context'),
+  // S44 AC13: when the mentor marked this example reviewed; cleared by any save that changes its content.
+  reviewedAt: ts('reviewed_at'),
   updatedAt: ts('updated_at').notNull(),
 });
 

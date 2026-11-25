@@ -19,11 +19,12 @@ export const rowBox = (active: boolean, focused: boolean): CSSProperties => ({
 });
 
 /** Picks a row as an example for the report (or drops it). A bookmark with a tick when it is picked. */
-export function MarkButton({ id, marked, onToggle }: { id: number; marked: boolean; onToggle: (id: number) => void }) {
+export function MarkButton({ id, marked, onToggle, withText = false }: { id: number; marked: boolean; onToggle: (id: number) => void; withText?: boolean }) {
+  const label = marked ? 'Bỏ đánh dấu cho báo cáo' : 'Đánh dấu cho báo cáo';
   return (
-    <button type="button" data-mark={id} aria-pressed={marked} title={marked ? 'Bỏ đánh dấu cho báo cáo' : 'Đánh dấu cho báo cáo'} aria-label={marked ? 'Bỏ đánh dấu cho báo cáo' : 'Đánh dấu cho báo cáo'} onClick={() => onToggle(id)}
-      style={{ display: 'inline-grid', placeItems: 'center', width: 28, height: 28, padding: 0, border: 0, borderRadius: 'var(--radius-sm)', cursor: 'pointer', flex: 'none', background: marked ? 'var(--brand-050)' : 'transparent', color: marked ? 'var(--brand-700)' : 'var(--ink-500)' }}>
-      <Icon name={marked ? 'bookmark-check' : 'bookmark-plus'} size={16} />
+    <button type="button" data-mark={id} aria-pressed={marked} title={label} aria-label={label} onClick={() => onToggle(id)}
+      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, height: 28, minWidth: 28, padding: withText ? '0 8px' : 0, border: 0, borderRadius: 'var(--radius-sm)', cursor: 'pointer', flex: 'none', font: 'var(--type-label)', fontSize: 12.5, background: marked ? 'var(--brand-050)' : 'transparent', color: marked ? 'var(--brand-700)' : 'var(--ink-600)' }}>
+      <Icon name={marked ? 'bookmark-check' : 'bookmark-plus'} size={16} />{withText && 'Báo cáo'}
     </button>
   );
 }

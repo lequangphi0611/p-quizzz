@@ -33,7 +33,9 @@ export interface TrainingAdminGateway {
   deleteTeachingExample(trainingId: number, eventId: number): Promise<void>;
   /** Every example with the prompt and context as they would go in the file, for the review screen. */
   teachingExamples(trainingId: number): Promise<TeachingExampleRow[]>;
-  /** The Markdown file of the examples (needs the mentor's "đã rà" tick). Not the report: nothing is recorded as exported. */
+  /** "Đã rà ví dụ này" (true) or taking it back (false), kept on the server. */
+  setTeachingReviewed(trainingId: number, eventId: number, reviewed: boolean): Promise<void>;
+  /** The Markdown file of the examples (400 `examples_not_reviewed` until every example is reviewed). Not the report: nothing is recorded as exported. */
   exportTeachingExamples(trainingId: number): Promise<string>;
   /** How many members and events the chosen days and members hold, and how big the zip would be (S41). Nothing is built. */
   exportSummary(trainingId: number, params: ExportParams): Promise<TrainingExportSummary>;

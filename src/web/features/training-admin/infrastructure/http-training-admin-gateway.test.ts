@@ -43,7 +43,7 @@ describe('HttpTrainingAdminGateway', () => {
     expect(JSON.parse((f.mock.calls[2]![1] as RequestInit).body as string)).toEqual({ note: 'Nhắc chạy test' });
   });
 
-  it('teaching examples (S44): the right verbs and paths; the file needs confirmed=1 and comes back as text', async () => {
+  it('teaching examples (S44): the right verbs and paths; review marks, and the file comes back as text', async () => {
     const f = vi.fn(async (url: string, init?: RequestInit) => {
       if (url.endsWith('teaching-examples')) return new Response(JSON.stringify({ examples: [{ eventId: 4 }] }), { status: 200 });
       if (url.includes('teaching-examples.md')) return new Response('# Ví dụ', { status: 200 });
@@ -53,11 +53,14 @@ describe('HttpTrainingAdminGateway', () => {
     const body = { label: 'good' as const, topic: 'other' as const, comment: 'ok', betterPrompt: null, editedPrompt: null, editedContext: null };
     await g.saveTeachingExample(3, 4, body);
     await g.deleteTeachingExample(3, 4);
+    await g.setTeachingReviewed(3, 4, true);
+    await g.setTeachingReviewed(3, 4, false);
     expect(await g.teachingExamples(3)).toEqual([{ eventId: 4 }]);
     expect(await g.exportTeachingExamples(3)).toBe('# Ví dụ');
     expect(f.mock.calls.map(c => [(c[1] as RequestInit).method, c[0]])).toEqual([
       ['PUT', '/api/admin/trainings/3/events/4/teaching-example'], ['DELETE', '/api/admin/trainings/3/events/4/teaching-example'],
-      ['GET', '/api/admin/trainings/3/teaching-examples'], ['GET', '/api/admin/trainings/3/teaching-examples.md?confirmed=1'],
+      ['PUT', '/api/admin/trainings/3/events/4/teaching-example/reviewed'], ['DELETE', '/api/admin/trainings/3/events/4/teaching-example/reviewed'],
+      ['GET', '/api/admin/trainings/3/teaching-examples'], ['GET', '/api/admin/trainings/3/teaching-examples.md'],
     ]);
     expect(JSON.parse((f.mock.calls[0]![1] as RequestInit).body as string)).toEqual(body);
   });

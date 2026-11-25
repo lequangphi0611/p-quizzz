@@ -1,7 +1,6 @@
 import type { TeachingExampleBody, TeachingExampleRow } from '../../../../shared/api/training.js';
-import { TeachingConsentMissingError, TeachingExampleNotPromptError, TeachingExamplesEmptyError, TeachingReviewNotConfirmedError, TrainingEventNotFoundError, TrainingNotFoundError, TrainingStateError } from '../../../domain/training/errors.js';
-import { maskSecrets } from '../../../domain/training/secrets.js';
-import { buildTeachingExamplesFile, buildTurnContext } from '../../../domain/training/teaching-examples.js';
+import { TeachingConsentMissingError, TeachingExampleNotPromptError, TeachingExamplesEmptyError, TeachingExamplesNotReviewedError, TrainingEventNotFoundError, TrainingNotFoundError, TrainingStateError } from '../../../domain/training/errors.js';
+import { buildTeachingExamplesFile, buildTurnContext, maskForExample } from '../../../domain/training/teaching-examples.js';
 import type { Clock } from '../../ports/clock.js';
 import type { TeachingExampleRecord, TrainingEventReader } from '../../ports/training-event-repository.js';
 import type { TrainingMemberReader, TrainingReader, TrainingUnitContext } from '../../ports/training-repository.js';
@@ -39,7 +38,7 @@ class TimelineCache {
   async defaults(memberId: number, eventId: number): Promise<{ prompt: string; context: string }> {
     const events = await this.of(memberId);
     return {
-      prompt: maskSecrets(events.find(e => e.id === eventId)?.prompt ?? ''),
+      prompt: maskForExample(events.find(e => e.id === eventId)?.prompt ?? ''),
       context: buildTurnContext(events, eventId),
     };
   }
@@ -59,6 +58,7 @@ async function toRow(record: TeachingExampleRecord & { memberId: number }, membe
     editedContext: record.editedContext,
     defaultPrompt: d.prompt,
     defaultContext: d.context,
+    reviewed: record.reviewedAt !== null,
     updatedAt: record.updatedAt.getTime(),
   };
 }
@@ -80,7 +80,7 @@ export class SaveTeachingExample {
       if (!member?.teachingConsent) throw new TeachingConsentMissingError();
 
       const old = await events.getTeachingExample(eventId);
-      const next: TeachingExampleRecord = { eventId, ...body, updatedAt: this.deps.clock.now() };
+      const next: TeachingExampleRecord = { eventId, ...body, reviewedAt: null, updatedAt: this.deps.clock.now() };
       const unchanged =
         old !== null &&
         old.label === next.label && old.topic === next.topic && old.comment === next.comment &&
@@ -106,6 +106,22 @@ export class DeleteTeachingExample {
   }
 }
 
+/** "Đã rà ví dụ này" (PUT) and taking it back (DELETE). Both idempotent; a prompt without an example is "not found". */
+export class SetTeachingReviewed {
+  constructor(private readonly deps: { unitOfWork: UnitOfWork<TrainingUnitContext>; clock: Clock }) {}
+
+  async execute(trainingId: number, eventId: number, reviewed: boolean): Promise<void> {
+    await this.deps.unitOfWork.run(async ({ trainings, events }) => {
+      await openTraining(trainings, trainingId);
+      const owner = await events.getEventOwner(eventId);
+      if (!owner || owner.trainingId !== trainingId || !(await events.getTeachingExample(eventId))) throw new TrainingEventNotFoundError();
+      const old = await events.getTeachingExample(eventId);
+      if (reviewed && old?.reviewedAt) return; // already reviewed: keeps the first time
+      await events.setTeachingReviewed(eventId, reviewed ? this.deps.clock.now() : null);
+    });
+  }
+}
+
 /** The review screen's list: every example with the prompt and the context as they would go in the file. Has member names: mentor only. */
 export class ListTeachingExamples {
   constructor(private readonly deps: { trainings: TrainingReader; members: TrainingMemberReader; events: TrainingEventReader }) {}
@@ -120,18 +136,19 @@ export class ListTeachingExamples {
 }
 
 /**
- * The file (PRODUCT.md §7.39d). `confirmed` is the mentor's "Tôi đã rà" tick. No member name, date, session number, output or file
+ * The file (PRODUCT.md §7.39d). Every example must be marked reviewed (else 400 `examples_not_reviewed`). No member name, date, session number, output or file
  * change goes in. It does not count as exporting the report: `report_exported_at` stays as it was.
  */
 export class ExportTeachingExamples {
   constructor(private readonly deps: { trainings: TrainingReader; members: TrainingMemberReader; events: TrainingEventReader; unitOfWork: UnitOfWork<TrainingUnitContext>; clock: Clock; signals: TrainingSignals }) {}
 
-  async execute(trainingId: number, options: { confirmed: boolean }): Promise<string> {
+  async execute(trainingId: number): Promise<string> {
     const training = await openTraining(this.deps.trainings, trainingId);
-    if (!options.confirmed) throw new TeachingReviewNotConfirmedError();
     const exportedAt = this.deps.clock.now();
     const records = await this.deps.events.listTeachingExamples(trainingId);
     if (records.length === 0) throw new TeachingExamplesEmptyError();
+    const unreviewed = records.filter(r => r.reviewedAt === null).length;
+    if (unreviewed > 0) throw new TeachingExamplesNotReviewedError(unreviewed);
     const cache = new TimelineCache(this.deps.events);
     const examples = await Promise.all(
       records.map(async r => {
