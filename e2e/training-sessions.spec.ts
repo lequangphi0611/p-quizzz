@@ -125,15 +125,21 @@ test('two sessions at once: blocks, new marks that fade after 2 seconds, the mem
   await expect(blockHeads(page).nth(1)).toHaveAttribute('aria-expanded', 'true');
   await page.screenshot({ path: shotPath('S43', 'all') });
 
-  // The mentor goes to Mai, so Lan is not in view: events arrive for Lan.
-  await page.getByRole('button', { name: 'Mai', exact: true }).click();
-  await expect(frame(page).getByText('Mai: một prompt')).toBeVisible();
+  // The mentor is on the list with nobody picked (the wide table): events arrive for Lan.
+  await page.goto(`/admin/trainings/${id}`);
+  await expect(page.getByRole('button', { name: 'Lan', exact: true })).toBeVisible();
   await sendLan(prompt('B: prompt mới nhất', B), prompt('A: viết test cho giỏ hàng', A), bash('npm test', A));
   // The list counts new prompts only, with the word "mới"; the command of an old prompt would not be counted.
   const lanRow = page.locator('tr', { has: page.getByRole('button', { name: 'Lan', exact: true }) });
   await expect(lanRow.locator('[data-member-new]')).toContainText('2 mới');
   await expect(page.getByRole('button', { name: 'Lan', exact: true })).toHaveAccessibleDescription('2 prompt có mục mới');
+  // "N mới" sits at the right edge of the row, after the last column; the state of a learner is a line under the name.
+  const table = await box(page.getByRole('table', { name: 'Học viên' }));
+  const badgeBox = await box(lanRow.locator('[data-member-new]'));
+  expect(table.x + table.width - (badgeBox.x + badgeBox.width)).toBeLessThan(24);
   await page.screenshot({ path: shotPath('S43', 'members') });
+  await page.getByRole('button', { name: 'Mai', exact: true }).click(); // Lan is not in view
+  await expect(frame(page).getByText('Mai: một prompt')).toBeVisible();
 
   // Block 1 (folded, ended with /clear) got a prompt: it stays folded and says how many prompts are new.
   await setFocus(false); // the window is not in front: nothing is read while the mentor "is away"
@@ -308,6 +314,11 @@ test('a session across midnight, flags that open a folded block, and a day with 
   await expect(yesterday.locator('button[id^="block-"]').first()).toContainText('08:40–00:03'); // the turn that crossed midnight stays with its prompt
   await expect(yesterday.getByText('23:50: gom thay đổi để commit')).toBeVisible();
   await page.screenshot({ path: shotPath('S43', 'midnight') });
+
+  // The learner's state is a secondary line under the name; the row's buttons are in the design's order, and "Ẩn nội dung" is on the row.
+  await expect(page.locator('[data-member-status]')).toContainText('có thể đang kẹt');
+  const order = await page.getByLabel('Dòng thời gian của Minh').getByRole('button').evaluateAll(els => els.map(e => e.textContent ?? '').filter(t => /Đánh dấu đã đọc hết|tất cả|nội dung/.test(t)));
+  expect(order.map(t => t.replace(/\s*H$/, ''))).toEqual(['Đánh dấu đã đọc hết', 'Thu tất cả', 'Ẩn nội dung']);
 
   // The pinned day header names the session whose own header has scrolled away.
   const key = (await yesterday.getAttribute('data-day-group'))!;

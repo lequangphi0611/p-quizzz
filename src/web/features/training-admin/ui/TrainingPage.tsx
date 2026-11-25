@@ -99,7 +99,8 @@ function Header({ state, ctrl, onBack }: { state: TrainingState; ctrl: TrainingC
         <h1 style={{ font: 'var(--type-h1)', color: 'var(--text-title)', margin: 0, overflowWrap: 'anywhere', minWidth: 0 }}>{detail.name}</h1>
         <TrainingStatusBadge status={detail.status} size="lg" />
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {detail.status !== 'ended' && (
+          {/* With a member picked the button is on that member's row (S43); here only until then. H works either way. */}
+          {detail.status !== 'ended' && state.selectedId === null && (
             <Button variant="secondary" icon={hidden ? 'eye' : 'eye-off'} pressed={hidden} shortcut="H" onClick={() => ctrl.toggleHidden()}>{hidden ? 'Hiện nội dung' : 'Ẩn nội dung'}</Button>
           )}
           {detail.status !== 'ended' && detail.members.length > 0 && <Button variant="secondary" icon="download" onClick={() => void ctrl.openReport()}>Xuất báo cáo</Button>}

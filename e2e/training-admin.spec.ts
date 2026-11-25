@@ -113,7 +113,7 @@ test('mentor runs an AI training: room code, members, timeline, output, stop, en
   await expect(rows).toHaveCount(4);
   await expect(rows.nth(0)).toContainText('An');
   await expect(rows.nth(1)).toContainText('Bình');
-  await expect(rows.nth(1)).toContainText('Có thể đang kẹt', { timeout: 6_000 });
+  await expect(rows.nth(1)).toContainText('Có thể đang kẹt', { timeout: 6_000, ignoreCase: true }); // a secondary line under the name since S43
   await expect(rows.nth(2)).toContainText('Chi');
   await expect(rows.nth(2)).toContainText('Chưa nhận tín hiệu');
   await expect(page.getByRole('columnheader', { name: /điểm|hạng/i })).toHaveCount(0);

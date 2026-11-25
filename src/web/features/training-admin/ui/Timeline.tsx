@@ -397,14 +397,14 @@ export function Timeline({ member, timeline, panel, hidden, markError, read, ctr
           <h2 style={{ margin: 0, font: '700 18px/1.3 var(--font-sans)', color: 'var(--text-title)', overflowWrap: 'anywhere' }}>{member.displayName}</h2>
           <ConnectionChip row={member} />
           {member.stuck && <StuckChip />}
-          {(canRemove || showToggle || !hidden) && (
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-              {!hidden && timeline.phase === 'ready' && <Button variant="ghost" size="sm" icon="list-checks" disabled={unreadLoaded === 0} onClick={() => ctrl.markAllRead()}>Đánh dấu đã đọc hết</Button>}
-              {showToggle && <Button variant="ghost" size="sm" icon="list" onClick={() => ctrl.setAllOpen(!allOpen)}>{allOpen ? 'Thu tất cả' : 'Mở tất cả'}</Button>}
-              {canRemove && !hidden && <Button variant="ghost" size="sm" icon="pencil" pressed={noteOpen} onClick={() => setNoteOpen(o => !o)}>{member.mentorNote ? 'Ghi chú ✓' : 'Ghi chú'}</Button>}
-              {canRemove && <Button variant="ghost" size="sm" icon="user-x" onClick={onRemove}>Mời ra</Button>}
-            </div>
-          )}
+          {/* The learner row's buttons, in the design's order: mark all read · open/fold all · hide the content (H), then the note and "Mời ra". Narrow: they wrap to a line of their own. */}
+          <div style={{ marginLeft: narrow ? 0 : 'auto', flexBasis: narrow ? '100%' : undefined, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            {!hidden && timeline.phase === 'ready' && <Button variant="ghost" size="sm" icon="list-checks" disabled={unreadLoaded === 0} onClick={() => ctrl.markAllRead()}>Đánh dấu đã đọc hết</Button>}
+            {showToggle && <Button variant="ghost" size="sm" icon="list" onClick={() => ctrl.setAllOpen(!allOpen)}>{allOpen ? 'Thu tất cả' : 'Mở tất cả'}</Button>}
+            {canRemove && <Button variant="ghost" size="sm" icon={hidden ? 'eye' : 'eye-off'} pressed={hidden} shortcut="H" onClick={() => ctrl.toggleHidden()}>{hidden ? 'Hiện nội dung' : 'Ẩn nội dung'}</Button>}
+            {canRemove && !hidden && <Button variant="ghost" size="sm" icon="pencil" pressed={noteOpen} onClick={() => setNoteOpen(o => !o)}>{member.mentorNote ? 'Ghi chú ✓' : 'Ghi chú'}</Button>}
+            {canRemove && <Button variant="ghost" size="sm" icon="user-x" onClick={onRemove}>Mời ra</Button>}
+          </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px 10px', flexWrap: 'wrap', font: 'var(--type-meta)', fontSize: 13, color: 'var(--text-meta)' }}>
           <span>{[memberCountsText(member), memberExtraCountsText(member)].filter(Boolean).join(' · ')} · lần cuối thấy {formatLastSeen(member.lastSeenAt, now)}</span>

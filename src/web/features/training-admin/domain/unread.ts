@@ -84,14 +84,15 @@ export function markTurnsRead(state: ReadState, memberId: number, marks: readonl
 }
 
 /**
- * "Đánh dấu đã đọc hết": every loaded turn is read. When the whole timeline is loaded the record is also settled at the member's
- * current `promptCount`, so the list shows nothing for them until a new prompt arrives.
+ * "Đánh dấu đã đọc hết": every loaded turn is read. When the whole timeline is loaded the record is also settled at the number of
+ * prompts **in the loaded events** (not at the member's `promptCount`, which is refreshed separately and may be a prompt ahead or
+ * behind), so the list shows only the prompts that are not loaded yet, whichever answer arrived first.
  */
-export function markAllRead(state: ReadState, member: Pick<TrainingMemberRow, 'id' | 'promptCount'>, turns: readonly Turn[], complete: boolean): ReadState {
+export function markAllRead(state: ReadState, member: Pick<TrainingMemberRow, 'id'>, turns: readonly Turn[], complete: boolean): ReadState {
   const next = markTurnsRead(state, member.id, turns.map(turn => ({ turn, maxId: maxEventId(turn) })));
   const read = next.members[String(member.id)];
   if (!read || !complete) return next;
-  return { members: { ...next.members, [String(member.id)]: { ...read, baselinePromptCount: member.promptCount, readPromptCount: 0 } } };
+  return { members: { ...next.members, [String(member.id)]: { ...read, baselinePromptCount: turns.filter(t => t.prompt !== null).length, readPromptCount: 0 } } };
 }
 
 /** Puts a member's record back exactly as it was (the undo of "Đánh dấu đã đọc hết"). */

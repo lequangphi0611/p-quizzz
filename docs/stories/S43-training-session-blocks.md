@@ -1,6 +1,6 @@
 # S43: Training: gom theo phiên Claude Code (kể cả song song) và đánh dấu prompt mới
 
-**Phụ thuộc:** S39, S41, S42 · **Trạng thái:** ✅ (spec và thiết kế xong 2026-11-25; [prompt designer](../design/S43-training-session-blocks-ui-prompt.md), [thiết kế](../design/S43-design/))
+**Phụ thuộc:** S39, S41, S42 · **Trạng thái:** ⏳ (spec và thiết kế xong 2026-11-25; [prompt designer](../design/S43-training-session-blocks-ui-prompt.md), [thiết kế](../design/S43-design/))
 
 ## Bối cảnh
 Member có thể mở nhiều phiên Claude Code cùng lúc trong thư mục bài tập. Mã hiện tại coi các phiên nối tiếp nhau. Ví dụ `buildTimeline` (`src/web/features/training-admin/domain/timeline.ts`): mỗi khi `claudeSessionId` của sự kiện kế tiếp khác sự kiện trước, nó chèn một dải "Phiên N · mở lúc" và mở một lượt mới. Khi hai phiên xen nhau thì:
@@ -109,7 +109,8 @@ Các khối trong một ngày xếp theo `firstAt` cũ → mới; lượt trong 
 - [x] Chip "N sự kiện mới" đếm theo lượt chưa đọc.
 - [x] Ẩn nội dung: không lộ nổi bật hay số mới trong dòng thời gian, không đếm đọc.
 - [x] Buổi đã kết thúc thì key `localStorage` của buổi bị xoá.
-- [x] `npm run typecheck`, `npm test` (gồm `arch:check`) pass; `npm run e2e` không có lỗi mới.
+- [x] `npm run typecheck`, `npm test` (gồm `arch:check`) pass.
+- [ ] `npm run e2e` không có lỗi mới (mới chạy các spec training: chỉ còn lỗi cũ `training-export.spec.ts:99`; chưa chạy toàn bộ bộ e2e).
 
 ## Test
 - Server domain: test cho từng cờ đổi sang theo phiên, gồm ca hai phiên xen nhau (dùng `flags/test-events.ts`, thêm tham số `claudeSessionId`). Test `inferPermissionDecision` cho ca xen phiên. Test `isStuck` theo phiên. Test `buildMemberFile` nhóm ngày → phiên → prompt và lượt qua nửa đêm.
@@ -180,7 +181,7 @@ Các file là HTML của công cụ thiết kế, không chạy trong app. Token
 - "Mở tất cả / Thu tất cả" áp cho cả ngày lẫn khối (theo frame 2).
 
 ### Acceptance criteria (thiết kế)
-- [x] Tiêu đề khối, nhãn kết thúc, nút song song, chấm mốc, khoảng cách khớp Spec (token tương ứng trong app).
+- [ ] Tiêu đề khối, nhãn kết thúc, nút song song, chấm mốc, khoảng cách khớp Spec (token tương ứng trong app). (Đã làm theo Spec, nhưng số đo px chưa có assertion tự động; cần reviewer đối chiếu ảnh.)
 - [x] Bấm "Song song với phiên M" thì mở và cuộn tới khối M.
 - [x] Tiêu đề ngày đang dính ghi thêm "· Phiên N" khi tiêu đề khối đã cuộn qua.
 - [x] Thẻ prompt mới / prompt cũ có lệnh mới / đang mờ / đã đọc khớp `PromptCard.dc.html`. Dải "Lệnh mới" chỉ bị bỏ khi thẻ ngoài khung nhìn, nội dung đang đọc không nhảy.
@@ -195,5 +196,6 @@ Các file là HTML của công cụ thiết kế, không chạy trong app. Token
 - **Web domain**: `buildTimeline` giữ lượt hiện tại theo phiên (bỏ item `session`), `session-blocks.ts`, `day-groups.ts` (khối, `placesByEvent`, `stepEvent` theo thứ tự hiển thị), `unread.ts`, `read-dwell.ts`, `isCardReadable`. `endedBy` lấy trên cả buổi; `continuedFrom`/`continuesTo` là ngày (ms) của khối liền trước/sau; hiển thị `next` khi có `continuesTo`. Khối mặc định mở khi `endedBy === null` hoặc có mục chưa đọc.
 - **Đã đọc**: record có thêm `readPromptCount` (số prompt sau mốc đã đọc) để số ở danh sách member tính được mà không cần tải sự kiện. Sự kiện `notice` không làm lượt "mới". Hoàn tác và dọn key ở controller; port `TrainingReadStore`, adapter `LocalStorageTrainingReadStore`, context `TrainingReadStoreContext`.
 - **UI**: `SessionBlockHeader` (thay `SessionMarker`), `NewBadge`, `PromptEventStrip`, `UndoToast` (không có toast dùng chung nên đặt trong feature), `DayGroupHeader` thêm `newCount` và "· Phiên N". Mô tả truy cập của số ở danh sách member dùng `aria-describedby` để tên nút vẫn là tên học viên.
-- **Chưa làm / lệch thiết kế**: nút "Ẩn nội dung" vẫn ở header trang (không chuyển vào hàng học viên); trạng thái học viên ở danh sách vẫn là chip cạnh tên, chưa đổi thành dòng phụ; nhãn "Ví dụ" trên thẻ prompt chưa có (app chỉ có nút đánh dấu).
-- **E2E**: `e2e/training-sessions.spec.ts` (3 test), sửa `training-multi-day.spec.ts` và `training-admin.spec.ts` cho khối phiên và chip mới. Ảnh ở `docs/design/S43-assets/`. Zip theo khoảng ngày vẫn lọc sự kiện theo `receivedAt` của từng sự kiện (lượt qua nửa đêm ở rìa khoảng xuất có thể thiếu phần sau 0 giờ).
+- **Sau review vòng 1**: zip theo khoảng ngày chọn lượt theo ngày của prompt (`export-selection.ts`, reader `listEventSkeleton` + `listForExportByIds`, thay `listForExport`), số phiên theo cả buổi, số sự kiện ở bước đếm của hộp thoại xuất cũng theo lượt (kích thước vẫn ước theo ngày). Danh sách member: trạng thái học viên là dòng phụ dưới tên, "N mới" ở mép phải cả bảng rộng. Hàng học viên theo thứ tự "Đánh dấu đã đọc hết · Mở/Thu tất cả · Ẩn nội dung" (chưa chọn member thì nút Ẩn nội dung ở header trang; phím H như cũ). "Đánh dấu đã đọc hết" chốt mốc theo số prompt trong sự kiện đã tải. "Song song với phiên 7, 9": mỗi số là một nút.
+- **Ngoài phạm vi (đã chấp nhận)**: nhãn "Ví dụ" trên thẻ prompt, app không có nhãn này, giữ kiểu đánh dấu sẵn có.
+- **E2E**: `e2e/training-sessions.spec.ts` (3 test), sửa `training-multi-day.spec.ts` và `training-admin.spec.ts` cho khối phiên và chip mới. Ảnh ở `docs/design/S43-assets/`. 

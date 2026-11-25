@@ -16,6 +16,8 @@ function Summary({ range, counts }: { range: string; counts?: BlockCounts }) {
   );
 }
 
+const parallelStyle = { display: 'inline-flex', alignItems: 'center', height: 24, padding: '0 8px', borderRadius: 8, border: '1px solid var(--ink-300)', background: 'transparent', color: 'var(--ink-800)', font: '500 12px/1 var(--font-sans)', cursor: 'pointer', whiteSpace: 'nowrap' } as const;
+
 const pill = { display: 'inline-flex', alignItems: 'center', height: 20, padding: '0 8px', borderRadius: 999, background: 'var(--ink-100)', color: 'var(--ink-700)', font: '500 12px/1 var(--font-sans)', whiteSpace: 'nowrap' } as const;
 
 /** How the session ended: `/clear` like a command, "thoát" and the continuations as pills, "chưa kết thúc" dashed (no signal yet, not "running"). */
@@ -50,11 +52,21 @@ export function SessionBlockHeader({ id, bodyId, index, range, counts, end, cont
       {!expanded && newCount !== undefined && newCount > 0 && <NewBadge count={newCount} />}
       <EndLabel end={end} continuedFrom={continuedFrom} />
       {end === 'next' && continuesTo !== undefined && <span data-block-label="next" style={pill}>tiếp sang {dayMonth(continuesTo)}</span>}
-      {variant !== 'light' && parallelWith && parallelWith.length > 0 && (
-        <button type="button" data-parallel onClick={() => onParallel?.(parallelWith[0]!)} aria-label={`Song song với phiên ${parallelWith.join(', ')}: mở khối`}
-          style={{ display: 'inline-flex', alignItems: 'center', height: 24, padding: '0 8px', borderRadius: 8, border: '1px solid var(--ink-300)', background: 'transparent', color: 'var(--ink-800)', font: '500 12px/1 var(--font-sans)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-          Song song với phiên {parallelWith.join(', ')}
+      {variant !== 'light' && parallelWith && parallelWith.length === 1 && (
+        <button type="button" data-parallel onClick={() => onParallel?.(parallelWith[0]!)} aria-label={`Song song với phiên ${parallelWith[0]}: mở khối`} style={parallelStyle}>
+          Song song với phiên {parallelWith[0]}
         </button>
+      )}
+      {variant !== 'light' && parallelWith && parallelWith.length > 1 && (
+        <span role="group" aria-label={`Song song với phiên ${parallelWith.join(', ')}`} style={{ ...parallelStyle, gap: 4, cursor: 'default' }}>
+          Song song với phiên
+          {parallelWith.map((m, i) => (
+            <span key={m}>
+              <button type="button" data-parallel onClick={() => onParallel?.(m)} aria-label={`Mở phiên ${m}`}
+                style={{ padding: '0 2px', border: 0, background: 'transparent', color: 'var(--ink-900)', font: 'inherit', fontWeight: 600, textDecoration: 'underline', cursor: 'pointer' }}>{m}</button>{i < parallelWith.length - 1 ? ',' : ''}
+            </span>
+          ))}
+        </span>
       )}
     </>
   );

@@ -1,6 +1,7 @@
 import { TRAINING_EXPORT_MAX_BYTES, type TrainingExportQuery, type TrainingExportSummary } from '../../../../shared/api/training.js';
 import { TrainingExportEmptyError, TrainingExportTooLargeError, TrainingMemberNotFoundError, TrainingNotFoundError, TrainingStateError } from '../../../domain/training/errors.js';
 import { buildMemberExport, buildOverviewExport, type ExportContext, type ExportMemberSummary } from '../../../domain/training/export.js';
+import { selectExportEventIds, sessionNumbers } from '../../../domain/training/export-selection.js';
 import { resolveExportRange, type ExportRange } from '../../../domain/training/export-range.js';
 import type { Training, TrainingMember } from '../../../domain/training/training.js';
 import type { ArchiveFile, ArchiveWriter } from '../../ports/archive-writer.js';
@@ -42,7 +43,8 @@ async function summarize(deps: Deps, trainingId: number, { range, members }: Sco
   let eventCount = 0;
   let approxBytes = 0;
   for (const m of members) {
-    eventCount += stats.get(m.id)?.eventCount ?? 0;
+    // The count is of what the file will hold (whole turns of the prompts in the days); the size is the estimate for the days themselves.
+    eventCount += selectExportEventIds(await deps.events.listEventSkeleton(m.id), range).length;
     approxBytes += stats.get(m.id)?.approxBytes ?? 0;
   }
   return { from: range.fromDay, to: range.toDay, memberCount: members.length, eventCount, approxBytes, tooLarge: approxBytes > TRAINING_EXPORT_MAX_BYTES };
@@ -87,7 +89,12 @@ export class ExportTrainingData {
       const summaries: ExportMemberSummary[] = [];
       for (const [i, m] of members.entries()) {
         await new Promise<void>(resolve => setImmediate(resolve)); // let hook POSTs from members through between members
-        const input = { displayName: m.displayName, stoppedSending: m.stoppedSendingAt !== null, note: m.mentorNote, events: await events.listForExport(m.id, range) };
+        // A turn is in the file of its prompt's day, and sessions are numbered over the whole training, like the mentor's screen.
+        const skeleton = await events.listEventSkeleton(m.id);
+        const input = {
+          displayName: m.displayName, stoppedSending: m.stoppedSendingAt !== null, note: m.mentorNote,
+          events: await events.listForExportByIds(m.id, selectExportEventIds(skeleton, range)), sessionNumbers: sessionNumbers(skeleton),
+        };
         const built = buildMemberExport(input, i + 1, context);
         summaries.push(built.summary);
         yield built.file;

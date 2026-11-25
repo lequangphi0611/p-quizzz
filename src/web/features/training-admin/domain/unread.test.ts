@@ -114,7 +114,7 @@ describe('"Đánh dấu đã đọc hết" and its undo', () => {
     const turns = turnsOf(events);
     const before = withBaselines(emptyReadState(), [member({ promptCount: 0, lastSeenAt: 100 })]);
     expect(unreadTurnCount(turns, before.members['1'])).toBe(2);
-    const after = markAllRead(before, { id: 1, promptCount: 2 }, turns, true);
+    const after = markAllRead(before, { id: 1 }, turns, true);
     expect(unreadTurnCount(turns, after.members['1'])).toBe(0);
     expect(unreadPromptCount({ id: 1, promptCount: 2 }, after)).toBe(0);
     expect(unreadPromptCount({ id: 1, promptCount: 3 }, after)).toBe(1);
@@ -122,10 +122,20 @@ describe('"Đánh dấu đã đọc hết" and its undo', () => {
     expect(unreadTurnCount(turns, undone.members['1'])).toBe(2);
     expect(unreadPromptCount({ id: 1, promptCount: 2 }, undone)).toBe(2);
   });
+  it('settles on the prompts that were loaded, whichever of the member list and the timeline is newer', () => {
+    id = 0;
+    const turns = turnsOf([ev('prompt', 2000), ev('prompt', 3000)]);
+    const before = withBaselines(emptyReadState(), [member({ promptCount: 0, lastSeenAt: 100 })]);
+    const after = markAllRead(before, { id: 1 }, turns, true);
+    expect(unreadPromptCount({ id: 1, promptCount: 2 }, after)).toBe(0); // the list is in step
+    expect(unreadPromptCount({ id: 1, promptCount: 3 }, after)).toBe(1); // the list already counts a prompt that is not loaded yet
+    expect(unreadPromptCount({ id: 1, promptCount: 1 }, after)).toBe(0); // the list is older than the timeline: never below 0 ...
+    expect(unreadPromptCount({ id: 1, promptCount: 2 }, after)).toBe(0); // ... and once it catches up, still nothing
+  });
   it('when only part of the timeline is loaded, the prompts not loaded stay counted', () => {
     id = 0;
     const turns = turnsOf([ev('prompt', 2000)]);
-    const s = markAllRead(withBaselines(emptyReadState(), [member({ promptCount: 0, lastSeenAt: 100 })]), { id: 1, promptCount: 5 }, turns, false);
+    const s = markAllRead(withBaselines(emptyReadState(), [member({ promptCount: 0, lastSeenAt: 100 })]), { id: 1 }, turns, false);
     expect(unreadPromptCount({ id: 1, promptCount: 5 }, s)).toBe(4);
   });
 });

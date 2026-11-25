@@ -3,7 +3,7 @@ import {
 } from '../ports/training-event-repository.js';
 import type { ExportEvent } from '../../domain/training/export.js';
 import type { FlagEvent } from '../../domain/training/flags/flag-event.js';
-import type { ToolOutcome } from '../../domain/training/is-stuck.js';
+import type { EventSkeleton } from '../../domain/training/export-selection.js';
 import type { Snapshottable } from './in-memory-unit-of-work.js';
 import type { InMemoryTrainingMemberRepository } from './in-memory-training-repository.js';
 
@@ -65,9 +65,14 @@ export class InMemoryTrainingEventRepository implements TrainingEventRepository,
     return out;
   }
 
-  async listForExport(memberId: number, range: { from: Date; to: Date }): Promise<ExportEvent[]> {
+  async listEventSkeleton(memberId: number): Promise<EventSkeleton[]> {
+    return (await this.all()).filter(e => e.memberId === memberId).map(e => ({ id: e.id, kind: e.kind, claudeSessionId: e.claudeSessionId, receivedAt: e.receivedAt }));
+  }
+
+  async listForExportByIds(memberId: number, ids: readonly number[]): Promise<ExportEvent[]> {
+    const wanted = new Set(ids);
     return (await this.all())
-      .filter(e => e.memberId === memberId && e.receivedAt >= range.from && e.receivedAt < range.to)
+      .filter(e => e.memberId === memberId && wanted.has(e.id))
       .map(e => ({
         id: e.id,
         kind: e.kind,

@@ -1,5 +1,6 @@
 import type { Clip } from '../../domain/training/clip.js';
 import type { ExportEvent } from '../../domain/training/export.js';
+import type { EventSkeleton } from '../../domain/training/export-selection.js';
 import type { FlagEvent } from '../../domain/training/flags/flag-event.js';
 import type { TrainingEventDraft } from '../../domain/training/training-event.js';
 
@@ -68,8 +69,10 @@ export interface TrainingEventReader {
   countsByMember(trainingId: number): Promise<Map<number, MemberCounts>>;
   /** The events of the training the mentor marked, oldest first (no output and no change: the report never carries them). */
   listMarked(trainingId: number): Promise<MarkedEvent[]>;
-  /** One member's events received in `[from, to)`, oldest first, with the output and the change whole as stored (S41). */
-  listForExport(memberId: number, range: { from: Date; to: Date }): Promise<ExportEvent[]>;
+  /** Every event of the member, oldest first, with no text: which turn and which session each belongs to (S43). */
+  listEventSkeleton(memberId: number): Promise<EventSkeleton[]>;
+  /** These events of the member (ids from `listEventSkeleton`), oldest first, with the output and the change whole as stored (S41). */
+  listForExportByIds(memberId: number, ids: readonly number[]): Promise<ExportEvent[]>;
   /** Per member of the training: the events received in `[from, to)` and roughly how many bytes of text they carry. Members with none are absent. */
   exportStats(trainingId: number, range: { from: Date; to: Date }): Promise<Map<number, ExportStats>>;
 }

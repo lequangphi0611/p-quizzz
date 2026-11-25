@@ -31,8 +31,10 @@ export interface ExportMemberInput {
   /** Pressed "Dừng gửi" and the mentor has not approved deleting the data yet (PRODUCT.md §7.35e). */
   stoppedSending: boolean;
   note: string | null;
-  /** Inside the chosen days, oldest first. */
+  /** The turns whose prompt is inside the chosen days (`selectExportEventIds`), oldest first. */
   events: ExportEvent[];
+  /** Each session's number over the whole training; without it sessions are numbered by their order in `events`. */
+  sessionNumbers?: ReadonlyMap<string, number>;
 }
 
 /** What every file of the export needs besides the member itself. */
@@ -219,9 +221,10 @@ const dm = (d: Date) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
  * sessions open at once: every event goes under the prompt of its own session, a turn belongs to the day of its prompt, and a
  * session is numbered by the order it first appears in the file (the same numbers as the mentor's screen).
  */
-function timelineLines(events: readonly ExportEvent[], decisions: ReadonlyMap<number, PermissionDecisionInfo>): string[] {
-  const sessionIndex = new Map<string, number>();
-  for (const e of events) if (!sessionIndex.has(e.claudeSessionId)) sessionIndex.set(e.claudeSessionId, sessionIndex.size + 1);
+function timelineLines(events: readonly ExportEvent[], decisions: ReadonlyMap<number, PermissionDecisionInfo>, numbers?: ReadonlyMap<string, number>): string[] {
+  const sessionIndex = new Map<string, number>(numbers ?? []);
+  // Sessions the given numbers do not cover (none, when they come from the whole training) follow the highest number.
+  for (const e of events) if (!sessionIndex.has(e.claudeSessionId)) sessionIndex.set(e.claudeSessionId, Math.max(0, ...sessionIndex.values()) + 1);
   // Turns in the order they open; each remembers its day.
   const days: { day: string; at: Date; sessions: Map<string, ExportTurn[]> }[] = [];
   const current = new Map<string, ExportTurn>();
@@ -309,7 +312,7 @@ function memberFile(a: Analyzed, input: ExportContext): string {
   if (events.length === 0) {
     lines.push('Không có sự kiện nào trong khoảng này.');
   } else {
-    lines.push(...timelineLines(events, a.decisions));
+    lines.push(...timelineLines(events, a.decisions, a.input.sessionNumbers));
   }
   return `${lines.join('\n').trimEnd()}\n`;
 }
