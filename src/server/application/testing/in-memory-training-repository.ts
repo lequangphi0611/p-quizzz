@@ -29,7 +29,7 @@ export class InMemoryTrainingRepository implements TrainingRepository, TrainingR
   }
 
   async create(t: NewTraining) {
-    const row: Training = { id: this.nextId++, name: t.name, status: 'open', roomCode: t.roomCode, createdAt: t.createdAt, stoppedAt: null, endedAt: null, memberCount: null, allowAutoAccept: t.allowAutoAccept, reportExportedAt: null };
+    const row: Training = { id: this.nextId++, name: t.name, status: 'open', roomCode: t.roomCode, createdAt: t.createdAt, stoppedAt: null, endedAt: null, memberCount: null, allowAutoAccept: t.allowAutoAccept, reportExportedAt: null, examplesExportedAt: null };
     this.rows.set(row.id, row);
     return row;
   }
@@ -80,7 +80,7 @@ export class InMemoryTrainingMemberRepository implements TrainingMemberRepositor
   /** Mimics the database's name index (same training, ASCII case-insensitive). */
   async add(m: NewTrainingMember) {
     if ([...this.rows.values()].some(o => o.trainingId === m.trainingId && o.displayName.toLowerCase() === m.displayName.toLowerCase())) throw new NameTakenError('identity_in_use');
-    const row: TrainingMember = { ...m, id: this.nextId++, firstSeenAt: null, lastSeenAt: null, stoppedSendingAt: null, seenAfterStopAt: null, uninstallCheckAt: null, uninstalledAt: null, mentorNote: null };
+    const row: TrainingMember = { ...m, id: this.nextId++, firstSeenAt: null, lastSeenAt: null, stoppedSendingAt: null, seenAfterStopAt: null, uninstallCheckAt: null, uninstalledAt: null, mentorNote: null, teachingConsent: m.teachingConsent };
     this.rows.set(row.id, row);
     return row;
   }

@@ -20,6 +20,8 @@ export interface Training {
   allowAutoAccept: boolean;
   /** When the mentor last downloaded the report (S40). */
   reportExportedAt: Date | null;
+  /** When the teaching examples file was last downloaded (S44). */
+  examplesExportedAt: Date | null;
 }
 
 export interface TrainingMember {
@@ -40,6 +42,8 @@ export interface TrainingMember {
   uninstalledAt: Date | null;
   /** The mentor's note for the report (S40). */
   mentorNote: string | null;
+  /** The member agreed to their prompts becoming anonymous teaching examples (S44, PRODUCT.md §7.39a). Chosen at joining, never changed. */
+  teachingConsent: boolean;
 }
 
 const ACTIONS = { stop: ['open', 'stopped'], end: ['stopped', 'ended'] } as const;

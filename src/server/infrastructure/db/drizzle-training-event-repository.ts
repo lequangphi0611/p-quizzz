@@ -1,13 +1,13 @@
 import { and, asc, eq, gt, gte, inArray, lt, sql } from 'drizzle-orm';
 import {
-  FLAG_TEXT_CHARS, OUTPUT_END_CHARS, type EventDetail, type ExportStats, type LightEvent, type MarkedEvent, type MemberCounts, type NewTrainingEvent, type TrainingEventRepository,
+  FLAG_TEXT_CHARS, OUTPUT_END_CHARS, type EventDetail, type EventOwner, type ExportStats, type LightEvent, type MarkedEvent, type MemberCounts, type NewTrainingEvent, type TeachingExampleRecord, type TrainingEventRepository,
 } from '../../application/ports/training-event-repository.js';
 import type { ExportEvent } from '../../domain/training/export.js';
 import type { FlagEvent } from '../../domain/training/flags/flag-event.js';
 import type { Clip } from '../../domain/training/clip.js';
 import type { EventSkeleton } from '../../domain/training/export-selection.js';
 import type { DbAccess } from './drizzle-exam-repository.js';
-import { trainingEventMarks, trainingEvents, trainingMembers } from './schema.js';
+import { trainingEventMarks, trainingEvents, trainingMembers, trainingTeachingExamples } from './schema.js';
 
 /** Ids per query when the export reads events by id. */
 const EXPORT_ID_CHUNK = 500;
@@ -32,14 +32,16 @@ const LIGHT_COLUMNS = {
   hasOutput: sql<number>`${trainingEvents.outputHead} is not null`,
   hasChange: sql<number>`${trainingEvents.changeHead} is not null`,
   marked: sql<number>`exists (select 1 from ${trainingEventMarks} where ${trainingEventMarks.eventId} = ${trainingEvents.id})`,
+  teachingLabel: sql<string | null>`(select ${trainingTeachingExamples.label} from ${trainingTeachingExamples} where ${trainingTeachingExamples.eventId} = ${trainingEvents.id})`,
 };
 
-const toLight = (r: { kind: string; hasOutput: number; hasChange: number; marked: number } & Omit<LightEvent, 'kind' | 'hasOutput' | 'hasChange' | 'marked'>): LightEvent => ({
+const toLight = (r: { kind: string; hasOutput: number; hasChange: number; marked: number; teachingLabel: string | null } & Omit<LightEvent, 'kind' | 'hasOutput' | 'hasChange' | 'marked' | 'teachingLabel'>): LightEvent => ({
   ...r,
   kind: r.kind as LightEvent['kind'],
   hasOutput: Boolean(r.hasOutput),
   hasChange: Boolean(r.hasChange),
   marked: Boolean(r.marked),
+  teachingLabel: r.teachingLabel as LightEvent['teachingLabel'],
 });
 
 export class DrizzleTrainingEventRepository implements TrainingEventRepository {
@@ -186,6 +188,49 @@ export class DrizzleTrainingEventRepository implements TrainingEventRepository {
         .all(),
     );
     return new Map(rows.map(r => [r.memberId, { eventCount: Number(r.eventCount), approxBytes: Number(r.approxBytes) }]));
+  }
+
+  async getEventOwner(eventId: number): Promise<EventOwner | null> {
+    const row = await this.access(db =>
+      db
+        .select({ trainingId: trainingMembers.trainingId, memberId: trainingEvents.memberId, kind: trainingEvents.kind })
+        .from(trainingEvents)
+        .innerJoin(trainingMembers, eq(trainingMembers.id, trainingEvents.memberId))
+        .where(eq(trainingEvents.id, eventId))
+        .get(),
+    );
+    return row ?? null;
+  }
+
+  async getTeachingExample(eventId: number): Promise<TeachingExampleRecord | null> {
+    return (await this.access(db => db.select().from(trainingTeachingExamples).where(eq(trainingTeachingExamples.eventId, eventId)).get())) ?? null;
+  }
+
+  listTeachingExamples(trainingId: number): Promise<(TeachingExampleRecord & { memberId: number })[]> {
+    return this.access(db =>
+      db
+        .select({ example: trainingTeachingExamples, memberId: trainingEvents.memberId })
+        .from(trainingTeachingExamples)
+        .innerJoin(trainingEvents, eq(trainingEvents.id, trainingTeachingExamples.eventId))
+        .innerJoin(trainingMembers, eq(trainingMembers.id, trainingEvents.memberId))
+        .where(eq(trainingMembers.trainingId, trainingId))
+        .orderBy(asc(trainingTeachingExamples.eventId))
+        .all()
+        .map(r => ({ ...r.example, memberId: r.memberId })),
+    );
+  }
+
+  async saveTeachingExample(example: TeachingExampleRecord): Promise<void> {
+    const { eventId, ...fields } = example;
+    await this.access(db => db.insert(trainingTeachingExamples).values(example).onConflictDoUpdate({ target: trainingTeachingExamples.eventId, set: fields }).run());
+  }
+
+  async setTeachingReviewed(eventId: number, at: Date | null): Promise<void> {
+    await this.access(db => db.update(trainingTeachingExamples).set({ reviewedAt: at }).where(eq(trainingTeachingExamples.eventId, eventId)).run());
+  }
+
+  async deleteTeachingExample(eventId: number): Promise<void> {
+    await this.access(db => db.delete(trainingTeachingExamples).where(eq(trainingTeachingExamples.eventId, eventId)).run());
   }
 
   async setMark(eventId: number, marked: boolean): Promise<void> {

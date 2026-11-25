@@ -92,6 +92,7 @@ import type { TrainingUnitContext } from './application/ports/training-repositor
 import { CreateTraining, EndTraining, GetTrainingDetail, ListTrainings, PurgeTrainingMember, RemoveTrainingMember, SaveMemberNote, StopTraining, MarkTrainingEvent } from './application/use-cases/training/admin.js';
 import { FinishUninstallCheck, GetHookConfig, GetMyTraining, JoinTraining, ResumeTrainingMember, StartUninstallCheck, WithdrawTrainingConsent } from './application/use-cases/training/member.js';
 import { ExportTrainingData, GetTrainingExportSummary } from './application/use-cases/training/export-data.js';
+import { DeleteTeachingExample, ExportTeachingExamples, ListTeachingExamples, SaveTeachingExample, SetTeachingReviewed } from './application/use-cases/training/teaching-examples.js';
 import { ExportTrainingReport } from './application/use-cases/training/report.js';
 import { NodeZipWriter } from './infrastructure/system/node-zip-writer.js';
 import { ResolveAnyRoom } from './application/use-cases/training/resolve-any-room.js';
@@ -287,6 +288,11 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}, aiOptions:
       markEvent: new MarkTrainingEvent(trainingDeps),
       saveNote: new SaveMemberNote(trainingDeps),
       report: new ExportTrainingReport({ ...trainingDeps, trainings: trainingReader, members: trainingMemberReader, events: trainingEventReader }),
+      saveTeachingExample: new SaveTeachingExample({ unitOfWork: trainingUnitOfWork, events: trainingEventReader, clock: ports.clock }),
+      deleteTeachingExample: new DeleteTeachingExample({ unitOfWork: trainingUnitOfWork }),
+      listTeachingExamples: new ListTeachingExamples({ trainings: trainingReader, members: trainingMemberReader, events: trainingEventReader }),
+      setTeachingReviewed: new SetTeachingReviewed({ unitOfWork: trainingUnitOfWork, clock: ports.clock }),
+      exportTeachingExamples: new ExportTeachingExamples({ trainings: trainingReader, members: trainingMemberReader, events: trainingEventReader, ...trainingDeps }),
       exportSummary: new GetTrainingExportSummary(trainingExportDeps),
       exportData: new ExportTrainingData(trainingExportDeps),
       join: new JoinTraining({ ...trainingDeps, tokens: ports.tokens }),

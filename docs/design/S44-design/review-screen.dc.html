@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Rà và xuất ví dụ</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+textarea{font:inherit;resize:vertical}
+.mono{font-family:'JetBrains Mono',monospace}
+</style>
+</helmet>
+<div style="width:1280px;height:980px;box-sizing:border-box;background:rgba(20,23,28,.48);display:flex;align-items:center;justify-content:center;font-family:'Be Vietnam Pro',sans-serif;color:#23282F">
+<div style="width:1180px;height:920px;background:#fff;border-radius:20px;box-shadow:0 24px 60px rgba(0,0,0,.25);display:flex;flex-direction:column;overflow:hidden">
+
+<div style="padding:24px 28px 16px;border-bottom:1px solid #E2E6EB;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;justify-content:space-between">
+<h1 style="margin:0;font-size:24px;font-weight:700;color:#14171C">Rà &amp; xuất ví dụ</h1>
+<div style="display:flex;align-items:center;gap:12px">
+<span style="font-size:14px;color:#5C6470">Đã rà</span>
+<span class="mono" style="font-size:15px;font-weight:500;color:#14171C">2 / 3</span>
+<div style="width:200px;height:8px;border-radius:99px;background:#EEF1F4;overflow:hidden"><div style="width:66%;height:100%;background:#1F48D6"></div></div>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14px">
+<span style="font-weight:600;color:#14171C">Tìm và sửa:</span>
+<span style="padding:4px 10px;border-radius:99px;background:#EEF1F4">Tên người</span>
+<span style="padding:4px 10px;border-radius:99px;background:#EEF1F4">Tên dự án, tên file riêng</span>
+<span style="padding:4px 10px;border-radius:99px;background:#EEF1F4">Đường dẫn <span class="mono">/home/…</span></span>
+<span style="padding:4px 10px;border-radius:99px;background:#EEF1F4">Văn phong nhận ra người viết</span>
+<span style="color:#5C6470">· Ô xám = app đã tự che</span>
+</div>
+</div>
+
+<div style="flex:1;display:flex;min-height:0">
+<nav aria-label="Danh sách ví dụ" style="width:280px;border-right:1px solid #E2E6EB;background:#F6F8FA;padding:16px 12px;display:flex;flex-direction:column;gap:6px">
+<div style="font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#5C6470;padding:0 8px 6px">Kiểm chứng</div>
+<a href="#" style="display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:10px;background:#F3F6FF;border:1px solid #3461F0;text-decoration:none;color:#23282F">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8A5300" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;margin-top:2px"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+<span style="display:flex;flex-direction:column;gap:2px"><span style="font-size:14px;font-weight:600">Ví dụ 1 · Chưa tốt</span><span style="font-size:13px;color:#8A5300">1 chỗ nghi là tên · chưa rà</span></span>
+</a>
+<a href="#" style="display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:10px;text-decoration:none;color:#23282F">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0B7A43" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+<span style="display:flex;flex-direction:column;gap:2px"><span style="font-size:14px;font-weight:600">Ví dụ 2 · Tốt</span><span style="font-size:13px;color:#5C6470">Đã rà</span></span>
+</a>
+<div style="font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#5C6470;padding:12px 8px 6px">Ngữ cảnh</div>
+<a href="#" style="display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:10px;text-decoration:none;color:#23282F">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0B7A43" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+<span style="display:flex;flex-direction:column;gap:2px"><span style="font-size:14px;font-weight:600">Ví dụ 3 · Tốt</span><span style="font-size:13px;color:#5C6470">Đã rà · 2 trường đã sửa</span></span>
+</a>
+</nav>
+
+<section style="flex:1;overflow:auto;padding:20px 28px;display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;align-items:center;gap:10px">
+<span style="font-size:18px;font-weight:700;color:#14171C">Ví dụ 1</span>
+<span style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;background:#EEF1F4;color:#3A414A;font-size:13px;font-weight:600">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>Chưa tốt</span>
+<span style="font-size:13px;color:#5C6470">Kiểm chứng</span>
+<span style="margin-left:auto;font-size:13px;color:#5C6470">Của Lan · chỉ bạn thấy, không có trong file</span>
+</div>
+
+<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:10px;background:#FCF2DA;border:1px solid #E9C97E;font-size:14px;color:#5E4500">
+<span style="flex:1">Có thể là tên một bạn trong lớp: <b>“Lan”</b> trong prompt (đánh dấu bên dưới).</span>
+<button style="height:36px;padding:0 14px;border-radius:10px;border:0;background:#1F48D6;color:#fff;font:inherit;font-weight:600;font-size:14px">Thay bằng “[bạn]”</button>
+<button style="height:36px;padding:0 14px;border-radius:10px;border:1px solid #C9CED6;background:#fff;color:#14171C;font:inherit;font-weight:600;font-size:14px">Không phải tên</button>
+</div>
+
+<label style="display:flex;flex-direction:column;gap:6px">
+<span style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#14171C">Prompt trong file</span>
+<div style="min-height:72px;padding:12px 14px;border-radius:10px;border:2px solid #3461F0;font-size:16px;line-height:1.5"><mark style="background:#FFE899;border-bottom:2px solid #D99A00;padding:0 2px">Lan</mark> đây: sửa lỗi giỏ hàng của dự án giúp mình</div>
+</label>
+
+<label style="display:flex;flex-direction:column;gap:6px">
+<span style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#14171C">Bối cảnh: lệnh Claude chạy trong lượt này</span>
+<div class="mono" style="padding:12px 14px;border-radius:10px;border:1px solid #C9CED6;font-size:14px;line-height:1.7;display:flex;flex-direction:column">
+<span>Bash npm test</span>
+<span>Read <span style="background:#E2E6EB;border-radius:4px;padding:1px 6px;color:#3A414A" title="App đã tự che">~</span>/bai-tap/src/cart.ts</span>
+</div>
+<span style="font-size:13px;color:#5C6470">App đã tự thay <span class="mono">/home/&lt;tên máy&gt;</span> bằng <span class="mono">~</span>.</span>
+</label>
+
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px">
+<label style="display:flex;flex-direction:column;gap:6px">
+<span style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#14171C">Nhận xét <span style="font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;background:#E7EDFE;color:#1838B0">Đã sửa</span></span>
+<textarea rows="3" style="padding:10px 12px;border-radius:10px;border:1px solid #C9CED6;font-size:15px;color:#23282F">Không nói cách kiểm tra kết quả nên Claude không biết khi nào xong.</textarea>
+</label>
+<label style="display:flex;flex-direction:column;gap:6px">
+<span style="font-size:14px;font-weight:600;color:#14171C">Phiên bản tốt hơn</span>
+<textarea rows="3" style="padding:10px 12px;border-radius:10px;border:1px solid #C9CED6;font-size:15px;color:#23282F">Sửa lỗi tổng giỏ hàng, chạy npm test và báo kết quả.</textarea>
+</label>
+</div>
+
+<div style="display:flex;align-items:center;gap:12px;font-size:13px;color:#5C6470">
+<button style="display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border-radius:10px;border:1px solid #C9CED6;background:#fff;font:inherit;font-size:13px;font-weight:600;color:#3A414A">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>Khôi phục bản app đã che</button>
+<span>Đã lưu bản sửa</span>
+<span style="margin-left:auto;color:#C2281E">Trạng thái lỗi: “Chưa lưu được — thử lại” (chữ đỏ, nút Thử lại)</span>
+</div>
+</section>
+</div>
+
+<div style="padding:16px 28px;border-top:1px solid #E2E6EB;display:flex;align-items:center;gap:12px;background:#fff">
+<button style="height:44px;padding:0 16px;border-radius:10px;border:1px solid #C9CED6;background:#fff;font:inherit;font-weight:600;font-size:15px;color:#14171C">Trước</button>
+<button style="display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 18px;border-radius:10px;border:0;background:#1F48D6;color:#fff;font:inherit;font-weight:600;font-size:15px;box-shadow:inset 0 -2px 0 #132C8C">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Đã rà ví dụ này, sang tiếp</button>
+<span style="margin-left:auto;font-size:13px;color:#5C6470;max-width:300px;text-align:right">File đã tải không thu hồi hay xoá được, kể cả sau khi Kết thúc.</span>
+<button style="height:44px;padding:0 16px;border-radius:10px;border:0;background:none;font:inherit;font-weight:600;font-size:15px;color:#14171C">Đóng</button>
+<button disabled style="height:44px;padding:0 18px;border-radius:10px;border:0;background:#EEF1F4;color:#7C8492;font:inherit;font-weight:600;font-size:15px">Tải file .md · còn 1 chưa rà</button>
+</div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

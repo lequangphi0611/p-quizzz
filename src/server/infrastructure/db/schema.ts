@@ -264,6 +264,8 @@ export const trainings = sqliteTable(
     allowAutoAccept: integer('allow_auto_accept', { mode: 'boolean' }).notNull().default(false),
     // S40: when the mentor last downloaded the report (the prompt before "Kết thúc" asks while this is empty).
     reportExportedAt: ts('report_exported_at'),
+    // S44: when the teaching examples file was last downloaded (the "Kết thúc" prompt counts examples saved after it).
+    examplesExportedAt: ts('examples_exported_at'),
   },
   t => [uniqueIndex('trainings_room_code_uq').on(t.roomCode)],
 );
@@ -290,6 +292,9 @@ export const trainingMembers = sqliteTable(
     uninstalledAt: ts('uninstalled_at'),
     // S40: the mentor's own words about this member, for the report.
     mentorNote: text('mentor_note'),
+    // S44: the member ticked "cho mentor dùng prompt làm ví dụ". Rows that existed before the column are set true by the migration (PO: the
+    // mentor confirmed it outside the app, PRODUCT.md §7.39a); new rows default to false.
+    teachingConsent: integer('teaching_consent', { mode: 'boolean' }).notNull().default(false),
   },
   // Case-insensitive for ASCII only (SQLite); the domain rule covers all of Unicode.
   t => [uniqueIndex('training_members_name_uq').on(t.trainingId, sql`lower(${t.displayName})`)],
@@ -328,6 +333,20 @@ export const trainingEvents = sqliteTable(
 // S40: events the mentor picked as examples for the report. Gone with the event (and so with the member) by cascade.
 export const trainingEventMarks = sqliteTable('training_event_marks', {
   eventId: integer('event_id').primaryKey().references(() => trainingEvents.id, { onDelete: 'cascade' }),
+});
+
+// S44: prompts the mentor picked as examples for the next course. Gone with the event (and so with the member) by cascade.
+export const trainingTeachingExamples = sqliteTable('training_teaching_examples', {
+  eventId: integer('event_id').primaryKey().references(() => trainingEvents.id, { onDelete: 'cascade' }),
+  label: text('label', { enum: ['good', 'needs_work'] }).notNull(),
+  topic: text('topic', { enum: ['verify', 'delegation', 'stuck', 'risk', 'other'] }).notNull().default('other'),
+  comment: text('comment').notNull(),
+  betterPrompt: text('better_prompt'),
+  editedPrompt: text('edited_prompt'),
+  editedContext: text('edited_context'),
+  // S44 AC13: when the mentor marked this example reviewed; cleared by any save that changes its content.
+  reviewedAt: ts('reviewed_at'),
+  updatedAt: ts('updated_at').notNull(),
 });
 
 export const examsRelations = relations(exams, ({ many }) => ({ questions: many(questions), sessions: many(sessions) }));

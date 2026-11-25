@@ -1,5 +1,5 @@
 import {
-  FLAG_TEXT_CHARS, OUTPUT_END_CHARS, type EventDetail, type ExportStats, type LightEvent, type MarkedEvent, type MemberCounts, type NewTrainingEvent, type TrainingEventRepository,
+  FLAG_TEXT_CHARS, OUTPUT_END_CHARS, type EventDetail, type EventOwner, type ExportStats, type LightEvent, type MarkedEvent, type MemberCounts, type NewTrainingEvent, type TeachingExampleRecord, type TrainingEventRepository,
 } from '../ports/training-event-repository.js';
 import type { ExportEvent } from '../../domain/training/export.js';
 import type { FlagEvent } from '../../domain/training/flags/flag-event.js';
@@ -14,6 +14,7 @@ export class InMemoryTrainingEventRepository implements TrainingEventRepository,
   private rows: StoredTrainingEvent[] = [];
   private nextId = 1;
   private marks = new Set<number>();
+  private teaching = new Map<number, TeachingExampleRecord>();
 
   constructor(private readonly members: InMemoryTrainingMemberRepository) {}
 
@@ -50,6 +51,7 @@ export class InMemoryTrainingEventRepository implements TrainingEventRepository,
       hasOutput: Boolean(tool?.output),
       hasChange: Boolean(change),
       marked: this.marks.has(e.id),
+      teachingLabel: this.teaching.get(e.id)?.label ?? null,
     };
   }
 
@@ -104,6 +106,39 @@ export class InMemoryTrainingEventRepository implements TrainingEventRepository,
       out.set(e.memberId, c);
     }
     return out;
+  }
+
+  async getEventOwner(eventId: number): Promise<EventOwner | null> {
+    const e = (await this.all()).find(x => x.id === eventId);
+    const member = e ? await this.members.findById(e.memberId) : null;
+    return e && member ? { trainingId: member.trainingId, memberId: e.memberId, kind: e.kind } : null;
+  }
+
+  async getTeachingExample(eventId: number) {
+    return this.teaching.get(eventId) ?? null;
+  }
+
+  /** Examples of events whose member is gone are not listed: the database's cascade would have deleted them. */
+  async listTeachingExamples(trainingId: number) {
+    const out: (TeachingExampleRecord & { memberId: number })[] = [];
+    for (const e of await this.all()) {
+      const example = this.teaching.get(e.id);
+      if (example && (await this.members.findById(e.memberId))?.trainingId === trainingId) out.push({ ...example, memberId: e.memberId });
+    }
+    return out;
+  }
+
+  async saveTeachingExample(example: TeachingExampleRecord) {
+    this.teaching.set(example.eventId, example);
+  }
+
+  async setTeachingReviewed(eventId: number, at: Date | null) {
+    const e = this.teaching.get(eventId);
+    if (e) this.teaching.set(eventId, { ...e, reviewedAt: at });
+  }
+
+  async deleteTeachingExample(eventId: number) {
+    this.teaching.delete(eventId);
   }
 
   async setMark(eventId: number, marked: boolean) {
@@ -165,12 +200,13 @@ export class InMemoryTrainingEventRepository implements TrainingEventRepository,
   }
 
   snapshot() {
-    return { rows: [...this.rows], nextId: this.nextId, marks: new Set(this.marks) };
+    return { rows: [...this.rows], nextId: this.nextId, marks: new Set(this.marks), teaching: new Map(this.teaching) };
   }
 
   restore(s: unknown) {
-    const snap = s as { rows: StoredTrainingEvent[]; nextId: number; marks: Set<number> };
+    const snap = s as { rows: StoredTrainingEvent[]; nextId: number; marks: Set<number>; teaching: Map<number, TeachingExampleRecord> };
     this.marks = new Set(snap.marks);
+    this.teaching = new Map(snap.teaching);
     this.rows = [...snap.rows];
     this.nextId = snap.nextId;
   }

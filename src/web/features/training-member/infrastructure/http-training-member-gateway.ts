@@ -7,8 +7,8 @@ const auth = (token: string) => ({ headers: { [TRAINING_MEMBER_HEADER]: token } 
 export class HttpTrainingMemberGateway implements TrainingMemberGateway {
   constructor(private http: HttpClient) {}
   resolveRoom(roomCode: string): Promise<ResolvedRoom> { return this.http.post<ResolvedRoom>('/api/rooms/resolve', { roomCode }); }
-  join(trainingId: number, input: { displayName: string; roomCode: string }): Promise<JoinTrainingResponse> {
-    return this.http.post<JoinTrainingResponse>(`/api/trainings/${trainingId}/join`, { ...input, consent: true });
+  join(trainingId: number, input: { displayName: string; roomCode: string; teachingConsent?: boolean }): Promise<JoinTrainingResponse> {
+    return this.http.post<JoinTrainingResponse>(`/api/trainings/${trainingId}/join`, { ...input, consent: true, teachingConsent: input.teachingConsent ?? false });
   }
   me(token: string): Promise<MyTraining> { return this.http.get<MyTraining>('/api/training/me', auth(token)); }
   hookConfig(token: string): Promise<HookConfig> { return this.http.get<HookConfig>('/api/training/me/hook-config', auth(token)); }

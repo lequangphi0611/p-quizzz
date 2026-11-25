@@ -175,16 +175,16 @@ export class TrainingMemberController {
   };
 
   /**
-   * "Đồng ý và tiếp tục": joins and keeps the token. Does nothing unless `consented` is true: without consent no request is sent.
+   * "Đồng ý và tiếp tục": joins and keeps the token. Does nothing unless `consented` is true: without consent no request is sent. `teachingConsent` is the separate optional tick (S44, PRODUCT.md §7.39a): it never blocks joining.
    * Resolves true when the member is in. Failures are in `state.join.error` for the form to explain.
    */
-  join = async (displayName: string, consented: boolean): Promise<boolean> => {
+  join = async (displayName: string, consented: boolean, teachingConsent = false): Promise<boolean> => {
     const name = displayName.trim();
     const { room, roomCode, trainingId, join } = this.state;
     if (!consented || !name || join.busy || room.status !== 'ok') return false;
     this.set({ join: { busy: true, error: null } });
     try {
-      const res = await this.deps.gateway.join(trainingId, { displayName: name, roomCode });
+      const res = await this.deps.gateway.join(trainingId, { displayName: name, roomCode, teachingConsent });
       this.deps.tokens.set(trainingId, res.token);
       this.set({ token: res.token, me: null, offline: false, join: { busy: false, error: null } });
       await this.fetchMe();

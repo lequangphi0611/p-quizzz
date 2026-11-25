@@ -32,6 +32,7 @@ export interface TimelineEvent {
   /** Only when it is not `default`. */
   permissionMode: string | null;
   marked: boolean;
+  teachingLabel: LightEvent['teachingLabel'];
 }
 
 export interface TimelinePage {
@@ -60,6 +61,7 @@ const toTimelineEvent = (e: LightEvent, decision: PermissionDecisionInfo | undef
   decisionMs: decision?.decisionMs ?? null,
   permissionMode: e.permissionMode === null || e.permissionMode === 'default' ? null : e.permissionMode,
   marked: e.marked,
+  teachingLabel: e.teachingLabel,
 });
 
 /** Once ended the members and their events are gone for good: reviewing is a conflict, not a "not found". */

@@ -6,6 +6,7 @@ import { Icon } from '../../../shared/ui/Icon.js';
 import type { PanelKind, PanelState, TimelineState, TrainingController } from '../application/training-controller.js';
 import { modeLabel } from '../domain/row-text.js';
 import { buildTimeline } from '../domain/timeline.js';
+import { TeachingButton } from './TeachingButton.js';
 import { NoticeRow, PermissionRow, SessionRow, ToolRow } from './TimelineRows.js';
 
 /** Width of the output drawer; the popup leaves this much room on the right while the drawer is open. */
@@ -40,7 +41,10 @@ export function TurnDetail({ turnKey, member, timeline, panel, ctrl }: { turnKey
             </span>
             {turn.prompt && <p style={{ margin: 0, maxHeight: '24vh', overflow: 'auto', font: '500 16px/1.5 var(--font-sans)', color: 'var(--text-title)', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{turn.prompt.prompt}</p>}
           </div>
-          <Button variant="ghost" size="sm" icon="x" ariaLabel="Đóng (Esc)" onClick={() => ctrl.closeTurn()} />
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+            {turn.prompt && member.teachingConsent && <TeachingButton id={turn.prompt.id} label={turn.prompt.teachingExample?.label ?? null} onOpen={id => ctrl.openTeaching(id)} />}
+            <Button variant="ghost" size="sm" icon="x" ariaLabel="Đóng (Esc)" onClick={() => ctrl.closeTurn()} />
+          </div>
         </header>
         <ol aria-label="Các lệnh" style={{ listStyle: 'none', margin: 0, padding: '10px 14px 16px', overflow: 'auto', display: 'grid', gap: 2, alignContent: 'start' }}>
           {turn.tools.map(t => {

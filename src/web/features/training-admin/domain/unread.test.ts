@@ -7,7 +7,7 @@ import {
 
 let id = 0;
 const ev = (kind: TrainingEventRow['kind'], receivedAt: number, extra: Partial<TrainingEventRow> = {}): TrainingEventRow =>
-  ({ id: ++id, kind, receivedAt, claudeSessionId: 's1', hasOutput: false, hasChange: false, marked: false, ...extra });
+  ({ id: ++id, kind, receivedAt, claudeSessionId: 's1', hasOutput: false, hasChange: false, marked: false, teachingExample: null, ...extra });
 const turnsOf = (events: TrainingEventRow[]): Turn[] => buildTimeline(events, { memberStuck: false }).filter((i): i is Turn => i.kind === 'turn');
 const member = (over: Partial<{ id: number; lastSeenAt: number | null; promptCount: number }> = {}) => ({ id: 1, lastSeenAt: 1000, promptCount: 2, ...over });
 

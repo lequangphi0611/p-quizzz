@@ -4,9 +4,9 @@ import { stepEvent } from './day-groups.js';
 import { buildTimeline, sessionIndexes, turnKeyOf, type TimelineItem } from './timeline.js';
 
 let id = 0;
-const prompt = (text: string, session = 's1'): TrainingEventRow => ({ id: ++id, kind: 'prompt', receivedAt: id * 1000, claudeSessionId: session, prompt: text, hasOutput: false, hasChange: false, marked: false });
+const prompt = (text: string, session = 's1'): TrainingEventRow => ({ id: ++id, kind: 'prompt', receivedAt: id * 1000, claudeSessionId: session, prompt: text, hasOutput: false, hasChange: false, marked: false, teachingExample: null });
 const tool = (name: string, target: string | undefined, ok: boolean, extra: Partial<TrainingEventRow> = {}, session = 's1'): TrainingEventRow =>
-  ({ id: ++id, kind: 'tool', receivedAt: id * 1000, claudeSessionId: session, toolName: name, ...(target !== undefined ? { toolTarget: target } : {}), ok, durationMs: 10, hasOutput: false, hasChange: false, marked: false, ...extra });
+  ({ id: ++id, kind: 'tool', receivedAt: id * 1000, claudeSessionId: session, toolName: name, ...(target !== undefined ? { toolTarget: target } : {}), ok, durationMs: 10, hasOutput: false, hasChange: false, marked: false, teachingExample: null, ...extra });
 
 const turns = (items: TimelineItem[]) => items.filter((i): i is Extract<TimelineItem, { kind: 'turn' }> => i.kind === 'turn');
 
@@ -113,7 +113,7 @@ describe('stepEvent', () => {
 });
 
 describe('rows other than commands', () => {
-  const row = (kind: TrainingEventRow['kind'], extra: Partial<TrainingEventRow> = {}): TrainingEventRow => ({ id: ++id, kind, receivedAt: id * 1000, claudeSessionId: 's1', hasOutput: false, hasChange: false, marked: false, ...extra });
+  const row = (kind: TrainingEventRow['kind'], extra: Partial<TrainingEventRow> = {}): TrainingEventRow => ({ id: ++id, kind, receivedAt: id * 1000, claudeSessionId: 's1', hasOutput: false, hasChange: false, marked: false, teachingExample: null, ...extra });
 
   it('permission requests, session markers and notices sit under the prompt that was running, in order', () => {
     id = 0;

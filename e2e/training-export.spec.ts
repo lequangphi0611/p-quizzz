@@ -56,7 +56,7 @@ test('export the raw data: pick the days and the members, see what it holds, dow
   await expect(page.getByLabel('Các sự kiện, ngày mới nhất ở trên').getByText('viết hàm tính tổng giỏ hàng')).toBeVisible({ timeout: 6_000 });
 
   // ── The dialog says what it is, and counts today ──────────────────────────────────────────────────
-  await page.getByRole('button', { name: 'Xuất dữ liệu để phân tích' }).click();
+  { await page.getByRole('button', { name: 'Xuất', exact: true }).click(); await page.getByRole('menuitem', { name: /Dữ liệu thô/ }).click(); }
   const dialog = page.getByRole('dialog', { name: 'Xuất dữ liệu để phân tích' });
   await expect(dialog.getByText('dữ liệu thô')).toBeVisible();
   await expect(dialog.getByText('output lệnh và nội dung file thay đổi')).toBeVisible();
@@ -131,7 +131,7 @@ test('the dialog fits a phone: nothing sticks out and the days and the members s
   await expect(page.getByRole('button', { name: 'An', exact: true })).toBeVisible({ timeout: 4_000 });
   await an.send(hook.prompt('xin chào'));
 
-  await page.getByRole('button', { name: 'Xuất dữ liệu để phân tích' }).click();
+  { await page.getByRole('button', { name: 'Xuất', exact: true }).click(); await page.getByRole('menuitem', { name: /Dữ liệu thô/ }).click(); }
   const dialog = page.getByRole('dialog', { name: 'Xuất dữ liệu để phân tích' });
   await expect(dialog.getByText('1 bạn · 1 sự kiện')).toBeVisible();
   await dialog.getByRole('radio', { name: 'Từ ngày đến ngày' }).click();

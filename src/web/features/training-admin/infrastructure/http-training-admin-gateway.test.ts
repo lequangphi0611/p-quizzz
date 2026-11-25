@@ -43,6 +43,28 @@ describe('HttpTrainingAdminGateway', () => {
     expect(JSON.parse((f.mock.calls[2]![1] as RequestInit).body as string)).toEqual({ note: 'Nhắc chạy test' });
   });
 
+  it('teaching examples (S44): the right verbs and paths; review marks, and the file comes back as text', async () => {
+    const f = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith('teaching-examples')) return new Response(JSON.stringify({ examples: [{ eventId: 4 }] }), { status: 200 });
+      if (url.includes('teaching-examples.md')) return new Response('# Ví dụ', { status: 200 });
+      return init?.method === 'DELETE' ? new Response(null, { status: 204 }) : new Response(JSON.stringify({ eventId: 4 }), { status: 200 });
+    });
+    const g = new HttpTrainingAdminGateway(createHttpClient({ fetch: f as unknown as typeof fetch }));
+    const body = { label: 'good' as const, topic: 'other' as const, comment: 'ok', betterPrompt: null, editedPrompt: null, editedContext: null };
+    await g.saveTeachingExample(3, 4, body);
+    await g.deleteTeachingExample(3, 4);
+    await g.setTeachingReviewed(3, 4, true);
+    await g.setTeachingReviewed(3, 4, false);
+    expect(await g.teachingExamples(3)).toEqual([{ eventId: 4 }]);
+    expect(await g.exportTeachingExamples(3)).toBe('# Ví dụ');
+    expect(f.mock.calls.map(c => [(c[1] as RequestInit).method, c[0]])).toEqual([
+      ['PUT', '/api/admin/trainings/3/events/4/teaching-example'], ['DELETE', '/api/admin/trainings/3/events/4/teaching-example'],
+      ['PUT', '/api/admin/trainings/3/events/4/teaching-example/reviewed'], ['DELETE', '/api/admin/trainings/3/events/4/teaching-example/reviewed'],
+      ['GET', '/api/admin/trainings/3/teaching-examples'], ['GET', '/api/admin/trainings/3/teaching-examples.md'],
+    ]);
+    expect(JSON.parse((f.mock.calls[0]![1] as RequestInit).body as string)).toEqual(body);
+  });
+
   it('a failed report still reports the server message', async () => {
     const f = vi.fn(async () => new Response(JSON.stringify({ error: 'Buổi training đã kết thúc, dữ liệu đã bị xoá' }), { status: 409 }));
     const g = new HttpTrainingAdminGateway(createHttpClient({ fetch: f as unknown as typeof fetch }));

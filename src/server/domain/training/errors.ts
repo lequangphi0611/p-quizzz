@@ -52,3 +52,31 @@ export class TrainingExportTooLargeError extends DomainError {
     super('invalid', `Dữ liệu quá lớn (khoảng ${Math.ceil(approxBytes / (1024 * 1024))} MB). Chọn ít ngày hoặc ít bạn hơn.`, 'export_too_large');
   }
 }
+
+/** Only a prompt can become a teaching example (S44). */
+export class TeachingExampleNotPromptError extends DomainError {
+  constructor() {
+    super('invalid', 'Chỉ chọn được prompt làm ví dụ', 'not_a_prompt');
+  }
+}
+
+/** The member did not tick the teaching consent (S44, PRODUCT.md §7.39a). */
+export class TeachingConsentMissingError extends DomainError {
+  constructor() {
+    super('conflict', 'Bạn này không đồng ý cho dùng làm ví dụ', 'no_teaching_consent');
+  }
+}
+
+/** Some examples are not marked reviewed: the file is not built (S44, PRODUCT.md §7.39j). */
+export class TeachingExamplesNotReviewedError extends DomainError {
+  constructor(unreviewed: number) {
+    super('invalid', `Còn ${unreviewed} ví dụ chưa rà. Rà hết rồi mới tải được file.`, 'examples_not_reviewed', { unreviewed });
+  }
+}
+
+/** No example to put in the file (S44). */
+export class TeachingExamplesEmptyError extends DomainError {
+  constructor() {
+    super('not_found', 'Chưa có ví dụ nào để xuất', 'no_examples');
+  }
+}

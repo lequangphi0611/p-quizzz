@@ -517,6 +517,20 @@ Contract dự kiến; story nào chạm thì chốt lại tại đây. Payload t
 - Domain thuần (`domain/training/export.ts`, `export-range.ts`): `buildExportFiles(...)` dựng `00-tong-quan.md` và file từng member; `resolveExportRange` đổi ngày thành `[from, to)` theo giờ địa phương; `slugifyFileName(index, displayName)` → `03-nguyen-van-an.md` (bỏ dấu, `đ` → `d`, chỉ `[a-z0-9-]`, rỗng thì `member`); toàn bộ văn bản qua `maskSecrets` ở bước cuối như báo cáo S40.
 - Khác `report.md` (§11.9): có output và nội dung sửa file; không ghi `report_exported_at`.
 
+### 11.11 Ví dụ dạy khoá sau (S44, PRODUCT.md §7.39; xong)
+
+- `training_members` thêm `teaching_consent` (boolean; migration đặt **true** cho dòng đã có, theo PRODUCT.md §7.39a; dòng mới mặc định false). `TrainingJoinRequest` thêm `teachingConsent?: boolean`. Không có route đổi.
+- Bảng `training_teaching_examples (event_id PK → training_events.id cascade, label, topic, comment, better_prompt?, edited_prompt?, edited_context?, updated_at)`. `label`: `good` | `needs_work`; `topic`: `verify` | `delegation` | `stuck` | `risk` | `other`.
+- Route mentor (trong `/api/admin`, 409 khi buổi `ended`):
+  - `PUT /trainings/:id/events/:eventId/teaching-example` body `{ label, topic?, comment, betterPrompt?, editedPrompt?, editedContext? }` (null xoá bản sửa) → ví dụ. Sự kiện không phải `prompt` → 400; member không có `teaching_consent` → 409 `no_teaching_consent`.
+  - `DELETE /trainings/:id/events/:eventId/teaching-example` (idempotent).
+  - `GET /trainings/:id/teaching-examples` → `{ examples: TeachingExampleRow[] }`, mỗi dòng có `eventId`, `memberId`, các trường trên, `defaultPrompt` và `defaultContext` (đã che) để màn rà hiện. Chỉ dùng trên màn mentor; có tên member là bình thường ở đây.
+  - `GET /trainings/:id/teaching-examples.md` → `text/markdown`, file đính kèm `vi-du-<id>.md`. Không có ví dụ → 404 `no_examples`; còn ví dụ chưa rà → 400 `examples_not_reviewed` (kèm `unreviewed`). Thành công thì ghi `trainings.examples_exported_at`, không đụng `report_exported_at`.
+- Nhắc khi Kết thúc (AC 12): `TrainingDetail.unexportedExampleCount` = số ví dụ chưa tải lần nào hoặc có `updated_at` sau `examples_exported_at` (0 khi `ended`).
+- Sau designer (S44 AC 13–18, PRODUCT §7.39j): `training_teaching_examples.reviewed_at?`; `PUT|DELETE /trainings/:id/events/:eventId/teaching-example/reviewed`; mọi lần lưu đổi nội dung xoá `reviewed_at`; `TeachingExampleRow.reviewed`; tải file cần mọi ví dụ đã rà (xem trên). Domain `maskHomePaths(text)` (`/home/<x>`, `/var/home/<x>`, `/Users/<x>`, `/mnt/<ổ>/Users/<x>`, `<ổ>:\Users\<x>`, `<ổ>:/Users/<x>` → `~`) chạy cho prompt/bối cảnh mặc định và ở bước cuối của file ví dụ. Màn rà một ví dụ mỗi lần; dòng thời gian không có nút cho member không đồng ý; một menu "Xuất" cho 3 file (`ui/ExportMenu.tsx`). Trạng thái: xong.
+- `TrainingEventRow` (dòng prompt) thêm `teachingExample: { label } | null`; `TrainingMemberRow` thêm `teachingConsent: boolean` (để khoá nút). Không thêm gì vào route member, `report.md`, zip, cờ.
+- Domain thuần `domain/training/teaching-examples.ts`: `buildTurnContext(events)` (lượt theo phiên như S43, chỉ `tool`: `✓|✗ <toolName> <toolTarget rút gọn>`), `buildTeachingExamplesFile(trainingName, examples)`, thứ tự xáo ổn định theo `event_id`. `maskSecrets` ở bước cuối.
+
 ## 12. Web: hạ tầng dùng chung (P4-1, issue #18)
 
 Các port phía web nằm ở `src/web/shared/`, implementation được chọn tại `src/web/app/composition.ts` (composition root phía web).

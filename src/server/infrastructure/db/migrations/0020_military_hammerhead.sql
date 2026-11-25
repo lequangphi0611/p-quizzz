@@ -1,0 +1,1 @@
+ALTER TABLE `training_teaching_examples` ADD `reviewed_at` integer;

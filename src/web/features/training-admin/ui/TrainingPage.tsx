@@ -13,6 +13,7 @@ import { flagTotals } from '../domain/flags.js';
 import { uninstallProgress } from '../domain/members.js';
 import { FlagChip, TrainingStatusBadge, visuallyHidden } from './chips.js';
 import { EventPanel } from './EventPanel.js';
+import { ExportMenu } from './ExportMenu.js';
 import { MembersTable } from './MembersTable.js';
 import { RoomCodeCard, RoomCodeInline } from './RoomCode.js';
 import { Timeline } from './Timeline.js';
@@ -103,8 +104,13 @@ function Header({ state, ctrl, onBack }: { state: TrainingState; ctrl: TrainingC
           {detail.status !== 'ended' && state.selectedId === null && (
             <Button variant="secondary" icon={hidden ? 'eye' : 'eye-off'} pressed={hidden} shortcut="H" onClick={() => ctrl.toggleHidden()}>{hidden ? 'Hiện nội dung' : 'Ẩn nội dung'}</Button>
           )}
-          {detail.status !== 'ended' && detail.members.length > 0 && <Button variant="secondary" icon="download" onClick={() => void ctrl.openReport()}>Xuất báo cáo</Button>}
-          {detail.status !== 'ended' && detail.members.length > 0 && <Button variant="secondary" icon="sparkles" onClick={() => ctrl.openDataExport()}>Xuất dữ liệu để phân tích</Button>}
+          {detail.status !== 'ended' && detail.members.length > 0 && (
+            <ExportMenu items={[
+              { key: 'report', title: 'Báo cáo buổi', badge: 'Có tên', description: 'Ghi chú và prompt đã đánh dấu, kèm tên từng bạn.', onSelect: () => void ctrl.openReport() },
+              { key: 'data', title: 'Dữ liệu thô để phân tích (.zip)', badge: 'Có tên + output', description: 'Toàn bộ prompt, lệnh, output. Nhạy cảm nhất.', onSelect: () => ctrl.openDataExport() },
+              { key: 'examples', title: 'Rà & xuất ví dụ…', badge: 'Không tên', description: 'Rà từng ví dụ trước khi tải file .md.', onSelect: () => void ctrl.openTeachingReview() },
+            ]} />
+          )}
           {open && <Button variant="secondary" icon="square" onClick={() => ctrl.askStop()}>Dừng thu</Button>}
           {stopped && <Button variant="danger" icon="trash-2" onClick={() => ctrl.askEnd()}>Kết thúc</Button>}
         </div>

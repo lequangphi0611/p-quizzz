@@ -1,8 +1,8 @@
 import type { TrainingDetail, TrainingMemberRow } from '../../../../shared/api/index.js';
 
-/** `bao-cao-buoi-1.md`: the name without accents, spaces and symbols, so it is safe on any file system. */
-export function reportFileName(trainingName: string): string {
-  const slug = trainingName
+/** The name without accents, spaces and symbols, so it is safe on any file system (empty when nothing is left). */
+export function slugOf(trainingName: string): string {
+  return trainingName
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .replace(/đ/gi, 'd')
@@ -11,7 +11,11 @@ export function reportFileName(trainingName: string): string {
     .replace(/^-+|-+$/g, '')
     .slice(0, 40)
     .replace(/-+$/, '');
-  return `bao-cao-${slug || 'training'}.md`;
+}
+
+/** `bao-cao-buoi-1.md` */
+export function reportFileName(trainingName: string): string {
+  return `bao-cao-${slugOf(trainingName) || 'training'}.md`;
 }
 
 export interface ReportSummary {

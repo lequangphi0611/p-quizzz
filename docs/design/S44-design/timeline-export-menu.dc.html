@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Dòng thời gian mentor</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+.mono{font-family:'JetBrains Mono',monospace}
+</style>
+</helmet>
+<div style="width:1280px;height:760px;box-sizing:border-box;background:#F6F8FA;font-family:'Be Vietnam Pro',sans-serif;color:#23282F;padding:32px 48px;display:flex;flex-direction:column;gap:20px">
+
+<div style="display:flex;align-items:center;gap:14px">
+<h1 style="margin:0;font-size:28px;font-weight:700;color:#14171C">Claude Code buổi 5: ví dụ</h1>
+<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:99px;background:#E5F6EC;color:#0B7A43;font-size:14px;font-weight:600"><span style="width:8px;height:8px;border-radius:99px;background:#139A57"></span>Đang thu</span>
+<div style="margin-left:auto;display:flex;gap:10px;position:relative">
+<button style="display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 16px;border-radius:10px;border:1px solid #C9CED6;background:#EEF1F4;font:inherit;font-weight:600;font-size:15px;color:#14171C">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>Xuất
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+<button style="height:44px;padding:0 16px;border-radius:10px;border:1px solid #C9CED6;background:#fff;font:inherit;font-weight:600;font-size:15px;color:#14171C">Dừng thu</button>
+
+<div role="menu" style="position:absolute;top:52px;right:0;width:420px;background:#fff;border:1px solid #E2E6EB;border-radius:14px;box-shadow:0 12px 32px rgba(20,23,28,.16);padding:8px;display:flex;flex-direction:column;z-index:2">
+<button role="menuitem" style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:12px;border:0;background:none;border-radius:10px;font:inherit;text-align:left">
+<span style="display:flex;align-items:center;gap:8px;width:100%"><span style="font-size:15px;font-weight:600;color:#14171C">Báo cáo buổi</span><span style="margin-left:auto;font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;background:#FDECEA;color:#C2281E">Có tên</span></span>
+<span style="font-size:13px;color:#5C6470">Ghi chú và prompt đã đánh dấu, kèm tên từng bạn.</span></button>
+<button role="menuitem" style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:12px;border:0;background:none;border-radius:10px;font:inherit;text-align:left">
+<span style="display:flex;align-items:center;gap:8px;width:100%"><span style="font-size:15px;font-weight:600;color:#14171C">Dữ liệu thô để phân tích (.zip)</span><span style="margin-left:auto;font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;background:#FDECEA;color:#C2281E">Có tên + output</span></span>
+<span style="font-size:13px;color:#5C6470">Toàn bộ prompt, lệnh, output. Nhạy cảm nhất.</span></button>
+<div style="height:1px;background:#E2E6EB;margin:4px 8px"></div>
+<button role="menuitem" style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:12px;border:0;background:#F3F6FF;border-radius:10px;font:inherit;text-align:left">
+<span style="display:flex;align-items:center;gap:8px;width:100%"><span style="font-size:15px;font-weight:600;color:#14171C">Rà &amp; xuất ví dụ…</span><span style="margin-left:auto;font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;background:#E5F6EC;color:#0B7A43">Không tên</span></span>
+<span style="font-size:13px;color:#5C6470">Mở màn rà 3 ví dụ trước khi tải file .md.</span></button>
+</div>
+</div>
+</div>
+
+<div style="display:flex;gap:20px;flex:1;min-height:0">
+<div style="width:260px;background:#fff;border:1px solid #E2E6EB;border-radius:14px;padding:8px;display:flex;flex-direction:column;gap:4px;align-self:flex-start">
+<div style="padding:10px 12px;border-radius:10px;font-weight:600">Lan</div>
+<div style="padding:10px 12px;border-radius:10px;background:#F3F6FF;font-weight:600;box-shadow:inset 3px 0 0 #1F48D6">Mai</div>
+</div>
+
+<div style="flex:1;background:#fff;border:1px solid #E2E6EB;border-radius:14px;display:flex;flex-direction:column;overflow:hidden">
+<div style="padding:16px 24px;border-bottom:1px solid #E2E6EB;display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;align-items:center;gap:10px">
+<span style="font-size:22px;font-weight:700;color:#14171C">Mai</span>
+<span style="padding:3px 10px;border-radius:99px;background:#E5F6EC;color:#0B7A43;font-size:13px;font-weight:600">Đã nhận tín hiệu</span>
+<span style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;background:#EEF1F4;color:#3A414A;font-size:13px;font-weight:600">
+<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Không dùng làm ví dụ</span>
+</div>
+<span style="font-size:14px;color:#5C6470">2 prompt · 1 lệnh · lần cuối thấy 11:12</span>
+</div>
+
+<div style="padding:16px 24px;display:flex;flex-direction:column;gap:12px">
+<div style="border:1px solid #E2E6EB;border-radius:14px;padding:14px 18px;display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;align-items:center;gap:12px">
+<span style="font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#5C6470">Prompt 1</span>
+<span class="mono" style="margin-left:auto;font-size:14px;color:#5C6470">11:11</span>
+<button aria-label="Đánh dấu cho báo cáo" style="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 10px;border-radius:10px;border:1px solid #C9CED6;background:#fff;font:inherit;font-size:13px;font-weight:600;color:#3A414A">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>Báo cáo</button>
+</div>
+<span style="font-size:16px">viết hàm tính tổng</span>
+</div>
+<div style="font-size:13px;color:#5C6470;padding:0 4px">Mai chưa đồng ý: dòng prompt không có nút “Ví dụ”, chỉ có “Báo cáo”.</div>
+</div>
+
+<div style="padding:4px 24px 0;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#5C6470">So sánh — dòng prompt của Lan (đã đồng ý)</div>
+<div style="padding:12px 24px;display:flex;flex-direction:column;gap:12px">
+<div style="border:1px solid #E2E6EB;border-radius:14px;padding:14px 18px;display:flex;align-items:center;gap:12px">
+<span style="font-size:16px;flex:1">Sửa lỗi giỏ hàng của dự án giúp mình</span>
+<button style="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:10px;border:1px solid #9ED8B6;background:#E5F6EC;font:inherit;font-size:13px;font-weight:600;color:#0B7A43">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>Ví dụ: Tốt</button>
+<span style="width:1px;height:24px;background:#E2E6EB"></span>
+<button style="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 10px;border-radius:10px;border:1px solid #C9CED6;background:#fff;font:inherit;font-size:13px;font-weight:600;color:#3A414A">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>Báo cáo</button>
+</div>
+<div style="border:1px solid #E2E6EB;border-radius:14px;padding:14px 18px;display:flex;align-items:center;gap:12px">
+<span style="font-size:16px;flex:1">chạy lại test</span>
+<button style="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:10px;border:1px solid #EEF1F4;background:#EEF1F4;font:inherit;font-size:13px;font-weight:600;color:#3A414A">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>Ví dụ: Chưa tốt</button>
+<span style="width:1px;height:24px;background:#E2E6EB"></span>
+<button style="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 10px;border-radius:10px;border:1px solid #C9CED6;background:#fff;font:inherit;font-size:13px;font-weight:600;color:#3A414A">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>Báo cáo</button>
+</div>
+<div style="border:1px solid #E2E6EB;border-radius:14px;padding:14px 18px;display:flex;align-items:center;gap:12px">
+<span style="font-size:16px;flex:1">thêm test cho hàm giảm giá</span>
+<button style="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:10px;border:1px solid #C3D1FC;background:#fff;font:inherit;font-size:13px;font-weight:600;color:#1838B0">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>Làm ví dụ</button>
+<span style="width:1px;height:24px;background:#E2E6EB"></span>
+<button style="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 10px;border-radius:10px;border:1px solid #C9CED6;background:#fff;font:inherit;font-size:13px;font-weight:600;color:#3A414A">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>Báo cáo</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":760}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

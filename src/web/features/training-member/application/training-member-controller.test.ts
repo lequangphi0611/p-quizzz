@@ -135,10 +135,19 @@ describe('TrainingMemberController: joining with consent', () => {
   it('joins with the trimmed name and the room code from the address, keeps the token and moves to the install screen', async () => {
     const { ctrl, gateway, tokens } = await atConsent();
     expect(await ctrl.join('  An  ', true)).toBe(true);
-    expect(gateway.join).toHaveBeenCalledWith(ID, { displayName: 'An', roomCode: CODE });
+    expect(gateway.join).toHaveBeenCalledWith(ID, { displayName: 'An', roomCode: CODE, teachingConsent: false });
     expect(tokens.get(ID)).toBe('tok-new');
     expect(gateway.me).toHaveBeenCalledWith('tok-new');
     expect(screen(ctrl)).toBe('install');
+  });
+
+  it('sends the separate teaching consent only when it was ticked, and joins either way (S44)', async () => {
+    const yes = await atConsent();
+    expect(await yes.ctrl.join('An', true, true)).toBe(true);
+    expect(yes.gateway.join).toHaveBeenCalledWith(ID, { displayName: 'An', roomCode: CODE, teachingConsent: true });
+    const no = await atConsent();
+    expect(await no.ctrl.join('An', true)).toBe(true);
+    expect(no.gateway.join).toHaveBeenCalledWith(ID, { displayName: 'An', roomCode: CODE, teachingConsent: false });
   });
 
   it('a name that is taken (409 identity_in_use) says so, keeps the form and stores no token', async () => {

@@ -29,7 +29,7 @@ export const toCreatedTrainingDto = (t: Training): CreatedTraining => ({
   memberCount: 0,
 });
 
-export const toTrainingDetailDto = ({ training, uninstalled, flagCounts, members }: TrainingDetailView): TrainingDetail => ({
+export const toTrainingDetailDto = ({ training, uninstalled, flagCounts, unexportedExampleCount, members }: TrainingDetailView): TrainingDetail => ({
   id: training.id,
   name: training.name,
   status: training.status,
@@ -40,6 +40,7 @@ export const toTrainingDetailDto = ({ training, uninstalled, flagCounts, members
   uninstalled,
   allowAutoAccept: training.allowAutoAccept,
   flagCounts,
+  unexportedExampleCount,
   reportExportedAt: ms(training.reportExportedAt),
   members: members.map(m => ({
     id: m.id,
@@ -58,6 +59,7 @@ export const toTrainingDetailDto = ({ training, uninstalled, flagCounts, members
     permissionCount: m.permissionCount,
     mentorNote: m.mentorNote,
     markedCount: m.markedCount,
+    teachingConsent: m.teachingConsent,
   })),
 });
 
@@ -76,6 +78,7 @@ const toEventRowDto = (e: TimelineEvent): TrainingEventRow => ({
   hasOutput: e.hasOutput,
   hasChange: e.hasChange,
   marked: e.marked,
+  teachingExample: e.kind === 'prompt' && e.teachingLabel ? { label: e.teachingLabel } : null,
   ...(e.note !== null ? { note: e.note } : {}),
   ...(e.subtype !== null ? { subtype: e.subtype } : {}),
   ...(e.decision !== null ? { decision: e.decision } : {}),
