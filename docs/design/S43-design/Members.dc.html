@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Trạng thái 7 và 8 · danh sách member và hàng học viên</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="../ds/designsystem_2e7074/styles.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/fonts.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/colors.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/typography.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/spacing.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/radii.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/elevation.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/motion.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/icons.css">
+<link rel="stylesheet" href="../ds/designsystem_2e7074/tokens/base.css">
+<script src="../ds/designsystem_2e7074/_ds_bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.k{font:600 12px/1.3 var(--font-sans);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-600);margin:0 0 8px}
+.d{font:400 13px/1.5 var(--font-sans);color:var(--ink-700);margin:8px 0 0}
+</style>
+</helmet>
+<div style="width: 1440px; box-sizing: border-box; padding: 48px; background: var(--surface-page); font-family: var(--font-sans); display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 48px; align-items: start">
+  <div>
+    <h2 style="margin: 0 0 16px; font: 800 26px/1.25 var(--font-sans); color: var(--ink-900)">7 · Danh sách member</h2>
+    <div style="background: var(--paper); border: 1px solid var(--ink-200); border-radius: 14px; padding: 12px 8px; display: flex; flex-direction: column; gap: 2px">
+      <div style="display: flex; justify-content: space-between; padding: 0 8px 8px; font: 600 12px/1.3 var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-600)"><span>Học viên</span><span>20</span></div>
+      <button type="button" style="display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 8px 4px 12px; border-radius: 10px; border: 1px solid var(--brand-200); background: var(--brand-050); text-align: left; font-family: var(--font-sans)"><span style="flex: 1; font: 600 14px/1.3 var(--font-sans); color: var(--brand-800)">Lan</span><span style="display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 999px; background: var(--brand-600); color: var(--paper); font: 700 11px/1 var(--font-sans)">5 mới</span></button>
+      <button type="button" style="display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 8px 4px 12px; border-radius: 10px; border: 1px solid transparent; background: var(--ink-100); text-align: left; font-family: var(--font-sans)"><span style="flex: 1; display: flex; flex-direction: column"><span style="font: 500 14px/1.3 var(--font-sans); color: var(--ink-800)">Minh</span><span style="display: inline-flex; align-items: center; gap: 4px; font: 400 12px/1.35 var(--font-sans); color: var(--ink-600)"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="hourglass" size="{{s12}}"></x-import>có thể đang kẹt</span></span><span style="display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 999px; background: var(--brand-600); color: var(--paper); font: 700 11px/1 var(--font-sans)">5 mới</span></button>
+      <button type="button" style="display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 8px 4px 12px; border-radius: 10px; border: 1px solid transparent; background: transparent; text-align: left; font-family: var(--font-sans)"><span style="flex: 1; font: 500 14px/1.3 var(--font-sans); color: var(--ink-800)">Hoa</span></button>
+      <button type="button" style="display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 8px 4px 12px; border-radius: 10px; border: 1px solid transparent; background: transparent; box-shadow: var(--focus-ring); text-align: left; font-family: var(--font-sans)"><span style="flex: 1; display: flex; flex-direction: column"><span style="font: 500 14px/1.3 var(--font-sans); color: var(--ink-800)">Tuấn</span><span style="font: 400 12px/1.35 var(--font-sans); color: var(--ink-600)">đã dừng gửi</span></span><span style="display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 999px; background: var(--brand-600); color: var(--paper); font: 700 11px/1 var(--font-sans)">1 mới</span></button>
+      <button type="button" style="display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 8px 4px 12px; border-radius: 10px; border: 1px solid transparent; background: transparent; text-align: left; font-family: var(--font-sans)"><span style="flex: 1; display: flex; flex-direction: column"><span style="font: 500 14px/1.3 var(--font-sans); color: var(--ink-800)">An</span><span style="font: 400 12px/1.35 var(--font-sans); color: var(--ink-600)">chưa nhận tín hiệu</span></span></button>
+    </div>
+    <p class="d">Lan đang chọn · Minh đang hover · Tuấn đang focus bằng bàn phím.</p>
+    <ul style="margin: 12px 0 0; padding-left: 18px; display: grid; gap: 6px; font: 400 13px/1.5 var(--font-sans); color: var(--ink-800)">
+      <li>Số mới luôn có chữ “mới” đi kèm, nằm sát mép phải, cùng một kiểu nhãn cobalt như trong dòng thời gian. Không dùng đỏ, không dùng vòng tròn kiểu thông báo, không xếp hạng hay sắp xếp theo số.</li>
+      <li>Trạng thái người học (“có thể đang kẹt”, “đã dừng gửi”, “chưa nhận tín hiệu”) là dòng phụ màu <code>--ink-600</code> dưới tên, tách khỏi số mới.</li>
+      <li>Trình đọc màn hình: “Minh, có thể đang kẹt, 5 prompt có mục mới”.</li>
+      <li>Hơn 99: hiện “99+ mới”.</li>
+    </ul>
+  </div>
+  <div style="min-width: 0">
+    <h2 style="margin: 0 0 16px; font: 800 26px/1.25 var(--font-sans); color: var(--ink-900)">8 · “Đánh dấu đã đọc hết” trên hàng học viên</h2>
+    <p class="k">Có mục mới · 1440</p>
+    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-height: 40px; padding: 12px 16px; background: var(--paper); border: 1px solid var(--ink-200); border-radius: 14px">
+      <h3 style="margin: 0; font: 700 20px/1.3 var(--font-sans); color: var(--ink-900)">Lan</h3>
+      <span style="font: 400 13px/1.45 var(--font-sans); color: var(--ink-600)">3 ngày · 20 prompt · 30 lệnh</span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--ink-200); background: var(--paper); color: var(--ink-800); font: 600 12px/1 var(--font-sans)"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="flag" size="{{s12}}" color="var(--ink-600)"></x-import>Lặp lệnh lỗi<span style="font-weight: 400; color: var(--ink-600)">23/11</span></span>
+      <span style="flex: 1 1 0"></span>
+      <x-import component-from-global-scope="DesignSystem_2e7074.Button" variant="ghost" size="sm" icon="list-checks">Đánh dấu đã đọc hết</x-import>
+      <x-import component-from-global-scope="DesignSystem_2e7074.Button" variant="ghost" size="sm" icon="list">Mở tất cả</x-import>
+      <x-import component-from-global-scope="DesignSystem_2e7074.Button" variant="ghost" size="sm" icon="eye-off" shortcut="H">Ẩn nội dung</x-import>
+    </div>
+    <p class="k" style="margin-top: 24px">Không còn mục mới</p>
+    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-height: 40px; padding: 12px 16px; background: var(--paper); border: 1px solid var(--ink-200); border-radius: 14px">
+      <h3 style="margin: 0; font: 700 20px/1.3 var(--font-sans); color: var(--ink-900)">Lan</h3>
+      <span style="font: 400 13px/1.45 var(--font-sans); color: var(--ink-600)">3 ngày · 20 prompt · 30 lệnh</span>
+      <span style="flex: 1 1 0"></span>
+      <x-import component-from-global-scope="DesignSystem_2e7074.Button" variant="ghost" size="sm" icon="list-checks" disabled="{{yes}}">Đánh dấu đã đọc hết</x-import>
+      <x-import component-from-global-scope="DesignSystem_2e7074.Button" variant="ghost" size="sm" icon="list">Mở tất cả</x-import>
+      <x-import component-from-global-scope="DesignSystem_2e7074.Button" variant="ghost" size="sm" icon="eye-off" shortcut="H">Ẩn nội dung</x-import>
+    </div>
+    <p class="d">Nút không biến mất mà chuyển sang vô hiệu, để hai nút bên cạnh không đổi chỗ (mentor hay bấm theo vị trí).</p>
+    <p class="k" style="margin-top: 24px">Cột phải hẹp · khoảng 520px</p>
+    <div style="width: 520px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 16px; background: var(--paper); border: 1px solid var(--ink-200); border-radius: 14px; box-sizing: border-box">
+      <h3 style="margin: 0; font: 700 20px/1.3 var(--font-sans); color: var(--ink-900)">Lan</h3>
+      <span style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--ink-200); background: var(--paper); color: var(--ink-800); font: 600 12px/1 var(--font-sans)"><x-import component-from-global-scope="DesignSystem_2e7074.Icon" name="flag" size="{{s12}}" color="var(--ink-600)"></x-import>Lặp lệnh lỗi<span style="font-weight: 400; color: var(--ink-600)">23/11</span></span>
+      <span style="flex-basis: 100%; height: 0"></span>
+      <x-import component-from-global-scope="DesignSystem_2e7074.Button" variant="ghost" size="sm" icon="list-checks">Đánh dấu đã đọc hết</x-import>
+      <x-import component-from-global-scope="DesignSystem_2e7074.Button" variant="ghost" size="sm" icon="list">Mở tất cả</x-import>
+      <x-import component-from-global-scope="DesignSystem_2e7074.Button" variant="ghost" size="sm" icon="eye-off" shortcut="H">Ẩn</x-import>
+    </div>
+    <ul style="margin: 16px 0 0; padding-left: 18px; display: grid; gap: 6px; font: 400 13px/1.5 var(--font-sans); color: var(--ink-800)">
+      <li>Thứ tự từ trái: Đánh dấu đã đọc hết · Mở/Thu tất cả · Ẩn nội dung. Cả ba là <code>Button</code> ghost sm.</li>
+      <li>Bấm: mọi nhãn “Mới” của học viên này mờ đi cùng lúc (cùng chuyển động 280ms), số mới ở danh sách member về 0. Không cần hộp xác nhận. Đề xuất (cần PO duyệt): toast “Đã đánh dấu đọc hết · Hoàn tác” trong 5 giây.</li>
+      <li>Chỉ áp dụng cho học viên đang xem, không ảnh hưởng người khác.</li>
+    </ul>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":860}}'>
+class Component extends DCLogic {
+  renderVals() { return { s12: 12, yes: true }; }
+}
+</script>
+</body>
+</html>

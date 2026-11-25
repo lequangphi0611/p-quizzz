@@ -1,6 +1,6 @@
 # S43: Training: gom theo phiên Claude Code (kể cả song song) và đánh dấu prompt mới
 
-**Phụ thuộc:** S39, S41, S42 · **Trạng thái:** ⏳ (spec xong 2026-11-25; **phần UI chờ thiết kế**, xem [prompt designer](../design/S43-training-session-blocks-ui-prompt.md))
+**Phụ thuộc:** S39, S41, S42 · **Trạng thái:** ⏳ (spec và thiết kế xong 2026-11-25; [prompt designer](../design/S43-training-session-blocks-ui-prompt.md), [thiết kế](../design/S43-design/))
 
 ## Bối cảnh
 Member có thể mở nhiều phiên Claude Code cùng lúc trong thư mục bài tập. Mã hiện tại coi các phiên nối tiếp nhau. Ví dụ `buildTimeline` (`src/web/features/training-admin/domain/timeline.ts`): mỗi khi `claudeSessionId` của sự kiện kế tiếp khác sự kiện trước, nó chèn một dải "Phiên N · mở lúc" và mở một lượt mới. Khi hai phiên xen nhau thì:
@@ -58,7 +58,7 @@ type SessionBlock = {
 
 Các khối trong một ngày xếp theo `firstAt` cũ → mới; lượt trong khối xếp cũ → mới.
 
-### Phần 2: giao diện (**chờ thiết kế được PO duyệt**; khi có thiết kế, main session bổ sung mục "Thiết kế" vào story này trước khi giao)
+### Phần 2: giao diện (theo mục **Thiết kế** ở cuối story; chỗ nào mục đó nói khác thì theo mục đó)
 - **Khối phiên** trong ngày, thay cho dải phiên hiện tại (`SessionMarker`):
   - Tiêu đề là nút (`aria-expanded`, `aria-controls`). Nội dung tiêu đề: "Phiên Claude Code N", khoảng giờ, tóm tắt (bỏ lỗi khi 0), cách kết thúc, "song song với phiên M".
   - Mặc định mở khi khối có mục chưa đọc hoặc `endedBy === null`; còn lại thu.
@@ -69,12 +69,15 @@ Các khối trong một ngày xếp theo `firstAt` cũ → mới; lượt trong 
   - **Đơn vị**: một lượt (prompt + mọi sự kiện của nó). Lượt **chưa đọc** khi có sự kiện có `id` lớn hơn mốc đã đọc của lượt đó và lớn hơn mốc ban đầu của member.
   - **Lưu**: port mới trong feature, ví dụ `TrainingReadStore`, adapter `localStorage`, không bao giờ throw (theo kiểu `local-storage-seen-store.ts` của `mentor-notices`). Key `pq:mentor:training-read:<trainingId>`. Giá trị gợi ý: `{ members: { [memberId]: { baselineAt, baselinePromptCount, turns: { [turnKey]: maxReadEventId } } } }`, trong đó `turnKey` là id sự kiện prompt (lượt không có prompt: id sự kiện đầu). Thêm key vào bảng localStorage trong architecture.
   - **Mốc ban đầu**: lần đầu trình duyệt thấy một member trong danh sách (chưa có bản ghi), lấy `baselineAt = lastSeenAt` (giờ server) và `baselinePromptCount = promptCount` của `TrainingMemberRow`. Sự kiện có `receivedAt ≤ baselineAt` coi là đã đọc.
-  - **Đọc**: một lượt nằm trong khung cuộn của dòng thời gian (ví dụ ≥ 50% chiều cao, hoặc phủ ≥ 50% khung nếu lượt cao hơn khung) **liền 2 giây**, trong lúc tab đang hiện (`document.visibilityState`), không ẩn nội dung, ngày và khối của nó đang mở. Khi đủ, ghi `maxReadEventId` = id sự kiện lớn nhất của lượt **tại thời điểm bắt đầu đếm**. Sự kiện tới trong 2 giây đó vẫn là mới. Dùng `IntersectionObserver` hoặc tương đương; logic hẹn giờ tách thành hàm hoặc lớp có test với đồng hồ giả.
+  - **Đọc**: một lượt nằm trong khung cuộn của dòng thời gian (ví dụ ≥ 50% chiều cao, hoặc phủ ≥ 50% khung nếu lượt cao hơn khung) **liền 2 giây**, trong lúc tab đang hiện (`document.visibilityState`) **và cửa sổ đang được chọn** (`document.hasFocus()`, nghe `focus`/`blur`), không ẩn nội dung, ngày và khối của nó đang mở. Khi đủ, ghi `maxReadEventId` = id sự kiện lớn nhất của lượt **tại thời điểm bắt đầu đếm**. Sự kiện tới trong 2 giây đó vẫn là mới. Dùng `IntersectionObserver` hoặc tương đương; logic hẹn giờ tách thành hàm hoặc lớp có test với đồng hồ giả.
   - **"Đánh dấu đã đọc hết"**: đặt ở hàng thông tin học viên (theo thiết kế), đánh dấu mọi lượt **đã tải** của member đang xem, đồng thời nâng `baselinePromptCount` cho đúng.
   - **Số ở danh sách member** (`MembersTable`): số prompt mới chưa đọc = `promptCount − baselinePromptCount − (số prompt sau mốc đã đọc)`, không âm. Bằng 0 thì không hiện gì. Sự kiện mới trong prompt cũ không cộng vào.
   - **Ngày hoặc khối đang thu** hiện "N mới" (số lượt chưa đọc trong đó).
-  - **Chip "N sự kiện mới" của S42**: điều kiện hiện vẫn như S42 (có sự kiện mới khi không theo dõi). Con số là **số lượt chưa đọc** mà các sự kiện mới đó rơi vào; bấm thì tới lượt chưa đọc mới nhất trong số đó. Đổi chữ theo thiết kế.
-  - **Ẩn nội dung**: không hiện và không đếm đọc.
+  - **Chip "N sự kiện mới" của S42**: điều kiện hiện vẫn như S42 (có sự kiện mới khi không theo dõi). Chữ đổi thành **"N prompt có mục mới"**; con số là số lượt chưa đọc nằm ngoài khung nhìn, ở mép phía có chúng; bấm thì tới lượt gần nhất trong số đó.
+  - **Ẩn nội dung**: không hiện, không đếm đọc, và ẩn luôn số mới ở danh sách member.
+- **Hoàn tác**: sau "Đánh dấu đã đọc hết" hiện thông báo "Đã đánh dấu đọc hết · Hoàn tác" 5 giây; Hoàn tác trả lại đúng trạng thái đã đọc trước khi bấm (dùng thông báo/toast sẵn có trong `shared/ui` nếu có; không có thì báo, đừng tự tạo component dùng chung mới).
+- **Cuộn khi mở**: mở trang hoặc chọn member thì cuộn tới **prompt mới nhất** dù nó ở khối nào; "đang theo dõi" (S42) = prompt mới nhất trong khung nhìn. "Tải thêm" vẫn ở cuối nhóm ngày mới nhất; sự kiện tải thêm rơi vào đúng khối của nó.
+- **Mở tất cả / Thu tất cả** áp cho cả ngày lẫn khối.
   - **Dọn**: trang buổi đã `ended` thì xoá key của buổi. Trang danh sách buổi xoá key của những buổi không còn hoặc đã kết thúc.
 - **Ảnh** `docs/design/S43-assets/` theo các frame của thiết kế.
 
@@ -119,3 +122,70 @@ Các khối trong một ngày xếp theo `firstAt` cũ → mới; lượt trong 
 
 ## Thứ tự làm gợi ý
 Phần 1 làm và review được trước, có thể thành PR riêng. Phần 2 chỉ bắt đầu khi thiết kế đã được PO duyệt và story có mục "Thiết kế".
+
+## Thiết kế (PO duyệt 2026-11-25)
+- Canvas: https://claude.ai/artifact/VweyUbGHM2TvdB3hc1GpSL (trang "S43 · Khối phiên & đánh dấu mới").
+- Bản chép trong repo, [`docs/design/S43-design/`](../design/S43-design/):
+  - `Spec.dc.html` là **spec cho dev**: số đo, token, tương tác, component.
+  - `Screen.dc.html` là màn hình dùng chung cho các frame, `variant`: `default`, `all`, `single`, `collapsedNew`, `chip`, `midnight`, `flag`, `hidden`.
+  - `PromptCard.dc.html` là thẻ prompt với các trạng thái mới (`stage`: `fresh` / `fading` / `read`; `ev` cho sự kiện mới trong prompt cũ).
+  - `Cards.dc.html` vẽ các tổ hợp tín hiệu (mới + lỗi / cờ / ví dụ / focus).
+  - `Members.dc.html` vẽ danh sách member và hàng học viên.
+
+Các file là HTML của công cụ thiết kế, không chạy trong app. Token (`--ink-*`, `--brand-*`, `--wrong-600`, `--sun-*`, `--focus-ring`, `--dur-*`, …) lấy token tương ứng trong `src/web`; thiếu thì báo, không tự đặt giá trị mới.
+
+### Điểm chính (tóm tắt Spec; chi tiết xem file)
+- **`SessionBlockHeader`** thay `SessionMarker`. Props `{ index, range, counts, end: 'clear' | 'exit' | 'open' | 'next', continuedFrom?, parallelWith?: number[], newCount?, expanded, onToggle, variant: 'default' | 'light' }`.
+  - Không nền, không viền, nằm trên đường ray của ngày, hàng tối thiểu 32px. Chevron 14 `ink-600`. Tiêu đề 600 13px `ink-900`; tóm tắt 400 13px `ink-600`, số tabular, số lỗi 600 `wrong-600`.
+  - Nút gồm chevron + tiêu đề + tóm tắt (`aria-expanded`, `aria-controls`). Các nhãn bên phải nằm ngoài nút.
+  - Nhãn kết thúc: `/clear` mono, nền `ink-100`, bo 4. "thoát", "tiếp từ dd/mm", "tiếp sang dd/mm": nền `ink-100`, bo tròn. "chưa kết thúc": không nền, viền đứt `ink-400`, không chấm nhấp nháy, không màu "đang chạy".
+  - "Song song với phiên M" là nút viền `ink-300`, bấm thì mở và cuộn tới khối M. Nhiều phiên thì ghi "phiên 7, 9".
+  - Chấm mốc 12px: mở = vòng rỗng viền `ink-500`, thu = chấm đặc `ink-300`.
+  - Hover nền `ink-100` bo 8; focus `focus-ring`. Cột hẹp: nhãn xuống dòng, vạch đứt tối thiểu 24px.
+  - Ngày chỉ có một phiên: biến thể `light`, không phải nút.
+  - Khối cuối ngày của phiên kéo qua 0 giờ ghi "tiếp sang dd/mm" ở chỗ nhãn kết thúc (`end: 'next'`).
+- **Khoảng cách**:
+  - Prompt không thụt thêm (vẫn 36px như S42).
+  - Khối đầu ngày đệm trên 2px. Sau một khối đang mở: 16px giữa hai khối. Hai khối thu liền nhau: 4px (36px mỗi hàng).
+  - Tiêu đề khối → prompt đầu: 4px. Prompt ↔ prompt: 8px.
+- **Không dính**: tiêu đề khối không dính. Khi tiêu đề khối đã cuộn qua, tiêu đề ngày đang dính ghi thêm chữ phụ "· Phiên N" bên phải, không tăng chiều cao.
+- **Mở/thu khối**: như ngày ở S42. Không làm hiệu ứng chiều cao; chevron xoay trong `dur-fast`; nội dung hiện bằng `pq-fade`. Tab: tiêu đề khối → nút song song → prompt. Prompt mới đến trong khối đang thu ở phía trên thì chỉ cập nhật "N mới", không tự mở.
+- **`NewBadge`** `{ label?: 'Mới' | 'Lệnh mới', count?, size: 'sm' | 'md', fading? }`.
+  - Nền `brand-600`, chữ trắng 700 11px, cao 18px (20px ở danh sách member), bo tròn, luôn có chữ. `count` thì hiện "N mới"; từ 100 trở lên là "99+ mới".
+  - Chữ cho trình đọc màn hình: "Mới — prompt mới", "Lệnh mới — sự kiện mới trong prompt đã đọc", "N prompt có mục mới".
+- **Thẻ prompt mới**: "Mới" đứng đầu hàng, viền thẻ `brand-500` 1px.
+  - Hết mới (sau 2 giây): nhãn opacity 1 → 0 và scale 1 → .92, viền về `ink-200`, trong `dur-slow` / `ease-standard`. Giảm chuyển động thì đổi ngay. Chỗ của nhãn thu lại trên cùng hàng, không đổi chiều cao.
+- **Prompt cũ có sự kiện mới**: viền thẻ không đổi. Tóm tắt thêm "· N mới" (`brand-700`). Dưới nội dung có dải `PromptEventStrip` `{ kind: 'command' | 'permission', text, result, at, fading? }`, nền `brand-050`, viền `brand-200`, nhãn "Lệnh mới".
+  - Hết mới thì dải về nền trắng viền `ink-200`. Dải **chỉ được bỏ khi thẻ đã ra khỏi khung nhìn**, có giữ neo cuộn.
+  - Nhiều sự kiện mới trong một prompt: hiện tối đa 3 dải, rồi một dòng "và N sự kiện mới khác". Thiết kế không vẽ trường hợp này; đây là quyết định của main session.
+- **Tổ hợp tín hiệu**: focus = nền `sun-100` (vẫn giữ viền cobalt khi đang mới); cờ = chip viền xám; lỗi = chỉ con số màu đỏ; ví dụ = nhãn mực đậm. Dùng kiểu "focus" và "ví dụ" sẵn có của app.
+- **`DayGroupHeader`** thêm `newCount`. "N mới" đặt ngay sau tóm tắt, trước chip cờ, chỉ khi ngày đang thu. Khối cũng vậy.
+- **Danh sách member** (`Members.dc.html`):
+  - "N mới" nằm sát mép phải hàng, cùng kiểu `NewBadge` md.
+  - Trạng thái người học là dòng phụ `ink-600` dưới tên.
+  - Không dùng đỏ hay chấm thông báo; không sắp xếp theo số mới.
+  - Trình đọc màn hình đọc: "Minh, có thể đang kẹt, 5 prompt mới".
+- **Hàng học viên**: thứ tự từ trái "Đánh dấu đã đọc hết" (`Button` ghost sm, icon `list-checks`) · "Mở/Thu tất cả" · "Ẩn nội dung". Không còn mục mới thì nút đầu chuyển sang **vô hiệu**, không ẩn. Cột hẹp: các nút xuống dòng riêng.
+- **Chip nổi**: "↑ N prompt có mục mới" ở mép phía có prompt đó, chỉ hiện khi có prompt có mục mới nằm ngoài khung. Bấm thì mở ngày/khối, cuộn tới prompt gần nhất, tô focus rồi nhạt dần; đồng hồ 2 giây vẫn áp dụng.
+- **Đồng hồ 2 giây**: chạy khi ≥ 50% thẻ (hoặc ≥ 200px nếu thẻ cao hơn khung) nằm trong khung, tab hiện, cửa sổ đang được chọn, không ẩn nội dung. Ra khỏi khung thì đặt lại về 0. Không hiện đồng hồ trên giao diện.
+
+### Quyết định của PO về các điểm designer nêu (2026-11-25)
+- Khối "chưa kết thúc" **luôn mở mặc định** như spec, không thêm ngưỡng 30 phút. PO chấp nhận rằng phiên không gửi được tín hiệu kết thúc sẽ luôn mở.
+- Đếm đọc cần **cửa sổ đang được chọn** (`document.hasFocus()`).
+- Chữ chip: "N prompt có mục mới".
+- Mở trang thì cuộn tới **prompt mới nhất** dù ở khối nào.
+- Ẩn nội dung ẩn luôn số mới ở danh sách member.
+- Có thông báo "Hoàn tác" 5 giây sau "Đánh dấu đã đọc hết".
+- Số ở danh sách member **chỉ đếm prompt mới**, khác cách designer đề xuất. Dữ liệu mẫu "Lan 5 mới" trong frame vì vậy không áp dụng.
+- "Mở tất cả / Thu tất cả" áp cho cả ngày lẫn khối (theo frame 2).
+
+### Acceptance criteria (thiết kế)
+- [ ] Tiêu đề khối, nhãn kết thúc, nút song song, chấm mốc, khoảng cách khớp Spec (token tương ứng trong app).
+- [ ] Bấm "Song song với phiên M" thì mở và cuộn tới khối M.
+- [ ] Tiêu đề ngày đang dính ghi thêm "· Phiên N" khi tiêu đề khối đã cuộn qua.
+- [ ] Thẻ prompt mới / prompt cũ có lệnh mới / đang mờ / đã đọc khớp `PromptCard.dc.html`. Dải "Lệnh mới" chỉ bị bỏ khi thẻ ngoài khung nhìn, nội dung đang đọc không nhảy.
+- [ ] Nút "Đánh dấu đã đọc hết" vô hiệu khi không còn mục mới. "Hoàn tác" trong 5 giây trả lại trạng thái cũ.
+- [ ] Chip "N prompt có mục mới" ở mép phía có prompt đó.
+- [ ] Mở trang hoặc chọn member: prompt mới nhất trong khung nhìn, kể cả khi nó nằm ở khối phía trên.
+- [ ] Cửa sổ mất focus thì không đếm đọc.
+- [ ] Ảnh `docs/design/S43-assets/` theo các frame: `default` (1440 và 800px), `all`, `single`, `collapsedNew`, `chip`, `midnight`, `flag`, `hidden`, thẻ prompt (mới, có lệnh mới, đã đọc), danh sách member.
