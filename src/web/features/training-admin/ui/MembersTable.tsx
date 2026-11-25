@@ -5,8 +5,10 @@ import { td, th } from '../../../shared/ui/tableStyles.js';
 import { connectionLabel } from '../domain/connection-label.js';
 import { visibleFlags } from '../domain/flags.js';
 import { formatLastSeen, sortMembers } from '../domain/members.js';
+import { unreadPromptCount, type ReadState } from '../domain/unread.js';
 import { Button } from '../../../shared/ui/Button.js';
-import { ConnectionChip, FlagChip, StoppedSendingChip, StuckChip } from './chips.js';
+import { ConnectionChip, FlagChip, StoppedSendingChip, StuckChip, visuallyHidden } from './chips.js';
+import { NewBadge } from './NewBadge.js';
 
 const tight = { padding: '10px 10px' } as const;
 const num = { ...td, ...tight, textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' } as const;
@@ -15,8 +17,9 @@ const num = { ...td, ...tight, textAlign: 'right', fontVariantNumeric: 'tabular-
  * The members of a training, sorted by name and kept that way: no column sorts by errors, there is no score or rank.
  * Choosing a member (click, or ↑ / ↓ then Enter) opens their timeline. `compact` = the output panel is open: names only.
  * The table is not a live region; changes are announced separately (see `announcementFor`).
+ * Beside a name, "N mới" counts the prompts not read yet (S43); not shown while the content is hidden, as it could tell the room who is active.
  */
-export function MembersTable({ members, selectedId, onSelect, onPurge, compact, now }: { members: readonly TrainingMemberRow[]; selectedId: number | null; onSelect: (id: number) => void; onPurge: (id: number) => void; compact: boolean; now: number }) {
+export function MembersTable({ members, selectedId, onSelect, onPurge, compact, now, read, hidden }: { members: readonly TrainingMemberRow[]; selectedId: number | null; onSelect: (id: number) => void; onPurge: (id: number) => void; compact: boolean; now: number; read: ReadState; hidden: boolean }) {
   const body = useRef<HTMLTableSectionElement>(null);
   const rows = sortMembers(members);
 
@@ -42,16 +45,23 @@ export function MembersTable({ members, selectedId, onSelect, onPurge, compact, 
           <tbody ref={body} onKeyDown={onKeyDown}>
             {rows.map(m => {
               const on = m.id === selectedId;
+              const fresh = hidden ? 0 : unreadPromptCount(m, read);
               return (
                 <tr key={m.id} onClick={() => onSelect(m.id)} style={{ cursor: 'pointer', background: on ? 'var(--selected-bg)' : undefined, boxShadow: on ? 'inset 3px 0 0 var(--brand-600)' : undefined }}>
                   <td style={{ ...td, ...tight, whiteSpace: 'normal', minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <button type="button" data-member={m.id} aria-pressed={on} onClick={e => { e.stopPropagation(); onSelect(m.id); }}
+                      <button type="button" data-member={m.id} aria-pressed={on} aria-describedby={fresh > 0 ? `member-new-${m.id}` : undefined} onClick={e => { e.stopPropagation(); onSelect(m.id); }}
                         style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', font: 'var(--type-ui)', fontWeight: 600, color: 'var(--text-title)', textAlign: 'left', overflowWrap: 'anywhere' }}>{m.displayName}</button>
                       {m.stuck && <StuckChip iconOnly={compact} />}
                       {m.stoppedSending && connectionLabel(m).key !== 'stopped-sending' && <StoppedSendingChip iconOnly={compact} />}
                       {compact && <ConnectionChip row={m} iconOnly />}
                       {compact && visibleFlags(m).map(code => <FlagChip key={code} code={code} iconOnly />)}
+                      {fresh > 0 && (
+                        <span data-member-new={m.id} style={{ marginLeft: 'auto' }}>
+                          <span id={`member-new-${m.id}`} style={visuallyHidden}>{fresh} prompt có mục mới</span>
+                          <span aria-hidden="true"><NewBadge count={fresh} size="md" /></span>
+                        </span>
+                      )}
                     </div>
                     {m.stoppedSending && (
                       <div style={{ marginTop: 4 }} onClick={e => e.stopPropagation()}>

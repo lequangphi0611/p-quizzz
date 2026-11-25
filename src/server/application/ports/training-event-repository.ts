@@ -1,7 +1,6 @@
 import type { Clip } from '../../domain/training/clip.js';
 import type { ExportEvent } from '../../domain/training/export.js';
 import type { FlagEvent } from '../../domain/training/flags/flag-event.js';
-import type { ToolOutcome } from '../../domain/training/is-stuck.js';
 import type { TrainingEventDraft } from '../../domain/training/training-event.js';
 
 /** A filtered hook call, stamped with whose it is and when it arrived. */
@@ -63,10 +62,8 @@ export interface TrainingEventReader {
   /** Events of one member with `id > afterId`, oldest first. */
   listLight(memberId: number, afterId: number, limit: number): Promise<LightEvent[]>;
   getDetail(eventId: number): Promise<EventDetail | null>;
-  /** Every event of the member, oldest first, with bounded text, for the flag rules and the inferred permission decisions. */
+  /** Every event of the member, oldest first, with bounded text, for the flag rules, the inferred permission decisions and "possibly stuck" (all read per Claude Code session). */
   listForFlags(memberId: number): Promise<FlagEvent[]>;
-  /** The member's last `n` tool calls, oldest first. */
-  recentTools(memberId: number, n: number): Promise<ToolOutcome[]>;
   /** Counts per member of the training; members with no events are absent. */
   countsByMember(trainingId: number): Promise<Map<number, MemberCounts>>;
   /** The events of the training the mentor marked, oldest first (no output and no change: the report never carries them). */

@@ -1,7 +1,7 @@
 import { TrainingEventNotFoundError, TrainingMemberNotFoundError, TrainingNotFoundError, TrainingStateError } from '../../../domain/training/errors.js';
 import { analyzeEvents } from '../../../domain/training/flags/index.js';
 import { FLAG_CODES, type FlagCode } from '../../../../shared/api/training.js';
-import { isStuck, STUCK_REPEAT } from '../../../domain/training/is-stuck.js';
+import { isStuck } from '../../../domain/training/is-stuck.js';
 import { assertCanPurge, connectionState, nextTrainingStatus, stillSending, type Training, type TrainingMember } from '../../../domain/training/training.js';
 import type { Clock } from '../../ports/clock.js';
 import type { MemberCounts, TrainingEventReader } from '../../ports/training-event-repository.js';
@@ -75,19 +75,22 @@ export interface TrainingDetailView {
 
 export class GetTrainingDetail {
   /** Flags are derived from a member's whole timeline, so they are kept until that member's newest event changes. */
-  private readonly flagCache = new Map<number, { key: string; flags: FlagCode[] }>();
+  private readonly flagCache = new Map<number, { key: string; flags: FlagCode[]; stuck: boolean }>();
 
   constructor(private readonly deps: { trainings: TrainingReader; members: TrainingMemberReader; events: TrainingEventReader }) {}
 
-  private async flagsOf(training: Training, memberId: number, counts: MemberCounts | undefined): Promise<FlagCode[]> {
-    if (!counts) return [];
+  private async flagsOf(training: Training, memberId: number, counts: MemberCounts | undefined): Promise<{ flags: FlagCode[]; stuck: boolean }> {
+    if (!counts) return { flags: [], stuck: false };
     const key = `${counts.lastEventId}:${training.allowAutoAccept}`;
     const cached = this.flagCache.get(memberId);
-    if (cached?.key === key) return cached.flags;
-    const { flags } = analyzeEvents(await this.deps.events.listForFlags(memberId), { allowAutoAccept: training.allowAutoAccept });
-    const codes = flags.map(f => f.code);
-    this.flagCache.set(memberId, { key, flags: codes });
-    return codes;
+    if (cached?.key === key) return { flags: cached.flags, stuck: cached.stuck };
+    const events = await this.deps.events.listForFlags(memberId);
+    const { flags } = analyzeEvents(events, { allowAutoAccept: training.allowAutoAccept });
+    // "Stuck" reads the same events as the flags, so it shares their cache (no separate query per poll).
+    const stuck = isStuck(events.filter(e => e.kind === 'tool').map(e => ({ ok: e.ok === true, toolTarget: e.toolTarget, claudeSessionId: e.claudeSessionId })));
+    const result = { flags: flags.map(f => f.code), stuck };
+    this.flagCache.set(memberId, { key, ...result });
+    return result;
   }
 
   async execute(id: number): Promise<TrainingDetailView> {
@@ -96,9 +99,10 @@ export class GetTrainingDetail {
     const members = training.status === 'ended' ? [] : await this.deps.members.listByTraining(id);
     const counts = members.length > 0 ? await this.deps.events.countsByMember(id) : new Map<number, MemberCounts>();
     const views = await Promise.all(
-      members.map(async m =>
-        memberView(training, m, counts.get(m.id), isStuck(await this.deps.events.recentTools(m.id, STUCK_REPEAT)), await this.flagsOf(training, m.id, counts.get(m.id))),
-      ),
+      members.map(async m => {
+        const { flags, stuck } = await this.flagsOf(training, m.id, counts.get(m.id));
+        return memberView(training, m, counts.get(m.id), stuck, flags);
+      }),
     );
     const flagCounts = Object.fromEntries(FLAG_CODES.map(code => [code, views.filter(v => v.flags.includes(code)).length])) as Record<FlagCode, number>;
     return {

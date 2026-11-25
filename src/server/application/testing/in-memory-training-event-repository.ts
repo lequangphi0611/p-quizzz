@@ -139,11 +139,6 @@ export class InMemoryTrainingEventRepository implements TrainingEventRepository,
     };
   }
 
-  async recentTools(memberId: number, n: number): Promise<ToolOutcome[]> {
-    const tools = (await this.all()).filter(e => e.memberId === memberId && e.kind === 'tool');
-    return tools.slice(-n).map(e => ({ ok: e.kind === 'tool' && e.ok, toolTarget: e.kind === 'tool' ? e.toolTarget : null }));
-  }
-
   async countsByMember(trainingId: number): Promise<Map<number, MemberCounts>> {
     const out = new Map<number, MemberCounts>();
     for (const e of await this.all()) {

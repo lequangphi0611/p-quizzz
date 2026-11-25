@@ -29,4 +29,12 @@ describe('repeatedRequest', () => {
     const long = `${'tạo trang đăng nhập mới '.repeat(6)}vẫn lỗi`;
     expect(repeatedRequest([prompt('a b'), prompt(long), prompt('khác hẳn nội dung')], ctx())).toBeNull();
   });
+
+  it('is judged within each session: three repeats in A with B prompts between still count; across sessions they do not', () => {
+    const a = ['sửa lỗi đăng nhập giúp tôi', 'sửa lỗi đăng nhập giúp tôi', 'sửa lỗi đăng nhập giúp tôi nhé'];
+    const events = [prompt(a[0]!, 1, 'A'), prompt('thêm test cho hàm đó', 2, 'B'), prompt(a[1]!, 3, 'A'), prompt('đổi tên file thành main', 4, 'B'), prompt(a[2]!, 5, 'A')];
+    expect(repeatedRequest(events, ctx())?.eventIds).toEqual([events[0]!.id, events[2]!.id, events[4]!.id]);
+    const split = [prompt(a[0]!, 1, 'A'), prompt(a[1]!, 2, 'B'), prompt(a[2]!, 3, 'A')];
+    expect(repeatedRequest(split, ctx())).toBeNull();
+  });
 });

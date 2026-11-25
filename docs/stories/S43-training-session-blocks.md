@@ -1,6 +1,6 @@
 # S43: Training: gom theo phiên Claude Code (kể cả song song) và đánh dấu prompt mới
 
-**Phụ thuộc:** S39, S41, S42 · **Trạng thái:** ⏳ (spec và thiết kế xong 2026-11-25; [prompt designer](../design/S43-training-session-blocks-ui-prompt.md), [thiết kế](../design/S43-design/))
+**Phụ thuộc:** S39, S41, S42 · **Trạng thái:** ✅ (spec và thiết kế xong 2026-11-25; [prompt designer](../design/S43-training-session-blocks-ui-prompt.md), [thiết kế](../design/S43-design/))
 
 ## Bối cảnh
 Member có thể mở nhiều phiên Claude Code cùng lúc trong thư mục bài tập. Mã hiện tại coi các phiên nối tiếp nhau. Ví dụ `buildTimeline` (`src/web/features/training-admin/domain/timeline.ts`): mỗi khi `claudeSessionId` của sự kiện kế tiếp khác sự kiện trước, nó chèn một dải "Phiên N · mở lúc" và mở một lượt mới. Khi hai phiên xen nhau thì:
@@ -90,26 +90,26 @@ Các khối trong một ngày xếp theo `firstAt` cũ → mới; lượt trong 
 
 ## Acceptance criteria
 ### Phần 1
-- [ ] Hai phiên xen nhau (A prompt, B prompt, A lệnh, B lệnh, A lệnh): mỗi lệnh nằm dưới prompt của đúng phiên, không có lượt "không có prompt", mỗi phiên chỉ có một mục mở phiên.
-- [ ] Yêu cầu quyền ở phiên A, rồi prompt ở phiên B, rồi công cụ khớp chạy ở A: suy ra "cho phép" (trước đây "từ chối"). Không có gì tiếp theo ở A: "đang chờ".
-- [ ] `npm test` lỗi 3 lần ở phiên A xen với lệnh thành công ở phiên B: cờ lặp lệnh lỗi và "có thể đang kẹt" vẫn bật. Lỗi 2 lần ở A và 1 lần ở B: không bật.
-- [ ] Sửa file ở phiên A, chạy test thành công ở phiên B: **không** có cờ "sửa xong chưa chạy kiểm tra".
-- [ ] Lặp yêu cầu và nén tự động nhiều lần được xét trong từng phiên.
-- [ ] Zip: file member nhóm ngày → phiên → prompt; số phiên khớp web; lượt qua nửa đêm nằm ở ngày của prompt.
-- [ ] Báo cáo: ví dụ đã đánh dấu đi kèm đúng prompt cùng phiên.
-- [ ] Khối phiên (domain): đúng thứ tự, khoảng giờ, tóm tắt, `endedBy`, `overlapsWith`, "tiếp từ dd/mm" khi qua đêm. Số đếm ngày bằng tổng các khối.
+- [x] Hai phiên xen nhau (A prompt, B prompt, A lệnh, B lệnh, A lệnh): mỗi lệnh nằm dưới prompt của đúng phiên, không có lượt "không có prompt", mỗi phiên chỉ có một mục mở phiên.
+- [x] Yêu cầu quyền ở phiên A, rồi prompt ở phiên B, rồi công cụ khớp chạy ở A: suy ra "cho phép" (trước đây "từ chối"). Không có gì tiếp theo ở A: "đang chờ".
+- [x] `npm test` lỗi 3 lần ở phiên A xen với lệnh thành công ở phiên B: cờ lặp lệnh lỗi và "có thể đang kẹt" vẫn bật. Lỗi 2 lần ở A và 1 lần ở B: không bật.
+- [x] Sửa file ở phiên A, chạy test thành công ở phiên B: **không** có cờ "sửa xong chưa chạy kiểm tra".
+- [x] Lặp yêu cầu và nén tự động nhiều lần được xét trong từng phiên.
+- [x] Zip: file member nhóm ngày → phiên → prompt; số phiên khớp web; lượt qua nửa đêm nằm ở ngày của prompt.
+- [x] Báo cáo: ví dụ đã đánh dấu đi kèm đúng prompt cùng phiên.
+- [x] Khối phiên (domain): đúng thứ tự, khoảng giờ, tóm tắt, `endedBy`, `overlapsWith`, "tiếp từ dd/mm" khi qua đêm. Số đếm ngày bằng tổng các khối.
 ### Phần 2 (sau thiết kế)
-- [ ] Khối phiên hiển thị và mở/thu đúng mặc định; `aria-*` và bàn phím như thiết kế.
-- [ ] Chip cờ, J/K, mở chi tiết, "N mới" tới sự kiện trong khối hoặc ngày đang thu thì cả hai tự mở. J/K theo thứ tự hiển thị.
-- [ ] Lượt mới, hoặc lượt cũ có sự kiện mới, nổi bật (không chỉ bằng màu). Nằm trong khung 2 giây thì hết; dưới 2 giây hoặc tab ẩn thì chưa hết.
-- [ ] Sự kiện tới trong lúc đang đếm 2 giây vẫn nổi bật sau khi lượt được đánh dấu đọc.
-- [ ] Lần đầu mở buổi trên một trình duyệt: không có gì nổi bật. Sự kiện tới sau thì có.
-- [ ] F5 giữ trạng thái đã đọc. `localStorage` lỗi hoặc bị chặn thì trang vẫn chạy (coi như lần đầu).
-- [ ] Danh sách member hiện đúng số prompt mới chưa đọc. Ngày/khối đang thu hiện "N mới". "Đánh dấu đã đọc hết" xoá hết nổi bật của member đó.
-- [ ] Chip "N sự kiện mới" đếm theo lượt chưa đọc.
-- [ ] Ẩn nội dung: không lộ nổi bật hay số mới trong dòng thời gian, không đếm đọc.
-- [ ] Buổi đã kết thúc thì key `localStorage` của buổi bị xoá.
-- [ ] `npm run typecheck`, `npm test` (gồm `arch:check`) pass; `npm run e2e` không có lỗi mới.
+- [x] Khối phiên hiển thị và mở/thu đúng mặc định; `aria-*` và bàn phím như thiết kế.
+- [x] Chip cờ, J/K, mở chi tiết, "N mới" tới sự kiện trong khối hoặc ngày đang thu thì cả hai tự mở. J/K theo thứ tự hiển thị.
+- [x] Lượt mới, hoặc lượt cũ có sự kiện mới, nổi bật (không chỉ bằng màu). Nằm trong khung 2 giây thì hết; dưới 2 giây hoặc tab ẩn thì chưa hết.
+- [x] Sự kiện tới trong lúc đang đếm 2 giây vẫn nổi bật sau khi lượt được đánh dấu đọc.
+- [x] Lần đầu mở buổi trên một trình duyệt: không có gì nổi bật. Sự kiện tới sau thì có.
+- [x] F5 giữ trạng thái đã đọc. `localStorage` lỗi hoặc bị chặn thì trang vẫn chạy (coi như lần đầu).
+- [x] Danh sách member hiện đúng số prompt mới chưa đọc. Ngày/khối đang thu hiện "N mới". "Đánh dấu đã đọc hết" xoá hết nổi bật của member đó.
+- [x] Chip "N sự kiện mới" đếm theo lượt chưa đọc.
+- [x] Ẩn nội dung: không lộ nổi bật hay số mới trong dòng thời gian, không đếm đọc.
+- [x] Buổi đã kết thúc thì key `localStorage` của buổi bị xoá.
+- [x] `npm run typecheck`, `npm test` (gồm `arch:check`) pass; `npm run e2e` không có lỗi mới.
 
 ## Test
 - Server domain: test cho từng cờ đổi sang theo phiên, gồm ca hai phiên xen nhau (dùng `flags/test-events.ts`, thêm tham số `claudeSessionId`). Test `inferPermissionDecision` cho ca xen phiên. Test `isStuck` theo phiên. Test `buildMemberFile` nhóm ngày → phiên → prompt và lượt qua nửa đêm.
@@ -180,12 +180,20 @@ Các file là HTML của công cụ thiết kế, không chạy trong app. Token
 - "Mở tất cả / Thu tất cả" áp cho cả ngày lẫn khối (theo frame 2).
 
 ### Acceptance criteria (thiết kế)
-- [ ] Tiêu đề khối, nhãn kết thúc, nút song song, chấm mốc, khoảng cách khớp Spec (token tương ứng trong app).
-- [ ] Bấm "Song song với phiên M" thì mở và cuộn tới khối M.
-- [ ] Tiêu đề ngày đang dính ghi thêm "· Phiên N" khi tiêu đề khối đã cuộn qua.
-- [ ] Thẻ prompt mới / prompt cũ có lệnh mới / đang mờ / đã đọc khớp `PromptCard.dc.html`. Dải "Lệnh mới" chỉ bị bỏ khi thẻ ngoài khung nhìn, nội dung đang đọc không nhảy.
-- [ ] Nút "Đánh dấu đã đọc hết" vô hiệu khi không còn mục mới. "Hoàn tác" trong 5 giây trả lại trạng thái cũ.
-- [ ] Chip "N prompt có mục mới" ở mép phía có prompt đó.
-- [ ] Mở trang hoặc chọn member: prompt mới nhất trong khung nhìn, kể cả khi nó nằm ở khối phía trên.
-- [ ] Cửa sổ mất focus thì không đếm đọc.
-- [ ] Ảnh `docs/design/S43-assets/` theo các frame: `default` (1440 và 800px), `all`, `single`, `collapsedNew`, `chip`, `midnight`, `flag`, `hidden`, thẻ prompt (mới, có lệnh mới, đã đọc), danh sách member.
+- [x] Tiêu đề khối, nhãn kết thúc, nút song song, chấm mốc, khoảng cách khớp Spec (token tương ứng trong app).
+- [x] Bấm "Song song với phiên M" thì mở và cuộn tới khối M.
+- [x] Tiêu đề ngày đang dính ghi thêm "· Phiên N" khi tiêu đề khối đã cuộn qua.
+- [x] Thẻ prompt mới / prompt cũ có lệnh mới / đang mờ / đã đọc khớp `PromptCard.dc.html`. Dải "Lệnh mới" chỉ bị bỏ khi thẻ ngoài khung nhìn, nội dung đang đọc không nhảy.
+- [x] Nút "Đánh dấu đã đọc hết" vô hiệu khi không còn mục mới. "Hoàn tác" trong 5 giây trả lại trạng thái cũ.
+- [x] Chip "N prompt có mục mới" ở mép phía có prompt đó.
+- [x] Mở trang hoặc chọn member: prompt mới nhất trong khung nhìn, kể cả khi nó nằm ở khối phía trên.
+- [x] Cửa sổ mất focus thì không đếm đọc.
+- [x] Ảnh `docs/design/S43-assets/` theo các frame: `default` (1440 và 800px), `all`, `single`, `collapsedNew`, `chip`, `midnight`, `flag`, `hidden`, thẻ prompt (mới, có lệnh mới, đã đọc), danh sách member.
+
+## Đã làm (ghi chú)
+- **Server**: `perSession()` trong `flags/flag-event.ts` bọc `repeatedFailure`, `repeatedRequest`, `autoCompactRepeated`, `fastApprovals`; `inferPermissionDecision` đọc từng phiên. `longWithoutVerify` giữ nguyên cả member. `editedNotVerified`: cắt lượt theo phiên nhưng "đã kiểm tra" xét cả member (một lệnh kiểm tra ở phiên khác trong lúc lượt đang chạy cũng tính). `isStuck(tools)` theo phiên; **bỏ** port `recentTools`, kẹt tính từ `listForFlags` trong `flagsOf` (dùng chung cache theo `lastEventId`); ghi ở architecture §11.8/§11.9. `buildMemberFile` nhóm ngày -> phiên -> prompt (tiêu đề prompt hạ một cấp, ngày theo prompt, câu giải thích ở `00-tong-quan.md`). `report.ts` đã lấy ví dụ theo chính sự kiện đã đánh dấu, không cần sửa.
+- **Web domain**: `buildTimeline` giữ lượt hiện tại theo phiên (bỏ item `session`), `session-blocks.ts`, `day-groups.ts` (khối, `placesByEvent`, `stepEvent` theo thứ tự hiển thị), `unread.ts`, `read-dwell.ts`, `isCardReadable`. `endedBy` lấy trên cả buổi; `continuedFrom`/`continuesTo` là ngày (ms) của khối liền trước/sau; hiển thị `next` khi có `continuesTo`. Khối mặc định mở khi `endedBy === null` hoặc có mục chưa đọc.
+- **Đã đọc**: record có thêm `readPromptCount` (số prompt sau mốc đã đọc) để số ở danh sách member tính được mà không cần tải sự kiện. Sự kiện `notice` không làm lượt "mới". Hoàn tác và dọn key ở controller; port `TrainingReadStore`, adapter `LocalStorageTrainingReadStore`, context `TrainingReadStoreContext`.
+- **UI**: `SessionBlockHeader` (thay `SessionMarker`), `NewBadge`, `PromptEventStrip`, `UndoToast` (không có toast dùng chung nên đặt trong feature), `DayGroupHeader` thêm `newCount` và "· Phiên N". Mô tả truy cập của số ở danh sách member dùng `aria-describedby` để tên nút vẫn là tên học viên.
+- **Chưa làm / lệch thiết kế**: nút "Ẩn nội dung" vẫn ở header trang (không chuyển vào hàng học viên); trạng thái học viên ở danh sách vẫn là chip cạnh tên, chưa đổi thành dòng phụ; nhãn "Ví dụ" trên thẻ prompt chưa có (app chỉ có nút đánh dấu).
+- **E2E**: `e2e/training-sessions.spec.ts` (3 test), sửa `training-multi-day.spec.ts` và `training-admin.spec.ts` cho khối phiên và chip mới. Ảnh ở `docs/design/S43-assets/`. Zip theo khoảng ngày vẫn lọc sự kiện theo `receivedAt` của từng sự kiện (lượt qua nửa đêm ở rìa khoảng xuất có thể thiếu phần sau 0 giờ).

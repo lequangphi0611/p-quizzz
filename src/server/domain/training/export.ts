@@ -196,6 +196,97 @@ function analyze(input: ExportMemberInput, index: number, allowAutoAccept: boole
   return { input, fileName: slugifyFileName(index, input.displayName), stats: statsOf(input.events), flags, decisions };
 }
 
+/** One prompt and every event of the same Claude Code session that followed it (a turn); `prompt` is null for events before the session's first prompt. */
+interface ExportTurn {
+  prompt: ExportEvent | null;
+  events: ExportEvent[];
+}
+
+interface ExportBlock {
+  index: number;
+  turns: ExportTurn[];
+  firstAt: Date;
+  lastAt: Date;
+  /** The day of the session's previous block, and of its next one: set when it runs past midnight. */
+  continuedFrom: Date | null;
+  continuesTo: Date | null;
+}
+
+const dm = (d: Date) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
+
+/**
+ * The timeline of a member's file, grouped day → Claude Code session → prompt (PRODUCT.md §7.38). A member may keep several
+ * sessions open at once: every event goes under the prompt of its own session, a turn belongs to the day of its prompt, and a
+ * session is numbered by the order it first appears in the file (the same numbers as the mentor's screen).
+ */
+function timelineLines(events: readonly ExportEvent[], decisions: ReadonlyMap<number, PermissionDecisionInfo>): string[] {
+  const sessionIndex = new Map<string, number>();
+  for (const e of events) if (!sessionIndex.has(e.claudeSessionId)) sessionIndex.set(e.claudeSessionId, sessionIndex.size + 1);
+  // Turns in the order they open; each remembers its day.
+  const days: { day: string; at: Date; sessions: Map<string, ExportTurn[]> }[] = [];
+  const current = new Map<string, ExportTurn>();
+  const endedBy = new Map<string, string>();
+  for (const e of events) {
+    if (e.kind === 'session' && (e.subtype === 'clear' || e.subtype === 'exit')) endedBy.set(e.claudeSessionId, e.subtype);
+    let turn = e.kind === 'prompt' ? undefined : current.get(e.claudeSessionId);
+    if (!turn) {
+      turn = { prompt: e.kind === 'prompt' ? e : null, events: [] };
+      current.set(e.claudeSessionId, turn);
+      const key = dayOf(e.at);
+      let day = days[days.length - 1];
+      if (!day || day.day !== key) days.push((day = { day: key, at: e.at, sessions: new Map() }));
+      const list = day.sessions.get(e.claudeSessionId);
+      if (list) list.push(turn); else day.sessions.set(e.claudeSessionId, [turn]);
+    }
+    if (e.kind !== 'prompt') turn.events.push(e);
+  }
+  // Blocks of each day, then what links a session's blocks across days.
+  const blocksByDay = days.map(d =>
+    [...d.sessions].map(([sid, turns]): ExportBlock => {
+      const all = turns.flatMap(t => (t.prompt ? [t.prompt, ...t.events] : t.events));
+      return { index: sessionIndex.get(sid)!, turns, firstAt: all[0]!.at, lastAt: all[all.length - 1]!.at, continuedFrom: null, continuesTo: null };
+    }).sort((a, b) => a.firstAt.getTime() - b.firstAt.getTime() || a.index - b.index),
+  );
+  const lastBlockOf = new Map<number, ExportBlock>();
+  const lastDayOf = new Map<number, Date>();
+  blocksByDay.forEach((blocks, di) => {
+    for (const b of blocks) {
+      const prev = lastBlockOf.get(b.index);
+      if (prev) { b.continuedFrom = lastDayOf.get(b.index)!; prev.continuesTo = days[di]!.at; }
+      lastBlockOf.set(b.index, b);
+      lastDayOf.set(b.index, days[di]!.at);
+    }
+  });
+  const sessionOfIndex = new Map([...sessionIndex].map(([sid, i]) => [i, sid]));
+  const lines: string[] = [];
+  const mode = new Map<string, string>();
+  days.forEach((d, di) => {
+    lines.push(`### ${dmy(d.at)}`, '');
+    for (const b of blocksByDay[di]!) {
+      const sid = sessionOfIndex.get(b.index)!;
+      const end = b.continuesTo ? `tiếp sang ${dm(b.continuesTo)}` : endedBy.get(sid) === 'clear' ? '/clear' : endedBy.get(sid) === 'exit' ? 'thoát' : 'chưa kết thúc';
+      const parts = [`${hhmm(b.firstAt)}–${hhmm(b.lastAt)}`, ...(b.continuedFrom ? [`tiếp từ ${dm(b.continuedFrom)}`] : []), end];
+      lines.push(`#### Phiên Claude Code ${b.index} · ${parts.join(' · ')}`, '');
+      for (const t of b.turns) {
+        const first = t.prompt ?? t.events[0]!;
+        const withMode = (e: ExportEvent) => {
+          if (!e.permissionMode || e.permissionMode === mode.get(sid)) return '';
+          mode.set(sid, e.permissionMode);
+          return ` · chế độ quyền: ${e.permissionMode}`;
+        };
+        if (t.prompt) {
+          lines.push(`##### ${hhmmss(t.prompt.at)} · Prompt${withMode(t.prompt)}${t.prompt.marked ? ' · ★ ví dụ đã đánh dấu' : ''} · #${t.prompt.id}`, '', quote(t.prompt.prompt ?? ''), '');
+        } else {
+          lines.push(`##### ${hhmmss(first.at)} · Trước prompt đầu tiên của phiên này`, '');
+        }
+        for (const e of t.events) lines.push(eventLines(e, decisions, withMode(e)));
+        if (t.events.length > 0) lines.push('');
+      }
+    }
+  });
+  return lines;
+}
+
 function memberFile(a: Analyzed, input: ExportContext): string {
   const { events } = a.input;
   const title = `# ${oneLine(a.input.displayName)}${a.input.stoppedSending ? ' (đã dừng gửi)' : ''}`;
@@ -218,29 +309,7 @@ function memberFile(a: Analyzed, input: ExportContext): string {
   if (events.length === 0) {
     lines.push('Không có sự kiện nào trong khoảng này.');
   } else {
-    let day = '';
-    let session = '';
-    let mode: string | null = null;
-    for (const e of events) {
-      if (dayOf(e.at) !== day) {
-        day = dayOf(e.at);
-        lines.push(`### ${dmy(e.at)}`, '');
-      }
-      if (e.claudeSessionId !== session) {
-        session = e.claudeSessionId;
-        lines.push(`*Phiên Claude Code ${session.slice(0, 8)}*`, '');
-      }
-      let extra = '';
-      if (e.permissionMode && e.permissionMode !== mode) {
-        mode = e.permissionMode;
-        extra = ` · chế độ quyền: ${e.permissionMode}`;
-      }
-      if (e.kind === 'prompt') {
-        lines.push(`#### ${hhmmss(e.at)} · Prompt${extra}${e.marked ? ' · ★ ví dụ đã đánh dấu' : ''} · #${e.id}`, '', quote(e.prompt ?? ''), '');
-      } else {
-        lines.push(eventLines(e, a.decisions, extra));
-      }
-    }
+    lines.push(...timelineLines(events, a.decisions));
   }
   return `${lines.join('\n').trimEnd()}\n`;
 }
@@ -288,6 +357,8 @@ function overviewFile(all: readonly ExportMemberSummary[], input: ExportContext)
     '2. Dán một trong các prompt gợi ý ở dưới.',
     '3. Mỗi nhận xét của AI đều kèm số `#id` của sự kiện: mở file của bạn đó, tìm đúng số để kiểm lại trước khi góp ý.',
     '4. Dữ liệu quá lớn so với giới hạn của AI thì xuất lại theo từng ngày hoặc chỉ một số bạn.',
+    '',
+    'Trong file của từng bạn, dòng thời gian nhóm theo **ngày → phiên Claude Code → prompt**. Một bạn có thể mở nhiều phiên cùng lúc: mỗi lệnh nằm dưới prompt của đúng phiên đã chạy nó, số phiên đánh theo thứ tự xuất hiện, và một prompt chạy qua nửa đêm vẫn nằm ở ngày của prompt.',
     '',
     '## Các file trong gói',
     '',

@@ -7,7 +7,11 @@ export const LONG_UNVERIFIED_MS = 10 * 60 * 1000;
 
 export const isSuccessfulCheck = (e: FlagEvent) => isShell(e) && e.ok === true && e.toolTarget !== null && isVerifyCommand(e.toolTarget);
 
-/** "Lâu chưa qua kiểm tra": at least `LONG_UNVERIFIED_EDITS` edits over at least `LONG_UNVERIFIED_MS`, with no successful check in between. */
+/**
+ * "Lâu chưa qua kiểm tra": NOT per session (PRODUCT.md §7.38c). All of a member's Claude Code sessions work in one shared folder,
+ * so a check that passes in session B also verifies what session A edited.
+ *
+ * At least `LONG_UNVERIFIED_EDITS` edits over at least `LONG_UNVERIFIED_MS`, with no successful check in between. */
 export const longWithoutVerify: FlagRule = events => {
   let pending: FlagEvent[] = [];
   let hit: number[] | null = null;

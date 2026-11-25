@@ -11,7 +11,7 @@ import { MentorNoticesServicesContext } from '../features/mentor-notices/applica
 import { ScreenGatewayContext } from '../features/screen/application/use-screen.js';
 import { SessionAdminGatewayContext } from '../features/session-admin/application/session-admin-context.js';
 import { SharedSessionsGatewayContext } from '../features/shared-sessions/application/use-shared.js';
-import { TrainingAdminGatewayContext } from '../features/training-admin/application/training-admin-context.js';
+import { TrainingAdminGatewayContext, TrainingReadStoreContext } from '../features/training-admin/application/training-admin-context.js';
 import { TrainingMemberServicesContext } from '../features/training-member/application/training-member-context.js';
 import { EventStreamProvider } from '../shared/events/use-session-events.js';
 import { LeaderboardGatewayContext } from '../shared/leaderboard/Leaderboard.js';
@@ -37,7 +37,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
                             <MentorNoticesServicesContext.Provider value={{ gateway: c.mentorNoticesGateway, seen: c.seenStore }}>
                               <SharedSessionsGatewayContext.Provider value={c.sharedSessionsGateway}>
                                 <TrainingAdminGatewayContext.Provider value={c.trainingAdminGateway}>
-                                  <TrainingMemberServicesContext.Provider value={{ gateway: c.trainingMemberGateway, tokens: c.trainingTokenStore }}>{children}</TrainingMemberServicesContext.Provider>
+                                  <TrainingReadStoreContext.Provider value={c.trainingReadStore}>
+                                    <TrainingMemberServicesContext.Provider value={{ gateway: c.trainingMemberGateway, tokens: c.trainingTokenStore }}>{children}</TrainingMemberServicesContext.Provider>
+                                  </TrainingReadStoreContext.Provider>
                                 </TrainingAdminGatewayContext.Provider>
                               </SharedSessionsGatewayContext.Provider>
                             </MentorNoticesServicesContext.Provider>

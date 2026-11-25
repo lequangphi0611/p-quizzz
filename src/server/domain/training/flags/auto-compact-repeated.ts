@@ -1,9 +1,9 @@
-import { cap, type FlagRule } from './flag-event.js';
+import { cap, perSession, type FlagRule } from './flag-event.js';
 
 /** Automatic compactions without a `/clear` in between before the flag goes up: the conversation keeps growing on its own. */
 export const AUTO_COMPACT_LIMIT = 2;
 
-export const autoCompactRepeated: FlagRule = events => {
+const autoCompactIn: FlagRule = events => {
   let run: number[] = [];
   let hit: number[] | null = null;
   for (const e of events) {
@@ -16,3 +16,6 @@ export const autoCompactRepeated: FlagRule = events => {
   }
   return hit ? { code: 'auto_compact_repeated', eventIds: cap(hit) } : null;
 };
+
+/** Per Claude Code session (PRODUCT.md §7.38c). */
+export const autoCompactRepeated: FlagRule = perSession(autoCompactIn);

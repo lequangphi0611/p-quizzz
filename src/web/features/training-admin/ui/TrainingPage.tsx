@@ -16,6 +16,7 @@ import { EventPanel } from './EventPanel.js';
 import { MembersTable } from './MembersTable.js';
 import { RoomCodeCard, RoomCodeInline } from './RoomCode.js';
 import { Timeline } from './Timeline.js';
+import { UndoToast } from './UndoToast.js';
 import { TurnDetail } from './TurnDetail.js';
 import { TrainingDialogs } from './TrainingDialogs.js';
 import { useTrainingShortcuts } from './use-training-shortcuts.js';
@@ -191,16 +192,16 @@ function EndedCard({ state, onBack }: { state: TrainingState; onBack: () => void
 // Members on one side, the picked member's timeline on the other; once one is picked the members shrink to names. A prompt's commands open in a popup and their output in a drawer on the right: both are overlays, so this grid never changes.
 // The workspace has a fixed height so the timeline scrolls inside it (new events follow the end while the mentor is there).
 function Workspace({ state, ctrl, closePanel }: { state: TrainingState; ctrl: TrainingController; closePanel: () => void }) {
-  const { detail, selectedId, timeline, panel, hidden, markError, turnKey } = state;
+  const { detail, selectedId, timeline, panel, hidden, markError, turnKey, undo } = state;
   const member = detail.members.find(m => m.id === selectedId);
   const panelOpen = panel !== null && !hidden;
   const panelEvent = panel ? timeline?.events.find(e => e.id === panel.eventId) : undefined;
   const now = Date.now();
   return (
     <div style={{ display: 'grid', gap: 16, height: 'clamp(520px, calc(100vh - 300px), 960px)', gridTemplateColumns: member ? '230px minmax(0, 1fr)' : 'minmax(0, 1.2fr) minmax(0, 1fr)' }}>
-      <MembersTable members={detail.members} selectedId={selectedId} onSelect={id => ctrl.select(id)} onPurge={id => ctrl.askPurge(id)} compact={member !== undefined} now={now} />
+      <MembersTable members={detail.members} selectedId={selectedId} onSelect={id => ctrl.select(id)} onPurge={id => ctrl.askPurge(id)} compact={member !== undefined} now={now} read={state.read} hidden={hidden} />
       {member && timeline ? (
-        <Timeline member={member} timeline={timeline} panel={hidden ? null : panel} hidden={hidden} markError={markError} ctrl={ctrl} now={now} canRemove={detail.status !== 'ended'}
+        <Timeline key={member.id} read={state.read} member={member} timeline={timeline} panel={hidden ? null : panel} hidden={hidden} markError={markError} ctrl={ctrl} now={now} canRemove={detail.status !== 'ended'}
           onRemove={() => ctrl.askRemove(member.id)} />
       ) : (
         <Card style={{ display: 'grid', placeItems: 'center', textAlign: 'center', height: '100%', boxSizing: 'border-box' }}>
@@ -211,6 +212,7 @@ function Workspace({ state, ctrl, closePanel }: { state: TrainingState; ctrl: Tr
           </div>
         </Card>
       )}
+      {undo !== null && !hidden && <UndoToast onUndo={() => ctrl.undoMarkAllRead()} />}
       {turnKey !== null && !hidden && member && timeline && <TurnDetail turnKey={turnKey} member={member} timeline={timeline} panel={panel} ctrl={ctrl} />}
       {panelOpen && panel && (
         <EventPanel panel={panel} event={panelEvent} onKind={k => void ctrl.openDetail(panel.eventId, k)} onClose={closePanel} onRetry={() => ctrl.retryPanel()} onStep={d => ctrl.step(d)} />

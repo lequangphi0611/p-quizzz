@@ -1,12 +1,17 @@
 import type { Clip, FlagCode, MemberFlag, TrainingDetail, TrainingEventRow, TrainingExportSummary } from '../../../../shared/api/index.js';
 import { ApiError } from '../../../shared/api-client/http-client.js';
 import { announcementFor } from '../domain/announcements.js';
-import { dayGroupsOf, dayKeyOfEvent, dayKeyOfTurn, dayKeysByEvent, reconcileOpenDays, withDayOpen } from '../domain/day-groups.js';
+import { dayGroupsOf, newestPromptOf, placeOfTurn, placesByEvent, reconcileOpenBlocks, reconcileOpenDays, stepEvent, turnsOfDay, withDayOpen } from '../domain/day-groups.js';
 import { exportFileName, exportInputError, paramsFor, type ExportMode } from '../domain/export.js';
 import { evidenceOf } from '../domain/flags.js';
 import { reportFileName } from '../domain/report.js';
-import { stepEvent, turnKeyOf } from '../domain/timeline.js';
+import { turnKeyOf, type Turn } from '../domain/timeline.js';
+import { markAllRead, markTurnsRead, restoreMemberRead, turnReadKey, unreadTurnCount, withBaselines, type MemberRead, type ReadState } from '../domain/unread.js';
 import type { TrainingAdminGateway } from './training-admin-gateway.js';
+import { InMemoryTrainingReadStore, type TrainingReadStore } from './training-read-store.js';
+
+/** How long "Hoàn tác" stays on screen after "Đánh dấu đã đọc hết". */
+export const UNDO_MS = 5000;
 
 /** A member's timeline as loaded so far (oldest first). */
 export interface TimelineState {
@@ -27,11 +32,21 @@ export interface TimelineState {
   openDays: string[];
   /** Every day already shown once: a day not in it is new and opens by itself. */
   knownDays: string[];
+  /** The session blocks (`SessionBlock.key`) that are open; the rest are folded to their header (S43). */
+  openBlocks: string[];
+  /** Every block already shown once: a block not in it is new and opens by itself. */
+  knownBlocks: string[];
   /** The flags of this member's whole timeline, each with the events behind it (from the server). */
   flags: MemberFlag[];
   /** The event a flag chip last jumped to: drawn highlighted; `focusToken` changes on every jump so the page scrolls even to the same row. */
   focusId: number | null;
   focusToken: number;
+  /** A turn the "N prompt có mục mới" chip brought into view: its prompt (or first event) id. The page scrolls to it when `revealToken` changes; no highlight stays. */
+  revealId: number | null;
+  revealToken: number;
+  /** A session block the "Song song với phiên M" button brought into view; same idea as `revealId`. */
+  revealBlockKey: string | null;
+  revealBlockToken: number;
 }
 
 export type PanelKind = 'output' | 'change';
@@ -104,6 +119,10 @@ export interface TrainingState {
   turnKey: string | null;
   /** Why the last mark / unmark failed (the row went back to how it was). Cleared by the next one that works. */
   markError: string;
+  /** What the mentor has read, per member, kept in this browser (S43). Empty when the browser keeps nothing. */
+  read: ReadState;
+  /** "Đánh dấu đã đọc hết" was pressed less than `UNDO_MS` ago: the toast with "Hoàn tác". */
+  undo: { memberId: number } | null;
 }
 
 export interface TrainingControllerOptions {
@@ -115,6 +134,8 @@ export interface TrainingControllerOptions {
   saveFile?: (filename: string, text: string) => void;
   /** Same for a binary file (the zip). */
   saveBlob?: (filename: string, blob: Blob) => void;
+  /** Where "đã đọc" is kept (S43). Without one nothing is remembered across page loads. */
+  readStore?: TrainingReadStore;
 }
 
 interface Fetched {
@@ -141,6 +162,9 @@ export class TrainingController {
   private maxPages: number;
   private saveFile: (filename: string, text: string) => void;
   private saveBlob: (filename: string, blob: Blob) => void;
+  private readStore: TrainingReadStore;
+  private undoRecord: MemberRead | undefined;
+  private undoTimer: ReturnType<typeof setTimeout> | undefined;
   private reportToken = 0; // bumped on every open / close of the report dialog
   private exportToken = 0; // bumped on every change of what the data export dialog shows, and on close
   private started = false;
@@ -155,12 +179,29 @@ export class TrainingController {
     this.maxPages = opts.maxPages ?? 10;
     this.saveFile = opts.saveFile ?? (() => {});
     this.saveBlob = opts.saveBlob ?? (() => {});
+    this.readStore = opts.readStore ?? new InMemoryTrainingReadStore();
     const id = opts.initialMemberId ?? null;
     const known = id !== null && initial.status !== 'ended' && initial.members.some(m => m.id === id);
     this.state = {
       detail: initial, selectedId: known ? id : null, timeline: known ? this.freshTimeline(id) : null, panel: null, confirm: null,
       working: false, actionError: '', hidden: gateway.readHideContent(), offline: false, announcement: '', endedMemberCount: null, report: null, dataExport: null, turnKey: null, markError: '',
+      read: this.loadRead(initial), undo: null,
     };
+  }
+
+  /** The stored record of this training with every member of the list in it (a member first seen now is "already read"); an ended training keeps nothing. */
+  private loadRead(d: TrainingDetail): ReadState {
+    if (d.status === 'ended') { this.readStore.clear(d.id); return { members: {} }; }
+    const stored = this.readStore.load(d.id);
+    const read = withBaselines(stored, d.members);
+    if (read !== stored) this.readStore.save(d.id, read);
+    return read;
+  }
+
+  private setRead(read: ReadState): void {
+    if (read === this.state.read) return;
+    this.readStore.save(this.state.detail.id, read);
+    this.set({ read });
   }
 
   getState = (): TrainingState => this.state;
@@ -170,7 +211,7 @@ export class TrainingController {
     for (const l of [...this.listeners]) l();
   }
   private freshTimeline(memberId: number): TimelineState {
-    return { memberId, events: [], hasMore: false, phase: 'loading', loadingMore: false, error: '', newCount: 0, followToken: 0, openDays: [], knownDays: [], flags: [], focusId: null, focusToken: 0 };
+    return { memberId, events: [], hasMore: false, phase: 'loading', loadingMore: false, error: '', newCount: 0, followToken: 0, openDays: [], knownDays: [], openBlocks: [], knownBlocks: [], flags: [], focusId: null, focusToken: 0, revealId: null, revealToken: 0, revealBlockKey: null, revealBlockToken: 0 };
   }
 
   /** Loads what the first render could not: the timeline of the member from the URL, the count of an ended training. Safe to call twice. */
@@ -228,6 +269,12 @@ export class TrainingController {
     }
     if (next.status === 'ended') { this.panelToken++; this.reportToken++; this.exportToken++; patch.panel = null; patch.turnKey = null; patch.report = null; patch.dataExport = null; }
     if (this.state.confirm && !this.state.working && !confirmStillMakesSense(this.state.confirm, next)) patch.confirm = null;
+    if (next.status === 'ended') {
+      if (prev.status !== 'ended' || Object.keys(this.state.read.members).length > 0) { this.readStore.clear(next.id); patch.read = { members: {} }; patch.undo = null; }
+    } else {
+      const read = withBaselines(this.state.read, next.members);
+      if (read !== this.state.read) { this.readStore.save(next.id, read); patch.read = read; }
+    }
     this.set(patch);
     if (next.status === 'ended' && prev.status !== 'ended') void this.loadEndedCount();
   }
@@ -274,8 +321,14 @@ export class TrainingController {
     if (fresh.length > 0 && !fromLoadMore) { if (tl.events.length === 0 || this.isFollowing(tl)) followToken++; else newCount += fresh.length; }
     const events = [...tl.events.map(e => updated.get(e.id) ?? e), ...fresh];
     // The first days that appear open only the newest; a day that appears later opens by itself, the others stay as they are.
-    const days = fresh.length > 0 ? reconcileOpenDays({ open: tl.openDays, known: tl.knownDays }, dayGroupsOf(events).map(g => g.dayKey)) : { open: tl.openDays, known: tl.knownDays };
-    this.set({ timeline: { ...tl, events, hasMore: fetched.hasMore, flags: fetched.flags, phase: 'ready', loadingMore: false, error: '', newCount, followToken, openDays: days.open, knownDays: days.known } });
+    const groups = fresh.length > 0 ? dayGroupsOf(events) : [];
+    const days = fresh.length > 0 ? reconcileOpenDays({ open: tl.openDays, known: tl.knownDays }, groups.map(g => g.dayKey)) : { open: tl.openDays, known: tl.knownDays };
+    // A block opens by default when it holds something unread or its session sent no end signal; one that appears later opens by itself.
+    const rec = this.state.read.members[String(memberId)];
+    const blocks = fresh.length > 0
+      ? reconcileOpenBlocks({ open: tl.openBlocks, known: tl.knownBlocks }, groups.flatMap(g => g.blocks).map(b => ({ key: b.key, isDefaultOpen: b.endedBy === null || unreadTurnCount(b.turns, rec) > 0 })))
+      : { open: tl.openBlocks, known: tl.knownBlocks };
+    this.set({ timeline: { ...tl, events, hasMore: fetched.hasMore, flags: fetched.flags, phase: 'ready', loadingMore: false, error: '', newCount, followToken, openDays: days.open, knownDays: days.known, openBlocks: blocks.open, knownBlocks: blocks.known } });
   }
 
   private async loadInitial(memberId: number, token: number): Promise<void> {
@@ -295,6 +348,7 @@ export class TrainingController {
     if (memberId === this.state.selectedId) return;
     this.timelineToken++;
     this.panelToken++;
+    this.dropUndo();
     if (memberId === null) { this.set({ selectedId: null, timeline: null, panel: null, turnKey: null }); return; }
     if (this.state.detail.status === 'ended' || !this.state.detail.members.some(m => m.id === memberId)) return;
     this.inView = true;
@@ -354,17 +408,22 @@ export class TrainingController {
     const tl = this.state.timeline;
     const flag = tl?.flags.find(f => f.code === code);
     if (!tl || this.state.hidden) return;
-    const days = dayKeysByEvent(tl.events);
-    const ids = evidenceOf(flag, tl.events).filter(id => dayKey === undefined || days.get(id) === dayKey);
+    const places = placesByEvent(tl.events);
+    const ids = evidenceOf(flag, tl.events).filter(id => dayKey === undefined || places.get(id)?.dayKey === dayKey);
     if (ids.length === 0) return;
     const at = tl.focusId === null ? -1 : ids.indexOf(tl.focusId);
     const id = ids[(at + 1) % ids.length]!;
     // A command sits in the popup of its prompt: open that one (a prompt itself is in the list).
     const target = tl.events.find(e => e.id === id);
     const key = target && target.kind !== 'prompt' ? turnKeyOf(tl.events, id) : null;
-    // A folded day opens first, so the row exists when the page scrolls to it.
-    const openDays = withDayOpen(tl.openDays, days.get(id) ?? null);
-    this.set({ ...(key ? { turnKey: key } : {}), timeline: { ...tl, openDays, focusId: id, focusToken: tl.focusToken + 1 } });
+    // A folded day or block opens first, so the row exists when the page scrolls to it.
+    this.set({ ...(key ? { turnKey: key } : {}), timeline: { ...this.showing(tl, places.get(id)), focusId: id, focusToken: tl.focusToken + 1 } });
+  }
+
+  /** The timeline with the day and the session block of `place` open (a folded one hides its rows, so they would not be there to scroll to). */
+  private showing(tl: TimelineState, place: { dayKey: string; blockKey: string } | null | undefined): TimelineState {
+    if (!place) return tl;
+    return { ...tl, openDays: withDayOpen(tl.openDays, place.dayKey), openBlocks: withDayOpen(tl.openBlocks, place.blockKey) };
   }
 
   // ── The detail of one prompt (its commands, in a popup) ───────────────────────────────────────────
@@ -373,7 +432,7 @@ export class TrainingController {
   openTurn(key: string): void {
     const tl = this.state.timeline;
     if (this.state.hidden || this.state.detail.status === 'ended' || !tl) return;
-    this.set({ turnKey: key, timeline: { ...tl, openDays: withDayOpen(tl.openDays, dayKeyOfTurn(tl.events, key)) } });
+    this.set({ turnKey: key, timeline: this.showing(tl, placeOfTurn(tl.events, key)) });
   }
 
   /** Closes the popup, and the output panel that belongs to it. */
@@ -383,13 +442,16 @@ export class TrainingController {
     this.set({ turnKey: null, panel: null });
   }
 
-  /** Following = the newest event is in view AND its day is open: a folded day shows no event, so nothing new would be seen. */
+  /** Following = the newest prompt is in view AND its day and block are open: a folded one shows no prompt, so nothing new would be seen. */
   private isFollowing(tl: TimelineState): boolean {
-    const newest = dayGroupsOf(tl.events)[0]?.dayKey;
-    return this.inView && (newest === undefined || tl.openDays.includes(newest));
+    const newest = newestPromptOf(tl.events);
+    const place = newest ? placesByEvent(tl.events).get(newest.id) : undefined;
+    const newestDay = dayGroupsOf(tl.events)[0]?.dayKey;
+    const shown = place ? tl.openDays.includes(place.dayKey) && tl.openBlocks.includes(place.blockKey) : newestDay === undefined || tl.openDays.includes(newestDay);
+    return this.inView && shown;
   }
 
-  /** The page reports, after every scroll, whether the newest event is in (or near) the viewport: "đang theo dõi". */
+  /** The page reports, after every scroll, whether the newest prompt is in (or near) the viewport: "đang theo dõi". */
   reportFollowing(inView: boolean): void {
     this.inView = inView;
     const tl = this.state.timeline;
@@ -397,13 +459,26 @@ export class TrainingController {
     if (tl && tl.newCount > 0 && this.isFollowing(tl)) this.set({ timeline: { ...tl, newCount: 0 } });
   }
 
-  /** The "N sự kiện mới" chip: opens the day of the newest event if it is folded and brings that event into view. */
+  /** Brings the newest prompt into view, opening its day and block if they are folded. */
   jumpToLatest(): void {
     this.inView = true;
     const tl = this.state.timeline;
     if (!tl) return;
-    const newest = dayGroupsOf(tl.events)[0]?.dayKey ?? null;
-    this.set({ timeline: { ...tl, newCount: 0, followToken: tl.followToken + 1, openDays: withDayOpen(tl.openDays, newest) } });
+    const newest = newestPromptOf(tl.events);
+    const place = newest ? placesByEvent(tl.events).get(newest.id) : undefined;
+    const openDays = place ? tl.openDays : withDayOpen(tl.openDays, dayGroupsOf(tl.events)[0]?.dayKey ?? null);
+    this.set({ timeline: { ...this.showing({ ...tl, openDays }, place), newCount: 0, followToken: tl.followToken + 1 } });
+  }
+
+  /** The "N prompt có mục mới" chip: opens the day and block of the turn `turnKey` (from `buildTimeline`) and scrolls to it. */
+  revealTurn(turnKey: string): void {
+    const tl = this.state.timeline;
+    if (!tl) return;
+    const place = placeOfTurn(tl.events, turnKey);
+    const turn = place ? dayGroupsOf(tl.events).flatMap(g => turnsOfDay(g)).find(t => t.key === turnKey) : undefined;
+    if (!place || !turn) return;
+    this.inView = true;
+    this.set({ timeline: { ...this.showing(tl, place), revealId: turn.prompt?.id ?? turn.firstId, revealToken: tl.revealToken + 1 } });
   }
 
   /** Opens or folds one day group. */
@@ -414,11 +489,79 @@ export class TrainingController {
     this.set({ timeline: { ...tl, openDays } });
   }
 
-  /** "Mở tất cả" / "Thu tất cả". */
-  setAllDays(open: boolean): void {
+  /** "Song song với phiên M": opens the block `blockKey` (and its day) and asks the page to scroll to it. */
+  revealBlock(blockKey: string): void {
     const tl = this.state.timeline;
     if (!tl) return;
-    this.set({ timeline: { ...tl, openDays: open ? dayGroupsOf(tl.events).map(g => g.dayKey) : [] } });
+    const group = dayGroupsOf(tl.events).find(g => g.blocks.some(b => b.key === blockKey));
+    if (!group) return;
+    this.set({ timeline: { ...this.showing(tl, { dayKey: group.dayKey, blockKey }), revealBlockKey: blockKey, revealBlockToken: tl.revealBlockToken + 1 } });
+  }
+
+  /** Opens or folds one session block. */
+  toggleBlock(blockKey: string): void {
+    const tl = this.state.timeline;
+    if (!tl) return;
+    const openBlocks = tl.openBlocks.includes(blockKey) ? tl.openBlocks.filter(k => k !== blockKey) : [...tl.openBlocks, blockKey];
+    this.set({ timeline: { ...tl, openBlocks } });
+  }
+
+  /** "Mở tất cả" / "Thu tất cả": every day and every session block (PRODUCT.md §7.38b). */
+  setAllOpen(open: boolean): void {
+    const tl = this.state.timeline;
+    if (!tl) return;
+    const groups = dayGroupsOf(tl.events);
+    this.set({ timeline: { ...tl, openDays: open ? groups.map(g => g.dayKey) : [], openBlocks: open ? groups.flatMap(g => g.blocks.map(b => b.key)) : [] } });
+  }
+
+  // ── What the mentor has read (S43, PRODUCT.md §7.38d) ───────────────────────────────────────────────
+
+  /** The page read a turn (2 seconds in view): everything in it up to `maxId` counts as read. Ignored while the content is hidden. */
+  markTurnRead(turnReadKeyValue: string, maxId: number): void {
+    const tl = this.state.timeline;
+    if (!tl || this.state.hidden || this.state.detail.status === 'ended') return;
+    const turn = this.allTurns(tl).find(t => turnReadKey(t) === turnReadKeyValue);
+    if (turn) this.setRead(markTurnsRead(this.state.read, tl.memberId, [{ turn, maxId }]));
+  }
+
+  private allTurns(tl: TimelineState): Turn[] {
+    return dayGroupsOf(tl.events).flatMap(g => turnsOfDay(g));
+  }
+
+  /** "Đánh dấu đã đọc hết" for the member being viewed: every loaded turn is read. "Hoàn tác" (`undoMarkAllRead`) puts the record back for `UNDO_MS`. */
+  markAllRead(): void {
+    const tl = this.state.timeline;
+    const member = tl && this.state.detail.members.find(m => m.id === tl.memberId);
+    if (!tl || !member || this.state.hidden || this.state.detail.status === 'ended') return;
+    const next = markAllRead(this.state.read, member, this.allTurns(tl), !tl.hasMore);
+    if (next === this.state.read) return;
+    this.undoRecord = this.state.read.members[String(member.id)];
+    clearTimeout(this.undoTimer);
+    this.undoTimer = setTimeout(() => this.dropUndo(), UNDO_MS);
+    this.readStore.save(this.state.detail.id, next);
+    this.set({ read: next, undo: { memberId: member.id } });
+  }
+
+  undoMarkAllRead(): void {
+    const undo = this.state.undo;
+    if (!undo) return;
+    const restored = restoreMemberRead(this.state.read, undo.memberId, this.undoRecord);
+    this.dropUndo();
+    this.setRead(restored);
+  }
+
+  /** Forgets the undo (its time is up, or another member was picked). */
+  private dropUndo(): void {
+    clearTimeout(this.undoTimer);
+    this.undoTimer = undefined;
+    this.undoRecord = undefined;
+    if (this.state.undo) this.set({ undo: null });
+  }
+
+  /** Stops the timers of the controller when the page goes away. */
+  dispose(): void {
+    clearTimeout(this.undoTimer);
+    this.undoTimer = undefined;
   }
 
   // ── The output / change panel ──────────────────────────────────────────────────────────────────
@@ -458,8 +601,8 @@ export class TrainingController {
     const kind: PanelKind = p.kind === 'output' ? (target.hasOutput ? 'output' : 'change') : (target.hasChange ? 'change' : 'output');
     const key = turnKeyOf(tl.events, target.id);
     if (key !== null && key !== this.state.turnKey) this.set({ turnKey: key });
-    const day = dayKeyOfEvent(tl.events, target.id);
-    if (day !== null && !tl.openDays.includes(day)) this.set({ timeline: { ...tl, openDays: withDayOpen(tl.openDays, day) } });
+    const place = placesByEvent(tl.events).get(target.id);
+    if (place && (!tl.openDays.includes(place.dayKey) || !tl.openBlocks.includes(place.blockKey))) this.set({ timeline: this.showing(tl, place) });
     void this.openDetail(target.id, kind);
   }
 

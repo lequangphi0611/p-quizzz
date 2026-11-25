@@ -1,4 +1,4 @@
-import type { FlagEvent, PermissionDecisionInfo } from './flag-event.js';
+import { bySession, type FlagEvent, type PermissionDecisionInfo } from './flag-event.js';
 
 /**
  * Claude Code never says whether the member allowed a request (PRODUCT.md §7.35b), so it is inferred, per `permission` event:
@@ -7,10 +7,16 @@ import type { FlagEvent, PermissionDecisionInfo } from './flag-event.js';
  *    answers one request, so two identical requests need two runs.
  *  - `pending`: nothing happened since the request: the member may still be deciding.
  *  - `denied`: the turn moved on without it (a prompt, another tool, a new session) and the tool never ran.
+ * Each Claude Code session is read on its own (PRODUCT.md §7.38c): a prompt or tool in another session never means "moved on".
  * Events must be oldest first.
  */
 export function inferPermissionDecision(events: readonly FlagEvent[]): Map<number, PermissionDecisionInfo> {
   const out = new Map<number, PermissionDecisionInfo>();
+  for (const group of bySession(events)) inferInSession(group, out);
+  return out;
+}
+
+function inferInSession(events: readonly FlagEvent[], out: Map<number, PermissionDecisionInfo>): void {
   const used = new Set<number>();
   events.forEach((p, i) => {
     if (p.kind !== 'permission') return;
@@ -37,5 +43,4 @@ export function inferPermissionDecision(events: readonly FlagEvent[]): Map<numbe
       out.set(p.id, { decision: moved ? 'denied' : 'pending', decisionMs: null });
     }
   });
-  return out;
 }

@@ -227,19 +227,6 @@ export class DrizzleTrainingEventRepository implements TrainingEventRepository {
     };
   }
 
-  async recentTools(memberId: number, n: number): Promise<ToolOutcome[]> {
-    const rows = await this.access(db =>
-      db
-        .select({ ok: trainingEvents.ok, toolTarget: trainingEvents.toolTarget })
-        .from(trainingEvents)
-        .where(and(eq(trainingEvents.memberId, memberId), eq(trainingEvents.kind, 'tool')))
-        .orderBy(desc(trainingEvents.id))
-        .limit(n)
-        .all(),
-    );
-    return rows.reverse().map(r => ({ ok: r.ok === true, toolTarget: r.toolTarget }));
-  }
-
   async countsByMember(trainingId: number): Promise<Map<number, MemberCounts>> {
     const rows = await this.access(db =>
       db

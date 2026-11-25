@@ -205,17 +205,19 @@ test('mentor runs an AI training: room code, members, timeline, output, stop, en
   // ── Live: a new prompt follows the end; higher up it only counts ──────────────────────────────────
   for (let i = 0; i < 25; i++) await binh.send(hook.prompt(`lượt ${i}`, s2));
   await expect(timeline.getByText('lượt 24', { exact: true })).toBeVisible({ timeout: 6_000 });
-  await expect(page.getByText(/sự kiện mới/)).toHaveCount(0); // at the end: it followed, no chip
+  await expect(page.locator('[data-unread-chip]')).toHaveCount(0); // at the end: it followed, no chip
   await timeline.evaluate(el => { el.scrollTop = 0; });
   await page.waitForTimeout(200);
   await binh.send(hook.prompt('late-1', s2));
   await binh.send(hook.prompt('late-2', s2));
-  await expect(page.getByRole('button', { name: '2 sự kiện mới' })).toBeVisible({ timeout: 8_000 });
+  await expect(page.locator('[data-unread-chip]')).toContainText('prompt có mục mới', { timeout: 8_000 });
   expect(await timeline.evaluate(el => el.scrollTop)).toBeLessThan(5); // did not jump
   await shot(page, 'M13b-su-kien-moi');
-  await page.getByRole('button', { name: '2 sự kiện mới' }).click();
+  await page.locator('[data-unread-chip]').click();
+  await expect(timeline.locator('.pq-flash')).toBeInViewport(); // the chip goes to the nearest prompt that has something new
+  expect(await timeline.evaluate(el => el.scrollTop)).toBeGreaterThan(5);
+  await timeline.evaluate(el => { el.scrollTop = el.scrollHeight; });
   await expect(timeline.getByText('late-2', { exact: true })).toBeInViewport();
-  await expect(page.getByText(/sự kiện mới/)).toHaveCount(0);
 
   // ── Invite one out (Mời ra), with a confirmation ─────────────────────────────────────────────────────
   await page.getByRole('button', { name: 'Dũng', exact: true }).click();

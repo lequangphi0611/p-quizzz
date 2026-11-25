@@ -1,64 +1,102 @@
+import { buildSessionBlocks, type SessionBlock } from './session-blocks.js';
+import { buildTimeline, type Turn } from './timeline.js';
 import type { TimelineItem } from './timeline.js';
-import { buildTimeline } from './timeline.js';
 import type { FlagCode, TrainingEventRow } from '../../../../shared/api/index.js';
 
-export type TurnItem = Extract<TimelineItem, { kind: 'turn' }>;
-export type GroupItem = Exclude<TimelineItem, { kind: 'day' }>;
+export type { SessionBlock } from './session-blocks.js';
+export type TurnItem = Turn;
 
-/** One local day of a member's timeline: its turns and session dividers (oldest first) and the numbers of its summary line. */
+/** One local day of a member's timeline: its session blocks (oldest first) and the numbers of its summary line, the sum of the blocks'. */
 export interface DayGroup {
   dayKey: string;
   startedAt: number;
-  items: GroupItem[];
+  blocks: SessionBlock[];
   prompts: number;
   commands: number;
   failed: number;
 }
 
+/** The turns of a day in the order they are shown: block by block, each block oldest first. */
+export const turnsOfDay = (g: Pick<DayGroup, 'blocks'>): Turn[] => g.blocks.flatMap(b => b.turns);
+
 /**
- * Cuts the items of `buildTimeline` at its day strips into groups, newest day first. Inside a group the order stays oldest to
- * newest. The prompt, command and failure counts come from here, so the header of a group and its rows always agree
- * (commands are the `tool` events only, as in the "N lệnh" of a prompt row).
+ * Cuts the items of `buildTimeline` at its day strips into groups, newest day first, and each day into session blocks (S43). The
+ * prompt, command and failure counts of a day are the sums of its blocks, so a header and its rows always agree (commands are the
+ * `tool` events only, as in the "N lệnh" of a prompt row).
  */
 export function groupByDay(items: readonly TimelineItem[]): DayGroup[] {
-  const groups: DayGroup[] = [];
+  const days: { dayKey: string; startedAt: number; turns: Turn[] }[] = [];
   for (const item of items) {
-    if (item.kind === 'day') { groups.push({ dayKey: item.dayKey, startedAt: item.startedAt, items: [], prompts: 0, commands: 0, failed: 0 }); continue; }
-    const g = groups[groups.length - 1]!;
-    g.items.push(item);
-    if (item.kind !== 'turn') continue;
-    if (item.prompt) g.prompts++;
-    for (const t of item.tools) {
-      if (t.event.kind !== 'tool') continue;
-      g.commands++;
-      if (t.event.ok === false) g.failed++;
-    }
+    if (item.kind === 'day') days.push({ dayKey: item.dayKey, startedAt: item.startedAt, turns: [] });
+    else days[days.length - 1]!.turns.push(item);
   }
-  return groups.reverse();
+  const blocks = buildSessionBlocks(days);
+  return days.map((d, i): DayGroup => {
+    const bs = blocks[i]!;
+    return { dayKey: d.dayKey, startedAt: d.startedAt, blocks: bs, prompts: sum(bs, 'prompts'), commands: sum(bs, 'commands'), failed: sum(bs, 'failed') };
+  }).reverse();
 }
 
-/** The day groups of a member's events (oldest first), newest day first. */
-export const dayGroupsOf = (events: readonly TrainingEventRow[]): DayGroup[] => groupByDay(buildTimeline(events, { memberStuck: false }));
+const sum = (blocks: readonly SessionBlock[], field: 'prompts' | 'commands' | 'failed') => blocks.reduce((n, b) => n + b[field], 0);
 
-/** The day every event is shown under (that of its turn), by event id: one pass over the timeline. */
-export function dayKeysByEvent(events: readonly TrainingEventRow[]): Map<number, string> {
-  const out = new Map<number, string>();
+const groupCache = new WeakMap<readonly TrainingEventRow[], DayGroup[]>();
+
+/** The day groups of a member's events (oldest first), newest day first. Cached per events array: the page asks on every scroll. */
+export function dayGroupsOf(events: readonly TrainingEventRow[]): DayGroup[] {
+  let groups = groupCache.get(events);
+  if (!groups) { groups = groupByDay(buildTimeline(events, { memberStuck: false })); groupCache.set(events, groups); }
+  return groups;
+}
+
+/** Where an event is shown: its day, its session block and its turn. */
+export interface EventPlace { dayKey: string; blockKey: string; turnKey: string }
+
+/** Where every event is shown, by event id: one pass over the timeline. */
+export function placesByEvent(events: readonly TrainingEventRow[]): Map<number, EventPlace> {
+  const out = new Map<number, EventPlace>();
   for (const g of dayGroupsOf(events)) {
-    for (const i of g.items) {
-      if (i.kind !== 'turn') continue;
-      if (i.prompt) out.set(i.prompt.id, g.dayKey);
-      for (const t of i.tools) out.set(t.event.id, g.dayKey);
+    for (const b of g.blocks) {
+      for (const t of b.turns) {
+        const place = { dayKey: g.dayKey, blockKey: b.key, turnKey: t.key };
+        if (t.prompt) out.set(t.prompt.id, place);
+        for (const x of t.tools) out.set(x.event.id, place);
+      }
     }
   }
   return out;
 }
 
-/** The day an event is shown under (that of its turn), or null for an unknown event. */
-export const dayKeyOfEvent = (events: readonly TrainingEventRow[], eventId: number): string | null => dayKeysByEvent(events).get(eventId) ?? null;
+/** The day, block and turn a turn key (from `buildTimeline`) is shown under, or null. */
+export function placeOfTurn(events: readonly TrainingEventRow[], turnKey: string): EventPlace | null {
+  for (const g of dayGroupsOf(events)) for (const b of g.blocks) if (b.turns.some(t => t.key === turnKey)) return { dayKey: g.dayKey, blockKey: b.key, turnKey };
+  return null;
+}
 
-/** The day a turn (key from `buildTimeline`) is shown under, or null. */
-export const dayKeyOfTurn = (events: readonly TrainingEventRow[], turnKey: string): string | null =>
-  dayGroupsOf(events).find(g => g.items.some(i => i.key === turnKey))?.dayKey ?? null;
+/** The day every event is shown under (that of its turn), by event id. */
+export const dayKeysByEvent = (events: readonly TrainingEventRow[]): Map<number, string> => new Map([...placesByEvent(events)].map(([id, p]) => [id, p.dayKey]));
+
+/** The commands and permission requests that have an output or a change to open, in the order they are shown: what J / K step through. Days oldest first, then block by block, turn by turn. */
+export function openableEvents(events: readonly TrainingEventRow[]): TrainingEventRow[] {
+  const out: TrainingEventRow[] = [];
+  for (const g of [...dayGroupsOf(events)].reverse()) {
+    for (const t of turnsOfDay(g)) for (const x of t.tools) if ((x.event.kind === 'tool' || x.event.kind === 'permission') && (x.event.hasOutput || x.event.hasChange)) out.push(x.event);
+  }
+  return out;
+}
+
+/** The next (`1`) or previous (`-1`) command with something to open, relative to `currentId`, in shown order; null at either end. */
+export function stepEvent(events: readonly TrainingEventRow[], currentId: number, step: 1 | -1): TrainingEventRow | null {
+  const openable = openableEvents(events);
+  const at = openable.findIndex(e => e.id === currentId);
+  if (at < 0) return null;
+  return openable[at + step] ?? null;
+}
+
+/** The prompt that arrived last, wherever it is shown (a collapsed or earlier block may hold it): where "the newest" is. */
+export function newestPromptOf(events: readonly TrainingEventRow[]): TrainingEventRow | null {
+  for (let i = events.length - 1; i >= 0; i--) if (events[i]!.kind === 'prompt') return events[i]!;
+  return null;
+}
 
 /** Which days are open, and which days the mentor has already been offered (so a day that appears later is told apart). */
 export interface OpenDays { open: string[]; known: string[] }
@@ -72,6 +110,22 @@ export function reconcileOpenDays(prev: OpenDays, dayKeys: readonly string[]): O
   if (fresh.length === 0) return prev;
   const open = prev.known.length === 0 ? [fresh[0]!] : [...prev.open, ...fresh];
   return { open, known: [...prev.known, ...fresh] };
+}
+
+/** Which session blocks are open, and which the mentor has already been offered (a block that appears later opens by itself). */
+export interface OpenBlocks { open: string[]; known: string[] }
+
+/**
+ * What is open after the blocks of the timeline changed. The first time blocks appear, a block opens when it has something
+ * unread or its session has no end signal (`isDefaultOpen`); the others fold. A block that appears later (a new session, or a day
+ * that got its first prompt) opens by itself, and the blocks already known keep the state the mentor left them in.
+ */
+export function reconcileOpenBlocks(prev: OpenBlocks, blocks: readonly { key: string; isDefaultOpen: boolean }[]): OpenBlocks {
+  const fresh = blocks.filter(b => !prev.known.includes(b.key));
+  if (fresh.length === 0) return prev;
+  const first = prev.known.length === 0;
+  const open = [...prev.open, ...fresh.filter(b => !first || b.isDefaultOpen).map(b => b.key)];
+  return { open, known: [...prev.known, ...fresh.map(b => b.key)] };
 }
 
 /** The same days opened, plus `dayKey` (no change when it is already open or null). */
@@ -90,8 +144,7 @@ export function dayFlags(groups: readonly DayGroup[], flags: readonly { code: Fl
   for (const g of groups) {
     const ids = new Set<number>();
     let activeRun = false;
-    for (const item of g.items) {
-      if (item.kind !== 'turn') continue;
+    for (const item of turnsOfDay(g)) {
       if (item.prompt) ids.add(item.prompt.id);
       for (const t of item.tools) { ids.add(t.event.id); if (t.run?.active) activeRun = true; }
     }
@@ -108,6 +161,6 @@ export function dayFlags(groups: readonly DayGroup[], flags: readonly { code: Fl
 }
 
 /** `Thứ Hai, 23/11/2026, 4 prompt, 9 lệnh, 3 lỗi`: what a screen reader says for a day header (the failure part is left out at 0). */
-export function dayGroupSpoken(label: string, today: boolean, g: Pick<DayGroup, 'prompts' | 'commands' | 'failed'>): string {
-  return `${label}${today ? ', hôm nay' : ''}, ${g.prompts} prompt, ${g.commands} lệnh${g.failed > 0 ? `, ${g.failed} lỗi` : ''}`;
+export function dayGroupSpoken(label: string, today: boolean, g: Pick<DayGroup, 'prompts' | 'commands' | 'failed'>, newCount = 0): string {
+  return `${label}${today ? ', hôm nay' : ''}, ${g.prompts} prompt, ${g.commands} lệnh${g.failed > 0 ? `, ${g.failed} lỗi` : ''}${newCount > 0 ? `, ${newCount} prompt có mục mới` : ''}`;
 }

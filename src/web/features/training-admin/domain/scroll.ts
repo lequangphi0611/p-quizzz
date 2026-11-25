@@ -25,3 +25,18 @@ export function latestSide(latest: Span, view: Span): LatestSide {
  * `after` pixels below it, so the content moved by the difference and the scroll position follows.
  */
 export const keepAnchorScrollTop = (scrollTop: number, before: number, after: number): number => scrollTop + (after - before);
+
+/** The least height of a card that counts as "in view" for the read clock: half of it, or 200px of a card taller than the frame (S43). */
+export const READ_MIN_VISIBLE_PX = 200;
+
+/**
+ * Whether a prompt card is in the frame enough to be read (PRODUCT.md §7.38d): at least half of its height, or, when the card is
+ * taller than the frame, at least 200px of it (never more than the frame itself shows).
+ */
+export function isCardReadable(card: Span, view: Span): boolean {
+  const height = card.bottom - card.top;
+  const visible = Math.min(card.bottom, view.bottom) - Math.max(card.top, view.top);
+  if (height <= 0 || visible <= 0) return false;
+  const need = height > view.bottom - view.top ? Math.min(READ_MIN_VISIBLE_PX, view.bottom - view.top) : height / 2;
+  return visible >= need;
+}

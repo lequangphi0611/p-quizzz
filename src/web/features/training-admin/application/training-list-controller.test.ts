@@ -3,6 +3,7 @@ import type { CreatedTraining, TrainingSummary } from '../../../../shared/api/in
 import { ApiError } from '../../../shared/api-client/http-client.js';
 import type { TrainingAdminGateway } from './training-admin-gateway.js';
 import { TrainingListController } from './training-list-controller.js';
+import { InMemoryTrainingReadStore } from './training-read-store.js';
 
 const summary = (id: number, name: string, over: Partial<TrainingSummary> = {}): TrainingSummary => ({ id, name, status: 'open', createdAt: 0, stoppedAt: null, endedAt: null, memberCount: 0, ...over });
 const created = (id: number, name: string): CreatedTraining => ({ ...summary(id, name), roomCode: '482913' });
@@ -100,5 +101,21 @@ describe('TrainingListController', () => {
     const { ctrl } = make({ list: vi.fn(async () => { throw new Error('x'); }) }, [summary(1, 'Cũ')]);
     await ctrl.refresh();
     expect(ctrl.getState()).toMatchObject({ items: [{ id: 1 }], loadError: '' });
+  });
+});
+
+describe('TrainingListController: read records of trainings that are gone (S43)', () => {
+  it('deletes the record of every training that is not in the list or has ended, on load and on every refresh', async () => {
+    const store = new InMemoryTrainingReadStore();
+    for (const id of [1, 2, 3, 4]) store.save(id, { members: { '1': { baselineAt: 1, baselinePromptCount: 0, readPromptCount: 0, turns: {} } } });
+    const gateway = { list: vi.fn(async () => [summary(1, 'A'), summary(2, 'B', { status: 'ended' })]) } as unknown as TrainingAdminGateway;
+    const ctrl = new TrainingListController(gateway, [summary(1, 'A'), summary(2, 'B'), summary(3, 'C', { status: 'stopped' })], store);
+    expect(Object.keys(store.load(1).members)).toHaveLength(1);
+    expect(store.load(3).members['1']).toBeDefined(); // a stopped training is not over
+    expect(store.load(4)).toEqual({ members: {} }); // not in the list at all
+    await ctrl.refresh();
+    expect(store.load(2)).toEqual({ members: {} }); // ended since
+    expect(store.load(3)).toEqual({ members: {} }); // gone from the list
+    expect(store.load(1).members['1']).toBeDefined();
   });
 });

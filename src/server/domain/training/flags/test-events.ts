@@ -12,10 +12,10 @@ export function ev(partial: Partial<FlagEvent> & Pick<FlagEvent, 'kind'> & { atS
     ok: null, durationMs: null, subtype: null, changeText: null, outputText: null, ...rest,
   };
 }
-export const prompt = (text: string, atSec?: number) => ev({ kind: 'prompt', prompt: text, atSec });
+export const prompt = (text: string, atSec?: number, claudeSessionId = 's1') => ev({ kind: 'prompt', prompt: text, atSec, claudeSessionId });
 export const tool = (toolName: string, toolTarget: string | null, ok = true, extra: Partial<FlagEvent> & { atSec?: number } = {}) =>
   ev({ kind: 'tool', toolName, toolTarget, ok, ...extra });
-export const session = (subtype: string, atSec?: number) => ev({ kind: 'session', subtype, atSec });
-export const perm = (toolName: string, toolTarget: string | null, atSec?: number) => ev({ kind: 'permission', toolName, toolTarget, atSec });
+export const session = (subtype: string, atSec?: number, claudeSessionId = 's1') => ev({ kind: 'session', subtype, atSec, claudeSessionId });
+export const perm = (toolName: string, toolTarget: string | null, atSec?: number, claudeSessionId = 's1') => ev({ kind: 'permission', toolName, toolTarget, atSec, claudeSessionId });
 
 export const ctx = (over: Partial<FlagContext> = {}): FlagContext => ({ allowAutoAccept: false, decisions: new Map(), ...over });
