@@ -70,6 +70,7 @@ Mỗi story là một file tự đủ ngữ cảnh để một model/người im
 | [S40](S40-training-report.md) | Training: đánh dấu ví dụ, ghi chú, xuất báo cáo trước khi kết thúc | S38, S39 | ✅ |
 | [S41](S41-training-export.md) | Training: xuất dữ liệu thô (zip, mỗi member một file) theo ngày để phân tích bằng AI cá nhân | S40 | ✅ |
 | [S42](S42-training-multi-day.md) | Training nhiều ngày: nhóm theo ngày (mới nhất ở trên, thu gọn) trên dòng thời gian | S35, S39, S40, S41 | ✅ |
+| [S43](S43-training-session-blocks.md) | Training: gom theo phiên Claude Code (kể cả song song) trong ngày, cờ theo phiên, đánh dấu prompt mới | S39, S41, S42 | ⏳ |
 
 ## Thứ tự & song song
 
@@ -92,5 +93,7 @@ Các story trong cùng đợt chạm file khác nhau là chính; nếu cùng s�
 Đợt 10 (training: thấy rõ cách làm việc với Claude, PRODUCT.md §7.35): S37 và S38 làm **song song** (S37 chạm ingest và màn đồng ý; S38 chạm luồng dừng gửi; cùng sửa câu chữ màn đồng ý nên phải thống nhất trước). Sau đó làm S39, rồi S40. S40 cần designer nhẹ.
 
 Đợt 11 (training: xuất dữ liệu để phân tích, PRODUCT.md §7.36): S41, một story, chạm phần xuất của S40 và màn đồng ý của S36/S37.
+
+Đợt 12 (training: phiên song song và đánh dấu mới, PRODUCT.md §7.38): S43. Phần 1 (dữ liệu đúng: cờ, zip, gom lượt theo phiên ở domain) làm trước; phần 2 (UI khối phiên + đánh dấu mới) chờ thiết kế được PO duyệt.
 
 **Mốc dùng thử được với member thật:** xong đợt 6 (chưa có màn hình chiếu và xem lại bài).
