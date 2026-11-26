@@ -88,6 +88,13 @@ export class ExampleDraftUnavailableError extends DomainError {
   }
 }
 
+/** The prompt already has a saved example: the mentor judged it, so the AI is not asked again (S45, 409 `example_exists`). */
+export class TeachingExampleExistsError extends DomainError {
+  constructor() {
+    super('conflict', 'Prompt này đã có ví dụ, nên không viết nháp lại. Bỏ ví dụ trước nếu muốn làm lại', 'example_exists');
+  }
+}
+
 /** The prompt has no AI draft (S45, 404 `no_draft`). */
 export class ExampleDraftNotFoundError extends DomainError {
   constructor() {

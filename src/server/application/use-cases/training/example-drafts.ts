@@ -1,4 +1,4 @@
-import { ExampleDraftNotFoundError, ExampleDraftUnavailableError, TeachingConsentMissingError, TeachingExampleNotPromptError, TrainingEventNotFoundError } from '../../../domain/training/errors.js';
+import { ExampleDraftNotFoundError, ExampleDraftUnavailableError, TeachingConsentMissingError, TeachingExampleExistsError, TeachingExampleNotPromptError, TrainingEventNotFoundError } from '../../../domain/training/errors.js';
 import { earlierPromptsInSession, InvalidExampleDraftError, normalizeExampleDraft, SAMPLES_MAX_CHARS } from '../../../domain/training/example-draft.js';
 import { buildTurnContext, maskForExample } from '../../../domain/training/teaching-examples.js';
 import type { Clock } from '../../ports/clock.js';
@@ -34,7 +34,7 @@ const alive = (d: ExampleDraftRecord | null): d is ExampleDraftRecord => d !== n
 
 /**
  * "Làm ví dụ" with the AI on: writes (or rewrites) a `queued` draft and hands it to the background queue. A draft already queued or
- * running is returned as it is, so pressing twice runs once. Only a prompt of a member who agreed, only while the training is not ended.
+ * running is returned as it is, so pressing twice runs once. Only a prompt of a member who agreed, without a saved example (a judged prompt is not rewritten), only while the training is not ended.
  */
 export class RequestExampleDraft {
   constructor(private readonly deps: WriteDeps & { drafter: TeachingExampleDrafter; queue: ExampleDraftQueue }) {}
@@ -47,6 +47,7 @@ export class RequestExampleDraft {
       if (owner.kind !== 'prompt') throw new TeachingExampleNotPromptError();
       if (!(await members.findById(owner.memberId))?.teachingConsent) throw new TeachingConsentMissingError();
       if (!available) throw new ExampleDraftUnavailableError();
+      if (await events.getTeachingExample(eventId)) throw new TeachingExampleExistsError();
       const existing = await events.getExampleDraft(eventId);
       if (alive(existing)) return { record: existing, queued: false };
       return { record: await events.queueExampleDraft(eventId, this.deps.clock.now()), queued: true };

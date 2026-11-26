@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { TeachingExampleBody } from '../../../../shared/api/training.js';
-import { ExampleDraftNotFoundError, ExampleDraftUnavailableError, TeachingConsentMissingError, TeachingExampleNotPromptError, TrainingEventNotFoundError, TrainingNotFoundError, TrainingStateError } from '../../../domain/training/errors.js';
+import { ExampleDraftNotFoundError, ExampleDraftUnavailableError, TeachingConsentMissingError, TeachingExampleExistsError, TeachingExampleNotPromptError, TrainingEventNotFoundError, TrainingNotFoundError, TrainingStateError } from '../../../domain/training/errors.js';
 import type { TrainingEventDraft } from '../../../domain/training/training-event.js';
 import { FakeClock, FakeRandom, FakeTokenGenerator, RecordingTrainingSignals } from '../../testing/fakes.js';
 import { FakeExampleDrafter } from '../../testing/fake-example-drafter.js';
@@ -126,6 +126,14 @@ describe('RequestExampleDraft', () => {
     await uc.stop.execute(t.id);
     await uc.end.execute(t.id);
     await expect(uc.request.execute(t.id, e2)).rejects.toBeInstanceOf(TrainingStateError);
+  });
+
+  it('refuses a prompt that already has a saved example: the mentor judged it, the AI is not asked again', async () => {
+    const { uc, t, e2 } = await scene();
+    await uc.save.execute(t.id, e2, BODY);
+    await expect(uc.request.execute(t.id, e2)).rejects.toBeInstanceOf(TeachingExampleExistsError);
+    expect(await events.getExampleDraft(e2)).toBeNull();
+    expect(queue.ids).toEqual([]);
   });
 
   it('refuses a member who did not agree to teaching examples', async () => {
@@ -347,27 +355,19 @@ describe('SaveTeachingExample with a draft (S45)', () => {
     expect(await events.getTeachingExample(e2)).toMatchObject({ origin: 'ai_edited', aiDraft: { comment: 'Chưa nói cách kiểm tra' } });
   });
 
-  it('changing only the origin touches neither reviewed_at nor updated_at', async () => {
+  it('saving the same content again from the review screen touches neither reviewed_at nor updated_at', async () => {
     const { uc, t, e2 } = await scene();
-    const first = await uc.save.execute(t.id, e2, BODY); // the mentor's own
+    await finished(uc, t.id, e2);
+    const draft = (await events.getExampleDraft(e2))!;
+    const body = { ...BODY, comment: draft.comment ?? '', betterPrompt: draft.betterPrompt };
+    const first = await uc.save.execute(t.id, e2, body); // ai_kept: the draft row is gone
     await events.setTeachingReviewed(e2, new Date(1500));
     clock.advance(1000);
-    // A finished draft that is the same as the saved content: same content, so only the origin changes (mentor → ai_kept).
-    await finished(uc, t.id, e2);
-    await uc.save.execute(t.id, e2, { ...BODY, comment: 'Chưa nói cách kiểm tra', betterPrompt: 'Prompt tốt hơn' }); // new content (better prompt): saved normally
-    const saved = (await events.getTeachingExample(e2))!;
-    expect(saved.updatedAt.getTime()).toBeGreaterThan(first.updatedAt);
-
-    // Now the same content again, with a rewritten draft that differs: content unchanged, origin changes.
-    await events.setTeachingReviewed(e2, new Date(1700));
-    clock.advance(1000);
-    drafter.answer = { label: 'good', topic: 'other', comment: 'Khác hẳn', betterPrompt: '', suspicious: false, suspiciousReason: '', suspiciousQuote: '', model: null };
-    await finished(uc, t.id, e2);
-    await uc.save.execute(t.id, e2, { ...BODY, comment: 'Chưa nói cách kiểm tra', betterPrompt: 'Prompt tốt hơn' });
+    await uc.save.execute(t.id, e2, body);
     const after = (await events.getTeachingExample(e2))!;
-    expect(after).toMatchObject({ origin: 'ai_edited', aiDraft: { comment: 'Khác hẳn' } });
-    expect(after.updatedAt).toEqual(saved.updatedAt);
-    expect(after.reviewedAt).toEqual(new Date(1700));
+    expect(after).toMatchObject({ origin: 'ai_kept' });
+    expect(after.updatedAt.getTime()).toBe(first.updatedAt);
+    expect(after.reviewedAt).toEqual(new Date(1500));
   });
 
   it('the example row of the review screen does not show where it came from', async () => {

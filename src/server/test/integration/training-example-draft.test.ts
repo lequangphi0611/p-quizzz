@@ -308,23 +308,18 @@ describe('saving an example that started as a draft (S45)', () => {
     const reviewedAt = s.origins()[0]!.reviewedAt;
     expect(reviewedAt).not.toBeNull();
 
-    // same content saved again after a rewritten draft that differs: only the origin changes
+    // same content saved again: nothing changes
     s.clock.advance(60_000);
-    s.drafter.answer = { label: 'good', topic: 'other', comment: 'Khác hẳn', betterPrompt: '', suspicious: false, suspiciousReason: '', suspiciousQuote: '', model: null };
-    await s.request(t, an.prompt.id);
-    await s.composition.ai.idle();
     const again = (await s.put(t, an.prompt.id, SAVE)).json<TeachingExampleRow>();
     expect(again.updatedAt).toBe(first.updatedAt);
     expect(again.reviewed).toBe(true);
-    expect(s.origins()[0]).toMatchObject({ origin: 'ai_edited', reviewedAt });
-    expect(s.origins()[0]!.aiDraft).toMatchObject({ comment: 'Khác hẳn' });
 
     // an edit on the review screen (no draft any more): the ai_draft stays, the origin is recomputed
     s.clock.advance(60_000);
     const edited = (await s.put(t, an.prompt.id, { ...SAVE, comment: 'Sửa ở màn rà' })).json<TeachingExampleRow>();
     expect(edited.reviewed).toBe(false);
     expect(edited.updatedAt).toBeGreaterThan(first.updatedAt);
-    expect(s.origins()[0]).toMatchObject({ origin: 'ai_edited' });
+    expect(s.origins()[0]).toMatchObject({ origin: 'ai_edited', aiDraft: { comment: SAVE.comment } });
   });
 
   it('a kept example turns ai_edited when it is edited on the review screen', async () => {
@@ -370,6 +365,17 @@ describe('saving an example that started as a draft (S45)', () => {
 });
 
 describe('nothing about the AI leaks outside /api/admin (S45 AC11)', () => {
+  it('refuses a draft for a prompt that already has an example (409 example_exists)', async () => {
+    const s = await setup();
+    const t = await s.training();
+    const an = await s.agreed(t);
+    await s.put(t, an.prompt.id, SAVE);
+    const res = await s.request(t, an.prompt.id);
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toMatchObject({ code: 'example_exists' });
+    expect((await s.get(t, an.prompt.id)).statusCode).toBe(404);
+  });
+
   it('the member routes, the report, the zip and the example file and review rows carry no draft, origin or availability', async () => {
     const s = await setup();
     const t = await s.training();
@@ -379,7 +385,9 @@ describe('nothing about the AI leaks outside /api/admin (S45 AC11)', () => {
     await s.request(t, an.prompt.id);
     await s.composition.ai.idle();
     await s.put(t, an.prompt.id, { ...SAVE, comment: MARK, betterPrompt: 'BẢN-NHÁP-S45' });
-    await s.request(t, an.prompt.id); // a new draft beside the saved example
+    await s.ingest(an.ingestToken, { ...userPromptSubmit, prompt: 'prompt thứ hai' });
+    const second = (await s.timeline(t, an.id)).filter(e => e.kind === 'prompt')[1]!;
+    await s.request(t, second.id); // a live draft of another prompt, beside the saved example
     await s.composition.ai.idle();
     const review = await s.admin('PUT', `/trainings/${t.id}/events/${an.prompt.id}/teaching-example/reviewed`);
     expect(review.statusCode).toBe(204);
@@ -396,6 +404,6 @@ describe('nothing about the AI leaks outside /api/admin (S45 AC11)', () => {
     }
     for (const text of [report, zip, me.body, hook.body, sessions.body]) expect(text).not.toContain(MARK);
     // the draft text only travels on the mentor's own draft route
-    expect((await s.get(t, an.prompt.id)).body).toContain(MARK);
+    expect((await s.get(t, second.id)).body).toContain(MARK);
   });
 });
