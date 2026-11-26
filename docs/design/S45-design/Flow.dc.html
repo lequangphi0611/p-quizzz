@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Luồng: hai nháp song song, mở A, sửa, lưu</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/pquizzz/styles.css">
+<script src="ds/pquizzz/_ds_bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.exb{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:var(--radius-md);font:600 13px/1 var(--font-sans);white-space:nowrap;border:1px solid var(--border-strong);background:var(--paper);color:var(--ink-900)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--brand-600);flex:none}
+.card{background:var(--paper);border:1px solid var(--border-hairline);border-radius:var(--radius-lg);padding:20px;display:flex;flex-direction:column;gap:14px}
+.num{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:8px;background:var(--ink-900);color:var(--sun-400);font:700 14px/1 var(--font-mono)}
+.row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border-hairline);border-radius:var(--radius-md);background:var(--paper);font-size:14px;color:var(--text-title)}
+.mini{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:var(--radius-md);background:var(--ink-050);min-height:150px}
+.cap{margin:0;font:var(--type-meta);color:var(--text-meta)}
+@media (prefers-reduced-motion:reduce){.pq-spin{animation:none}}
+</style>
+</helmet>
+<div style="width: 1440px; min-height: 1060px; box-sizing: border-box; padding: 56px 64px; background: var(--surface-page); font-family: var(--font-sans); color: var(--text-body); display: flex; flex-direction: column; gap: 28px">
+  <div style="display: flex; flex-direction: column; gap: 8px; max-width: 900px">
+    <span style="font: var(--type-label); text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-meta)">Luồng ngắn</span>
+    <h1 style="margin: 0; font: var(--type-display); color: var(--text-title); letter-spacing: var(--tracking-display)">Bấm A, đóng, bấm B, quay lại A, sửa, Lưu</h1>
+    <p style="margin: 0; font: var(--type-body); color: var(--text-meta)">Không có thông báo nổi ở bước nào. Mentor biết nháp đã xong nhờ nút trên prompt và cụm “nháp chưa xem” ở thanh Tổng hợp lớp.</p>
+  </div>
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px">
+    <div class="card">
+      <div style="display: flex; align-items: center; gap: 10px"><span class="num">1</span><b style="color: var(--text-title)">Bấm “Làm ví dụ” trên A</b></div>
+      <div class="mini">
+        <div class="row" style="border-style: dashed; border-color: var(--ink-400); background: var(--ink-050)"><span class="pq-icon pq-icon-loader-circle pq-spin" style="font-size: 16px; color: var(--ink-700)"></span><b>AI đang viết nháp</b><span style="font: 500 12px/1 var(--font-mono); color: var(--text-meta)">3 giây</span></div>
+        <div class="row" style="color: var(--text-meta)">Nhãn · Chủ đề · Nhận xét · Phiên bản tốt hơn đều trống, gõ được</div>
+      </div>
+      <p class="cap">Hộp thoại mở ngay như S44. Dòng trạng thái nói rõ có thể đóng.</p>
+    </div>
+    <div class="card">
+      <div style="display: flex; align-items: center; gap: 10px"><span class="num">2</span><b style="color: var(--text-title)">Đóng hộp thoại (Esc)</b></div>
+      <div class="mini">
+        <div class="row">Prompt 1 · Sửa lỗi giỏ hàng giúp mình.<span style="flex-grow: 1"></span><span class="exb" style="border: 1.5px dashed var(--ink-400); color: var(--ink-700)"><span class="pq-icon pq-icon-loader-circle pq-spin" style="font-size: 14px"></span>Đang viết nháp…</span></div>
+      </div>
+      <p class="cap">Focus trả về nút của A. Trình đọc màn hình: “Đang viết nháp cho prompt 1 của Lan” (một lần).</p>
+    </div>
+    <div class="card">
+      <div style="display: flex; align-items: center; gap: 10px"><span class="num">3</span><b style="color: var(--text-title)">Sang Mai, bấm “Làm ví dụ” trên B</b></div>
+      <div class="mini">
+        <div class="row">Prompt 1 · Đọc src/auth/ rồi lập kế hoạch…<span style="flex-grow: 1"></span><span class="exb" style="border: 1.5px dashed var(--ink-400); color: var(--ink-700)"><span class="pq-icon pq-icon-loader-circle pq-spin" style="font-size: 14px"></span>Đang viết nháp…</span></div>
+        <div class="row" style="color: var(--text-meta)">Danh sách member: Lan <span style="font: 700 11px/1 var(--font-mono); padding: 4px 7px; border: 1px solid var(--ink-200); border-radius: 99px; color: var(--ink-700)">1 đang viết</span></div>
+      </div>
+      <p class="cap">Hai nháp chạy song song. Mentor đóng hộp thoại B luôn hoặc chờ, tuỳ ý.</p>
+    </div>
+    <div class="card">
+      <div style="display: flex; align-items: center; gap: 10px"><span class="num">4</span><b style="color: var(--text-title)">Nháp A xong, nút A đổi</b></div>
+      <div class="mini">
+        <div class="row">Lan · Prompt 1<span style="flex-grow: 1"></span><span class="exb" style="border: 1.5px dashed var(--ink-700); background: var(--ink-050)"><span class="dot"></span><span class="pq-icon pq-icon-sparkles" style="font-size: 14px"></span>Xem nháp</span></div>
+        <div class="row"><span class="pq-icon pq-icon-sparkles" style="font-size: 15px"></span><b style="font-family: var(--font-mono)">1</b> nháp chưa xem<span style="flex-grow: 1"></span><span style="font: 600 12px/1 var(--font-sans); color: var(--ink-700)">Nháp tiếp theo <kbd style="font: 600 10px/1 var(--font-mono); padding: 3px 5px; border: 1px solid var(--ink-300); border-radius: 4px">N</kbd></span></div>
+      </div>
+      <p class="cap">Không toast, không âm thanh. Vùng aria-live đọc “Nháp cho prompt 1 của Lan đã sẵn sàng” một lần.</p>
+    </div>
+    <div class="card">
+      <div style="display: flex; align-items: center; gap: 10px"><span class="num">5</span><b style="color: var(--text-title)">Mở A, chọn nhãn, sửa Nhận xét</b></div>
+      <div class="mini">
+        <div class="row" style="border-style: dashed; border-color: var(--ink-400); background: var(--ink-050)"><span class="pq-icon pq-icon-sparkles" style="font-size: 15px"></span><span><b>Nháp của AI</b>, đọc và sửa trước khi lưu</span></div>
+        <div class="row"><span style="font: var(--type-label); color: var(--text-meta)">NHẬN XÉT</span><span style="flex-grow: 1"></span><span style="display: inline-flex; align-items: center; gap: 4px; font: 600 12px/1 var(--font-sans); color: var(--ink-600)"><span class="pq-icon pq-icon-pencil" style="font-size: 13px"></span>Bạn đã sửa</span></div>
+        <div class="row" style="border-style: dashed; border-color: var(--ink-400); background: var(--ink-050)"><span style="font: var(--type-label); color: var(--text-meta)">PHIÊN BẢN TỐT HƠN</span><span style="flex-grow: 1"></span><span style="display: inline-flex; align-items: center; gap: 4px; font: 600 12px/1 var(--font-sans); color: var(--ink-600)"><span class="pq-icon pq-icon-sparkles" style="font-size: 13px"></span>Nguyên nháp AI</span></div>
+      </div>
+      <p class="cap">Gõ vào ô thì viền đứt nét thành viền liền ngay lập tức. Nút trên prompt lúc này đã là “Nháp chưa lưu”.</p>
+    </div>
+    <div class="card">
+      <div style="display: flex; align-items: center; gap: 10px"><span class="num">6</span><b style="color: var(--text-title)">Lưu ví dụ (Ctrl Enter)</b></div>
+      <div class="mini">
+        <div class="row">Lan · Prompt 1<span style="flex-grow: 1"></span><span class="exb" style="border-color: var(--ink-300); color: var(--ink-800); background: var(--ink-100)"><span class="pq-icon pq-icon-rotate-ccw" style="font-size: 14px"></span>Ví dụ: Chưa tốt</span></div>
+        <div class="row" style="color: var(--text-meta)">Cụm “nháp chưa xem” ẩn vì về 0. B vẫn đang viết.</div>
+      </div>
+      <p class="cap">Sau Lưu không còn dấu AI ở đâu (PO chốt). Ví dụ này vào bộ mẫu cho nháp sau vì đã có ô được sửa.</p>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1060}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

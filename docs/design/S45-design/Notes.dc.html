@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Ghi chú tương tác và đề xuất component</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/pquizzz/styles.css">
+<script src="ds/pquizzz/_ds_bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.col{display:flex;flex-direction:column;gap:12px;font:var(--type-meta);font-size:15px;line-height:1.55;color:var(--text-body)}
+.col h2{margin:0 0 4px;font:var(--type-h2);color:var(--text-title)}
+.col h3{margin:12px 0 0;font:700 16px/1.3 var(--font-sans);color:var(--text-title)}
+.col p{margin:0;text-wrap:pretty}
+.col ul,.col ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.col code,.col kbd{font:500 13px/1.4 var(--font-mono);background:var(--ink-100);padding:1px 6px;border-radius:5px;color:var(--ink-900)}
+.col kbd{background:var(--paper);border:1px solid var(--ink-300);border-bottom-width:2px}
+</style>
+</helmet>
+<div style="width: 1440px; min-height: 1500px; box-sizing: border-box; padding: 56px 64px; background: var(--paper); font-family: var(--font-sans); display: flex; flex-direction: column; gap: 32px">
+  <div style="display: flex; gap: 14px; align-items: flex-start; padding: 16px 20px; border-radius: var(--radius-lg); background: var(--warn-surface); border: 1px solid var(--warn-border); color: var(--warn-600)">
+    <span class="pq-icon pq-icon-triangle-alert" style="font-size: 20px; margin-top: 2px"></span>
+    <div style="display: flex; flex-direction: column; gap: 4px; font-size: 15px; line-height: 1.5"><b>Cần PO quyết lại một điểm:</b><span style="color: var(--ink-800)">Thiết kế mặc định <b>không chọn sẵn nhãn</b> của AI (chỉ đánh dấu “AI gợi ý”), lệch khỏi “nháp đổ thẳng vào các ô”. Nhận xét, chủ đề, phiên bản tốt hơn vẫn điền thẳng. Bật tweak <code style="font: 500 13px/1.4 var(--font-mono)">nhanMode = dien-san</code> trên khung “đã có nháp” để so hai cách. Với prompt bị nghi ngờ, nhãn không bao giờ chọn sẵn ở cả hai cách.</span></div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 48px">
+    <div class="col">
+      <h2>Câu hỏi mở</h2>
+      <h3>1. Chống neo theo nháp</h3>
+      <p>Ba lớp, đều không thêm bước bắt buộc nào ngoài một cú bấm:</p>
+      <ul>
+        <li><b>Nhãn là gợi ý, không chọn sẵn.</b> Nhãn là thứ dễ bị neo nhất và rẻ nhất để tự quyết (1 phím). Lưu cần nhãn, nên mentor buộc phải chọn, nhưng không phải gõ.</li>
+        <li><b>Ô nguyên nháp có viền đứt nét + “Nguyên nháp AI”.</b> Gõ một ký tự là đổi thành viền liền + “Bạn đã sửa”. Đây cũng là câu trả lời cho “ô nào đã sửa”.</li>
+        <li><b>Chân hộp thoại đếm ô còn nguyên nháp</b>, chỉ để thông tin, không chặn.</li>
+      </ul>
+      <p>Không làm: bắt sửa ít nhất một ô (sẽ có dấu chấm cho có), đếm giờ đọc, khoá Lưu theo thời gian.</p>
+      <h3>2. Nhiều nháp cùng lúc</h3>
+      <p>Cụm “N nháp chưa xem · Nháp tiếp theo <kbd>N</kbd>” ở thanh Tổng hợp lớp, cộng chip đếm trên từng member. <kbd>N</kbd> chọn member, cuộn tới prompt, focus nút “Xem nháp”. Thứ tự: nháp xong sớm nhất trước.</p>
+      <h3>3. Gõ trong lúc chờ</h3>
+      <p><b>Không khoá ô.</b> Khoá bắt mentor ngồi chờ tới 60 giây, ngược với “mở ngay như trước”. Chỉ hỏi ghi đè cho đúng ô đã gõ; ô chưa gõ vẫn điền nháp. Placeholder nói trước điều này.</p>
+      <h3>4. Dòng “AI dựa trên N ví dụ”</h3>
+      <p>Giữ, nhưng nhỏ (meta 12px, dưới dòng “Nháp của AI”). Nó giải thích vì sao nháp đổi giọng qua buổi, và chừa chỗ cho “… và M ví dụ từ các khoá trước”. Không làm link, không giải thích quy tắc tính mẫu ở đây (xem rủi ro ở cột 3).</p>
+    </div>
+
+    <div class="col">
+      <h2>Bàn phím và trình đọc màn hình</h2>
+      <h3>Thứ tự Tab trong hộp thoại</h3>
+      <ol>
+        <li>Cảnh báo nghi ngờ (nếu có, <code>role="alert"</code>, không nhận focus)</li>
+        <li>Viết lại nháp → Bỏ nháp (hoặc “Viết lại nháp” trong khung lỗi)</li>
+        <li>Nhãn (radiogroup, mũi tên trái/phải)</li>
+        <li>Chủ đề → Nhận xét → Phiên bản tốt hơn</li>
+        <li>Ô tick “Đã đọc kỹ prompt” (nếu nghi ngờ)</li>
+        <li>Cách bật AI (nếu AI chưa bật) → Đóng → Lưu ví dụ</li>
+      </ol>
+      <p>Mở hộp thoại: focus vào nhóm Nhãn khi có nháp (để đọc nhãn trước), vào Nhận xét khi đang viết hoặc lỗi.</p>
+      <h3>Phím tắt</h3>
+      <ul>
+        <li><kbd>N</kbd> (dòng thời gian): tới nháp chưa xem tiếp theo. Không chạy khi focus ở ô nhập.</li>
+        <li><kbd>1</kbd> / <kbd>2</kbd> (hộp thoại, ngoài ô chữ): chọn Tốt / Chưa tốt.</li>
+        <li><kbd>Ctrl</kbd>+<kbd>Enter</kbd>: Lưu ví dụ, kể cả khi đang trong ô chữ.</li>
+        <li><kbd>Esc</kbd>: Đóng, nháp vẫn chạy.</li>
+        <li>Không gán phím cho Viết lại / Bỏ nháp: thao tác làm mất chữ, phải bấm có chủ đích. Giữ <kbd>H</kbd> của S44.</li>
+      </ul>
+      <h3>Thông báo (aria-live polite, mỗi lần một câu)</h3>
+      <ul>
+        <li>Bấm Làm ví dụ: “Đang viết nháp cho prompt 1 của Lan.”</li>
+        <li>Xong: “Nháp cho prompt 1 của Lan đã sẵn sàng.” (đọc dù hộp thoại đóng hay mở)</li>
+        <li>Lỗi: “Viết nháp cho prompt 2 của Mai bị lỗi: quá thời gian.”</li>
+        <li>Ô nháp: <code>aria-describedby</code> = “Nguyên nháp AI, chưa sửa”. Nút nhãn có gợi ý: “Chưa tốt, AI gợi ý”.</li>
+      </ul>
+      <h3>Giảm chuyển động</h3>
+      <p>Icon quay thành <code>hourglass</code> tĩnh; thanh tiến trình đứng yên; ô điền nháp hiện ngay, không trượt (token <code>--dur-*</code> về 0).</p>
+    </div>
+
+    <div class="col">
+      <h2>Đề xuất cho design system</h2>
+      <h3>ExampleButton (mới)</h3>
+      <p><code>state</code>: <code>new | drafting | draftUnseen | draftSeen | draftError | savedGood | savedNeedsWork</code> · <code>flagged?: boolean</code> (đổi icon sang shield, nền warn) · <code>ariaContext: string</code> (“prompt 1 của Lan”). Cao 32px, giữ cạnh “Báo cáo”.</p>
+      <h3>TextField: thêm <code>origin</code></h3>
+      <p><code>origin?: "user" | "ai"</code>. <code>ai</code> = viền 1.5px đứt nét <code>--ink-400</code>, nền <code>--ink-050</code>, tag phải nhãn “Nguyên nháp AI”. Tự chuyển <code>user</code> ở lần gõ đầu. <code>originTag?: boolean</code> để hiện “Bạn đã sửa”.</p>
+      <h3>AiDraftBanner (dùng chung với S26)</h3>
+      <p><code>state</code>: <code>running | ready | error</code> · <code>basis?: {session: number, past?: number}</code> → câu “AI dựa trên…” · <code>onRegenerate</code>, <code>onDiscard</code> · <code>elapsedSec?</code>. Cùng ngôn ngữ đứt nét + sparkles với “Gợi ý của AI” ở màn chấm.</p>
+      <h3>LabelToggle (Tốt / Chưa tốt)</h3>
+      <p>Thêm <code>suggested?: "good" | "needsWork"</code> (viền đứt nét trên lựa chọn, không chọn) và <code>valueOrigin?: "ai" | "user"</code>.</p>
+      <h3>DraftCountChip</h3>
+      <p>Chip mono 22px: <code>kind: running | unseen | error</code>, <code>count</code>. Dùng trong danh sách member.</p>
+
+      <h3 style="color: var(--warn-600)">Rủi ro mình thấy trong spec</h3>
+      <ul>
+        <li><b>Quy tắc “giữ nguyên nháp thì không làm mẫu”</b> tạo động cơ sửa một dấu chấm để ví dụ được tính, và chữ gần như của AI lại vào bộ mẫu như chữ mentor. Nên định nghĩa “đã sửa” theo mức thay đổi (ví dụ đổi nhãn, hoặc sửa đủ nhiều ở nhận xét), và không lộ quy tắc này trên UI.</li>
+        <li><b>Không dấu vết sau Lưu</b> nghĩa là màn rà không bắt được ví dụ bị neo. Chấp nhận theo PO, nhưng nên ghi log nội bộ (không hiện UI) để sau này đo được tỉ lệ giữ nguyên nháp.</li>
+        <li>Chữ mẫu cho nhận xét của Prompt C và nội dung Prompt D là chữ minh hoạ mình tự viết, spec không cho.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
