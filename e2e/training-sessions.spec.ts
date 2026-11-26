@@ -172,7 +172,7 @@ test('two sessions at once: blocks, new marks that fade after 2 seconds, the mem
   await page.getByRole('button', { name: 'Mai', exact: true }).click(); // Lan is not in view
   await expect(frame(page).getByText('Mai: một prompt')).toBeVisible();
 
-  // Block 1 (folded, ended with /clear) got a prompt: it stays folded and says how many prompts are new.
+  // Block 1 (folded, ended with /clear) got a prompt: it holds something unread, so it opens for a new reading.
   await setFocus(false); // the window is not in front: nothing is read while the mentor "is away"
   await page.getByRole('button', { name: 'Lan', exact: true }).click();
   await expect(frame(page).getByText('B: prompt mới nhất')).toBeVisible();
@@ -207,6 +207,11 @@ test('two sessions at once: blocks, new marks that fade after 2 seconds, the mem
   await expect(frame(page).getByText('B: prompt mới nhất')).toBeVisible();
   await expect(badges(page)).toHaveCount(0);
   await expect(lanRow.locator('[data-member-new]')).toHaveCount(0);
+
+  // Session 1 sent a prompt after its /clear, so it counts as resumed ("chưa kết thúc", session-blocks.ts endedByOf): open by default.
+  await expect(blockHeads(page).nth(0)).toHaveAttribute('aria-expanded', 'true');
+  await expect(frame(page).locator('[data-block-head]').nth(0).locator('[data-block-label]')).toHaveText('chưa kết thúc');
+  await blockHeads(page).nth(0).click(); // the mentor folds it
 
   // An event in an old prompt: it does not add to the list; the old prompt says "· 1 mới" and gets a strip "Lệnh mới".
   await setFocus(false);
