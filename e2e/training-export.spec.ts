@@ -96,7 +96,9 @@ test('export the raw data: pick the days and the members, see what it holds, dow
   const [download] = await Promise.all([page.waitForEvent('download'), dialog.getByRole('button', { name: 'Tải file .zip' }).click()]);
   expect(download.suggestedFilename()).toMatch(/^du-lieu-claude-code-buoi-5-xuat-du-lieu-\d{4}-\d{2}-\d{2}_\d{4}-\d{2}-\d{2}\.zip$|^du-lieu-claude-code-buoi-5-xuat-du-lieu-\d{4}-\d{2}-\d{2}\.zip$/);
   const files = readZip(await readFile((await download.path())!));
-  expect([...files.keys()]).toEqual(['00-tong-quan.md', '01-nguyen-van-lan.md']);
+  // Order inside the archive is not part of the contract: the server streams one member at a time and writes the overview last
+  // (export-data.ts); the "00-" prefix is what puts it first once unzipped.
+  expect([...files.keys()].sort()).toEqual(['00-tong-quan.md', '01-nguyen-van-lan.md']);
   const lanFile = files.get('01-nguyen-van-lan.md')!;
   expect(lanFile).toMatch(/^# Nguyễn Văn Lan\n/);
   expect(lanFile).toContain('**Bash** `npm test`');

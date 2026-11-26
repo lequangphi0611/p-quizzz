@@ -197,7 +197,8 @@ test('mentor reads a training of several days: day groups, flags, sticky header,
   await page.keyboard.press('Escape');
 
   // Hidden content: no prompt, no day header, no summary, no open-all button; showing it again keeps the days and the scroll position.
-  await timeline.evaluate(el => { el.scrollTop = 300; });
+  // The scroll event (which records the row being read) fires on a later frame; pressing H before it would hide the old row.
+  await timeline.evaluate(el => new Promise<void>(resolve => { el.addEventListener('scroll', () => requestAnimationFrame(() => resolve()), { once: true }); el.scrollTop = 300; }));
   const openBefore = await heads.evaluateAll(els => els.map(e => e.getAttribute('aria-expanded')));
   const top = await timeline.evaluate(el => el.scrollTop);
   await page.keyboard.press('h');

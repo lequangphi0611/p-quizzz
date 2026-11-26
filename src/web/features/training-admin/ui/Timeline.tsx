@@ -166,10 +166,13 @@ export function Timeline({ member, timeline, panel, hidden, markError, read, ctr
     const n = turnNewness(turn, rec);
     if (hidden) return NO_NEWNESS;
     if (n.kind !== 'prompt' && prevKind.current.get(key) === 'prompt') fadingBadges.current.add(key);
-    const nowNew = new Set(newCommandsOf(n).map(e => e.id));
-    if (n.kind === 'events') {
+    const newCommands = newCommandsOf(n);
+    const nowNew = new Set(newCommands.map(e => e.id));
+    // Only a turn with new commands gets a strip entry. A turn whose only new event is a session row (SessionEnd, compact, model
+    // switch) must not get an empty one: `measure` drops it as "nothing new" and redraws, this would add it back, and so on forever.
+    if (newCommands.length > 0) {
       const kept = strips.current.get(key) ?? new Map<number, TrainingEventRow>();
-      for (const e of newCommandsOf(n)) kept.set(e.id, e);
+      for (const e of newCommands) kept.set(e.id, e);
       strips.current.set(key, kept);
     }
     const kept = [...(strips.current.get(key)?.values() ?? [])].sort((x, y) => x.id - y.id);
@@ -403,7 +406,6 @@ export function Timeline({ member, timeline, panel, hidden, markError, read, ctr
           <h2 style={{ margin: 0, font: '700 18px/1.3 var(--font-sans)', color: 'var(--text-title)', overflowWrap: 'anywhere' }}>{member.displayName}</h2>
           <ConnectionChip row={member} />
           {member.stuck && <StuckChip />}
-          {!member.teachingConsent && !hidden && <NoTeachingChip />}
           {/* The learner row's buttons, in the design's order: mark all read · open/fold all · hide the content (H), then the note and "Mời ra". Narrow: they wrap to a line of their own. */}
           <div style={{ marginLeft: narrow ? 0 : 'auto', flexBasis: narrow ? '100%' : undefined, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
             {!hidden && timeline.phase === 'ready' && <Button variant="ghost" size="sm" icon="list-checks" disabled={unreadLoaded === 0} onClick={() => ctrl.markAllRead()}>Đánh dấu đã đọc hết</Button>}
@@ -414,6 +416,8 @@ export function Timeline({ member, timeline, panel, hidden, markError, read, ctr
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px 10px', flexWrap: 'wrap', font: 'var(--type-meta)', fontSize: 13, color: 'var(--text-meta)' }}>
+          {/* At the head of the summary line, not on the name row: there it pushed the learner row's buttons to a line of their own at 1440. */}
+          {!member.teachingConsent && !hidden && <NoTeachingChip />}
           <span>{[memberCountsText(member), memberExtraCountsText(member)].filter(Boolean).join(' · ')} · lần cuối thấy {formatLastSeen(member.lastSeenAt, now)}</span>
           {!hidden && flags.length > 0 && (
             <span aria-label="Cờ gợi ý" style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>

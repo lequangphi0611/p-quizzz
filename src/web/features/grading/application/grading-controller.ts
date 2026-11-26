@@ -68,7 +68,9 @@ export class GradingController {
   /** Save one answer's grade (used by the answer cards). Rejects with the server error so the card can show it. */
   async grade(answerId: number, score: number, feedback: string, aiUse?: 'accepted' | 'edited'): Promise<void> {
     const r = await this.gateway.grade(answerId, aiUse ? { score, feedback, aiUse } : { score, feedback });
-    if (this.state.filter !== 'all') this.set({ kept: new Set(this.state.kept).add(answerId) });
+    // Kept in place until the question or the filter changes, under every filter: a pinned suspicious answer would otherwise jump
+    // away from the pin once graded, taking its "Hoàn tác" with it.
+    this.set({ kept: new Set(this.state.kept).add(answerId) });
     this.applySaved(r);
   }
 

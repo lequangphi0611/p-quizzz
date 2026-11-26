@@ -81,9 +81,12 @@ export const matchesFilter = (a: GradingAnswer, f: AnswerFilter): boolean =>
  * suspicious answers are pinned first; everything else keeps the shuffled order.
  */
 export function visibleAnswers(answers: GradingAnswer[], f: AnswerFilter, kept: ReadonlySet<number> = new Set()): { answer: GradingAnswer; index: number; pinned: boolean }[] {
-  // `kept`: answers graded while this filter is on stay in place (so "Hoàn tác" is still reachable) until the filter changes.
-  const rows = answers.map((answer, index) => ({ answer, index, pinned: isFlagPending(answer) })).filter(r => kept.has(r.answer.answerId) || matchesFilter(r.answer, f));
-  return [...rows.filter(r => r.pinned), ...rows.filter(r => !r.pinned)];
+  // `kept`: answers graded in this view stay in place (so "Hoàn tác" is still reachable) until the question or the filter changes.
+  // A suspicious one graded here keeps its place at the top, without the pin.
+  const rows = answers
+    .map((answer, index) => ({ answer, index, pinned: isFlagPending(answer), top: isFlagPending(answer) || (kept.has(answer.answerId) && isFlagged(answer)) }))
+    .filter(r => kept.has(r.answer.answerId) || matchesFilter(r.answer, f));
+  return [...rows.filter(r => r.top), ...rows.filter(r => !r.top)].map(({ answer, index, pinned }) => ({ answer, index, pinned }));
 }
 
 /** Whether the page should keep refreshing: some suggestion is still waiting or running. */
