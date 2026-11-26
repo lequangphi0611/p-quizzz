@@ -166,10 +166,13 @@ export function Timeline({ member, timeline, panel, hidden, markError, read, ctr
     const n = turnNewness(turn, rec);
     if (hidden) return NO_NEWNESS;
     if (n.kind !== 'prompt' && prevKind.current.get(key) === 'prompt') fadingBadges.current.add(key);
-    const nowNew = new Set(newCommandsOf(n).map(e => e.id));
-    if (n.kind === 'events') {
+    const newCommands = newCommandsOf(n);
+    const nowNew = new Set(newCommands.map(e => e.id));
+    // Only a turn with new commands gets a strip entry. A turn whose only new event is a session row (SessionEnd, compact, model
+    // switch) must not get an empty one: `measure` drops it as "nothing new" and redraws, this would add it back, and so on forever.
+    if (newCommands.length > 0) {
       const kept = strips.current.get(key) ?? new Map<number, TrainingEventRow>();
-      for (const e of newCommandsOf(n)) kept.set(e.id, e);
+      for (const e of newCommands) kept.set(e.id, e);
       strips.current.set(key, kept);
     }
     const kept = [...(strips.current.get(key)?.values() ?? [])].sort((x, y) => x.id - y.id);

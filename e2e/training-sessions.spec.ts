@@ -391,3 +391,36 @@ test('a session across midnight, flags that open a folded block, and a day with 
   await expect(head.locator('[data-parallel]')).toBeFocused();
   expect((await box(head.locator('button[aria-expanded]'))).height).toBeGreaterThanOrEqual(31);
 });
+
+// Regression: a turn out of view whose only new event is a session row (SessionEnd, compact) used to put the timeline in an
+// endless redraw loop ("Maximum update depth exceeded", minified React error #185) and the page crashed while collecting.
+test('a session row arriving under a turn out of view does not crash the timeline', async ({ browser, baseURL }) => {
+  test.setTimeout(90_000);
+  const mentor = await mentorContext(browser, baseURL!, DESKTOP);
+  const page = mentor.page;
+  const errors: string[] = [];
+  // The router's error boundary catches the crash, so it shows as a console error, not as a page error.
+  page.on('console', m => { if (m.type() === 'error' && /Maximum update depth|#185/.test(m.text())) errors.push(m.text().slice(0, 200)); });
+  page.on('pageerror', e => errors.push(e.message));
+  const api = await request.newContext({ baseURL: baseURL! });
+  const { id, roomCode } = await newTraining(mentor, 'Dòng phiên ngoài khung');
+  const send = await join(api, id, roomCode, 'Lan', '10.43.0.9');
+  const first = 'eeee5555-0000-4000-8000-000000000001';
+  const second = 'eeee5555-0000-4000-8000-000000000002';
+  await send(prompt('prompt của phiên đầu', first));
+  await page.goto(`/admin/trainings/${id}`);
+  await page.getByRole('button', { name: 'Lan', exact: true }).click();
+  await expect(frame(page).getByText('prompt của phiên đầu')).toBeVisible();
+  for (let i = 1; i <= 15; i++) await send(prompt(`phiên hai, prompt ${i} ${'nội dung dài '.repeat(30)}`, second));
+  await expect(frame(page).getByText('phiên hai, prompt 15')).toBeVisible();
+  await expect(card(page, 'prompt của phiên đầu')).not.toBeInViewport();
+
+  await page.waitForTimeout(2000);
+  await send(exit(first));
+  await page.waitForTimeout(1500);
+  await frame(page).hover();
+  await page.mouse.wheel(0, -5000);
+  await page.waitForTimeout(500);
+  expect(errors).toEqual([]);
+  await expect(frame(page).getByText('prompt của phiên đầu')).toBeVisible();
+});
