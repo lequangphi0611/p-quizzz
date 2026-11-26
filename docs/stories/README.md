@@ -20,6 +20,7 @@ Mỗi story là một file tự đủ ngữ cảnh để một model/người im
 
 - [ ] Tất cả acceptance criteria đạt.
 - [ ] Test bắt buộc trong story đã viết và pass; `npm test`, `npm run typecheck` và `npm run arch:check` pass toàn bộ.
+- [ ] **Toàn bộ** e2e pass (`npm run e2e`, khoảng 8 phút), không chỉ spec của story: một thay đổi UI có thể làm vỡ spec của story khác. Ảnh trong `docs/design/` của story khác bị chụp lại thì hoàn lại (`git checkout -- docs/design/<story khác>-assets`), trừ khi giao diện ở đó đổi thật. Test fail sẵn từ trước thì ghi vào báo cáo, không bỏ qua im lặng.
 - [ ] Story có UI: đã chạy `npm run dev` và tự thao tác luồng chính (ghi lại đã kiểm những gì).
 - [ ] Cập nhật bảng trạng thái dưới đây (✅) và tick checkbox trong file story.
 - [ ] Báo cáo ngắn: đã làm gì, lệch contract chỗ nào (nếu có), việc phát sinh ngoài phạm vi.

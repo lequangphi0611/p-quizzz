@@ -22,7 +22,7 @@ You are the **reviewer** of p-quizzz. You get a story file and a change set (wor
    - correctness: edge cases (empty data, one item, boundaries such as midnight/time zones, very long text), state after refresh, realtime updates;
    - layering and the contract are respected; no new dependency; offline-first; UI text in Vietnamese, code in English;
    - tests actually cover the new behaviour (not just snapshots), and no test was skipped or weakened.
-4. Run `npm run typecheck` and `npm test`. Run the story's e2e spec(s) with `--trace off`.
+4. Run `npm run typecheck` and `npm test`. Run the story's e2e spec(s) with `--trace off`. Then run the **whole** e2e suite once (`npm run e2e -- --trace off`, about 8 minutes): a UI change can break another story's spec. Report every failure, and say whether it also fails on the base branch. Revert screenshots of other stories that the run rewrote unless their UI really changed.
 5. **Drive the real app** for the main flow with Playwright (pre-installed: `require('playwright')`, `chromium.launch()`):
    - Start the app on a free port with a throwaway DB file, using env overrides from `src/server/config.ts` (`PORT`, `DB_FILE`; the mentor password is created with `POST /api/admin/setup` on a fresh DB, see `e2e/helpers.ts`). Run `npm start` (builds the web, then serves it) in the background with those env vars; stop it when done.
    - Seed data through the real API (see `e2e/helpers.ts` for the mentor login, and `e2e/training-admin.spec.ts` for joining a training and sending hook events to `/api/training/ingest`). If the scenario needs data the API cannot produce (e.g. events from past days), adjust the throwaway DB directly with SQL (better-sqlite3 is installed), and say you did.
