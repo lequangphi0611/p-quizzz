@@ -8,11 +8,11 @@ import { InMemoryTrainingReadStore, type TrainingReadStore } from './training-re
 const ZERO_COUNTS: TrainingDetail['flagCounts'] = { auto_accept: 0, auto_compact_repeated: 0, dangerous_command: 0, edited_not_verified: 0, fast_approvals: 0, long_without_verify: 0, possible_secret: 0, repeated_failure: 0, repeated_request: 0, touches_tests: 0 };
 
 const member = (id: number, displayName: string, over: Partial<TrainingMemberRow> = {}): TrainingMemberRow =>
-  ({ id, displayName, connection: 'connected', lastSeenAt: 1, promptCount: 1, toolCount: 1, failedCount: 0, stuck: false, stillSending: false, stoppedSending: false, flags: [], clearCount: 0, compactCount: 0, permissionCount: 0, mentorNote: null, markedCount: 0, teachingConsent: true, ...over });
+  ({ id, displayName, connection: 'connected', lastSeenAt: 1, promptCount: 1, toolCount: 1, failedCount: 0, stuck: false, stillSending: false, stoppedSending: false, flags: [], clearCount: 0, compactCount: 0, permissionCount: 0, mentorNote: null, markedCount: 0, teachingConsent: true, exampleDrafts: { drafting: 0, unseen: 0, failed: 0 }, ...over });
 const detail = (over: Partial<TrainingDetail> = {}): TrainingDetail =>
-  ({ id: 5, name: 'Buổi 1', status: 'open', roomCode: '482913', createdAt: 0, stoppedAt: null, endedAt: null, uninstalled: null, allowAutoAccept: false, reportExportedAt: null, unexportedExampleCount: 0, flagCounts: ZERO_COUNTS, members: [member(1, 'An'), member(2, 'Bình')], ...over });
+  ({ id: 5, name: 'Buổi 1', status: 'open', roomCode: '482913', createdAt: 0, stoppedAt: null, endedAt: null, uninstalled: null, allowAutoAccept: false, reportExportedAt: null, unexportedExampleCount: 0, flagCounts: ZERO_COUNTS, aiDraftAvailable: false, exampleDrafts: { drafting: 0, unseen: 0, failed: 0, next: null }, members: [member(1, 'An'), member(2, 'Bình')], ...over });
 const ev = (id: number, over: Partial<TrainingEventRow> = {}): TrainingEventRow =>
-  ({ id, kind: 'tool', receivedAt: id, claudeSessionId: 's', toolName: 'Bash', toolTarget: 'ls', ok: true, hasOutput: false, hasChange: false, marked: false, teachingExample: null, ...over });
+  ({ id, kind: 'tool', receivedAt: id, claudeSessionId: 's', toolName: 'Bash', toolTarget: 'ls', ok: true, hasOutput: false, hasChange: false, marked: false, teachingExample: null, exampleDraft: null, ...over });
 const page = (ids: number[], hasMore = false): TrainingEventsPage => ({ events: ids.map(i => ev(i)), hasMore, flags: [] });
 
 const teachingRow = (eventId: number, body: Partial<TeachingExampleBody> = {}, over: Partial<TeachingExampleRow> = {}): TeachingExampleRow => ({

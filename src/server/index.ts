@@ -11,6 +11,8 @@ const composition = compose(db, {}, { onError: err => console.error('AI grading:
 const app = await buildApp({ db, composition, serveWeb: config.serveWeb, logger: true, allowRemoteAdmin: config.allowRemoteAdmin });
 // AI suggestions left queued/running by a previous run cannot finish any more (PRODUCT.md §7.28h).
 await composition.ai.failUnfinished.execute();
+// Same for the AI drafts of teaching examples: they become failed ("Server đã khởi động lại") and can be asked for again (§7.40).
+await composition.ai.failUnfinishedDrafts.execute();
 await app.listen({ port: config.port, host: config.host });
 // Sessions with a time limit close themselves when the clock runs out (PRODUCT.md §7.27f).
 startDeadlineWatcher(composition.sessions.closeExpired, 1000, err => app.log.error(err));

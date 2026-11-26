@@ -1,10 +1,10 @@
 import { TrainingEventNotFoundError, TrainingMemberNotFoundError, TrainingNotFoundError, TrainingStateError } from '../../../domain/training/errors.js';
 import { analyzeEvents } from '../../../domain/training/flags/index.js';
-import type { FlagCode } from '../../../../shared/api/training.js';
+import type { ExampleDraftStatus, FlagCode } from '../../../../shared/api/training.js';
 import type { PermissionDecisionInfo } from '../../../domain/training/flags/flag-event.js';
 import { buildSummary } from '../../../domain/training/summary.js';
 import type { Clip } from '../../../domain/training/clip.js';
-import type { LightEvent, TrainingEventReader } from '../../ports/training-event-repository.js';
+import type { ExampleDraftSummary, LightEvent, TrainingEventReader } from '../../ports/training-event-repository.js';
 import type { TrainingMemberReader, TrainingReader } from '../../ports/training-repository.js';
 
 /** Events per page of a member's timeline. */
@@ -33,6 +33,8 @@ export interface TimelineEvent {
   permissionMode: string | null;
   marked: boolean;
   teachingLabel: LightEvent['teachingLabel'];
+  /** S45, prompt rows: the AI draft of the example, for the example button. */
+  exampleDraft: { status: ExampleDraftStatus; seen: boolean; suspicious: boolean; error: string | null } | null;
 }
 
 export interface TimelinePage {
@@ -42,7 +44,7 @@ export interface TimelinePage {
   flags: { code: FlagCode; eventIds: number[] }[];
 }
 
-const toTimelineEvent = (e: LightEvent, decision: PermissionDecisionInfo | undefined): TimelineEvent => ({
+const toTimelineEvent = (e: LightEvent, decision: PermissionDecisionInfo | undefined, draft: ExampleDraftSummary | undefined): TimelineEvent => ({
   id: e.id,
   kind: e.kind,
   receivedAt: e.receivedAt,
@@ -62,6 +64,7 @@ const toTimelineEvent = (e: LightEvent, decision: PermissionDecisionInfo | undef
   permissionMode: e.permissionMode === null || e.permissionMode === 'default' ? null : e.permissionMode,
   marked: e.marked,
   teachingLabel: e.teachingLabel,
+  exampleDraft: e.kind === 'prompt' && draft ? { status: draft.status, seen: draft.seen, suspicious: draft.suspicious, error: draft.error } : null,
 });
 
 /** Once ended the members and their events are gone for good: reviewing is a conflict, not a "not found". */
@@ -82,7 +85,8 @@ export class ListMemberEvents {
     if (!member || member.trainingId !== trainingId) throw new TrainingMemberNotFoundError();
     const rows = await this.deps.events.listLight(memberId, after, EVENTS_PAGE_SIZE + 1);
     const { flags, decisions } = analyzeEvents(await this.deps.events.listForFlags(memberId), { allowAutoAccept: training.allowAutoAccept });
-    return { events: rows.slice(0, EVENTS_PAGE_SIZE).map(e => toTimelineEvent(e, decisions.get(e.id))), hasMore: rows.length > EVENTS_PAGE_SIZE, flags };
+    const drafts = new Map((await this.deps.events.listExampleDrafts(trainingId)).map(d => [d.eventId, d]));
+    return { events: rows.slice(0, EVENTS_PAGE_SIZE).map(e => toTimelineEvent(e, decisions.get(e.id), drafts.get(e.id))), hasMore: rows.length > EVENTS_PAGE_SIZE, flags };
   }
 }
 

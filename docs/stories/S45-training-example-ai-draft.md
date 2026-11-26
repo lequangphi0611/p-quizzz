@@ -190,3 +190,17 @@ Bấm nút ở trạng thái có nháp mở hộp thoại và `PUT …/example-d
 `infrastructure/ai-grader/` (runner tách ra, drafter, prompt mới, hàng đợi), `application/ports/` (2 port mới), `application/use-cases/training/`, `domain/training/example-draft.ts`, `infrastructure/db/schema.ts` + migration, repository training, `interface/http/training-routes.ts` + presenter, `composition.ts`, lúc khởi động server (nháp sót), `src/shared/api/training.ts`, `features/training-admin` (nút ví dụ, hộp thoại ví dụ, gateway, làm mới khi có nháp đang chạy).
 
 ## Ghi chú khi làm
+
+**Phần server + kiểu API dùng chung: xong (đợt 1).** Còn lại: web `features/training-admin` và E2E (đợt 2). Tất cả AC phía server (1, 4 phần server, 5, 6, 7, 10, 11, 12 và phần dữ liệu của 2, 8, 9, 9d) có test tự động; AC chỉ có ở giao diện (2 phần hộp thoại, 3, 8 phần khoá Lưu, 9, 9a, 9b, 9c) chờ đợt web.
+
+Lệch nhỏ / quyết định khi code (không đổi contract):
+- Các thao tác nháp nằm trong `TrainingEventRepository` (cùng unit với ví dụ), không tạo repository riêng, để `TrainingUnitContext` không đổi.
+- Lỗi 503 `ai_unavailable`: thêm `DomainErrorKind` `'unavailable'` (→ 503) trong `domain/errors.ts` và `domain-errors.ts`.
+- `ExampleDraftRow.draft.betterPrompt` là `string | null` (domain đã chuẩn hoá rỗng → null); `createdAt` là chuỗi ISO 8601 như story ghi.
+- `too_long` so với độ dài của **prompt đang xét** (không tính mẫu, vì mẫu đã có ngân sách 40 000 riêng và lớn hơn `maxAnswerChars` mặc định 20 000).
+- `PUT .../seen` chỉ đặt `seen_at` khi nháp đã `done` (gọi khi còn `queued`/`running` là không làm gì); không có dòng nháp thì 404 `no_draft`.
+- Khi Lưu: mọi dòng nháp của prompt đều bị xoá (kể cả `failed`); nháp `queued`/`running` làm `origin = 'mentor'` và `ai_draft = null`; nháp `failed` thì giữ `ai_draft` cũ của ví dụ.
+- Kết quả của lần chạy bị bỏ nếu dòng nháp đã bị xoá hoặc ghi đè (so `created_at`) trong lúc chạy.
+- Sau mỗi bước đổi trạng thái nháp, server phát `TrainingSignals.signal(trainingId)` (trang buổi có thể dùng thay cho poll).
+- Fixture web (`training-admin/**/*.test.ts`) chỉ được thêm các trường mới của kiểu dùng chung để `tsc` qua.
+

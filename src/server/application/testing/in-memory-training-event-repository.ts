@@ -1,6 +1,7 @@
 import {
-  FLAG_TEXT_CHARS, OUTPUT_END_CHARS, type EventDetail, type EventOwner, type ExportStats, type LightEvent, type MarkedEvent, type MemberCounts, type NewTrainingEvent, type TeachingExampleRecord, type TrainingEventRepository,
+  FLAG_TEXT_CHARS, OUTPUT_END_CHARS, type EventDetail, type EventOwner, type ExampleDraftRecord, type ExampleDraftSummary, type ExportStats, type LightEvent, type MarkedEvent, type MemberCounts, type NewTrainingEvent, type TeachingExampleRecord, type TrainingEventRepository,
 } from '../ports/training-event-repository.js';
+import type { ExampleDraftResult, ExampleFields, ExampleOrigin } from '../../domain/training/example-draft.js';
 import type { ExportEvent } from '../../domain/training/export.js';
 import type { FlagEvent } from '../../domain/training/flags/flag-event.js';
 import type { EventSkeleton } from '../../domain/training/export-selection.js';
@@ -15,6 +16,7 @@ export class InMemoryTrainingEventRepository implements TrainingEventRepository,
   private nextId = 1;
   private marks = new Set<number>();
   private teaching = new Map<number, TeachingExampleRecord>();
+  private drafts = new Map<number, ExampleDraftRecord>();
 
   constructor(private readonly members: InMemoryTrainingMemberRepository) {}
 
@@ -141,6 +143,70 @@ export class InMemoryTrainingEventRepository implements TrainingEventRepository,
     this.teaching.delete(eventId);
   }
 
+  async setTeachingOrigin(eventId: number, aiDraft: ExampleFields | null, origin: ExampleOrigin) {
+    const e = this.teaching.get(eventId);
+    if (e) this.teaching.set(eventId, { ...e, aiDraft, origin });
+  }
+
+  async getExampleDraft(eventId: number) {
+    return this.drafts.get(eventId) ?? null;
+  }
+
+  /** Drafts of events whose member is gone are not listed: the database's cascade would have deleted them. */
+  async listExampleDrafts(trainingId: number): Promise<ExampleDraftSummary[]> {
+    const out: ExampleDraftSummary[] = [];
+    for (const e of await this.all()) {
+      const d = this.drafts.get(e.id);
+      if (d && (await this.members.findById(e.memberId))?.trainingId === trainingId) {
+        out.push({ eventId: e.id, memberId: e.memberId, status: d.status, seen: d.seenAt !== null, suspicious: d.suspicious, error: d.error, finishedAt: d.finishedAt });
+      }
+    }
+    return out;
+  }
+
+  private patchDraft(eventId: number, change: Partial<ExampleDraftRecord>) {
+    const d = this.drafts.get(eventId);
+    if (d) this.drafts.set(eventId, { ...d, ...change });
+  }
+
+  async queueExampleDraft(eventId: number, at: Date) {
+    const row: ExampleDraftRecord = { eventId, status: 'queued', label: null, topic: null, comment: null, betterPrompt: null, suspicious: false, suspiciousReason: null, suspiciousQuote: null, sampleCount: null, error: null, seenAt: null, createdAt: at, finishedAt: null };
+    this.drafts.set(eventId, row);
+    return row;
+  }
+
+  async markExampleDraftRunning(eventId: number) {
+    this.patchDraft(eventId, { status: 'running' });
+  }
+
+  async completeExampleDraft(eventId: number, draft: ExampleDraftResult, sampleCount: number, at: Date) {
+    this.patchDraft(eventId, { status: 'done', label: draft.label, topic: draft.topic, comment: draft.comment, betterPrompt: draft.betterPrompt, suspicious: draft.suspicious, suspiciousReason: draft.suspiciousReason, suspiciousQuote: draft.suspiciousQuote, sampleCount, error: null, finishedAt: at });
+  }
+
+  async failExampleDraft(eventId: number, error: string, at: Date) {
+    this.patchDraft(eventId, { status: 'failed', error, finishedAt: at });
+  }
+
+  async markExampleDraftSeen(eventId: number, at: Date) {
+    const d = this.drafts.get(eventId);
+    if (d && d.seenAt === null) this.patchDraft(eventId, { seenAt: at });
+  }
+
+  async deleteExampleDraft(eventId: number) {
+    this.drafts.delete(eventId);
+  }
+
+  async failUnfinishedExampleDrafts(error: string, at: Date) {
+    let n = 0;
+    for (const [id, d] of this.drafts) {
+      if (d.status === 'queued' || d.status === 'running') {
+        this.drafts.set(id, { ...d, status: 'failed', error, finishedAt: at });
+        n++;
+      }
+    }
+    return n;
+  }
+
   async setMark(eventId: number, marked: boolean) {
     if (marked) this.marks.add(eventId);
     else this.marks.delete(eventId);
@@ -200,13 +266,14 @@ export class InMemoryTrainingEventRepository implements TrainingEventRepository,
   }
 
   snapshot() {
-    return { rows: [...this.rows], nextId: this.nextId, marks: new Set(this.marks), teaching: new Map(this.teaching) };
+    return { rows: [...this.rows], nextId: this.nextId, marks: new Set(this.marks), teaching: new Map(this.teaching), drafts: new Map(this.drafts) };
   }
 
   restore(s: unknown) {
-    const snap = s as { rows: StoredTrainingEvent[]; nextId: number; marks: Set<number>; teaching: Map<number, TeachingExampleRecord> };
+    const snap = s as { rows: StoredTrainingEvent[]; nextId: number; marks: Set<number>; teaching: Map<number, TeachingExampleRecord>; drafts: Map<number, ExampleDraftRecord> };
     this.marks = new Set(snap.marks);
     this.teaching = new Map(snap.teaching);
+    this.drafts = new Map(snap.drafts);
     this.rows = [...snap.rows];
     this.nextId = snap.nextId;
   }

@@ -1,8 +1,10 @@
 import { TrainingEventNotFoundError, TrainingMemberNotFoundError, TrainingNotFoundError, TrainingStateError } from '../../../domain/training/errors.js';
 import { analyzeEvents } from '../../../domain/training/flags/index.js';
-import { FLAG_CODES, type FlagCode } from '../../../../shared/api/training.js';
+import { FLAG_CODES, type ExampleDraftCounts, type FlagCode } from '../../../../shared/api/training.js';
 import { isStuck } from '../../../domain/training/is-stuck.js';
 import { assertCanPurge, connectionState, nextTrainingStatus, stillSending, type Training, type TrainingMember } from '../../../domain/training/training.js';
+import { countDrafts } from '../../../domain/training/example-draft.js';
+import type { TeachingExampleDrafter } from '../../ports/teaching-example-drafter.js';
 import type { Clock } from '../../ports/clock.js';
 import type { MemberCounts, TrainingEventReader } from '../../ports/training-event-repository.js';
 import type { Random } from '../../ports/random.js';
@@ -62,6 +64,7 @@ export interface TrainingMemberView {
   mentorNote: string | null;
   markedCount: number;
   teachingConsent: boolean;
+  exampleDrafts: ExampleDraftCounts;
 }
 
 export interface TrainingDetailView {
@@ -72,6 +75,10 @@ export interface TrainingDetailView {
   flagCounts: Record<FlagCode, number>;
   /** Teaching examples never downloaded, or saved after the last download (S44): the "Kết thúc" prompt says how many. */
   unexportedExampleCount: number;
+  /** S45: whether the mentor has set up the AI command, so a draft can be asked for. */
+  aiDraftAvailable: boolean;
+  /** S45: drafts over the whole training; `next` = the unseen finished draft that finished first. */
+  exampleDrafts: ExampleDraftCounts & { next: { memberId: number; eventId: number } | null };
   /** Empty once `ended`: the members are gone. */
   members: TrainingMemberView[];
 }
@@ -80,7 +87,7 @@ export class GetTrainingDetail {
   /** Flags are derived from a member's whole timeline, so they are kept until that member's newest event changes. */
   private readonly flagCache = new Map<number, { key: string; flags: FlagCode[]; stuck: boolean }>();
 
-  constructor(private readonly deps: { trainings: TrainingReader; members: TrainingMemberReader; events: TrainingEventReader }) {}
+  constructor(private readonly deps: { trainings: TrainingReader; members: TrainingMemberReader; events: TrainingEventReader; drafter: Pick<TeachingExampleDrafter, 'available'> }) {}
 
   private async flagsOf(training: Training, memberId: number, counts: MemberCounts | undefined): Promise<{ flags: FlagCode[]; stuck: boolean }> {
     if (!counts) return { flags: [], stuck: false };
@@ -101,10 +108,11 @@ export class GetTrainingDetail {
     if (!training) throw new TrainingNotFoundError();
     const members = training.status === 'ended' ? [] : await this.deps.members.listByTraining(id);
     const counts = members.length > 0 ? await this.deps.events.countsByMember(id) : new Map<number, MemberCounts>();
+    const drafts = countDrafts(training.status === 'ended' ? [] : await this.deps.events.listExampleDrafts(id));
     const views = await Promise.all(
       members.map(async m => {
         const { flags, stuck } = await this.flagsOf(training, m.id, counts.get(m.id));
-        return memberView(training, m, counts.get(m.id), stuck, flags);
+        return memberView(training, m, counts.get(m.id), stuck, flags, drafts.byMember.get(m.id) ?? { drafting: 0, unseen: 0, failed: 0 });
       }),
     );
     const flagCounts = Object.fromEntries(FLAG_CODES.map(code => [code, views.filter(v => v.flags.includes(code)).length])) as Record<FlagCode, number>;
@@ -114,12 +122,14 @@ export class GetTrainingDetail {
       uninstalled: training.status === 'stopped' ? { count: views.filter(v => v.connection === 'uninstalled').length, total: members.length } : null,
       flagCounts,
       unexportedExampleCount: training.status === 'ended' ? 0 : (await this.deps.events.listTeachingExamples(id)).filter(e => !training.examplesExportedAt || e.updatedAt > training.examplesExportedAt).length,
+      aiDraftAvailable: await this.deps.drafter.available(),
+      exampleDrafts: { ...drafts.total, next: drafts.next },
       members: views,
     };
   }
 }
 
-const memberView = (training: Training, m: TrainingMember, counts: MemberCounts | undefined, stuck: boolean, flags: FlagCode[]): TrainingMemberView => ({
+const memberView = (training: Training, m: TrainingMember, counts: MemberCounts | undefined, stuck: boolean, flags: FlagCode[], exampleDrafts: ExampleDraftCounts): TrainingMemberView => ({
   id: m.id,
   displayName: m.displayName,
   connection: connectionState(m),
@@ -137,6 +147,7 @@ const memberView = (training: Training, m: TrainingMember, counts: MemberCounts 
   mentorNote: m.mentorNote,
   markedCount: counts?.markedCount ?? 0,
   teachingConsent: m.teachingConsent,
+  exampleDrafts,
 });
 
 /** "Dừng thu": the code stops working at once; reviewing stays possible. */

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { TrainingEventNotFoundError, TrainingMemberNotFoundError, TrainingNotFoundError, TrainingStateError } from '../../../domain/training/errors.js';
 import type { TrainingEventDraft } from '../../../domain/training/training-event.js';
 import { FakeClock, FakeRandom, FakeTokenGenerator, RecordingTrainingSignals } from '../../testing/fakes.js';
+import { FakeExampleDrafter } from '../../testing/fake-example-drafter.js';
 import { InMemoryTrainingEventRepository } from '../../testing/in-memory-training-event-repository.js';
 import { InMemoryTrainingMemberRepository, InMemoryTrainingRepository } from '../../testing/in-memory-training-repository.js';
 import { InMemoryUnitOfWork } from '../../testing/in-memory-unit-of-work.js';
@@ -22,7 +23,7 @@ function build(randoms = [111111, 222222]) {
     join: new JoinTraining({ ...deps, tokens: new FakeTokenGenerator() }),
     stop: new StopTraining(deps),
     end: new EndTraining(deps),
-    detail: new GetTrainingDetail({ trainings, members, events }),
+    detail: new GetTrainingDetail({ trainings, members, events, drafter: new FakeExampleDrafter() }),
     timeline: new ListMemberEvents({ trainings, members, events }),
     eventDetail: new GetTrainingEventDetail({ trainings, events }),
   };

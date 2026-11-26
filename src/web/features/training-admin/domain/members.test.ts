@@ -6,9 +6,9 @@ import { formatLastSeen, memberCountsText, memberExtraCountsText, sortMembers, s
 const ZERO_COUNTS: TrainingDetail['flagCounts'] = { auto_accept: 0, auto_compact_repeated: 0, dangerous_command: 0, edited_not_verified: 0, fast_approvals: 0, long_without_verify: 0, possible_secret: 0, repeated_failure: 0, repeated_request: 0, touches_tests: 0 };
 
 const row = (id: number, displayName: string, over: Partial<TrainingMemberRow> = {}): TrainingMemberRow =>
-  ({ id, displayName, connection: 'waiting', lastSeenAt: null, promptCount: 0, toolCount: 0, failedCount: 0, stuck: false, stillSending: false, stoppedSending: false, flags: [], clearCount: 0, compactCount: 0, permissionCount: 0, mentorNote: null, markedCount: 0, teachingConsent: true, ...over });
+  ({ id, displayName, connection: 'waiting', lastSeenAt: null, promptCount: 0, toolCount: 0, failedCount: 0, stuck: false, stillSending: false, stoppedSending: false, flags: [], clearCount: 0, compactCount: 0, permissionCount: 0, mentorNote: null, markedCount: 0, teachingConsent: true, exampleDrafts: { drafting: 0, unseen: 0, failed: 0 }, ...over });
 const detail = (members: TrainingMemberRow[], over: Partial<TrainingDetail> = {}): TrainingDetail =>
-  ({ id: 1, name: 'T', status: 'open', roomCode: '482913', createdAt: 0, stoppedAt: null, endedAt: null, uninstalled: null, allowAutoAccept: false, reportExportedAt: null, unexportedExampleCount: 0, flagCounts: ZERO_COUNTS, members, ...over });
+  ({ id: 1, name: 'T', status: 'open', roomCode: '482913', createdAt: 0, stoppedAt: null, endedAt: null, uninstalled: null, allowAutoAccept: false, reportExportedAt: null, unexportedExampleCount: 0, flagCounts: ZERO_COUNTS, aiDraftAvailable: false, exampleDrafts: { drafting: 0, unseen: 0, failed: 0, next: null }, members, ...over });
 
 describe('sortMembers', () => {
   it('sorts by name (Vietnamese order, case and accents aside) and never by errors', () => {

@@ -1,7 +1,8 @@
-import type { TeachingLabel, TeachingTopic } from '../../../shared/api/training.js';
+import type { ExampleDraftStatus, TeachingLabel, TeachingTopic } from '../../../shared/api/training.js';
 import type { Clip } from '../../domain/training/clip.js';
 import type { ExportEvent } from '../../domain/training/export.js';
 import type { EventSkeleton } from '../../domain/training/export-selection.js';
+import type { ExampleDraftResult, ExampleFields, ExampleOrigin } from '../../domain/training/example-draft.js';
 import type { FlagEvent } from '../../domain/training/flags/flag-event.js';
 import type { TrainingEventDraft } from '../../domain/training/training-event.js';
 
@@ -48,6 +49,39 @@ export interface TeachingExampleRecord {
   /** The mentor's "Đã rà ví dụ này"; null = not reviewed (any change of content clears it). */
   reviewedAt: Date | null;
   updatedAt: Date;
+  /** S45: the AI draft this example started from, as the AI wrote it; null when there was none. Never shown, only kept. */
+  aiDraft: ExampleFields | null;
+  /** S45: who wrote it. Changing `aiDraft` or `origin` alone never touches `reviewedAt` or `updatedAt`. */
+  origin: ExampleOrigin;
+}
+
+/** S45: the AI draft of one prompt, as stored (one per prompt; asking again overwrites it). The content fields are set once `done`. */
+export interface ExampleDraftRecord {
+  eventId: number;
+  status: ExampleDraftStatus;
+  label: TeachingLabel | null;
+  topic: TeachingTopic | null;
+  comment: string | null;
+  betterPrompt: string | null;
+  suspicious: boolean;
+  suspiciousReason: string | null;
+  suspiciousQuote: string | null;
+  sampleCount: number | null;
+  error: string | null;
+  seenAt: Date | null;
+  createdAt: Date;
+  finishedAt: Date | null;
+}
+
+/** A draft in the lists: enough for the buttons and the counts, with the member it belongs to. */
+export interface ExampleDraftSummary {
+  eventId: number;
+  memberId: number;
+  status: ExampleDraftStatus;
+  seen: boolean;
+  suspicious: boolean;
+  error: string | null;
+  finishedAt: Date | null;
 }
 
 /** Whose event it is: enough to check it belongs to the training in the URL and to the right member. */
@@ -100,6 +134,10 @@ export interface TrainingEventReader {
   /** Who the event belongs to; null when there is no such event (S44). */
   getEventOwner(eventId: number): Promise<EventOwner | null>;
   getTeachingExample(eventId: number): Promise<TeachingExampleRecord | null>;
+  /** S45: the draft of a prompt; null when there is none. */
+  getExampleDraft(eventId: number): Promise<ExampleDraftRecord | null>;
+  /** S45: every draft of the training with the member it belongs to, by event id. */
+  listExampleDrafts(trainingId: number): Promise<ExampleDraftSummary[]>;
   /** Every teaching example of the training with the member it belongs to, by event id (S44). */
   listTeachingExamples(trainingId: number): Promise<(TeachingExampleRecord & { memberId: number })[]>;
   /** Per member of the training: the events received in `[from, to)` and roughly how many bytes of text they carry. Members with none are absent. */
@@ -122,4 +160,17 @@ export interface TrainingEventRepository extends TrainingEventReader {
   setTeachingReviewed(eventId: number, at: Date | null): Promise<void>;
   /** Drops the example; doing it twice changes nothing. */
   deleteTeachingExample(eventId: number): Promise<void>;
+  /** Changes only where an example came from; `reviewed_at` and `updated_at` stay (S45). */
+  setTeachingOrigin(eventId: number, aiDraft: ExampleFields | null, origin: ExampleOrigin): Promise<void>;
+  /** A fresh `queued` draft for the prompt, replacing any earlier one (S45). */
+  queueExampleDraft(eventId: number, at: Date): Promise<ExampleDraftRecord>;
+  markExampleDraftRunning(eventId: number): Promise<void>;
+  completeExampleDraft(eventId: number, draft: ExampleDraftResult, sampleCount: number, at: Date): Promise<void>;
+  failExampleDraft(eventId: number, error: string, at: Date): Promise<void>;
+  /** Sets `seen_at` once (a later call keeps the first time). */
+  markExampleDraftSeen(eventId: number, at: Date): Promise<void>;
+  /** Drops the draft; doing it twice changes nothing. */
+  deleteExampleDraft(eventId: number): Promise<void>;
+  /** At startup: drafts left queued/running by a previous process become failed. Returns how many. */
+  failUnfinishedExampleDrafts(error: string, at: Date): Promise<number>;
 }

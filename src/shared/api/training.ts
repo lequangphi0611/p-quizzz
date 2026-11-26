@@ -117,6 +117,8 @@ export interface TrainingMemberRow {
   markedCount: number;
   /** S44: the member agreed to their prompts becoming teaching examples (the "Ví dụ" button is locked without it). Mentor screen only. */
   teachingConsent: boolean;
+  /** S45: this member's AI drafts of teaching examples, by state. Mentor screen only. */
+  exampleDrafts: ExampleDraftCounts;
 }
 
 export interface TrainingDetail {
@@ -138,6 +140,10 @@ export interface TrainingDetail {
   reportExportedAt: number | null;
   /** S44: examples never downloaded or saved after the last download; 0 when there are none. The "Kết thúc" prompt shows it. */
   unexportedExampleCount: number;
+  /** S45: the mentor has set up the AI command, so "Làm ví dụ" can ask for a draft. Mentor screen only. */
+  aiDraftAvailable: boolean;
+  /** S45: drafts over the whole training; `next` is the unseen finished draft that finished first ("Nháp tiếp theo"). */
+  exampleDrafts: ExampleDraftCounts & { next: { memberId: number; eventId: number } | null };
   members: TrainingMemberRow[];
 }
 
@@ -219,6 +225,8 @@ export interface TrainingEventRow {
   marked: boolean;
   /** S44, `prompt` rows only: the row is a teaching example for the next course (the label is the example's, not the person's). */
   teachingExample: { label: TeachingLabel } | null;
+  /** S45, `prompt` rows only: the state of the AI draft for the example button (`error` is the short reason of a failed draft). */
+  exampleDraft: { status: ExampleDraftStatus; seen: boolean; suspicious: boolean; error: string | null } | null;
 }
 
 export interface TrainingEventsPage {
@@ -347,3 +355,42 @@ export interface TeachingExamplesResponse {
 
 /** The example just saved (PUT). */
 export type TeachingExample = TeachingExampleRow;
+
+// S45 (PRODUCT.md §7.40): an AI draft of a teaching example, written in the background. Mentor screen only (`/api/admin/*`).
+
+export const EXAMPLE_DRAFT_STATUSES = ['queued', 'running', 'done', 'failed'] as const;
+export type ExampleDraftStatus = (typeof EXAMPLE_DRAFT_STATUSES)[number];
+
+/** Drafts by state: `drafting` = queued or running; `unseen` = done and not opened yet; `failed`. */
+export interface ExampleDraftCounts {
+  drafting: number;
+  unseen: number;
+  failed: number;
+}
+
+/** What the AI wrote. The label is only a suggestion: the mentor still picks it. */
+export interface ExampleDraftContent {
+  label: TeachingLabel;
+  topic: TeachingTopic;
+  comment: string;
+  betterPrompt: string | null;
+  suspicious: boolean;
+  suspiciousReason: string;
+  /** Exact words of the prompt the AI took as aimed at the reviewer (at most 200 characters); empty when none or not found in the prompt. */
+  suspiciousQuote: string;
+}
+
+/** POST (202) / GET /api/admin/trainings/:id/events/:eventId/example-draft */
+export interface ExampleDraftRow {
+  eventId: number;
+  status: ExampleDraftStatus;
+  /** Only when `done`. */
+  draft: ExampleDraftContent | null;
+  /** How many examples of the mentor the AI read; only when `done`. */
+  sampleCount: number | null;
+  /** Short Vietnamese reason; only when `failed`. */
+  error: string | null;
+  seen: boolean;
+  /** ISO 8601 time of the request (the dialog counts the seconds from it). */
+  createdAt: string;
+}

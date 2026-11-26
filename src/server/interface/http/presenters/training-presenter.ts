@@ -1,6 +1,7 @@
-import type { CreatedTraining, TrainingDetail, TrainingEventRow, TrainingEventsPage, TrainingSummary } from '../../../../shared/api/training.js';
+import type { CreatedTraining, ExampleDraftRow, TrainingDetail, TrainingEventRow, TrainingEventsPage, TrainingSummary } from '../../../../shared/api/training.js';
 import type { TimelineEvent, TimelinePage } from '../../../application/use-cases/training/view.js';
 import type { TrainingDetailView } from '../../../application/use-cases/training/admin.js';
+import type { ExampleDraftRecord } from '../../../application/ports/training-event-repository.js';
 import type { TrainingListItem } from '../../../application/ports/training-repository.js';
 import type { Training } from '../../../domain/training/training.js';
 
@@ -29,7 +30,7 @@ export const toCreatedTrainingDto = (t: Training): CreatedTraining => ({
   memberCount: 0,
 });
 
-export const toTrainingDetailDto = ({ training, uninstalled, flagCounts, unexportedExampleCount, members }: TrainingDetailView): TrainingDetail => ({
+export const toTrainingDetailDto = ({ training, uninstalled, flagCounts, unexportedExampleCount, aiDraftAvailable, exampleDrafts, members }: TrainingDetailView): TrainingDetail => ({
   id: training.id,
   name: training.name,
   status: training.status,
@@ -41,6 +42,8 @@ export const toTrainingDetailDto = ({ training, uninstalled, flagCounts, unexpor
   allowAutoAccept: training.allowAutoAccept,
   flagCounts,
   unexportedExampleCount,
+  aiDraftAvailable,
+  exampleDrafts,
   reportExportedAt: ms(training.reportExportedAt),
   members: members.map(m => ({
     id: m.id,
@@ -60,6 +63,7 @@ export const toTrainingDetailDto = ({ training, uninstalled, flagCounts, unexpor
     mentorNote: m.mentorNote,
     markedCount: m.markedCount,
     teachingConsent: m.teachingConsent,
+    exampleDrafts: m.exampleDrafts,
   })),
 });
 
@@ -79,6 +83,7 @@ const toEventRowDto = (e: TimelineEvent): TrainingEventRow => ({
   hasChange: e.hasChange,
   marked: e.marked,
   teachingExample: e.kind === 'prompt' && e.teachingLabel ? { label: e.teachingLabel } : null,
+  exampleDraft: e.exampleDraft,
   ...(e.note !== null ? { note: e.note } : {}),
   ...(e.subtype !== null ? { subtype: e.subtype } : {}),
   ...(e.decision !== null ? { decision: e.decision } : {}),
@@ -87,3 +92,25 @@ const toEventRowDto = (e: TimelineEvent): TrainingEventRow => ({
 });
 
 export const toEventsPageDto = (page: TimelinePage): TrainingEventsPage => ({ events: page.events.map(toEventRowDto), hasMore: page.hasMore, flags: page.flags });
+
+/** The draft as the mentor's screen gets it: the content only once it is done, the reason only once it failed. */
+export const toExampleDraftRowDto = (d: ExampleDraftRecord): ExampleDraftRow => ({
+  eventId: d.eventId,
+  status: d.status,
+  draft:
+    d.status === 'done' && d.label && d.topic
+      ? {
+          label: d.label,
+          topic: d.topic,
+          comment: d.comment ?? '',
+          betterPrompt: d.betterPrompt,
+          suspicious: d.suspicious,
+          suspiciousReason: d.suspiciousReason ?? '',
+          suspiciousQuote: d.suspiciousQuote ?? '',
+        }
+      : null,
+  sampleCount: d.status === 'done' ? d.sampleCount : null,
+  error: d.status === 'failed' ? d.error : null,
+  seen: d.seenAt !== null,
+  createdAt: d.createdAt.toISOString(),
+});

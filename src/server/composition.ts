@@ -93,6 +93,10 @@ import { CreateTraining, EndTraining, GetTrainingDetail, ListTrainings, PurgeTra
 import { FinishUninstallCheck, GetHookConfig, GetMyTraining, JoinTraining, ResumeTrainingMember, StartUninstallCheck, WithdrawTrainingConsent } from './application/use-cases/training/member.js';
 import { ExportTrainingData, GetTrainingExportSummary } from './application/use-cases/training/export-data.js';
 import { DeleteTeachingExample, ExportTeachingExamples, ListTeachingExamples, SaveTeachingExample, SetTeachingReviewed } from './application/use-cases/training/teaching-examples.js';
+import { CurrentTrainingSampleSource } from './application/use-cases/training/current-training-sample-source.js';
+import { DiscardExampleDraft, FailUnfinishedExampleDrafts, GetExampleDraft, MarkExampleDraftSeen, RequestExampleDraft, RunExampleDraft } from './application/use-cases/training/example-drafts.js';
+import type { TeachingExampleDrafter } from './application/ports/teaching-example-drafter.js';
+import { ClaudeCliExampleDrafter } from './infrastructure/ai-grader/claude-cli-example-drafter.js';
 import { ExportTrainingReport } from './application/use-cases/training/report.js';
 import { NodeZipWriter } from './infrastructure/system/node-zip-writer.js';
 import { ResolveAnyRoom } from './application/use-cases/training/resolve-any-room.js';
@@ -137,12 +141,14 @@ export interface Composition {
   resumeParticipant: ResumeParticipant;
   admin: AdminUseCases;
   /** AI grading background work (PRODUCT.md §7.28): fail leftovers at startup; tests wait for the queue to drain. */
-  ai: { failUnfinished: FailUnfinishedSuggestions; idle: () => Promise<void> };
+  ai: { failUnfinished: FailUnfinishedSuggestions; failUnfinishedDrafts: FailUnfinishedExampleDrafts; idle: () => Promise<void> };
 }
 
 /** How the AI grader is reached. Tests pass a fake grader (or a fake CLI through `configPath`). */
 export interface AiOptions {
   grader?: EssayGrader & { concurrency?: () => Promise<number> };
+  /** Writes the AI drafts of teaching examples (S45). Tests pass a fake; by default the same CLI configuration as the grader. */
+  drafter?: TeachingExampleDrafter;
   configPath?: string;
   onError?: (err: unknown) => void;
 }
@@ -240,8 +246,12 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}, aiOptions:
     return { trainings: new DrizzleTrainingRepository(access), members: new DrizzleTrainingMemberRepository(access), events: new DrizzleTrainingEventRepository(access) };
   });
   const trainingSignals = new BusTrainingSignals(bus);
+  const drafter = aiOptions.drafter ?? new ClaudeCliExampleDrafter(aiOptions.configPath ?? appConfig.aiGraderConfig);
   const trainingExportDeps = { trainings: trainingReader, members: trainingMemberReader, events: trainingEventReader, clock: ports.clock, archive: new NodeZipWriter(ports.clock) };
   const trainingDeps = { unitOfWork: trainingUnitOfWork, clock: ports.clock, signals: trainingSignals };
+  const draftDeps = { ...trainingDeps, drafter };
+  const runDraft = new RunExampleDraft({ ...draftDeps, events: trainingEventReader, samples: new CurrentTrainingSampleSource({ events: trainingEventReader }), onError: aiOptions.onError });
+  const draftQueue = new InProcessSuggestionQueue(eventId => runDraft.execute(eventId), () => drafter.concurrency());
   // Ingest is dense (every prompt and tool call): the mentor's screen is refreshed at most every 2 s per training. Other changes are rare and go out at once.
   const ingestSignals = new ThrottledTrainingSignals(trainingSignals);
 
@@ -271,14 +281,20 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}, aiOptions:
       requestAi: new RequestAiSuggestions({ ...aiDeps, grader, queue: aiQueue }),
       stopAi: new StopAiSuggestions(aiDeps),
     },
-    ai: { failUnfinished: new FailUnfinishedSuggestions(aiDeps), idle: () => aiQueue.idle() },
+    ai: {
+      failUnfinished: new FailUnfinishedSuggestions(aiDeps),
+      failUnfinishedDrafts: new FailUnfinishedExampleDrafts(trainingDeps),
+      idle: async () => {
+        await Promise.all([aiQueue.idle(), draftQueue.idle()]);
+      },
+    },
     leaderboard: { leaderboard: new GetLeaderboard(gradingReads) },
     screen: { projectorRoom: new GetProjectorRoom(sessionReader), screenSessions: new ListScreenSessions(sessionReader) },
     rooms: { resolve: new ResolveAnyRoom({ session: new ResolveRoom(sessionReader), trainings: trainingReader }), clock: ports.clock },
     training: {
       create: new CreateTraining({ ...trainingDeps, random: ports.random }),
       list: new ListTrainings(trainingReader),
-      detail: new GetTrainingDetail({ trainings: trainingReader, members: trainingMemberReader, events: trainingEventReader }),
+      detail: new GetTrainingDetail({ trainings: trainingReader, members: trainingMemberReader, events: trainingEventReader, drafter }),
       memberEvents: new ListMemberEvents({ trainings: trainingReader, members: trainingMemberReader, events: trainingEventReader }),
       eventDetail: new GetTrainingEventDetail({ trainings: trainingReader, events: trainingEventReader }),
       stop: new StopTraining(trainingDeps),
@@ -292,6 +308,10 @@ export function compose(db: Db, overrides: Partial<SharedPorts> = {}, aiOptions:
       deleteTeachingExample: new DeleteTeachingExample({ unitOfWork: trainingUnitOfWork }),
       listTeachingExamples: new ListTeachingExamples({ trainings: trainingReader, members: trainingMemberReader, events: trainingEventReader }),
       setTeachingReviewed: new SetTeachingReviewed({ unitOfWork: trainingUnitOfWork, clock: ports.clock }),
+      requestExampleDraft: new RequestExampleDraft({ ...draftDeps, queue: draftQueue }),
+      getExampleDraft: new GetExampleDraft({ trainings: trainingReader, events: trainingEventReader }),
+      discardExampleDraft: new DiscardExampleDraft(trainingDeps),
+      markExampleDraftSeen: new MarkExampleDraftSeen(trainingDeps),
       exportTeachingExamples: new ExportTeachingExamples({ trainings: trainingReader, members: trainingMemberReader, events: trainingEventReader, ...trainingDeps }),
       exportSummary: new GetTrainingExportSummary(trainingExportDeps),
       exportData: new ExportTrainingData(trainingExportDeps),
