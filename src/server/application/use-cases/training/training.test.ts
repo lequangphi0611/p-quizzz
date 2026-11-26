@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { NameTakenError, WrongRoomCodeError } from '../../../domain/participant/errors.js';
 import { TrainingMemberNotFoundError, TrainingNotFoundError, TrainingNotJoinedError, TrainingStateError } from '../../../domain/training/errors.js';
 import { FakeClock, FakeRandom, FakeTokenGenerator, RecordingTrainingSignals } from '../../testing/fakes.js';
+import { FakeExampleDrafter } from '../../testing/fake-example-drafter.js';
 import { InMemoryTrainingEventRepository } from '../../testing/in-memory-training-event-repository.js';
 import { InMemoryTrainingMemberRepository, InMemoryTrainingRepository } from '../../testing/in-memory-training-repository.js';
 import { InMemoryUnitOfWork } from '../../testing/in-memory-unit-of-work.js';
@@ -21,7 +22,7 @@ function build(randoms = [111111, 222222]) {
   return {
     create: new CreateTraining({ ...deps, random: new FakeRandom(randoms) }),
     list: new ListTrainings(trainings),
-    detail: new GetTrainingDetail({ trainings, members, events }),
+    detail: new GetTrainingDetail({ trainings, members, events, drafter: new FakeExampleDrafter() }),
     stop: new StopTraining(deps),
     end: new EndTraining(deps),
     remove: new RemoveTrainingMember(deps),
@@ -135,7 +136,7 @@ describe('GetTrainingDetail', () => {
     await uc.join.execute({ trainingId: t.id, displayName: 'Lan', roomCode: '111111' });
     let detail = await uc.detail.execute(t.id);
     expect(detail.uninstalled).toBeNull();
-    expect(detail.members).toEqual([{ id: 1, displayName: 'Lan', connection: 'waiting', lastSeenAt: null, promptCount: 0, toolCount: 0, failedCount: 0, stuck: false, stillSending: false, stoppedSending: false, flags: [], clearCount: 0, compactCount: 0, permissionCount: 0, mentorNote: null, markedCount: 0, teachingConsent: false }]);
+    expect(detail.members).toEqual([{ id: 1, displayName: 'Lan', connection: 'waiting', lastSeenAt: null, promptCount: 0, toolCount: 0, failedCount: 0, stuck: false, stillSending: false, stoppedSending: false, flags: [], clearCount: 0, compactCount: 0, permissionCount: 0, mentorNote: null, markedCount: 0, teachingConsent: false, exampleDrafts: { drafting: 0, unseen: 0, failed: 0 } }]);
     expect(Object.values(detail.flagCounts).every(n => n === 0)).toBe(true);
     await uc.stop.execute(t.id);
     detail = await uc.detail.execute(t.id);

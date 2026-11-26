@@ -1,19 +1,13 @@
-import { mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
 import { defineConfig } from '@playwright/test';
+import { AI_CONFIG_PATH, writeAiConfig } from './e2e/ai-config';
 
 // E2E runs against the real app (`npm start`: vite build + Fastify serving the SPA) on its own port with an
 // in-memory database, so every run starts from a clean slate. Screenshots land in docs/design/<story>-assets/.
 const PORT = Number(process.env.E2E_PORT ?? 3100);
 
-// AI grading (S26) runs against the fake CLI, never a real AI. Its config needs absolute paths: the CLI runs in a temp dir.
-const AI_CONFIG = join(mkdtempSync(join(tmpdir(), 'pq-e2e-ai-')), 'ai-grader.json');
-writeFileSync(AI_CONFIG, JSON.stringify({
-  command: process.execPath,
-  args: [resolve('src/server/infrastructure/ai-grader/testing/fake-claude-cli.mjs'), '--fake-mode', 'slow', '--fake-delay', '700'],
-  maxAnswerChars: 1000,
-}));
+// AI grading (S26) and example drafts (S45) run against the fake CLI, never a real AI. The config file has a fixed path (see e2e/ai-config.ts)
+// so specs can rewrite it while the server runs.
+writeAiConfig();
 
 export default defineConfig({
   testDir: 'e2e',
@@ -31,6 +25,6 @@ export default defineConfig({
     url: `http://localhost:${PORT}/api/admin/status`,
     reuseExistingServer: false,
     timeout: 180_000,
-    env: { PORT: String(PORT), DB_FILE: ':memory:', AI_GRADER_CONFIG: AI_CONFIG },
+    env: { PORT: String(PORT), DB_FILE: ':memory:', AI_GRADER_CONFIG: AI_CONFIG_PATH },
   },
 });

@@ -5,14 +5,15 @@ import { ErrorMessage } from '../../../shared/ui/ErrorMessage.js';
 import { Icon } from '../../../shared/ui/Icon.js';
 import { needsExportReminder, reportSummary } from '../domain/report.js';
 import { DataExportDialog } from './DataExportDialog.js';
-import { TeachingEditDialog, TeachingReviewDialog } from './TeachingDialogs.js';
+import { ExampleDialog } from './ExampleDialog.js';
+import { TeachingReviewDialog } from './TeachingDialogs.js';
 
 /** The confirmations: Dừng thu (cannot reopen), Kết thúc (deletes everything), Mời ra and Duyệt xoá (delete one person's data). */
 export function TrainingDialogs({ state, ctrl }: { state: TrainingState; ctrl: TrainingController }) {
   const { confirm, working, actionError, detail } = state;
   if (state.report) return <ReportDialog state={state} ctrl={ctrl} />;
   if (state.dataExport) return <DataExportDialog state={state} ctrl={ctrl} />;
-  if (state.teachingEdit) return <TeachingEditDialog state={state} ctrl={ctrl} />;
+  if (state.teachingEdit) return <ExampleDialog state={state} ctrl={ctrl} />;
   if (state.teachingReview) return <TeachingReviewDialog state={state} ctrl={ctrl} />;
   if (!confirm) return null;
   const error = actionError ? <div style={{ marginTop: 12 }}><ErrorMessage message={actionError} /></div> : null;

@@ -347,6 +347,27 @@ export const trainingTeachingExamples = sqliteTable('training_teaching_examples'
   // S44 AC13: when the mentor marked this example reviewed; cleared by any save that changes its content.
   reviewedAt: ts('reviewed_at'),
   updatedAt: ts('updated_at').notNull(),
+  // S45: the AI draft this example started from ({ label, topic, comment, betterPrompt }) and who wrote it. Never shown, only kept.
+  aiDraft: text('ai_draft', { mode: 'json' }).$type<{ label: 'good' | 'needs_work'; topic: 'verify' | 'delegation' | 'stuck' | 'risk' | 'other'; comment: string; betterPrompt: string | null }>(),
+  origin: text('origin', { enum: ['mentor', 'ai_kept', 'ai_edited'] }).notNull().default('mentor'),
+});
+
+// S45: the AI draft of a teaching example, written in the background; one per prompt. Gone with the event by cascade.
+export const trainingExampleDrafts = sqliteTable('training_example_drafts', {
+  eventId: integer('event_id').primaryKey().references(() => trainingEvents.id, { onDelete: 'cascade' }),
+  status: text('status', { enum: ['queued', 'running', 'done', 'failed'] }).notNull(),
+  label: text('label', { enum: ['good', 'needs_work'] }),
+  topic: text('topic', { enum: ['verify', 'delegation', 'stuck', 'risk', 'other'] }),
+  comment: text('comment'),
+  betterPrompt: text('better_prompt'),
+  suspicious: integer('suspicious', { mode: 'boolean' }).notNull().default(false),
+  suspiciousReason: text('suspicious_reason'),
+  suspiciousQuote: text('suspicious_quote'),
+  sampleCount: integer('sample_count'),
+  error: text('error'),
+  seenAt: ts('seen_at'),
+  createdAt: ts('created_at').notNull(),
+  finishedAt: ts('finished_at'),
 });
 
 export const examsRelations = relations(exams, ({ many }) => ({ questions: many(questions), sessions: many(sessions) }));

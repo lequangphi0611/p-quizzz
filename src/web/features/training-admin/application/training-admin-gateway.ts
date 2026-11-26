@@ -1,4 +1,4 @@
-import type { CreatedTraining, TeachingExampleBody, TeachingExampleRow, TrainingDetail, TrainingEventDetail, TrainingEventsPage, TrainingExportSummary, TrainingSummary } from '../../../../shared/api/index.js';
+import type { CreatedTraining, ExampleDraftRow, TeachingExampleBody, TeachingExampleRow, TrainingDetail, TrainingEventDetail, TrainingEventsPage, TrainingExportSummary, TrainingSummary } from '../../../../shared/api/index.js';
 import type { ExportParams } from '../domain/export.js';
 
 /** Port: the mentor's view of AI trainings (`/api/admin/trainings`, PRODUCT.md §7.34). */
@@ -37,6 +37,14 @@ export interface TrainingAdminGateway {
   setTeachingReviewed(trainingId: number, eventId: number, reviewed: boolean): Promise<void>;
   /** The Markdown file of the examples (400 `examples_not_reviewed` until every example is reviewed). Not the report: nothing is recorded as exported. */
   exportTeachingExamples(trainingId: number): Promise<string>;
+  /** S45: asks the AI for a draft of the example (answers at once, the draft runs in the background). 409 `no_teaching_consent`, 503 `ai_unavailable`. A draft already running is returned as it is. */
+  requestExampleDraft(trainingId: number, eventId: number): Promise<ExampleDraftRow>;
+  /** S45: the draft of a prompt, or null when there is none (404 `no_draft`). */
+  exampleDraft(trainingId: number, eventId: number): Promise<ExampleDraftRow | null>;
+  /** S45: "Bỏ nháp"; idempotent. */
+  discardExampleDraft(trainingId: number, eventId: number): Promise<void>;
+  /** S45: the mentor opened the finished draft, so the button stops saying "chưa xem". */
+  markExampleDraftSeen(trainingId: number, eventId: number): Promise<void>;
   /** How many members and events the chosen days and members hold, and how big the zip would be (S41). Nothing is built. */
   exportSummary(trainingId: number, params: ExportParams): Promise<TrainingExportSummary>;
   /** The zip of the raw data for the mentor's own AI (S41). It is not the report: nothing is recorded as exported. */

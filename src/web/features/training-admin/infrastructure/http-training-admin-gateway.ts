@@ -1,5 +1,5 @@
-import type { CreatedTraining, NetworkInfo, TeachingExampleBody, TeachingExampleRow, TeachingExamplesResponse, TrainingDetail, TrainingEventDetail, TrainingEventsPage, TrainingExportSummary, TrainingSummary } from '../../../../shared/api/index.js';
-import type { HttpClient } from '../../../shared/api-client/http-client.js';
+import type { CreatedTraining, ExampleDraftRow, NetworkInfo, TeachingExampleBody, TeachingExampleRow, TeachingExamplesResponse, TrainingDetail, TrainingEventDetail, TrainingEventsPage, TrainingExportSummary, TrainingSummary } from '../../../../shared/api/index.js';
+import { ApiError, type HttpClient } from '../../../shared/api-client/http-client.js';
 import type { TrainingAdminGateway } from '../application/training-admin-gateway.js';
 import { exportQueryString, type ExportParams } from '../domain/export.js';
 
@@ -45,6 +45,19 @@ export class HttpTrainingAdminGateway implements TrainingAdminGateway {
     await (reviewed ? this.http.put(path) : this.http.delete(path));
   }
   exportTeachingExamples(trainingId: number): Promise<string> { return this.http.get<string>(`/api/admin/trainings/${trainingId}/teaching-examples.md`, { as: 'text' }); }
+  requestExampleDraft(trainingId: number, eventId: number): Promise<ExampleDraftRow> {
+    return this.http.post<ExampleDraftRow>(`/api/admin/trainings/${trainingId}/events/${eventId}/example-draft`);
+  }
+  async exampleDraft(trainingId: number, eventId: number): Promise<ExampleDraftRow | null> {
+    try {
+      return await this.http.get<ExampleDraftRow>(`/api/admin/trainings/${trainingId}/events/${eventId}/example-draft`);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404 && err.code === 'no_draft') return null;
+      throw err;
+    }
+  }
+  async discardExampleDraft(trainingId: number, eventId: number): Promise<void> { await this.http.delete(`/api/admin/trainings/${trainingId}/events/${eventId}/example-draft`); }
+  async markExampleDraftSeen(trainingId: number, eventId: number): Promise<void> { await this.http.put(`/api/admin/trainings/${trainingId}/events/${eventId}/example-draft/seen`); }
   exportSummary(trainingId: number, params: ExportParams): Promise<TrainingExportSummary> {
     return this.http.get<TrainingExportSummary>(`/api/admin/trainings/${trainingId}/export/summary${exportQueryString(params)}`);
   }

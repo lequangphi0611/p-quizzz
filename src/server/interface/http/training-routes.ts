@@ -1,9 +1,10 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { CreateTrainingBody, JoinTrainingBody, MemberNoteBody, TeachingExampleBody, TrainingExportQuery, type HookConfig, type JoinTrainingResponse, type MyTraining, type TrainingDetail, type TrainingEventDetail, type TeachingExamplesResponse, type TrainingEventsPage, type TrainingExportSummary, type UninstallCheckResult } from '../../../shared/api/training.js';
+import { CreateTrainingBody, JoinTrainingBody, MemberNoteBody, TeachingExampleBody, TrainingExportQuery, type HookConfig, type JoinTrainingResponse, type MyTraining, type TrainingDetail, type ExampleDraftRow, type TrainingEventDetail, type TeachingExamplesResponse, type TrainingEventsPage, type TrainingExportSummary, type UninstallCheckResult } from '../../../shared/api/training.js';
 import { WrongRoomCodeError } from '../../domain/participant/errors.js';
 import { TrainingEventNotFoundError, TrainingMemberNotFoundError, TrainingNotFoundError } from '../../domain/training/errors.js';
 import type { CreateTraining, EndTraining, GetTrainingDetail, ListTrainings, MarkTrainingEvent, PurgeTrainingMember, RemoveTrainingMember, SaveMemberNote, StopTraining } from '../../application/use-cases/training/admin.js';
 import type { ExportTrainingData, GetTrainingExportSummary } from '../../application/use-cases/training/export-data.js';
+import type { DiscardExampleDraft, GetExampleDraft, MarkExampleDraftSeen, RequestExampleDraft } from '../../application/use-cases/training/example-drafts.js';
 import type { DeleteTeachingExample, ExportTeachingExamples, ListTeachingExamples, SaveTeachingExample, SetTeachingReviewed } from '../../application/use-cases/training/teaching-examples.js';
 import type { ExportTrainingReport } from '../../application/use-cases/training/report.js';
 import type { GetTrainingEventDetail, ListMemberEvents } from '../../application/use-cases/training/view.js';
@@ -15,7 +16,7 @@ import { requireTrainingMember } from './auth/training-auth.js';
 import { sendDomainError } from './domain-errors.js';
 import { createJoinLimiter, type JoinLimiter } from './join-limiter.js';
 import { parseId } from './params.js';
-import { toCreatedTrainingDto, toEventsPageDto, toTrainingDetailDto, toTrainingSummaryDto } from './presenters/training-presenter.js';
+import { toCreatedTrainingDto, toExampleDraftRowDto, toEventsPageDto, toTrainingDetailDto, toTrainingSummaryDto } from './presenters/training-presenter.js';
 
 export interface TrainingUseCases {
   create: CreateTraining;
@@ -33,6 +34,10 @@ export interface TrainingUseCases {
   listTeachingExamples: ListTeachingExamples;
   exportTeachingExamples: ExportTeachingExamples;
   setTeachingReviewed: SetTeachingReviewed;
+  requestExampleDraft: RequestExampleDraft;
+  getExampleDraft: GetExampleDraft;
+  discardExampleDraft: DiscardExampleDraft;
+  markExampleDraftSeen: MarkExampleDraftSeen;
   exportSummary: GetTrainingExportSummary;
   exportData: ExportTrainingData;
   memberEvents: ListMemberEvents;
@@ -50,7 +55,7 @@ export interface TrainingUseCases {
 const badBody = (issue: { message: string } | undefined) => ({ error: issue?.message ?? 'Dữ liệu không hợp lệ' });
 
 // Mentor routes (PRODUCT.md §7.34). Registered inside the requireMentor scope of /api/admin, so they only answer on the mentor's machine.
-export const trainingAdminRoutes = (uc: Pick<TrainingUseCases, 'create' | 'list' | 'detail' | 'stop' | 'end' | 'removeMember' | 'purgeMember' | 'memberEvents' | 'eventDetail' | 'markEvent' | 'saveNote' | 'report' | 'exportSummary' | 'exportData' | 'saveTeachingExample' | 'deleteTeachingExample' | 'listTeachingExamples' | 'exportTeachingExamples' | 'setTeachingReviewed'>): FastifyPluginAsync =>
+export const trainingAdminRoutes = (uc: Pick<TrainingUseCases, 'create' | 'list' | 'detail' | 'stop' | 'end' | 'removeMember' | 'purgeMember' | 'memberEvents' | 'eventDetail' | 'markEvent' | 'saveNote' | 'report' | 'exportSummary' | 'exportData' | 'saveTeachingExample' | 'deleteTeachingExample' | 'listTeachingExamples' | 'exportTeachingExamples' | 'setTeachingReviewed' | 'requestExampleDraft' | 'getExampleDraft' | 'discardExampleDraft' | 'markExampleDraftSeen'>): FastifyPluginAsync =>
   async app => {
     app.post('/trainings', async (req, reply) => {
       const body = CreateTrainingBody.safeParse(req.body);
@@ -173,6 +178,53 @@ export const trainingAdminRoutes = (uc: Pick<TrainingUseCases, 'create' | 'list'
         }
       });
     }
+
+    // S45 (PRODUCT.md §7.40): the AI drafts a teaching example in the background. Mentor only; nothing here reaches members, the file or the report.
+    const ids = (req: { params: { id: string; eventId: string } }) => {
+      const id = parseId(req.params.id);
+      const eventId = parseId(req.params.eventId);
+      if (!id) throw new TrainingNotFoundError();
+      if (!eventId) throw new TrainingEventNotFoundError();
+      return { id, eventId };
+    };
+
+    app.post<{ Params: { id: string; eventId: string } }>('/trainings/:id/events/:eventId/example-draft', async (req, reply): Promise<ExampleDraftRow | undefined> => {
+      try {
+        const { id, eventId } = ids(req);
+        return reply.code(202).send(toExampleDraftRowDto(await uc.requestExampleDraft.execute(id, eventId)));
+      } catch (err) {
+        return sendDomainError(reply, err);
+      }
+    });
+
+    app.get<{ Params: { id: string; eventId: string } }>('/trainings/:id/events/:eventId/example-draft', async (req, reply): Promise<ExampleDraftRow | undefined> => {
+      try {
+        const { id, eventId } = ids(req);
+        return toExampleDraftRowDto(await uc.getExampleDraft.execute(id, eventId));
+      } catch (err) {
+        return sendDomainError(reply, err);
+      }
+    });
+
+    app.delete<{ Params: { id: string; eventId: string } }>('/trainings/:id/events/:eventId/example-draft', async (req, reply) => {
+      try {
+        const { id, eventId } = ids(req);
+        await uc.discardExampleDraft.execute(id, eventId);
+        return reply.code(204).send();
+      } catch (err) {
+        return sendDomainError(reply, err);
+      }
+    });
+
+    app.put<{ Params: { id: string; eventId: string } }>('/trainings/:id/events/:eventId/example-draft/seen', async (req, reply) => {
+      try {
+        const { id, eventId } = ids(req);
+        await uc.markExampleDraftSeen.execute(id, eventId);
+        return reply.code(204).send();
+      } catch (err) {
+        return sendDomainError(reply, err);
+      }
+    });
 
     app.get<{ Params: { id: string } }>('/trainings/:id/teaching-examples', async (req, reply): Promise<TeachingExamplesResponse | undefined> => {
       try {

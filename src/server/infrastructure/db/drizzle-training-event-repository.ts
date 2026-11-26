@@ -1,13 +1,14 @@
-import { and, asc, eq, gt, gte, inArray, lt, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, gte, inArray, isNull, lt, sql } from 'drizzle-orm';
 import {
-  FLAG_TEXT_CHARS, OUTPUT_END_CHARS, type EventDetail, type EventOwner, type ExportStats, type LightEvent, type MarkedEvent, type MemberCounts, type NewTrainingEvent, type TeachingExampleRecord, type TrainingEventRepository,
+  FLAG_TEXT_CHARS, OUTPUT_END_CHARS, type EventDetail, type EventOwner, type ExampleDraftRecord, type ExampleDraftSummary, type ExportStats, type LightEvent, type MarkedEvent, type MemberCounts, type NewTrainingEvent, type TeachingExampleRecord, type TrainingEventRepository,
 } from '../../application/ports/training-event-repository.js';
+import type { ExampleDraftResult, ExampleFields, ExampleOrigin } from '../../domain/training/example-draft.js';
 import type { ExportEvent } from '../../domain/training/export.js';
 import type { FlagEvent } from '../../domain/training/flags/flag-event.js';
 import type { Clip } from '../../domain/training/clip.js';
 import type { EventSkeleton } from '../../domain/training/export-selection.js';
 import type { DbAccess } from './drizzle-exam-repository.js';
-import { trainingEventMarks, trainingEvents, trainingMembers, trainingTeachingExamples } from './schema.js';
+import { trainingEventMarks, trainingEvents, trainingExampleDrafts, trainingMembers, trainingTeachingExamples } from './schema.js';
 
 /** Ids per query when the export reads events by id. */
 const EXPORT_ID_CHUNK = 500;
@@ -231,6 +232,77 @@ export class DrizzleTrainingEventRepository implements TrainingEventRepository {
 
   async deleteTeachingExample(eventId: number): Promise<void> {
     await this.access(db => db.delete(trainingTeachingExamples).where(eq(trainingTeachingExamples.eventId, eventId)).run());
+  }
+
+  async setTeachingOrigin(eventId: number, aiDraft: ExampleFields | null, origin: ExampleOrigin): Promise<void> {
+    await this.access(db => db.update(trainingTeachingExamples).set({ aiDraft, origin }).where(eq(trainingTeachingExamples.eventId, eventId)).run());
+  }
+
+  async getExampleDraft(eventId: number): Promise<ExampleDraftRecord | null> {
+    return (await this.access(db => db.select().from(trainingExampleDrafts).where(eq(trainingExampleDrafts.eventId, eventId)).get())) ?? null;
+  }
+
+  listExampleDrafts(trainingId: number): Promise<ExampleDraftSummary[]> {
+    return this.access(db =>
+      db
+        .select({
+          eventId: trainingExampleDrafts.eventId,
+          memberId: trainingEvents.memberId,
+          status: trainingExampleDrafts.status,
+          seenAt: trainingExampleDrafts.seenAt,
+          suspicious: trainingExampleDrafts.suspicious,
+          error: trainingExampleDrafts.error,
+          finishedAt: trainingExampleDrafts.finishedAt,
+        })
+        .from(trainingExampleDrafts)
+        .innerJoin(trainingEvents, eq(trainingEvents.id, trainingExampleDrafts.eventId))
+        .innerJoin(trainingMembers, eq(trainingMembers.id, trainingEvents.memberId))
+        .where(eq(trainingMembers.trainingId, trainingId))
+        .orderBy(asc(trainingExampleDrafts.eventId))
+        .all()
+        .map(({ seenAt, ...r }) => ({ ...r, seen: seenAt !== null })),
+    );
+  }
+
+  async queueExampleDraft(eventId: number, at: Date): Promise<ExampleDraftRecord> {
+    const fresh = { status: 'queued' as const, label: null, topic: null, comment: null, betterPrompt: null, suspicious: false, suspiciousReason: null, suspiciousQuote: null, sampleCount: null, error: null, seenAt: null, createdAt: at, finishedAt: null };
+    return this.access(db =>
+      db.insert(trainingExampleDrafts).values({ eventId, ...fresh }).onConflictDoUpdate({ target: trainingExampleDrafts.eventId, set: fresh }).returning().get(),
+    );
+  }
+
+  async markExampleDraftRunning(eventId: number): Promise<void> {
+    await this.access(db => db.update(trainingExampleDrafts).set({ status: 'running' }).where(eq(trainingExampleDrafts.eventId, eventId)).run());
+  }
+
+  async completeExampleDraft(eventId: number, draft: ExampleDraftResult, sampleCount: number, at: Date): Promise<void> {
+    await this.access(db =>
+      db
+        .update(trainingExampleDrafts)
+        .set({
+          status: 'done', label: draft.label, topic: draft.topic, comment: draft.comment, betterPrompt: draft.betterPrompt,
+          suspicious: draft.suspicious, suspiciousReason: draft.suspiciousReason, suspiciousQuote: draft.suspiciousQuote,
+          sampleCount, error: null, finishedAt: at,
+        })
+        .where(eq(trainingExampleDrafts.eventId, eventId))
+        .run(),
+    );
+  }
+
+  async failExampleDraft(eventId: number, error: string, at: Date): Promise<void> {
+    await this.access(db => db.update(trainingExampleDrafts).set({ status: 'failed', error, finishedAt: at }).where(eq(trainingExampleDrafts.eventId, eventId)).run());
+  }
+
+  async markExampleDraftSeen(eventId: number, at: Date): Promise<void> {
+    await this.access(db => db.update(trainingExampleDrafts).set({ seenAt: at }).where(and(eq(trainingExampleDrafts.eventId, eventId), isNull(trainingExampleDrafts.seenAt))).run());
+  }
+
+  async deleteExampleDraft(eventId: number): Promise<void> {
+    await this.access(db => db.delete(trainingExampleDrafts).where(eq(trainingExampleDrafts.eventId, eventId)).run());
+  }
+
+  failUnfinishedExampleDrafts(error: string, at: Date): Promise<number> {
+    return this.access(db => db.update(trainingExampleDrafts).set({ status: 'failed', error, finishedAt: at }).where(inArray(trainingExampleDrafts.status, ['queued', 'running'])).run().changes);
   }
 
   async setMark(eventId: number, marked: boolean): Promise<void> {

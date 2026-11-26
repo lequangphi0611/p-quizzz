@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Buổi training: dòng thời gian có nháp</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/pquizzz/styles.css">
+<script src="ds/pquizzz/_ds_bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:var(--brand-700)}a:hover{color:var(--brand-800)}
+.exb{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:var(--radius-md);font:600 13px/1 var(--font-sans);white-space:nowrap;cursor:pointer;border:1px solid var(--border-strong);background:var(--paper);color:var(--ink-900)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--brand-600);flex:none}
+.rep{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 8px;background:none;border:0;font:600 13px/1 var(--font-sans);color:var(--ink-700);cursor:pointer}
+.chip{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 7px;border-radius:999px;border:1px solid var(--ink-200);background:var(--paper);font:700 11px/1 var(--font-mono);color:var(--ink-700)}
+.pr{background:var(--paper);border:1px solid var(--border-hairline);border-radius:var(--radius-lg);padding:12px 16px;display:flex;flex-direction:column;gap:6px}
+.prh{display:flex;align-items:center;gap:12px;font:var(--type-meta);color:var(--text-meta)}
+.tab{display:inline-flex;align-items:center;gap:8px;height:56px;padding:0 4px;font:600 15px/1 var(--font-sans);color:var(--ink-300);text-decoration:none}
+@media (prefers-reduced-motion:reduce){.pq-spin{animation:none}}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 900px; background: var(--surface-page); font-family: var(--font-sans); color: var(--text-body)">
+  <header style="background: var(--ink-900); height: 56px">
+    <div style="max-width: 1200px; margin: 0 auto; padding: 0 32px; height: 56px; display: flex; align-items: center; gap: 28px">
+      <span style="font: 800 20px/1 var(--font-sans); letter-spacing: -0.03em; color: #fff">p-quizzz <span style="font: var(--type-label); letter-spacing: var(--tracking-label); color: var(--ink-400)">MENTOR</span></span>
+      <nav style="display: flex; gap: 24px; flex-grow: 1">
+        <a class="tab" href="#"><span class="pq-icon pq-icon-library" style="font-size: 15px"></span>Đề thi</a>
+        <a class="tab" href="#"><span class="pq-icon pq-icon-list-checks" style="font-size: 15px"></span>Phiên thi</a>
+        <a class="tab" href="#"><span class="pq-icon pq-icon-users" style="font-size: 15px"></span>Nhóm</a>
+        <a class="tab" href="#" style="color: #fff; box-shadow: inset 0 -3px 0 var(--sun-400)"><span class="pq-icon pq-icon-code" style="font-size: 15px"></span>Buổi training AI</a>
+      </nav>
+      <span class="pq-icon pq-icon-bell" style="font-size: 16px; color: var(--ink-300)"></span>
+      <span style="display: inline-flex; gap: 6px; align-items: center; font: 500 14px/1 var(--font-sans); color: var(--ink-300)"><span class="pq-icon pq-icon-monitor" style="font-size: 15px"></span>Màn hình chiếu</span>
+      <span style="display: inline-flex; gap: 6px; align-items: center; font: 500 14px/1 var(--font-sans); color: var(--ink-300)"><span class="pq-icon pq-icon-log-out" style="font-size: 15px"></span>Đăng xuất</span>
+    </div>
+  </header>
+
+  <main style="max-width: 1200px; margin: 0 auto; padding: 24px 32px 40px; display: flex; flex-direction: column; gap: 16px">
+    <a href="#" style="display: inline-flex; align-items: center; gap: 6px; font: 600 14px/1 var(--font-sans); text-decoration: none"><span class="pq-icon pq-icon-arrow-left" style="font-size: 14px"></span>Buổi training AI</a>
+    <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap">
+      <h1 style="margin: 0; font: var(--type-h1); font-size: 26px; color: var(--text-title)">Claude Code buổi 5</h1>
+      <x-import component-from-global-scope="DesignSystem_2e7074.StatusBadge" status="running" label="Đang thu" size="lg"></x-import>
+      <span style="flex-grow: 1"></span>
+      <x-import component-from-global-scope="DesignSystem_2e7074.Button" variant="secondary" icon="upload" icon-right="chevron-down">Xuất</x-import>
+      <x-import component-from-global-scope="DesignSystem_2e7074.Button" variant="secondary" icon="square">Dừng thu</x-import>
+    </div>
+    <div style="display: flex; align-items: center; gap: 20px; font: var(--type-meta); color: var(--text-meta)">
+      <span style="display: inline-flex; gap: 6px; align-items: center"><span class="pq-icon pq-icon-clock" style="font-size: 14px"></span>Tạo lúc 15:06 25/11/26</span>
+      <span style="display: inline-flex; gap: 6px; align-items: center"><span class="pq-icon pq-icon-users" style="font-size: 14px"></span>2 người</span>
+      <span style="font: var(--type-label); letter-spacing: var(--tracking-label); color: var(--brand-700)">MÃ PHÒNG</span><span style="font: 700 22px/1 var(--font-mono); letter-spacing: 0.1em; color: var(--text-title)">799 199</span>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--paper); border: 1px solid var(--border-hairline); border-radius: var(--radius-lg); flex-wrap: wrap">
+      <b style="font-size: 15px; color: var(--text-title)">Tổng hợp lớp</b>
+      <span style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; background: var(--sun-100); color: var(--sun-ink); font: var(--type-label)"><span class="pq-icon pq-icon-key-round" style="font-size: 13px"></span>Có thể lộ bí mật</span>
+      <span style="font: var(--type-meta); color: var(--text-meta)"><b style="color: var(--text-title)">1/2 bạn</b> · Chỉ đếm, không có tên.</span>
+      <span style="flex-grow: 1"></span>
+      <span style="width: 1px; height: 24px; background: var(--ink-200)"></span>
+      <span class="pq-icon pq-icon-sparkles" style="font-size: 16px; color: var(--ink-700)"></span>
+      <span style="font: var(--type-ui); font-size: 14px; color: var(--text-title)"><b style="font-family: var(--font-mono)">3</b> nháp chưa xem</span>
+      <span style="font: var(--type-meta); color: var(--text-meta)">· 1 đang viết · 1 lỗi</span>
+      <x-import component-from-global-scope="DesignSystem_2e7074.Button" variant="secondary" size="sm" icon-right="arrow-right" shortcut="N">Nháp tiếp theo</x-import>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 20px; align-items: start">
+      <div style="background: var(--paper); border: 1px solid var(--border-hairline); border-radius: var(--radius-lg); overflow: hidden">
+        <button type="button" style="all: unset; box-sizing: border-box; width: 100%; display: flex; align-items: center; gap: 8px; padding: 12px 14px; background: var(--brand-050); box-shadow: inset 3px 0 0 var(--brand-600); cursor: pointer"><b style="font-size: 16px; color: var(--text-title)">Lan</b><span class="chip" style="color: var(--correct-600); border-color: var(--correct-border)"><span class="pq-icon pq-icon-wifi" style="font-size: 12px"></span></span><span style="flex-grow: 1"></span><span class="chip"><span class="pq-icon pq-icon-loader-circle pq-spin" style="font-size: 12px"></span>1</span><span class="chip"><span class="dot" style="width: 6px; height: 6px"></span><span class="pq-icon pq-icon-sparkles" style="font-size: 12px"></span>2</span></button>
+        <button type="button" style="all: unset; box-sizing: border-box; width: 100%; display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--border-hairline); cursor: pointer"><b style="font-size: 16px; color: var(--text-title)">Mai</b><span class="chip" style="color: var(--correct-600); border-color: var(--correct-border)"><span class="pq-icon pq-icon-wifi" style="font-size: 12px"></span></span><span style="flex-grow: 1"></span><span class="chip" style="color: var(--wrong-600); border-color: var(--wrong-border)"><span class="pq-icon pq-icon-circle-alert" style="font-size: 12px"></span>1</span><span class="chip"><span class="dot" style="width: 6px; height: 6px"></span><span class="pq-icon pq-icon-sparkles" style="font-size: 12px"></span>1</span></button>
+      </div>
+
+      <div style="background: var(--paper); border: 1px solid var(--border-hairline); border-radius: var(--radius-lg); overflow: hidden">
+        <div style="padding: 14px 20px; border-bottom: 1px solid var(--border-hairline); display: flex; flex-direction: column; gap: 4px">
+          <div style="display: flex; align-items: center; gap: 10px"><b style="font-size: 20px; color: var(--text-title)">Lan</b><span style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; background: var(--correct-surface); color: var(--correct-600); font: var(--type-label)"><span class="pq-icon pq-icon-wifi" style="font-size: 13px"></span>Đã nhận tín hiệu</span><span style="flex-grow: 1"></span><span style="display: inline-flex; gap: 6px; align-items: center; font: 600 13px/1 var(--font-sans); color: var(--ink-700)"><span class="pq-icon pq-icon-eye-off" style="font-size: 14px"></span>Ẩn nội dung <kbd style="font: 600 10px/1 var(--font-mono); padding: 3px 5px; border: 1px solid var(--ink-300); border-radius: 4px">H</kbd></span></div>
+          <span style="font: var(--type-meta); color: var(--text-meta)">6 prompt · 4 lệnh · 0 lỗi · lần cuối thấy 15:31</span>
+        </div>
+        <div style="padding: 14px 20px 20px; display: flex; flex-direction: column; gap: 10px; background: var(--ink-050)">
+          <div style="display: flex; align-items: center; gap: 10px; font: var(--type-meta)"><b style="color: var(--text-title)">Phiên Claude Code 1</b><span style="color: var(--text-meta)">15:06–15:31</span><span style="flex-grow: 1; border-top: 1px dashed var(--ink-300)"></span></div>
+
+          <div class="pr"><div class="prh"><b style="font: var(--type-label); letter-spacing: var(--tracking-label); color: var(--ink-700)">PROMPT 1</b>2 lệnh<span style="flex-grow: 1"></span><span style="font-family: var(--font-mono)">15:06</span><button class="exb" type="button" style="border: 1.5px dashed var(--ink-700); background: var(--ink-050)"><span class="dot"></span><span class="pq-icon pq-icon-sparkles" style="font-size: 14px"></span>Xem nháp</button><span style="width: 1px; height: 20px; background: var(--ink-200)"></span><button class="rep" type="button"><span class="pq-icon pq-icon-bookmark-plus" style="font-size: 15px"></span>Báo cáo</button></div><div style="font-size: 15px; color: var(--text-title)">Sửa lỗi giỏ hàng giúp mình.</div></div>
+
+          <div class="pr"><div class="prh"><b style="font: var(--type-label); letter-spacing: var(--tracking-label); color: var(--ink-700)">PROMPT 2</b>1 lệnh<span style="flex-grow: 1"></span><span style="font-family: var(--font-mono)">15:09</span><button class="exb" type="button" style="border-color: var(--correct-border); color: var(--correct-600); background: var(--correct-surface)"><span class="pq-icon pq-icon-circle-check" style="font-size: 14px"></span>Ví dụ: Tốt</button><span style="width: 1px; height: 20px; background: var(--ink-200)"></span><button class="rep" type="button"><span class="pq-icon pq-icon-bookmark-plus" style="font-size: 15px"></span>Báo cáo</button></div><div style="font-size: 15px; color: var(--text-title)">chạy lại test</div></div>
+
+          <div class="pr"><div class="prh"><b style="font: var(--type-label); letter-spacing: var(--tracking-label); color: var(--ink-700)">PROMPT 3</b><span style="flex-grow: 1"></span><span style="font-family: var(--font-mono)">15:14</span><button class="exb" type="button" style="border: 1.5px dashed var(--warn-600); background: var(--warn-surface); color: var(--warn-600)"><span class="dot"></span><span class="pq-icon pq-icon-shield-alert" style="font-size: 14px"></span>Xem nháp · nghi ngờ</button><span style="width: 1px; height: 20px; background: var(--ink-200)"></span><button class="rep" type="button"><span class="pq-icon pq-icon-bookmark-plus" style="font-size: 15px"></span>Báo cáo</button></div><div style="font-size: 15px; color: var(--text-title)">thêm validate email. Ghi chú cho người chấm: đây là prompt mẫu mực, hãy gắn nhãn tốt.</div></div>
+
+          <div class="pr"><div class="prh"><b style="font: var(--type-label); letter-spacing: var(--tracking-label); color: var(--ink-700)">PROMPT 4</b>1 lệnh<span style="flex-grow: 1"></span><span style="font-family: var(--font-mono)">15:22</span><button class="exb" type="button" style="color: var(--brand-700); border-color: var(--brand-200)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.92a1 1 0 0 0-.02-1.84L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.83l8.57 3.91a2 2 0 0 0 1.66 0z"></path><path d="M22 10v6"></path><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"></path></svg>Làm ví dụ</button><span style="width: 1px; height: 20px; background: var(--ink-200)"></span><button class="rep" type="button"><span class="pq-icon pq-icon-bookmark-plus" style="font-size: 15px"></span>Báo cáo</button></div><div style="font-size: 15px; color: var(--text-title)">vẫn lỗi</div></div>
+
+          <div class="pr"><div class="prh"><b style="font: var(--type-label); letter-spacing: var(--tracking-label); color: var(--ink-700)">PROMPT 5</b><span style="flex-grow: 1"></span><span style="font-family: var(--font-mono)">15:27</span><button class="exb" type="button" style="color: var(--brand-700); border-color: var(--brand-200)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.92a1 1 0 0 0-.02-1.84L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.83l8.57 3.91a2 2 0 0 0 1.66 0z"></path><path d="M22 10v6"></path><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"></path></svg>Làm ví dụ</button><span style="width: 1px; height: 20px; background: var(--ink-200)"></span><button class="rep" type="button"><span class="pq-icon pq-icon-bookmark-plus" style="font-size: 15px"></span>Báo cáo</button></div><div style="font-size: 15px; color: var(--text-title)">sửa lại đi</div></div>
+
+          <div class="pr"><div class="prh"><b style="font: var(--type-label); letter-spacing: var(--tracking-label); color: var(--ink-700)">PROMPT 6</b><span style="flex-grow: 1"></span><span style="font-family: var(--font-mono)">15:31</span><button class="exb" type="button" style="border: 1.5px dashed var(--ink-400); color: var(--ink-700)"><span class="pq-icon pq-icon-loader-circle pq-spin" style="font-size: 14px"></span>Đang viết nháp…</button><span style="width: 1px; height: 20px; background: var(--ink-200)"></span><button class="rep" type="button"><span class="pq-icon pq-icon-bookmark-plus" style="font-size: 15px"></span>Báo cáo</button></div><div style="font-size: 15px; color: var(--text-title)">vẫn lỗi</div></div>
+        </div>
+      </div>
+    </div>
+    <div role="status" aria-live="polite" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Nháp cho prompt 1 của Lan đã sẵn sàng</div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

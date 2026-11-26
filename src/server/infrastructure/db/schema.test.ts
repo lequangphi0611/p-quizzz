@@ -4,7 +4,7 @@ import { createDb } from './client.js';
 import { answers, attempts, exams, options, participants, questions, sessions } from './schema.js';
 import { seedExam } from './testing/seed-exam.js';
 
-const TABLES = ['ai_suggestions', 'answers', 'app_meta', 'attempts', 'exams', 'group_emails', 'groups', 'options', 'participants', 'questions', 'rejoin_requests', 'session_roster', 'sessions', 'training_event_marks', 'training_events', 'training_members', 'training_teaching_examples', 'trainings'];
+const TABLES = ['ai_suggestions', 'answers', 'app_meta', 'attempts', 'exams', 'group_emails', 'groups', 'options', 'participants', 'questions', 'rejoin_requests', 'session_roster', 'sessions', 'training_event_marks', 'training_events', 'training_example_drafts', 'training_members', 'training_teaching_examples', 'trainings'];
 
 function setup() {
   const db = createDb(':memory:');
@@ -110,5 +110,42 @@ describe('schema', () => {
     const rows = sqlite.prepare('select display_name as n, teaching_consent as c from training_members order by id').all();
     sqlite.close();
     expect(rows).toEqual([{ n: 'Cũ', c: 1 }, { n: 'Mới', c: 0 }]);
+  });
+  it('migration 0021 keeps the examples that already existed as the mentor’s own (no AI draft), and drafts go with their event', async () => {
+    const { mkdtempSync, cpSync, readFileSync, writeFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const { fileURLToPath } = await import('node:url');
+    const Database = (await import('better-sqlite3')).default;
+    const { drizzle } = await import('drizzle-orm/better-sqlite3');
+    const { migrate } = await import('drizzle-orm/better-sqlite3/migrator');
+    const full = fileURLToPath(new URL('./migrations', import.meta.url));
+    const dir = mkdtempSync(join(tmpdir(), 'pq-mig-'));
+    const partial = join(dir, 'before');
+    cpSync(full, partial, { recursive: true });
+    const journalFile = join(partial, 'meta', '_journal.json');
+    const journal = JSON.parse(readFileSync(journalFile, 'utf8')) as { entries: { tag: string }[] };
+    journal.entries = journal.entries.filter(e => Number(e.tag.slice(0, 4)) < 21);
+    writeFileSync(journalFile, JSON.stringify(journal));
+
+    const sqlite = new Database(join(dir, 'x.db'));
+    sqlite.pragma('foreign_keys = ON');
+    const raw = drizzle(sqlite);
+    migrate(raw, { migrationsFolder: partial }); // the database as it was before S45
+    const now = Date.now();
+    sqlite.prepare('insert into trainings (name, created_at) values (?, ?)').run('Cũ', now);
+    sqlite.prepare('insert into training_members (training_id, display_name, token, ingest_token, consented_at) values (1, ?, ?, ?, ?)').run('Cũ', 't-old', 'i-old', now);
+    sqlite.prepare("insert into training_events (member_id, kind, claude_session_id, received_at, prompt) values (1, 'prompt', 's1', ?, 'hỏi')").run(now);
+    sqlite.prepare("insert into training_teaching_examples (event_id, label, topic, comment, updated_at) values (1, 'good', 'verify', 'cũ', ?)").run(now);
+    migrate(raw, { migrationsFolder: full });
+
+    expect(sqlite.prepare('select origin, ai_draft as aiDraft from training_teaching_examples').all()).toEqual([{ origin: 'mentor', aiDraft: null }]);
+    sqlite.prepare("insert into training_example_drafts (event_id, status, created_at) values (1, 'queued', ?)").run(now);
+    expect(sqlite.prepare('select status, suspicious, seen_at as seenAt from training_example_drafts').all()).toEqual([{ status: 'queued', suspicious: 0, seenAt: null }]);
+    expect(() => sqlite.prepare("insert into training_example_drafts (event_id, status, created_at) values (1, 'queued', ?)").run(now)).toThrow(/UNIQUE|PRIMARY/i); // one draft per prompt
+    expect(() => sqlite.prepare("insert into training_example_drafts (event_id, status, created_at) values (99, 'queued', ?)").run(now)).toThrow(/FOREIGN KEY/i);
+    sqlite.prepare('delete from training_members').run(); // the member goes: events, examples and drafts go by cascade
+    expect(sqlite.prepare('select count(*) as n from training_example_drafts').get()).toEqual({ n: 0 });
+    sqlite.close();
   });
 });

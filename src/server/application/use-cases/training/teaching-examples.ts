@@ -1,5 +1,6 @@
 import type { TeachingExampleBody, TeachingExampleRow } from '../../../../shared/api/training.js';
 import { TeachingConsentMissingError, TeachingExampleNotPromptError, TeachingExamplesEmptyError, TeachingExamplesNotReviewedError, TrainingEventNotFoundError, TrainingNotFoundError, TrainingStateError } from '../../../domain/training/errors.js';
+import { exampleOrigin, type ExampleFields } from '../../../domain/training/example-draft.js';
 import { buildTeachingExamplesFile, buildTurnContext, maskForExample } from '../../../domain/training/teaching-examples.js';
 import type { Clock } from '../../ports/clock.js';
 import type { TeachingExampleRecord, TrainingEventReader } from '../../ports/training-event-repository.js';
@@ -9,7 +10,7 @@ import type { UnitOfWork } from '../../ports/unit-of-work.js';
 import type { FlagEvent } from '../../../domain/training/flags/flag-event.js';
 
 /** Once ended the members and their events are gone: a conflict, not "not found" (as the other mentor routes). */
-async function openTraining(trainings: Pick<TrainingReader, 'findById'>, id: number) {
+export async function openTraining(trainings: Pick<TrainingReader, 'findById'>, id: number) {
   const training = await trainings.findById(id);
   if (!training) throw new TrainingNotFoundError();
   if (training.status === 'ended') throw new TrainingStateError('Buổi training đã kết thúc, dữ liệu đã bị xoá');
@@ -17,9 +18,10 @@ async function openTraining(trainings: Pick<TrainingReader, 'findById'>, id: num
 }
 
 const sameText = (a: string | null, b: string | null) => a === b;
+const sameDraft = (a: ExampleFields | null, b: ExampleFields | null) => (a === null || b === null ? a === b : a.label === b.label && a.topic === b.topic && a.comment === b.comment && a.betterPrompt === b.betterPrompt);
 
 /** Reads the whole timeline of each member once (bounded text only) and answers the prompt and the context of any of their prompts. */
-class TimelineCache {
+export class TimelineCache {
   private readonly byMember = new Map<number, Promise<FlagEvent[]>>();
 
   constructor(private readonly events: TrainingEventReader) {}
@@ -80,13 +82,23 @@ export class SaveTeachingExample {
       if (!member?.teachingConsent) throw new TeachingConsentMissingError();
 
       const old = await events.getTeachingExample(eventId);
-      const next: TeachingExampleRecord = { eventId, ...body, reviewedAt: null, updatedAt: this.deps.clock.now() };
+      // S45: where it came from. A finished draft is what the mentor read; no finished draft keeps the one the example already had
+      // (a save from the review screen), and a draft still being written is cancelled (the mentor went ahead without it: origin `mentor`).
+      const draft = await events.getExampleDraft(eventId);
+      const done = draft?.status === 'done' && draft.label && draft.topic && draft.comment !== null ? { label: draft.label, topic: draft.topic, comment: draft.comment, betterPrompt: draft.betterPrompt } : null;
+      const aiDraft = done ?? (draft?.status === 'queued' || draft?.status === 'running' ? null : (old?.aiDraft ?? null));
+      const origin = exampleOrigin({ label: body.label, topic: body.topic, comment: body.comment, betterPrompt: body.betterPrompt }, aiDraft);
+      if (draft) await events.deleteExampleDraft(eventId);
+
+      const next: TeachingExampleRecord = { eventId, ...body, reviewedAt: null, updatedAt: this.deps.clock.now(), aiDraft, origin };
       const unchanged =
         old !== null &&
         old.label === next.label && old.topic === next.topic && old.comment === next.comment &&
         sameText(old.betterPrompt, next.betterPrompt) && sameText(old.editedPrompt, next.editedPrompt) && sameText(old.editedContext, next.editedContext);
       if (!unchanged) await events.saveTeachingExample(next);
-      return { record: old !== null && unchanged ? old : next, member };
+      // Same content: only the origin may change, and that never touches `reviewed_at` or `updated_at`.
+      else if (!sameDraft(old.aiDraft, aiDraft) || old.origin !== origin) await events.setTeachingOrigin(eventId, aiDraft, origin);
+      return { record: old !== null && unchanged ? { ...old, aiDraft, origin } : next, member };
     });
     return toRow({ ...record, memberId: member.id }, member.displayName, new TimelineCache(this.deps.events));
   }

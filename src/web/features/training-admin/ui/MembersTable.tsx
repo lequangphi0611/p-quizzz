@@ -8,7 +8,9 @@ import { formatLastSeen, sortMembers } from '../domain/members.js';
 import { unreadPromptCount, type ReadState } from '../domain/unread.js';
 import { Button } from '../../../shared/ui/Button.js';
 import { Icon } from '../../../shared/ui/Icon.js';
+import { memberDraftSpeech } from '../domain/example-draft.js';
 import { ConnectionChip, FlagChip, visuallyHidden } from './chips.js';
+import { DraftChips } from './DraftChips.js';
 import { NewBadge } from './NewBadge.js';
 
 const tight = { padding: '10px 6px' } as const;
@@ -61,12 +63,16 @@ export function MembersTable({ members, selectedId, onSelect, onPurge, compact, 
                   <span aria-hidden="true"><NewBadge count={fresh} size="md" /></span>
                 </span>
               );
+              const speech = memberDraftSpeech(m.exampleDrafts);
+              const describedBy = [fresh > 0 ? `member-new-${m.id}` : '', speech ? `member-drafts-${m.id}` : ''].filter(Boolean).join(' ') || undefined;
               return (
                 <tr key={m.id} onClick={() => onSelect(m.id)} style={{ cursor: 'pointer', background: on ? 'var(--selected-bg)' : undefined, boxShadow: on ? 'inset 3px 0 0 var(--brand-600)' : undefined }}>
                   <td style={{ ...td, ...tight, whiteSpace: 'normal', minWidth: compact ? 0 : 132 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <button type="button" data-member={m.id} aria-pressed={on} aria-describedby={fresh > 0 ? `member-new-${m.id}` : undefined} onClick={e => { e.stopPropagation(); onSelect(m.id); }}
+                      <button type="button" data-member={m.id} aria-pressed={on} aria-describedby={describedBy} onClick={e => { e.stopPropagation(); onSelect(m.id); }}
                         style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', font: 'var(--type-ui)', fontWeight: 600, color: 'var(--text-title)', textAlign: 'left', overflowWrap: 'anywhere' }}>{m.displayName}</button>
+                      {speech && <span id={`member-drafts-${m.id}`} style={visuallyHidden}>{speech}</span>}
+                      <DraftChips counts={m.exampleDrafts} memberId={m.id} />
                       {compact && key !== 'waiting' && key !== 'stopped-sending' && <ConnectionChip row={m} iconOnly />}
                       {compact && visibleFlags(m).map(code => <FlagChip key={code} code={code} iconOnly />)}
                       {compact && badge}

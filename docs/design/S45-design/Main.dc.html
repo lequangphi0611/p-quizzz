@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Nút ví dụ: bảng biến thể</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/pquizzz/styles.css">
+<script src="ds/pquizzz/_ds_bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:var(--brand-700)}a:hover{color:var(--brand-800)}
+.exb{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:var(--radius-md);font:600 13px/1 var(--font-sans);white-space:nowrap;cursor:pointer;border:1px solid var(--border-strong);background:var(--paper);color:var(--ink-900)}
+.exb-new{color:var(--brand-700);border-color:var(--brand-200)}
+.exb-run{border:1.5px dashed var(--ink-400);color:var(--ink-700)}
+.exb-unseen{border:1.5px dashed var(--ink-700);background:var(--ink-050);color:var(--ink-900)}
+.exb-seen{border:1.5px dashed var(--ink-400);color:var(--ink-700)}
+.exb-err{border-color:var(--wrong-border);color:var(--wrong-600)}
+.exb-good{border-color:var(--correct-border);color:var(--correct-600);background:var(--correct-surface)}
+.exb-meh{border-color:var(--ink-300);color:var(--ink-800);background:var(--ink-100)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--brand-600);flex:none}
+.rep{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 8px;background:none;border:0;font:600 13px/1 var(--font-sans);color:var(--ink-700);cursor:pointer}
+.lbl{font:var(--type-label);text-transform:uppercase;letter-spacing:var(--tracking-label);color:var(--text-meta)}
+.chip{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 7px;border-radius:999px;border:1px solid var(--ink-200);background:var(--paper);font:700 11px/1 var(--font-mono);color:var(--ink-700)}
+@media (prefers-reduced-motion:reduce){.pq-spin{animation:none}}
+</style>
+</helmet>
+<div style="width: 1440px; min-height: 1240px; box-sizing: border-box; padding: 56px 64px; background: var(--surface-page); font-family: var(--font-sans); color: var(--text-body); display: flex; flex-direction: column; gap: 32px">
+  <div style="display: flex; flex-direction: column; gap: 8px; max-width: 980px">
+    <span class="lbl">S45 · Nút ví dụ trên dòng prompt</span>
+    <h1 style="margin: 0; font: var(--type-display); color: var(--text-title); letter-spacing: var(--tracking-display)">Một nút, tám trạng thái, không thêm cột mới</h1>
+    <p style="margin: 0; font: var(--type-body); color: var(--text-meta)">Trạng thái nháp dùng chung ngôn ngữ với “Gợi ý của AI” ở màn chấm S26: <b style="color: var(--ink-800)">viền đứt nét + icon sparkles</b> nghĩa là “AI viết, chưa phải của bạn”. Viền liền chỉ xuất hiện khi mentor đã lưu. Nút giữ nguyên vị trí, cao 32px và đứng cạnh “Báo cáo” như S44.</p>
+  </div>
+
+  <div style="background: var(--paper); border: 1px solid var(--border-hairline); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); overflow: hidden">
+    <div style="display: grid; grid-template-columns: 220px 340px minmax(0, 1fr) 330px; gap: 24px; padding: 12px 24px; background: var(--ink-050); border-bottom: 1px solid var(--border-hairline)">
+      <span class="lbl">Trạng thái</span><span class="lbl">Trên dòng prompt</span><span class="lbl">Bấm vào</span><span class="lbl">Trình đọc màn hình (tên nút)</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 220px 340px minmax(0, 1fr) 330px; gap: 24px; padding: 16px 24px; align-items: center; border-bottom: 1px solid var(--border-hairline)">
+      <div><b style="color: var(--text-title)">Chưa là ví dụ</b><div style="font: var(--type-meta); color: var(--text-meta)">như S44</div></div>
+      <div style="display: flex; align-items: center; gap: 12px; justify-content: flex-end"><button class="exb exb-new" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.92a1 1 0 0 0-.02-1.84L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.83l8.57 3.91a2 2 0 0 0 1.66 0z"></path><path d="M22 10v6"></path><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"></path></svg>Làm ví dụ</button><span style="width: 1px; height: 20px; background: var(--ink-200)"></span><button class="rep" type="button"><span class="pq-icon pq-icon-bookmark-plus" style="font-size: 15px"></span>Báo cáo</button></div>
+      <div style="font: var(--type-meta)">Mở hộp thoại và <b>bắt đầu viết nháp ngay</b> (AI bật). AI chưa bật: hộp thoại như S44.</div>
+      <div style="font: 400 13px/1.45 var(--font-mono); color: var(--ink-700)">“Làm ví dụ, prompt 1 của Lan”</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 220px 340px minmax(0, 1fr) 330px; gap: 24px; padding: 16px 24px; align-items: center; border-bottom: 1px solid var(--border-hairline)">
+      <div><b style="color: var(--text-title)">Đang viết nháp</b><div style="font: var(--type-meta); color: var(--text-meta)">đã đóng hộp thoại</div></div>
+      <div style="display: flex; align-items: center; gap: 12px; justify-content: flex-end"><button class="exb exb-run" type="button"><span class="pq-icon pq-icon-loader-circle pq-spin" style="font-size: 14px"></span>Đang viết nháp…</button><span style="width: 1px; height: 20px; background: var(--ink-200)"></span><button class="rep" type="button"><span class="pq-icon pq-icon-bookmark-plus" style="font-size: 15px"></span>Báo cáo</button></div>
+      <div style="font: var(--type-meta)">Mở lại hộp thoại ở trạng thái đang viết; gõ tay được. Giảm chuyển động: icon <code>hourglass</code> tĩnh.</div>
+      <div style="font: 400 13px/1.45 var(--font-mono); color: var(--ink-700)">“Ví dụ, prompt 6 của Lan: AI đang viết nháp”</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 220px 340px minmax(0, 1fr) 330px; gap: 24px; padding: 16px 24px; align-items: center; border-bottom: 1px solid var(--border-hairline); background: var(--brand-050)">
+      <div><b style="color: var(--text-title)">Có nháp chưa xem</b><div style="font: var(--type-meta); color: var(--text-meta)">chấm xanh = chưa mở lần nào</div></div>
+      <div style="display: flex; align-items: center; gap: 12px; justify-content: flex-end"><button class="exb exb-unseen" type="button"><span class="dot"></span><span class="pq-icon pq-icon-sparkles" style="font-size: 14px"></span>Xem nháp</button><span style="width: 1px; height: 20px; background: var(--ink-200)"></span><button class="rep" type="button"><span class="pq-icon pq-icon-bookmark-plus" style="font-size: 15px"></span>Báo cáo</button></div>
+      <div style="font: var(--type-meta)">Mở hộp thoại, các ô điền sẵn. Mở là chuyển sang “đã xem”. Phím <b>N</b> nhảy tới nút này.</div>
+      <div style="font: 400 13px/1.45 var(--font-mono); color: var(--ink-700)">“Ví dụ, prompt 1 của Lan: có nháp AI chưa xem”</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 220px 340px minmax(0, 1fr) 330px; gap: 24px; padding: 16px 24px; align-items: center; border-bottom: 1px solid var(--border-hairline)">
+      <div><b style="color: var(--text-title)">Có nháp · nghi ngờ</b><div style="font: var(--type-meta); color: var(--text-meta)">thay sparkles bằng khiên</div></div>
+      <div style="display: flex; align-items: center; gap: 12px; justify-content: flex-end"><button class="exb exb-unseen" type="button" style="border-color: var(--warn-600); background: var(--warn-surface); color: var(--warn-600)"><span class="dot"></span><span class="pq-icon pq-icon-shield-alert" style="font-size: 14px"></span>Xem nháp · nghi ngờ</button><span style="width: 1px; height: 20px; background: var(--ink-200)"></span><button class="rep" type="button"><span class="pq-icon pq-icon-bookmark-plus" style="font-size: 15px"></span>Báo cáo</button></div>
+      <div style="font: var(--type-meta)">Như trên, hộp thoại mở với cảnh báo và Lưu bị khoá tới khi tick “Đã đọc kỹ prompt”.</div>
+      <div style="font: 400 13px/1.45 var(--font-mono); color: var(--ink-700)">“Ví dụ, prompt 3 của Lan: có nháp AI, bị đánh dấu nghi ngờ”</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 220px 340px minmax(0, 1fr) 330px; gap: 24px; padding: 16px 24px; align-items: center; border-bottom: 1px solid var(--border-hairline)">
+      <div><b style="color: var(--text-title)">Có nháp đã xem, chưa lưu</b><div style="font: var(--type-meta); color: var(--text-meta)">mở rồi đóng, không Lưu</div></div>
+      <div style="display: flex; align-items: center; gap: 12px; justify-content: flex-end"><button class="exb exb-seen" type="button"><span class="pq-icon pq-icon-sparkles" style="font-size: 14px"></span>Nháp chưa lưu</button><span style="width: 1px; height: 20px; background: var(--ink-200)"></span><button class="rep" type="button"><span class="pq-icon pq-icon-bookmark-plus" style="font-size: 15px"></span>Báo cáo</button></div>
+      <div style="font: var(--type-meta)">Mở lại đúng chỗ đã dừng, giữ cả phần mentor đã sửa. Nháp giữ tới khi Lưu, Bỏ nháp hoặc Kết thúc buổi.</div>
+      <div style="font: 400 13px/1.45 var(--font-mono); color: var(--ink-700)">“Ví dụ, prompt 1 của Lan: nháp chưa lưu”</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 220px 340px minmax(0, 1fr) 330px; gap: 24px; padding: 16px 24px; align-items: center; border-bottom: 1px solid var(--border-hairline)">
+      <div><b style="color: var(--text-title)">Lỗi nháp</b><div style="font: var(--type-meta); color: var(--text-meta)">lỗi của AI, không phải của member</div></div>
+      <div style="display: flex; align-items: center; gap: 12px; justify-content: flex-end"><button class="exb exb-err" type="button"><span class="pq-icon pq-icon-circle-alert" style="font-size: 14px"></span>Nháp lỗi</button><span style="width: 1px; height: 20px; background: var(--ink-200)"></span><button class="rep" type="button"><span class="pq-icon pq-icon-bookmark-plus" style="font-size: 15px"></span>Báo cáo</button></div>
+      <div style="font: var(--type-meta)">Mở hộp thoại với lý do + “Viết lại nháp”; các ô gõ tay được. Tooltip hiện lý do ngắn.</div>
+      <div style="font: 400 13px/1.45 var(--font-mono); color: var(--ink-700)">“Ví dụ, prompt 2 của Mai: viết nháp lỗi, quá thời gian”</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 220px 340px minmax(0, 1fr) 330px; gap: 24px; padding: 16px 24px; align-items: center; border-bottom: 1px solid var(--border-hairline)">
+      <div><b style="color: var(--text-title)">Đã lưu: Tốt</b><div style="font: var(--type-meta); color: var(--text-meta)">như S44, không dấu AI</div></div>
+      <div style="display: flex; align-items: center; gap: 12px; justify-content: flex-end"><button class="exb exb-good" type="button"><span class="pq-icon pq-icon-circle-check" style="font-size: 14px"></span>Ví dụ: Tốt</button><span style="width: 1px; height: 20px; background: var(--ink-200)"></span><button class="rep" type="button"><span class="pq-icon pq-icon-bookmark-plus" style="font-size: 15px"></span>Báo cáo</button></div>
+      <div style="font: var(--type-meta)">Mở ví dụ đã lưu, không có gì về AI.</div>
+      <div style="font: 400 13px/1.45 var(--font-mono); color: var(--ink-700)">“Ví dụ, prompt 2 của Lan: Tốt”</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 220px 340px minmax(0, 1fr) 330px; gap: 24px; padding: 16px 24px; align-items: center">
+      <div><b style="color: var(--text-title)">Đã lưu: Chưa tốt</b><div style="font: var(--type-meta); color: var(--text-meta)">trung tính, không đỏ</div></div>
+      <div style="display: flex; align-items: center; gap: 12px; justify-content: flex-end"><button class="exb exb-meh" type="button"><span class="pq-icon pq-icon-rotate-ccw" style="font-size: 14px"></span>Ví dụ: Chưa tốt</button><span style="width: 1px; height: 20px; background: var(--ink-200)"></span><button class="rep" type="button"><span class="pq-icon pq-icon-bookmark-plus" style="font-size: 15px"></span>Báo cáo</button></div>
+      <div style="font: var(--type-meta)">Như trên.</div>
+      <div style="font: 400 13px/1.45 var(--font-mono); color: var(--ink-700)">“Ví dụ, prompt 1 của Lan: Chưa tốt”</div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px">
+    <div style="background: var(--paper); border: 1px solid var(--border-hairline); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; gap: 14px">
+      <span class="lbl">Chỉ báo gộp · danh sách member</span>
+      <div style="display: flex; flex-direction: column; border: 1px solid var(--border-hairline); border-radius: var(--radius-md); overflow: hidden; width: 320px">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--brand-050); box-shadow: inset 3px 0 0 var(--brand-600)"><b style="font-size: 15px; color: var(--text-title)">Lan</b><span style="flex-grow: 1"></span><span class="chip" title="1 nháp đang viết"><span class="pq-icon pq-icon-loader-circle pq-spin" style="font-size: 12px"></span>1</span><span class="chip" title="2 nháp chưa xem, 1 nghi ngờ"><span class="dot" style="width: 6px; height: 6px"></span><span class="pq-icon pq-icon-sparkles" style="font-size: 12px"></span>2</span></div>
+        <div style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border-hairline)"><b style="font-size: 15px; color: var(--text-title)">Mai</b><span style="flex-grow: 1"></span><span class="chip" style="color: var(--wrong-600); border-color: var(--wrong-border)" title="1 nháp lỗi"><span class="pq-icon pq-icon-circle-alert" style="font-size: 12px"></span>1</span><span class="chip" title="1 nháp chưa xem"><span class="dot" style="width: 6px; height: 6px"></span><span class="pq-icon pq-icon-sparkles" style="font-size: 12px"></span>1</span></div>
+      </div>
+      <p style="margin: 0; font: var(--type-meta); color: var(--text-meta)">Chỉ hiện chip khi có số khác 0. Đặt sau icon tín hiệu/bí mật hiện có, căn phải. Tên nút đọc: “Lan, 2 nháp chưa xem, 1 đang viết”.</p>
+    </div>
+    <div style="background: var(--paper); border: 1px solid var(--border-hairline); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; gap: 14px">
+      <span class="lbl">Chỉ báo gộp · thanh Tổng hợp lớp</span>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid var(--border-hairline); border-radius: var(--radius-md); flex-wrap: wrap">
+        <span class="pq-icon pq-icon-sparkles" style="font-size: 16px; color: var(--ink-700)"></span>
+        <span style="font: var(--type-ui); font-size: 14px; color: var(--text-title)"><b style="font-family: var(--font-mono)">3</b> nháp chưa xem</span>
+        <span style="font: var(--type-meta); color: var(--text-meta)">· 1 đang viết · 1 lỗi</span>
+        <span style="flex-grow: 1"></span>
+        <x-import component-from-global-scope="DesignSystem_2e7074.Button" variant="secondary" size="sm" icon-right="arrow-right" shortcut="N">Nháp tiếp theo</x-import>
+      </div>
+      <p style="margin: 0; font: var(--type-meta); color: var(--text-meta)">Trả lời câu hỏi mở 2: nằm ở thanh Tổng hợp lớp vì nó không phụ thuộc member đang chọn. “Nháp tiếp theo” (hoặc phím N) chọn đúng member, cuộn tới prompt và đặt focus vào nút “Xem nháp”; Enter để mở. Thứ tự: cũ nhất trước. Hết nháp chưa xem thì cả cụm ẩn.</p>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1240}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

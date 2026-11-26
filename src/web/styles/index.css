@@ -42,3 +42,7 @@ code, kbd, pre { font-family: var(--font-mono); }
 @keyframes pq-flash { 0%, 40% { box-shadow: 0 0 0 2px var(--brand-500); background: var(--brand-050); } 100% { box-shadow: 0 0 0 2px transparent; background: var(--paper); } }
 .pq-flash { animation: pq-flash 1600ms var(--ease-standard); }
 @media (prefers-reduced-motion: reduce) { .pq-flash { animation: none; } }
+/* S45: the bar of an AI draft being written. It stands still under reduced motion. */
+@keyframes pq-indet { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+.pq-indet { animation: pq-indet 1.6s var(--ease-standard) infinite; }
+@media (prefers-reduced-motion: reduce) { .pq-indet { animation: none; } }

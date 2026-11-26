@@ -3,6 +3,8 @@
 //   { "command": "<node>", "args": ["<this file>", "--fake-mode", "ok", "--fake-record", "<file.json>"] }
 // Modes: ok (default) · slow (sleeps --fake-delay ms, default 800, then ok) · hang (sleeps forever) · garbage · fail (exit 2).
 // "ok" scores by keywords so the e2e has varied suggestions, and flags lines that talk to the grader.
+// A prompt holding <mentor_examples> (S45, example drafts) gets a draft instead: needs_work for a short prompt, good for a long one,
+// suspicious (with the exact words as the quote) when the prompt talks to the reviewer.
 import { appendFileSync } from 'node:fs';
 
 const argv = process.argv.slice(2);
@@ -24,6 +26,8 @@ process.stdin.on('end', async () => {
   if (mode === 'hang') return void setTimeout(() => {}, 1e9);
   if (mode === 'slow') await new Promise(r => setTimeout(r, Number(opt('--fake-delay', '800'))));
 
+  if (stdin.includes('<mentor_examples>')) return void process.stdout.write(JSON.stringify({ type: 'result', subtype: 'success', is_error: false, result: '', structured_output: fakeDraft(stdin), modelUsage: { 'fake-model': {} } }));
+
   const points = Number(/<question points="([\d.]+)">/.exec(stdin)?.[1] ?? 1);
   const criteria = [...stdin.matchAll(/^T(\d+) \(([\d.]+) điểm\): (.*)$/gm)].map(m => ({ n: Number(m[1]), max: Number(m[2]), text: m[3] }));
   const answer = /<student_answer>\n([\s\S]*?)\n<\/student_answer>/.exec(stdin)?.[1] ?? '';
@@ -44,3 +48,22 @@ process.stdin.on('end', async () => {
   };
   process.stdout.write(JSON.stringify({ type: 'result', subtype: 'success', is_error: false, result: '', structured_output: out, modelUsage: { 'fake-model': {} } }));
 });
+
+// What a draft of S45 looks like, from the prompt in `<prompt>…</prompt>` (the last one: the examples come first in stdin).
+function fakeDraft(text) {
+  const prompts = [...text.matchAll(/<prompt>([\s\S]*?)<\/prompt>/g)];
+  const prompt = prompts.at(-1)?.[1] ?? '';
+  const samples = (text.match(/<example>/g) ?? []).length;
+  const words = prompt.trim().split(/\s+/).filter(Boolean).length;
+  const aimed = prompt.split('\n').find(l => /người đánh giá|người chấm|reviewer|nhãn tốt|label it good/i.test(l));
+  const good = words >= 12 && !aimed;
+  return {
+    label: good ? 'good' : 'needs_work',
+    topic: good ? 'delegation' : 'verify',
+    comment: good ? `Prompt nêu rõ việc cần làm (nháp dựa trên ${samples} ví dụ).` : `Prompt chưa nói cách kiểm tra kết quả (nháp dựa trên ${samples} ví dụ).`,
+    betterPrompt: good ? '' : `${prompt.trim()} Chạy <lệnh chạy test> và báo kết quả.`,
+    suspicious: Boolean(aimed),
+    suspiciousReason: aimed ? 'Prompt có câu nhắm vào người đánh giá.' : '',
+    suspiciousQuote: aimed ? aimed.trim().slice(0, 200) : '',
+  };
+}

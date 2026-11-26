@@ -10,6 +10,7 @@ import { useTraining } from '../application/use-training.js';
 import type { TrainingController, TrainingState } from '../application/training-controller.js';
 import { memberCountLabel } from '../domain/training-ui.js';
 import { flagTotals } from '../domain/flags.js';
+import { draftSummaryParts } from '../domain/example-draft.js';
 import { uninstallProgress } from '../domain/members.js';
 import { FlagChip, TrainingStatusBadge, visuallyHidden } from './chips.js';
 import { EventPanel } from './EventPanel.js';
@@ -55,6 +56,15 @@ function TrainingView({ initial }: { initial: TrainingDetail }) {
   };
   useTrainingShortcuts(ctrl, closePanel);
 
+  // "Nháp tiếp theo" picked the member and scrolled to the prompt: the focus goes to its example button (after the row is drawn).
+  const focusToken = state.draftFocus.token;
+  useEffect(() => {
+    const id = ctrl.getState().draftFocus.eventId;
+    if (focusToken === 0 || id === null) return;
+    const t = requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-teaching="${id}"]`)?.focus());
+    return () => cancelAnimationFrame(t);
+  }, [ctrl, focusToken]);
+
   const live = detail.status !== 'ended';
   const stopped = detail.status === 'stopped';
 
@@ -75,7 +85,7 @@ function TrainingView({ initial }: { initial: TrainingDetail }) {
         )
       ) : (
         <>
-          <ClassSummary detail={detail} />
+          <ClassSummary detail={detail} ctrl={ctrl} />
           <Workspace state={state} ctrl={ctrl} closePanel={closePanel} />
         </>
       )}
@@ -146,10 +156,12 @@ function StoppedBanner({ detail }: { detail: TrainingDetail }) {
   );
 }
 
-// How many members have each flag: counts only, no names, no comparison, no ranking (PRODUCT.md §7.35d). Hidden when no flag is up.
-function ClassSummary({ detail }: { detail: TrainingDetail }) {
+// How many members have each flag: counts only, no names, no comparison, no ranking (PRODUCT.md §7.35d). Hidden when no flag is up and no AI draft is
+// around. The AI drafts of the class (S45) sit here too: "N nháp chưa xem" and the way to the one that waited longest.
+function ClassSummary({ detail, ctrl }: { detail: TrainingDetail; ctrl: TrainingController }) {
   const totals = flagTotals(detail);
-  if (totals.length === 0) return null;
+  const drafts = draftSummaryParts(detail.exampleDrafts);
+  if (totals.length === 0 && !drafts) return null;
   return (
     <section aria-label="Tổng hợp lớp" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 14px', borderRadius: 'var(--radius-md)', background: 'var(--surface-card)', border: '1px solid var(--border-hairline)' }}>
       <strong style={{ font: 'var(--type-ui)', fontSize: 14, color: 'var(--text-title)' }}>Tổng hợp lớp</strong>
@@ -159,7 +171,15 @@ function ClassSummary({ detail }: { detail: TrainingDetail }) {
           <span style={{ font: 'var(--type-meta)', fontVariantNumeric: 'tabular-nums', color: 'var(--ink-800)', fontWeight: 600 }}>{t.count}/{t.total} bạn</span>
         </span>
       ))}
-      <span style={{ font: 'var(--type-meta)', fontSize: 12.5, color: 'var(--text-meta)' }}>Chỉ đếm, không có tên. Cờ là gợi ý, không phải điểm.</span>
+      {totals.length > 0 && <span style={{ font: 'var(--type-meta)', fontSize: 12.5, color: 'var(--text-meta)' }}>Chỉ đếm, không có tên. Cờ là gợi ý, không phải điểm.</span>}
+      {drafts && (
+        <span data-draft-summary style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <Icon name="sparkles" size={16} color="var(--ink-700)" />
+          <span style={{ font: 'var(--type-ui)', fontSize: 14, color: 'var(--text-title)' }}><b style={{ fontFamily: 'var(--font-mono)' }}>{drafts.unseen}</b> nháp chưa xem</span>
+          {drafts.rest.length > 0 && <span style={{ font: 'var(--type-meta)', color: 'var(--text-meta)' }}>· {drafts.rest.join(' · ')}</span>}
+          <Button variant="secondary" size="sm" iconRight="arrow-right" shortcut="D" disabled={detail.exampleDrafts.next === null} onClick={() => ctrl.goToNextDraft()}>Nháp tiếp theo</Button>
+        </span>
+      )}
     </section>
   );
 }

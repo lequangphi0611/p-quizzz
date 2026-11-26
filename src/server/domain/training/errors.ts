@@ -80,3 +80,24 @@ export class TeachingExamplesEmptyError extends DomainError {
     super('not_found', 'Chưa có ví dụ nào để xuất', 'no_examples');
   }
 }
+
+/** The mentor has not set up the AI command: no draft can be asked for (S45, 503 `ai_unavailable`). */
+export class ExampleDraftUnavailableError extends DomainError {
+  constructor() {
+    super('unavailable', 'AI chưa được bật trên máy này', 'ai_unavailable');
+  }
+}
+
+/** The prompt already has a saved example: the mentor judged it, so the AI is not asked again (S45, 409 `example_exists`). */
+export class TeachingExampleExistsError extends DomainError {
+  constructor() {
+    super('conflict', 'Prompt này đã có ví dụ, nên không viết nháp lại. Bỏ ví dụ trước nếu muốn làm lại', 'example_exists');
+  }
+}
+
+/** The prompt has no AI draft (S45, 404 `no_draft`). */
+export class ExampleDraftNotFoundError extends DomainError {
+  constructor() {
+    super('not_found', 'Prompt này chưa có nháp', 'no_draft');
+  }
+}

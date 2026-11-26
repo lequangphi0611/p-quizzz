@@ -9,7 +9,7 @@ const at = (y: number, mo: number, d: number, h = 12, mi = 0) => new Date(y, mo 
 
 let id = 0;
 const ev = (kind: 'prompt' | 'tool', receivedAt: number, extra: Partial<TrainingEventRow> = {}): TrainingEventRow =>
-  ({ id: ++id, kind, receivedAt, claudeSessionId: 's1', hasOutput: false, hasChange: false, marked: false, teachingExample: null, ...(kind === 'tool' ? { ok: true } : {}), ...extra });
+  ({ id: ++id, kind, receivedAt, claudeSessionId: 's1', hasOutput: false, hasChange: false, marked: false, teachingExample: null, exampleDraft: null, ...(kind === 'tool' ? { ok: true } : {}), ...extra });
 const groupsOf = (events: TrainingEventRow[]) => groupByDay(buildTimeline(events, { memberStuck: false }));
 
 describe('groupByDay', () => {

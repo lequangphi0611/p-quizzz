@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { TeachingExampleBody, TeachingExampleRow, TrainingDetail, TrainingEventDetail, TrainingEventRow, TrainingEventsPage, TrainingExportSummary, TrainingMemberRow } from '../../../../shared/api/index.js';
+import type { ExampleDraftContent, ExampleDraftRow, TeachingExampleBody, TeachingExampleRow, TrainingDetail, TrainingEventDetail, TrainingEventRow, TrainingEventsPage, TrainingExportSummary, TrainingMemberRow } from '../../../../shared/api/index.js';
 import { ApiError } from '../../../shared/api-client/http-client.js';
 import type { TrainingAdminGateway } from './training-admin-gateway.js';
 import { TrainingController } from './training-controller.js';
@@ -8,17 +8,20 @@ import { InMemoryTrainingReadStore, type TrainingReadStore } from './training-re
 const ZERO_COUNTS: TrainingDetail['flagCounts'] = { auto_accept: 0, auto_compact_repeated: 0, dangerous_command: 0, edited_not_verified: 0, fast_approvals: 0, long_without_verify: 0, possible_secret: 0, repeated_failure: 0, repeated_request: 0, touches_tests: 0 };
 
 const member = (id: number, displayName: string, over: Partial<TrainingMemberRow> = {}): TrainingMemberRow =>
-  ({ id, displayName, connection: 'connected', lastSeenAt: 1, promptCount: 1, toolCount: 1, failedCount: 0, stuck: false, stillSending: false, stoppedSending: false, flags: [], clearCount: 0, compactCount: 0, permissionCount: 0, mentorNote: null, markedCount: 0, teachingConsent: true, ...over });
+  ({ id, displayName, connection: 'connected', lastSeenAt: 1, promptCount: 1, toolCount: 1, failedCount: 0, stuck: false, stillSending: false, stoppedSending: false, flags: [], clearCount: 0, compactCount: 0, permissionCount: 0, mentorNote: null, markedCount: 0, teachingConsent: true, exampleDrafts: { drafting: 0, unseen: 0, failed: 0 }, ...over });
 const detail = (over: Partial<TrainingDetail> = {}): TrainingDetail =>
-  ({ id: 5, name: 'Buổi 1', status: 'open', roomCode: '482913', createdAt: 0, stoppedAt: null, endedAt: null, uninstalled: null, allowAutoAccept: false, reportExportedAt: null, unexportedExampleCount: 0, flagCounts: ZERO_COUNTS, members: [member(1, 'An'), member(2, 'Bình')], ...over });
+  ({ id: 5, name: 'Buổi 1', status: 'open', roomCode: '482913', createdAt: 0, stoppedAt: null, endedAt: null, uninstalled: null, allowAutoAccept: false, reportExportedAt: null, unexportedExampleCount: 0, flagCounts: ZERO_COUNTS, aiDraftAvailable: false, exampleDrafts: { drafting: 0, unseen: 0, failed: 0, next: null }, members: [member(1, 'An'), member(2, 'Bình')], ...over });
 const ev = (id: number, over: Partial<TrainingEventRow> = {}): TrainingEventRow =>
-  ({ id, kind: 'tool', receivedAt: id, claudeSessionId: 's', toolName: 'Bash', toolTarget: 'ls', ok: true, hasOutput: false, hasChange: false, marked: false, teachingExample: null, ...over });
+  ({ id, kind: 'tool', receivedAt: id, claudeSessionId: 's', toolName: 'Bash', toolTarget: 'ls', ok: true, hasOutput: false, hasChange: false, marked: false, teachingExample: null, exampleDraft: null, ...over });
 const page = (ids: number[], hasMore = false): TrainingEventsPage => ({ events: ids.map(i => ev(i)), hasMore, flags: [] });
 
 const teachingRow = (eventId: number, body: Partial<TeachingExampleBody> = {}, over: Partial<TeachingExampleRow> = {}): TeachingExampleRow => ({
   eventId, memberId: 1, memberName: 'An', label: 'good', topic: 'other', comment: 'ok', betterPrompt: null, editedPrompt: null, editedContext: null, reviewed: false,
   defaultPrompt: 'prompt gốc', defaultContext: '✓ Bash ls', updatedAt: 1, ...body, ...over,
 });
+
+const draftContent = (over: Partial<ExampleDraftContent> = {}): ExampleDraftContent => ({ label: 'needs_work', topic: 'verify', comment: 'Thiếu cách kiểm tra.', betterPrompt: 'Sửa X, chạy test.', suspicious: false, suspiciousReason: '', suspiciousQuote: '', ...over });
+const draftRow = (eventId: number, over: Partial<ExampleDraftRow> = {}): ExampleDraftRow => ({ eventId, status: 'done', draft: draftContent(), sampleCount: 2, error: null, seen: false, createdAt: '2026-11-26T08:00:00.000Z', ...over });
 
 const exportSummary = (over: Partial<TrainingExportSummary> = {}): TrainingExportSummary => ({ from: '2026-11-24', to: '2026-11-24', memberCount: 2, eventCount: 12, approxBytes: 4096, tooLarge: false, ...over });
 
@@ -48,6 +51,10 @@ function make(over: Partial<TrainingAdminGateway> = {}, initial = detail(), opts
     setTeachingReviewed: vi.fn(async () => {}),
     teachingExamples: vi.fn(async () => []),
     exportTeachingExamples: vi.fn(async () => '# Ví dụ'),
+    requestExampleDraft: vi.fn(async (_t: number, eventId: number) => draftRow(eventId, { status: 'queued' })),
+    exampleDraft: vi.fn(async () => null),
+    discardExampleDraft: vi.fn(async () => {}),
+    markExampleDraftSeen: vi.fn(async () => {}),
     getJoinHosts: vi.fn(async () => ['192.168.1.5:3000']),
     readHideContent: () => hide,
     writeHideContent: vi.fn((h: boolean) => { hide = h; }),
