@@ -14,6 +14,8 @@ import { openTraining } from './teaching-examples.js';
 // only the mentor's Save does (`SaveTeachingExample`).
 
 export const RESTARTED_MESSAGE = 'Server đã khởi động lại';
+export const CONSENT_WITHDRAWN_MESSAGE = 'Học viên đã rút lại đồng ý dùng prompt làm ví dụ';
+const STORE_FAILED_MESSAGE = 'Không lưu được kết quả nháp, hãy thử lại';
 
 interface WriteDeps {
   unitOfWork: UnitOfWork<TrainingUnitContext>;
@@ -109,16 +111,22 @@ export class RunExampleDraft {
   constructor(private readonly deps: WriteDeps & { events: TrainingEventReader; samples: ExampleSampleSource; drafter: TeachingExampleDrafter; onError?: (err: unknown) => void }) {}
 
   async execute(eventId: number): Promise<void> {
-    const job = await this.deps.unitOfWork.run(async ({ events }) => {
+    const job = await this.deps.unitOfWork.run(async ({ events, members }) => {
       const row = await events.getExampleDraft(eventId);
       if (!row || row.status !== 'queued') return null;
       const owner = await events.getEventOwner(eventId);
       if (!owner) return null;
+      // Consent is checked again here: it may have been withdrawn while the draft waited in the queue.
+      if (!(await members.findById(owner.memberId))?.teachingConsent) {
+        await events.failExampleDraft(eventId, CONSENT_WITHDRAWN_MESSAGE, this.deps.clock.now());
+        return { skipped: true as const, trainingId: owner.trainingId };
+      }
       await events.markExampleDraftRunning(eventId);
-      return { trainingId: owner.trainingId, memberId: owner.memberId, createdAt: row.createdAt.getTime() };
+      return { skipped: false as const, trainingId: owner.trainingId, memberId: owner.memberId, createdAt: row.createdAt.getTime() };
     });
     if (!job) return;
     await this.deps.signals.signal(job.trainingId);
+    if (job.skipped) return;
 
     let outcome: { ok: true; value: ReturnType<typeof normalizeExampleDraft>; sampleCount: number } | { ok: false; error: string };
     try {
@@ -139,14 +147,23 @@ export class RunExampleDraft {
       }
     }
 
-    await this.deps.unitOfWork.run(async ({ events }) => {
-      const row = await events.getExampleDraft(eventId);
-      if (!row || row.status !== 'running' || row.createdAt.getTime() !== job.createdAt) return;
-      const now = this.deps.clock.now();
-      if (outcome.ok) await events.completeExampleDraft(eventId, outcome.value, outcome.sampleCount, now);
-      else await events.failExampleDraft(eventId, outcome.error, now);
-    });
-    await this.deps.signals.signal(job.trainingId);
+    const store = async (result: typeof outcome): Promise<void> => {
+      await this.deps.unitOfWork.run(async ({ events }) => {
+        const row = await events.getExampleDraft(eventId);
+        if (!row || row.status !== 'running' || row.createdAt.getTime() !== job.createdAt) return;
+        const now = this.deps.clock.now();
+        if (result.ok) await events.completeExampleDraft(eventId, result.value, result.sampleCount, now);
+        else await events.failExampleDraft(eventId, result.error, now);
+      });
+    };
+    try {
+      await store(outcome);
+    } catch (err) {
+      // Storing failed (e.g. SQLITE_BUSY): do not leave the row `running` for ever. Try once to mark it failed.
+      this.deps.onError?.(err);
+      try { await store({ ok: false, error: STORE_FAILED_MESSAGE }); } catch (err2) { this.deps.onError?.(err2); }
+    }
+    await this.deps.signals.signal(job.trainingId).catch(err => this.deps.onError?.(err));
   }
 }
 

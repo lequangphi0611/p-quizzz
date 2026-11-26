@@ -11,7 +11,7 @@ import type { ExampleSampleSource } from '../../ports/example-sample-source.js';
 import { ExampleDrafterError, type ExampleDraftQueue } from '../../ports/teaching-example-drafter.js';
 import { CreateTraining, EndTraining, GetTrainingDetail, StopTraining } from './admin.js';
 import { CurrentTrainingSampleSource } from './current-training-sample-source.js';
-import { DiscardExampleDraft, FailUnfinishedExampleDrafts, GetExampleDraft, MarkExampleDraftSeen, RequestExampleDraft, RunExampleDraft } from './example-drafts.js';
+import { CONSENT_WITHDRAWN_MESSAGE, DiscardExampleDraft, FailUnfinishedExampleDrafts, GetExampleDraft, MarkExampleDraftSeen, RequestExampleDraft, RunExampleDraft } from './example-drafts.js';
 import { JoinTraining } from './member.js';
 import { SaveTeachingExample } from './teaching-examples.js';
 import { ListMemberEvents } from './view.js';
@@ -198,6 +198,27 @@ describe('RunExampleDraft', () => {
     await uc.run.execute(e2);
     await uc.run.execute(e2); // second time: already done
     expect(drafter.inputs).toHaveLength(1);
+  });
+
+  it('fails a queued draft without calling the AI when the member withdrew consent while it waited', async () => {
+    const { uc, t, lan, e2 } = await scene();
+    await uc.request.execute(t.id, e2);
+    (await members.findById(lan.id))!.teachingConsent = false;
+    await uc.run.execute(e2);
+    expect(drafter.inputs).toEqual([]);
+    expect(await events.getExampleDraft(e2)).toMatchObject({ status: 'failed', error: CONSENT_WITHDRAWN_MESSAGE });
+  });
+
+  it('does not leave the draft running when storing the result fails: reports it and marks the draft failed', async () => {
+    const { uc, t, e2 } = await scene();
+    const errors: unknown[] = [];
+    const run = new RunExampleDraft({ unitOfWork: new InMemoryUnitOfWork({ trainings, members, events }, [trainings, members, events]), clock, signals, events, samples: { samplesFor: async () => samples }, drafter, onError: e => errors.push(e) });
+    await uc.request.execute(t.id, e2);
+    const complete = events.completeExampleDraft.bind(events);
+    events.completeExampleDraft = async () => { events.completeExampleDraft = complete; throw new Error('SQLITE_BUSY'); };
+    await run.execute(e2);
+    expect(errors).toHaveLength(1);
+    expect(await events.getExampleDraft(e2)).toMatchObject({ status: 'failed' });
   });
 
   it('drops the result of a draft discarded or rewritten while the AI was working', async () => {

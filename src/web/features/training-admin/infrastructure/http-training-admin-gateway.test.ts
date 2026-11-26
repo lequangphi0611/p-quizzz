@@ -68,7 +68,8 @@ describe('HttpTrainingAdminGateway', () => {
   it('example drafts (S45): the right verbs and paths; no draft (404) is null, other errors are thrown', async () => {
     const f = vi.fn(async (url: string, init?: RequestInit) => {
       if (init?.method === 'DELETE' || url.endsWith('/seen')) return new Response(null, { status: 204 });
-      if (url.includes('/events/9/')) return new Response(JSON.stringify({ error: 'Chưa có nháp' }), { status: 404 });
+      if (url.includes('/events/9/')) return new Response(JSON.stringify({ error: 'Chưa có nháp', code: 'no_draft' }), { status: 404 });
+      if (url.includes('/events/7/')) return new Response(JSON.stringify({ error: 'Không có prompt', code: 'event_not_found' }), { status: 404 });
       if (url.includes('/events/8/')) return new Response(JSON.stringify({ error: 'Lỗi máy chủ' }), { status: 500 });
       return new Response(JSON.stringify({ eventId: 4, status: 'queued' }), { status: 202 });
     });
@@ -77,11 +78,12 @@ describe('HttpTrainingAdminGateway', () => {
     expect(await g.exampleDraft(3, 4)).toMatchObject({ eventId: 4 });
     expect(await g.exampleDraft(3, 9)).toBeNull();
     await expect(g.exampleDraft(3, 8)).rejects.toMatchObject({ status: 500 });
+    await expect(g.exampleDraft(3, 7)).rejects.toMatchObject({ status: 404, code: 'event_not_found' });
     await g.discardExampleDraft(3, 4);
     await g.markExampleDraftSeen(3, 4);
     expect(f.mock.calls.map(c => [(c[1] as RequestInit).method, c[0]])).toEqual([
       ['POST', '/api/admin/trainings/3/events/4/example-draft'], ['GET', '/api/admin/trainings/3/events/4/example-draft'],
-      ['GET', '/api/admin/trainings/3/events/9/example-draft'], ['GET', '/api/admin/trainings/3/events/8/example-draft'],
+      ['GET', '/api/admin/trainings/3/events/9/example-draft'], ['GET', '/api/admin/trainings/3/events/8/example-draft'], ['GET', '/api/admin/trainings/3/events/7/example-draft'],
       ['DELETE', '/api/admin/trainings/3/events/4/example-draft'], ['PUT', '/api/admin/trainings/3/events/4/example-draft/seen'],
     ]);
   });

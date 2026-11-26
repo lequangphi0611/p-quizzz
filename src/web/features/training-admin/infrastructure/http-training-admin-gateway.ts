@@ -52,7 +52,7 @@ export class HttpTrainingAdminGateway implements TrainingAdminGateway {
     try {
       return await this.http.get<ExampleDraftRow>(`/api/admin/trainings/${trainingId}/events/${eventId}/example-draft`);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 404) return null;
+      if (err instanceof ApiError && err.status === 404 && err.code === 'no_draft') return null;
       throw err;
     }
   }
