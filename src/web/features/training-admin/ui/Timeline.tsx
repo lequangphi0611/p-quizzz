@@ -7,6 +7,7 @@ import { Icon } from '../../../shared/ui/Icon.js';
 import { Spinner } from '../../../shared/ui/Spinner.js';
 import type { PanelKind, PanelState, TimelineState, TrainingController } from '../application/training-controller.js';
 import { formatDuration } from '../domain/duration.js';
+import { promptContext } from '../domain/example-draft.js';
 import { memberCountsText, memberExtraCountsText, formatLastSeen } from '../domain/members.js';
 import { evidenceOf, visibleFlags } from '../domain/flags.js';
 import { decisionText, isAutoMode, modeLabel, noteLines, noticeTitle, sessionTitle } from '../domain/row-text.js';
@@ -56,7 +57,7 @@ function stripOf(e: TrainingEventRow): { kind: 'command' | 'permission'; text: s
  * A new prompt has the "Mới" badge and a brand border; an older prompt with new commands keeps its border and gets "· N mới" and
  * a strip per new command (S43).
  */
-function PromptBlock({ event, number, turnKey, focused, flash, onMark, onTeach, canTeach, detail, fresh = NO_NEWNESS }: { event: TrainingEventRow | null; number: number | null; turnKey: string; focused: boolean; flash: boolean; onMark: (id: number) => void; onTeach: (id: number) => void; canTeach: boolean; detail: Detail | null; fresh?: CardNewness }) {
+function PromptBlock({ event, number, memberName, turnKey, focused, flash, onMark, onTeach, canTeach, detail, fresh = NO_NEWNESS }: { event: TrainingEventRow | null; number: number | null; memberName: string; turnKey: string; focused: boolean; flash: boolean; onMark: (id: number) => void; onTeach: (id: number) => void; canTeach: boolean; detail: Detail | null; fresh?: CardNewness }) {
   const mode = modeLabel(event?.permissionMode);
   const isNew = fresh.badge !== null;
   const box = {
@@ -83,7 +84,7 @@ function PromptBlock({ event, number, turnKey, focused, flash, onMark, onTeach, 
         <span style={{ flex: '1 1 0' }} />
         {event && <span style={{ font: `500 13px/1 ${mono}`, color: 'var(--ink-600)' }}>{formatClock(event.receivedAt)}</span>}
         {detail && <Button variant="ghost" size="sm" icon="panel-right-open" onClick={detail.onOpen}>Xem chi tiết</Button>}
-        {event && canTeach && <TeachingButton id={event.id} label={event.teachingExample?.label ?? null} onOpen={onTeach} />}
+        {event && canTeach && <TeachingButton id={event.id} event={event} context={promptContext(number, memberName)} onOpen={onTeach} />}
         {event && canTeach && <span aria-hidden="true" style={{ width: 1, height: 18, background: 'var(--ink-300)', flex: 'none' }} />}
         {event && <MarkButton id={event.id} marked={event.marked} onToggle={onMark} withText />}
       </div>
@@ -477,7 +478,7 @@ export function Timeline({ member, timeline, panel, hidden, markError, read, ctr
                                 const detail: Detail | null = item.tools.length > 0 ? { commands: shown.length, failed: shown.filter(t => t.event.ok === false).length, onOpen: () => ctrl.openTurn(item.key) } : null;
                                 return (
                                   <div key={item.key} style={{ marginTop: ti === 0 ? 4 : 8 }}>
-                                    <PromptBlock event={item.prompt} number={item.promptNumber} turnKey={turnReadKey(item)} focused={item.prompt !== null && timeline.focusId === item.prompt.id} flash={item.prompt !== null && flashId === item.prompt.id}
+                                    <PromptBlock event={item.prompt} number={item.promptNumber} memberName={member.displayName} turnKey={turnReadKey(item)} focused={item.prompt !== null && timeline.focusId === item.prompt.id} flash={item.prompt !== null && flashId === item.prompt.id}
                                       onMark={onMark} onTeach={onTeach} canTeach={member.teachingConsent} detail={detail} fresh={cardNewness(item)} />
                                   </div>
                                 );

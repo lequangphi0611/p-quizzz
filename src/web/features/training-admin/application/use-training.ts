@@ -10,6 +10,8 @@ import { TrainingListController, type TrainingListState } from './training-list-
 /** Slow safety net under the SSE signals (a signal can be lost, and a dead stream says nothing): every 15 s, every 5 s once a reload failed. */
 const POLL_MS = 15_000;
 const POLL_OFFLINE_MS = 5_000;
+/** While an AI draft is being written the page looks again this often, in case a signal was lost (S45). */
+const POLL_DRAFTING_MS = 3_000;
 
 /**
  * One controller for the page's lifetime, seeded with what the route loader fetched. It reloads on the `training` signal of
@@ -27,13 +29,14 @@ export function useTraining(initial: TrainingDetail, initialMemberId: number | n
     onTraining: id => { if (id === initial.id) void ctrl.refresh(); },
   });
   const ended = state.detail.status === 'ended';
+  const drafting = state.detail.exampleDrafts.drafting > 0;
   useEffect(() => {
     if (ended) return;
     const poll = () => { if (!document.hidden) void ctrl.refresh(); };
-    const t = setInterval(poll, state.offline ? POLL_OFFLINE_MS : POLL_MS);
+    const t = setInterval(poll, state.offline ? POLL_OFFLINE_MS : drafting ? POLL_DRAFTING_MS : POLL_MS);
     document.addEventListener('visibilitychange', poll);
     return () => { clearInterval(t); document.removeEventListener('visibilitychange', poll); };
-  }, [ctrl, ended, state.offline]);
+  }, [ctrl, ended, state.offline, drafting]);
   return { state, ctrl };
 }
 

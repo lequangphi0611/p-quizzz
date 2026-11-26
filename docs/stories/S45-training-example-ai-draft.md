@@ -1,6 +1,6 @@
 # S45: Training: AI điền nháp ví dụ prompt, học từ ví dụ mentor đã chốt
 
-**Phụ thuộc:** S26, S44 · **Trạng thái:** ⏳ đã có thiết kế (PO duyệt 2026-11-26), sẵn sàng code
+**Phụ thuộc:** S26, S44 · **Trạng thái:** ✅ xong (server + web + E2E)
 
 ## Bối cảnh
 Mentor viết nhãn, chủ đề, nhận xét, phiên bản tốt hơn cho từng ví dụ (S44) mất thời gian. Khi mentor bấm "Làm ví dụ" trên một prompt, app gọi Claude CLI trên máy mentor **chạy nền** (dùng lại cấu hình, cách chạy an toàn và kiểu hàng đợi của S26); nháp xong thì đổ thẳng vào các ô của hộp thoại ví dụ, mentor đọc, sửa rồi Lưu. Để nháp theo đúng chuẩn và giọng của mentor, app gửi kèm **mọi** ví dụ mentor đã chốt **trong cùng buổi** làm mẫu (chỉ giới hạn an toàn theo độ dài). Business: [PRODUCT.md §7.40](../PRODUCT.md), cùng §7.39, §7.28e, g, h và ngoại lệ hẹp ở §7.36i. Contract: [architecture.md §11.12](../architecture.md). UI: bản thiết kế [S45-design](https://claude.ai/artifact/XeUCqDVZ4wFkvuyi6uUxFK), bản sao các artboard trong [docs/design/S45-design/](../design/S45-design/) (`Main` = nút ví dụ, `Timeline` = trang buổi, `ExampleDialog` = hộp thoại với biến thể `variant`/`nhanMode`, `Flow` = luồng, `Notes` = tương tác và component); prompt: [S45-ai-draft-ui-prompt.md](../design/S45-ai-draft-ui-prompt.md).
@@ -49,7 +49,7 @@ Mentor viết nhãn, chủ đề, nhận xét, phiên bản tốt hơn cho từn
   - `DELETE /trainings/:id/events/:eventId/example-draft` (idempotent).
   - `PUT /trainings/:id/events/:eventId/example-draft/seen`.
   - `ExampleDraftRow = { eventId, status, draft: { label, topic, comment, betterPrompt, suspicious, suspiciousReason, suspiciousQuote } | null, sampleCount: number | null, error: string | null, seen: boolean, createdAt: string }` (`createdAt` để hộp thoại đếm "N giây" khi đang viết)`.
-- `TrainingEventRow` (dòng prompt) thêm `exampleDraft: { status, seen, suspicious, error } | null` để nút hiện trạng thái (`error` = message ngắn cho tooltip); `TrainingMemberRow` thêm `exampleDrafts: { drafting, unseen, failed }` (số nháp `queued`/`running`; `done` chưa `seen`; `failed`); `TrainingDetail` thêm `aiDraftAvailable: boolean` và `exampleDrafts: { drafting, unseen, failed, next: { memberId, eventId } | null }` (tổng cả buổi; `next` = nháp `done` chưa xem có `finished_at` **sớm nhất**, để "Nháp tiếp theo" / phím N). Trang buổi tự làm mới khi còn nháp `queued`/`running` (poll vài giây như màn chấm S26, hoặc sự kiện SSE nếu trang buổi đã có).
+- `TrainingEventRow` (dòng prompt) thêm `exampleDraft: { status, seen, suspicious, error } | null` để nút hiện trạng thái (`error` = message ngắn cho tooltip); `TrainingMemberRow` thêm `exampleDrafts: { drafting, unseen, failed }` (số nháp `queued`/`running`; `done` chưa `seen`; `failed`); `TrainingDetail` thêm `aiDraftAvailable: boolean` và `exampleDrafts: { drafting, unseen, failed, next: { memberId, eventId } | null }` (tổng cả buổi; `next` = nháp `done` chưa xem có `finished_at` **sớm nhất**, để "Nháp tiếp theo" / phím D). Trang buổi tự làm mới khi còn nháp `queued`/`running` (poll vài giây như màn chấm S26, hoặc sự kiện SSE nếu trang buổi đã có).
 - Leak-guard: `exampleDraft`, `aiDraft`, `origin`, `aiDraftAvailable` chỉ có ở `/api/admin/*`.
 ### System prompt và cách dựng prompt (hợp đồng, PO duyệt 2026-11-25)
 Dựa trên hướng dẫn của Anthropic: [Claude Code best practices](https://code.claude.com/docs/en/best-practices), [Prompting best practices](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices), [Effective context engineering](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents). Những nguyên tắc đã áp vào chính prompt này: vai trò ngay câu đầu; giải thích **lý do** thay vì luật trống; chia phần bằng thẻ XML; tài liệu dài (mẫu) đặt trước, yêu cầu đặt cuối; mẫu bọc trong `<example>`; nói điều cần làm thay vì cấm; không dùng CHỮ HOA để nhấn.
@@ -137,7 +137,7 @@ Nguồn đúng là các artboard trong [docs/design/S45-design/](../design/S45-d
 | Đã lưu | ví dụ đã lưu | "Ví dụ: Tốt" / "Ví dụ: Chưa tốt" (như S44, không dấu AI) |
 Bấm nút ở trạng thái có nháp mở hộp thoại và `PUT …/example-draft/seen`. Ví dụ đã lưu mà mentor bấm "Viết lại nháp" không có trong thiết kế: không làm.
 
-**Chỉ báo gộp**: chip nhỏ ở từng member trong danh sách (`exampleDrafts` của member: đang viết, chưa xem, lỗi; chỉ hiện số khác 0; tên truy cập "Lan, 2 nháp chưa xem, 1 đang viết") và cụm ở thanh "Tổng hợp lớp": "**N** nháp chưa xem · X đang viết · Y lỗi" + nút **"Nháp tiếp theo"** (phím **N**). Cụm ẩn khi cả ba bằng 0. "Nháp tiếp theo" / **N** chọn đúng member (`next`), cuộn tới prompt, đặt focus vào nút "Xem nháp"; không chạy khi focus ở ô nhập hoặc khi có hộp thoại. Trang tự làm mới khi còn nháp đang viết.
+**Chỉ báo gộp**: chip nhỏ ở từng member trong danh sách (`exampleDrafts` của member: đang viết, chưa xem, lỗi; chỉ hiện số khác 0; tên truy cập "Lan, 2 nháp chưa xem, 1 đang viết") và cụm ở thanh "Tổng hợp lớp": "**N** nháp chưa xem · X đang viết · Y lỗi" + nút **"Nháp tiếp theo"** (phím **D**). Cụm ẩn khi cả ba bằng 0. "Nháp tiếp theo" / **D** chọn đúng member (`next`), cuộn tới prompt, đặt focus vào nút "Xem nháp"; không chạy khi focus ở ô nhập hoặc khi có hộp thoại. Trang tự làm mới khi còn nháp đang viết.
 
 **Hộp thoại ví dụ** (`ExampleDialog.dc.html`; biến thể `dang-viet`, `hoi-ghi-de`, `co-nhap`, `da-sua`, `nghi-ngo`, `loi`, `chua-bat`; **chọn `nhanMode = goi-y`**):
 - **Đang viết**: khối viền đứt "AI đang viết nháp" + số giây (từ `createdAt`) + thanh không xác định + "Thường mất 10–60 giây. Bạn có thể đóng hộp thoại, nháp vẫn chạy và nút trên prompt sẽ báo khi xong." Các ô **không khoá**, placeholder "Gõ tay được trong lúc chờ. Nháp về sẽ hỏi trước khi thay chữ của bạn."
@@ -169,7 +169,7 @@ Bấm nút ở trạng thái có nháp mở hộp thoại và `PUT …/example-d
 7. Lưu: `origin` đúng (`mentor` / `ai_kept` / `ai_edited`), nháp chép sang ví dụ và dòng nháp bị xoá. Sửa ở màn rà một ví dụ `ai_kept` → `ai_edited`. Đổi nguồn gốc không đổi `reviewed_at`/`updated_at`.
 8. AI đánh dấu nghi ngờ → cảnh báo kèm lý do; Lưu khoá tới khi tick "Đã đọc kỹ prompt".
 9a. Nhãn AI gợi ý không bao giờ được chọn sẵn; Lưu khoá tới khi mentor chọn nhãn; ví dụ nghi ngờ khoá thêm tới khi tick.
-9b. Nút ví dụ hiện đúng 8 trạng thái ở bảng trên; chip theo member và cụm "N nháp chưa xem" đúng số; "Nháp tiếp theo" / phím N tới đúng nháp `finished_at` sớm nhất chưa xem, focus vào nút của prompt đó.
+9b. Nút ví dụ hiện đúng 8 trạng thái ở bảng trên; chip theo member và cụm "N nháp chưa xem" đúng số; "Nháp tiếp theo" / phím D tới đúng nháp `finished_at` sớm nhất chưa xem, focus vào nút của prompt đó.
 9c. Mở lại một nháp chưa lưu trong lúc trang còn mở giữ phần đã gõ và nhãn đã chọn; F5 thì về nháp gốc.
 9d. `suspiciousQuote` chỉ được giữ khi xuất hiện nguyên văn trong prompt; khối prompt tô nổi đúng đoạn đó.
 9. Lỗi (timeout, too_long, bad_output, process_failed) → nút và hộp thoại báo lỗi bằng message tiếng Việt; viết tay vẫn được.
@@ -191,7 +191,16 @@ Bấm nút ở trạng thái có nháp mở hộp thoại và `PUT …/example-d
 
 ## Ghi chú khi làm
 
-**Phần server + kiểu API dùng chung: xong (đợt 1).** Còn lại: web `features/training-admin` và E2E (đợt 2). Tất cả AC phía server (1, 4 phần server, 5, 6, 7, 10, 11, 12 và phần dữ liệu của 2, 8, 9, 9d) có test tự động; AC chỉ có ở giao diện (2 phần hộp thoại, 3, 8 phần khoá Lưu, 9, 9a, 9b, 9c) chờ đợt web.
+**Server + kiểu API dùng chung: xong (đợt 1). Web `features/training-admin` + E2E: xong (đợt 2).** Mọi AC có test tự động (domain/controller `example-draft*.test.ts`, E2E `e2e/training-example-draft.spec.ts`, ảnh trong `docs/design/S45-assets/`).
+
+Lệch nhỏ phía web (không đổi contract):
+- Tên truy cập của nút ví dụ đặt chữ hiển thị trước, rồi ngữ cảnh ("Làm ví dụ, prompt 1 của Lan", "Ví dụ: Tốt, prompt 2 của Lan"), để giữ nguyên các spec S44 và khớp nhãn hiển thị; chip member đọc qua `aria-describedby` của nút tên (không đổi tên nút).
+- Câu hỏi ghi đè: "…các ô khác vẫn được điền nháp" (nhãn không được điền sẵn nên không nhắc "nhãn").
+- Hộp thoại không hiện dòng "Claude đã chạy…" và "Hai prompt liền trước" của artboard (không có trong phạm vi story).
+- "Bỏ nháp" xoá nháp, bỏ cả phần đã gõ và đóng hộp thoại; "Cách bật AI" mở tab mới.
+- Esc trong hộp thoại ví dụ đóng hộp thoại (S44 chưa có); đóng xong focus về nút ví dụ.
+- Sau review: (1) khối prompt trong hộp thoại bị grid auto-row ép còn ~16px (không phải flex): thân hộp thoại thêm `gridAutoRows: max-content`, các khối cố định thêm `flexShrink: 0`, e2e đo chiều cao khối prompt và vị trí `<mark>`. (2) Phím "Nháp tiếp theo" đổi từ **N** sang **D** vì N là phím chuông thông báo (PRODUCT.md §7.20, giữ nguyên); e2e kiểm D không mở chuông và N vẫn bật/tắt chuông. (3) Ảnh chụp của story khác do e2e ghi đè đã được khôi phục. (4) Biểu tượng "đang viết" đã đổi sang `hourglass` tĩnh khi `prefers-reduced-motion` (chọn bằng `useReducedMotion` trong JS, không bằng CSS); thêm e2e `emulateMedia({ reducedMotion: 'reduce' })`.
+- E2E: file cấu hình AI giả có đường dẫn cố định (`e2e/ai-config.ts`) để spec bật/tắt AI; `training-teaching.spec.ts` tắt AI ở đầu (đó là luồng S44) và bật lại sau.
 
 Lệch nhỏ / quyết định khi code (không đổi contract):
 - Các thao tác nháp nằm trong `TrainingEventRepository` (cùng unit với ví dụ), không tạo repository riêng, để `TrainingUnitContext` không đổi.

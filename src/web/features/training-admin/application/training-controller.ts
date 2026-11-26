@@ -4,6 +4,7 @@ import { announcementFor } from '../domain/announcements.js';
 import { dayGroupsOf, newestPromptOf, placeOfTurn, placesByEvent, reconcileOpenBlocks, reconcileOpenDays, stepEvent, turnsOfDay, withDayOpen } from '../domain/day-groups.js';
 import { exportFileName, exportInputError, paramsFor, type ExportMode } from '../domain/export.js';
 import { evidenceOf } from '../domain/flags.js';
+import { isDrafting, saveEnabled } from '../domain/example-draft.js';
 import { reportFileName } from '../domain/report.js';
 import {
   NAME_PLACEHOLDER, betterOf, replaceName, sortReviewItems, draftTextError, draftTooLong, editedContextOf, editedPromptOf, emptyTeachingForm, formFromRow, isDirty, reviewBody, reviewItemOf, teachingBody, teachingFileName, teachingFormError, teachingLockReason,
@@ -11,6 +12,7 @@ import {
 } from '../domain/teaching.js';
 import { turnKeyOf, type Turn } from '../domain/timeline.js';
 import { markAllRead, markTurnsRead, restoreMemberRead, turnReadKey, unreadTurnCount, withBaselines, type MemberRead, type ReadState } from '../domain/unread.js';
+import { ExampleDrafts, promptNumberOf, type DraftEditState } from './example-draft-actions.js';
 import type { TrainingAdminGateway } from './training-admin-gateway.js';
 import { InMemoryTrainingReadStore, type TrainingReadStore } from './training-read-store.js';
 
@@ -112,6 +114,8 @@ export interface TeachingEditState {
   edited: { editedPrompt: string | null; editedContext: string | null };
   saving: boolean;
   error: string;
+  /** S45: the AI draft of this prompt (asking for it, the row of the server, what was poured into the fields, the overwrite question, the tick). */
+  ai: DraftEditState;
 }
 
 /** The "Xuất ví dụ" review screen (PRODUCT.md §7.39c): one example at a time with its prompt and context to rewrite, "Đã rà ví dụ này" for each, then the file once all are reviewed. */
@@ -152,6 +156,8 @@ export interface TrainingState {
   dataExport: DataExportState | null;
   teachingEdit: TeachingEditState | null;
   teachingReview: TeachingReviewState | null;
+  /** S45: "Nháp tiếp theo" asked the page to put the focus on the example button of this prompt (the page reacts to `token`). */
+  draftFocus: { eventId: number | null; token: number };
   /** The prompt whose commands are open in the popup (key from `buildTimeline`), or null. */
   turnKey: string | null;
   /** Why the last mark / unmark failed (the row went back to how it was). Cleared by the next one that works. */
@@ -207,6 +213,7 @@ export class TrainingController {
   private commits = new Map<number, Promise<boolean>>(); // the save of each example on the review screen that is running
   private marking = new Set<number>(); // examples whose "đã rà" is being saved
   private teachingToken = 0; // bumped on every open / close of the teaching dialog and the review screen
+  private drafts: ExampleDrafts;
   private started = false;
   private inView = true; // the newest event is in (or near) the viewport
   private detailGen = 0; // bumped when an action's own answer is newer than any reload in flight
@@ -220,11 +227,15 @@ export class TrainingController {
     this.saveFile = opts.saveFile ?? (() => {});
     this.saveBlob = opts.saveBlob ?? (() => {});
     this.readStore = opts.readStore ?? new InMemoryTrainingReadStore();
+    this.drafts = new ExampleDrafts({
+      gateway, getState: () => this.state, set: patch => this.set(patch), token: () => this.teachingToken, refresh: () => this.refresh(),
+      select: id => this.select(id), revealTurn: key => this.revealTurn(key),
+    });
     const id = opts.initialMemberId ?? null;
     const known = id !== null && initial.status !== 'ended' && initial.members.some(m => m.id === id);
     this.state = {
       detail: initial, selectedId: known ? id : null, timeline: known ? this.freshTimeline(id) : null, panel: null, confirm: null,
-      working: false, actionError: '', hidden: gateway.readHideContent(), offline: false, announcement: '', endedMemberCount: null, report: null, dataExport: null, teachingEdit: null, teachingReview: null, turnKey: null, markError: '',
+      working: false, actionError: '', hidden: gateway.readHideContent(), offline: false, announcement: '', endedMemberCount: null, report: null, dataExport: null, teachingEdit: null, teachingReview: null, draftFocus: { eventId: null, token: 0 }, turnKey: null, markError: '',
       read: this.loadRead(initial), undo: null,
     };
   }
@@ -291,6 +302,7 @@ export class TrainingController {
       return;
     }
     await this.refreshTimeline();
+    await this.drafts.afterRefresh();
   }
 
   private applyDetail(next: TrainingDetail): void {
@@ -307,7 +319,7 @@ export class TrainingController {
       patch.panel = null;
       patch.turnKey = null;
     }
-    if (next.status === 'ended') { this.panelToken++; this.reportToken++; this.exportToken++; patch.panel = null; patch.turnKey = null; patch.report = null; patch.dataExport = null; this.teachingToken++; patch.teachingEdit = null; patch.teachingReview = null; }
+    if (next.status === 'ended') { this.panelToken++; this.reportToken++; this.exportToken++; patch.panel = null; patch.turnKey = null; patch.report = null; patch.dataExport = null; this.teachingToken++; patch.teachingEdit = null; patch.teachingReview = null; this.drafts.reset(); }
     if (this.state.confirm && !this.state.working && !confirmStillMakesSense(this.state.confirm, next)) patch.confirm = null;
     if (next.status === 'ended') {
       if (prev.status !== 'ended' || Object.keys(this.state.read.members).length > 0) { this.readStore.clear(next.id); patch.read = { members: {} }; patch.undo = null; }
@@ -370,6 +382,7 @@ export class TrainingController {
       ? reconcileOpenBlocks({ open: tl.openBlocks, known: tl.knownBlocks }, groups.flatMap(g => g.blocks.map(b => ({ key: b.key, isDefaultOpen: g.blocks.length === 1 || b.endedBy === null || unreadTurnCount(b.turns, rec) > 0 }))))
       : { open: tl.openBlocks, known: tl.knownBlocks };
     this.set({ timeline: { ...tl, events, hasMore: fetched.hasMore, flags: fetched.flags, phase: 'ready', loadingMore: false, error: '', newCount, followToken, openDays: days.open, knownDays: days.known, openBlocks: blocks.open, knownBlocks: blocks.known } });
+    this.drafts.onTimelineLoaded();
   }
 
   private async loadInitial(memberId: number, token: number): Promise<void> {
@@ -415,8 +428,11 @@ export class TrainingController {
     const lastId = tl.events[tl.events.length - 1]?.id ?? 0;
     // Start at the oldest request still "waiting": its answer is inferred from what came after it.
     const waiting = tl.events.find(e => e.kind === 'permission' && e.decision === 'pending');
+    // Same for a prompt whose AI draft is still being written (S45): its button changes when the draft ends.
+    const drafting = tl.events.find(e => e.kind === 'prompt' && e.exampleDraft && isDrafting(e.exampleDraft.status));
+    const from = Math.min(lastId, waiting ? waiting.id - 1 : lastId, drafting ? drafting.id - 1 : lastId);
     try {
-      const fetched = await this.fetchPages(tl.memberId, waiting ? waiting.id - 1 : lastId);
+      const fetched = await this.fetchPages(tl.memberId, from);
       const now = this.state.timeline;
       // Drop the answer if another member was picked, or something else already appended after `lastId`.
       if (token !== this.timelineToken || !now || now.memberId !== tl.memberId || (now.events[now.events.length - 1]?.id ?? 0) !== lastId) return;
@@ -694,6 +710,7 @@ export class TrainingController {
     if (this.state.detail.status === 'ended') return;
     const token = ++this.reportToken;
     this.exportToken++;
+    this.keepTeaching();
     this.teachingToken++;
     this.set({ dataExport: null, teachingEdit: null, teachingReview: null, report: { phase: 'loading', text: '', error: '', saving: false, saved: false } });
     try {
@@ -737,6 +754,7 @@ export class TrainingController {
     if (this.state.detail.status === 'ended') return;
     this.reportToken++;
     const dataExport: DataExportState = { mode: 'today', from: '', to: '', memberIds: null, phase: 'loading', summary: null, error: '', saveError: '', saving: false, saved: false };
+    this.keepTeaching();
     this.teachingToken++;
     this.set({ report: null, teachingEdit: null, teachingReview: null, dataExport });
     void this.reloadDataExport();
@@ -839,7 +857,10 @@ export class TrainingController {
 
   // ── Teaching examples for the next course (S44, PRODUCT.md §7.39) ───────────────────────────────────
 
-  /** Opens the dialog of a prompt of the open timeline. Does nothing for a member who did not agree (the button is locked) or an ended training. */
+  /**
+   * Opens the dialog of a prompt of the open timeline. Does nothing for a member who did not agree (the button is locked) or an ended training.
+   * With the AI on (S45) and no draft yet it asks for one at once; with a draft it opens it. A saved example opens as in S44.
+   */
   openTeaching(eventId: number): void {
     const tl = this.state.timeline;
     const event = tl?.events.find(e => e.id === eventId && e.kind === 'prompt');
@@ -848,13 +869,17 @@ export class TrainingController {
     const token = ++this.teachingToken;
     this.reportToken++;
     this.exportToken++;
-    const exists = event.teachingExample !== null;
+    this.keepTeaching();
+    const hasDraft = event.exampleDraft !== null;
+    const exists = event.teachingExample !== null && !hasDraft;
+    const start = this.drafts.start(eventId, this.state.detail.aiDraftAvailable, promptNumberOf(tl.events, eventId), hasDraft);
     const edit: TeachingEditState = {
-      eventId, memberName: member.displayName, prompt: event.prompt ?? '', exists, phase: exists ? 'loading' : 'ready',
-      form: emptyTeachingForm(), edited: { editedPrompt: null, editedContext: null }, saving: false, error: '',
+      eventId, memberName: member.displayName, prompt: event.prompt ?? '', exists, phase: exists || hasDraft ? 'loading' : 'ready',
+      form: start.form ?? emptyTeachingForm(), edited: { editedPrompt: null, editedContext: null }, saving: false, error: '', ai: start.ai,
     };
     this.set({ report: null, dataExport: null, teachingReview: null, teachingEdit: edit });
     if (exists) void this.loadTeaching(eventId, token);
+    this.drafts.begin(eventId, token, hasDraft, exists);
   }
 
   private async loadTeaching(eventId: number, token: number): Promise<void> {
@@ -878,18 +903,38 @@ export class TrainingController {
     void this.loadTeaching(edit.eventId, this.teachingToken);
   }
 
+  /** Closes the dialog; a draft keeps running. What the mentor typed and chose stays for this prompt while the page is open. */
   closeTeaching(): void {
     const edit = this.state.teachingEdit;
     if (!edit || edit.saving) return;
+    this.keepTeaching();
     this.teachingToken++;
     this.set({ teachingEdit: null });
+  }
+
+  /** Remembers the open dialog's fields for its prompt (see `ExampleDrafts.keep`). */
+  private keepTeaching(): void {
+    const edit = this.state.teachingEdit;
+    if (edit && !edit.saving) this.drafts.keep(edit);
   }
 
   setTeachingForm(patch: Partial<TeachingForm>): void {
     const edit = this.state.teachingEdit;
     if (!edit || edit.saving || edit.phase !== 'ready') return;
     this.set({ teachingEdit: { ...edit, form: { ...edit.form, ...patch }, error: '' } });
+    if (patch.topic !== undefined) this.drafts.noteTopicTouched();
   }
+
+  /** "Đã đọc kỹ prompt": the tick that opens "Lưu" for a prompt the AI flagged. */
+  setDraftAck(ack: boolean): void { this.drafts.setAck(ack); }
+  /** "Viết lại nháp" (also the retry of a failed draft). */
+  regenerateDraft(): void { const e = this.state.teachingEdit; if (e) void this.drafts.request(e.eventId); }
+  /** "Bỏ nháp". */
+  discardDraft(): void { void this.drafts.discard(); }
+  /** The answer to "Thay nội dung đang có bằng nháp AI?". */
+  resolveDraftOverwrite(useDraft: boolean): void { this.drafts.resolveOverwrite(useDraft); }
+  /** "Nháp tiếp theo" / D: the finished draft that waited longest. */
+  goToNextDraft(): void { this.drafts.goToNext(); }
 
   /** The row of the timeline shows the example's label (or none) at once, without waiting for the reload. */
   private showTeachingOnRow(eventId: number, example: TrainingEventRow['teachingExample']): void {
@@ -898,14 +943,19 @@ export class TrainingController {
     this.set({ timeline: { ...tl, events: tl.events.map(e => (e.id === eventId ? { ...e, teachingExample: example } : e)) } });
   }
 
-  /** "Lưu ví dụ". The form's own rules are checked first; the server's answer (e.g. the member did not agree) is shown in the dialog. */
+  /**
+   * "Lưu ví dụ". The form's own rules are checked first (a label, a comment, and for a prompt the AI flagged the tick); the server's answer
+   * (e.g. the member did not agree) is shown in the dialog. The server turns a finished draft into the example's origin and drops it.
+   */
   async saveTeaching(): Promise<void> {
     const edit = this.state.teachingEdit;
-    if (!edit || edit.saving || edit.phase !== 'ready' || teachingFormError(edit.form)) return;
+    if (!edit || edit.saving || edit.phase !== 'ready' || edit.ai.overwrite || !saveEnabled({ form: edit.form, suspicious: edit.ai.row?.draft?.suspicious ?? false, ack: edit.ai.ack })) return;
     const token = this.teachingToken;
     this.set({ teachingEdit: { ...edit, saving: true, error: '' } });
     try {
       const row = await this.gateway.saveTeachingExample(this.state.detail.id, edit.eventId, teachingBody(edit.form, edit.edited));
+      this.drafts.forget(edit.eventId);
+      this.drafts.patchRow(edit.eventId, null);
       this.showTeachingOnRow(edit.eventId, { label: row.label });
       if (token === this.teachingToken) this.set({ teachingEdit: null });
       void this.refresh();
@@ -941,6 +991,7 @@ export class TrainingController {
     this.reportToken++;
     this.exportToken++;
     const fresh: TeachingReviewState = { phase: 'loading', items: [], selectedId: null, error: '', saving: false, saved: false, saveError: '' };
+    this.keepTeaching();
     this.set({ report: null, dataExport: null, teachingEdit: null, teachingReview: fresh });
     try {
       const rows = await this.gateway.teachingExamples(this.state.detail.id);

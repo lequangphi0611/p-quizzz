@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { writeAiConfig } from './ai-config';
 import { PHONE, memberContext, mentorContext, shotPath } from './helpers';
 
 // S44 — teaching examples (PRODUCT.md §7.39): a member ticks the separate consent, the mentor labels a prompt, reviews and edits
@@ -37,6 +38,10 @@ async function openExport(page: Page, item: RegExp) {
   await page.getByRole('button', { name: 'Xuất', exact: true }).click();
   await page.getByRole('menuitem', { name: item }).click();
 }
+
+// This is the S44 flow: the AI is not set up (S45 adds the drafts, tested in training-example-draft.spec.ts). Put back for the specs after it.
+test.beforeAll(() => { writeAiConfig(null); });
+test.afterAll(() => { writeAiConfig(); });
 
 test('a member ticks the teaching consent; the mentor makes examples, reviews each, and downloads an anonymous file; a member who did not tick has no button', async ({ browser, baseURL, request }) => {
   test.setTimeout(180_000);

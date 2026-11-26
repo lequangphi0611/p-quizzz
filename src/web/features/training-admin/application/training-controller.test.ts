@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { TeachingExampleBody, TeachingExampleRow, TrainingDetail, TrainingEventDetail, TrainingEventRow, TrainingEventsPage, TrainingExportSummary, TrainingMemberRow } from '../../../../shared/api/index.js';
+import type { ExampleDraftContent, ExampleDraftRow, TeachingExampleBody, TeachingExampleRow, TrainingDetail, TrainingEventDetail, TrainingEventRow, TrainingEventsPage, TrainingExportSummary, TrainingMemberRow } from '../../../../shared/api/index.js';
 import { ApiError } from '../../../shared/api-client/http-client.js';
 import type { TrainingAdminGateway } from './training-admin-gateway.js';
 import { TrainingController } from './training-controller.js';
@@ -19,6 +19,9 @@ const teachingRow = (eventId: number, body: Partial<TeachingExampleBody> = {}, o
   eventId, memberId: 1, memberName: 'An', label: 'good', topic: 'other', comment: 'ok', betterPrompt: null, editedPrompt: null, editedContext: null, reviewed: false,
   defaultPrompt: 'prompt gốc', defaultContext: '✓ Bash ls', updatedAt: 1, ...body, ...over,
 });
+
+const draftContent = (over: Partial<ExampleDraftContent> = {}): ExampleDraftContent => ({ label: 'needs_work', topic: 'verify', comment: 'Thiếu cách kiểm tra.', betterPrompt: 'Sửa X, chạy test.', suspicious: false, suspiciousReason: '', suspiciousQuote: '', ...over });
+const draftRow = (eventId: number, over: Partial<ExampleDraftRow> = {}): ExampleDraftRow => ({ eventId, status: 'done', draft: draftContent(), sampleCount: 2, error: null, seen: false, createdAt: '2026-11-26T08:00:00.000Z', ...over });
 
 const exportSummary = (over: Partial<TrainingExportSummary> = {}): TrainingExportSummary => ({ from: '2026-11-24', to: '2026-11-24', memberCount: 2, eventCount: 12, approxBytes: 4096, tooLarge: false, ...over });
 
@@ -48,6 +51,10 @@ function make(over: Partial<TrainingAdminGateway> = {}, initial = detail(), opts
     setTeachingReviewed: vi.fn(async () => {}),
     teachingExamples: vi.fn(async () => []),
     exportTeachingExamples: vi.fn(async () => '# Ví dụ'),
+    requestExampleDraft: vi.fn(async (_t: number, eventId: number) => draftRow(eventId, { status: 'queued' })),
+    exampleDraft: vi.fn(async () => null),
+    discardExampleDraft: vi.fn(async () => {}),
+    markExampleDraftSeen: vi.fn(async () => {}),
     getJoinHosts: vi.fn(async () => ['192.168.1.5:3000']),
     readHideContent: () => hide,
     writeHideContent: vi.fn((h: boolean) => { hide = h; }),

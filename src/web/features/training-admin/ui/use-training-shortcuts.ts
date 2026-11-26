@@ -3,7 +3,7 @@ import type { TrainingController } from '../application/training-controller.js';
 import { isTypingTarget, shortcutFor } from '../domain/shortcuts.js';
 
 /**
- * H hides / shows the content, J / K step through commands and Esc closes the panel (or a confirmation). Never while typing in
+ * H hides / shows the content, D goes to the next AI draft (S45), J / K step through commands and Esc closes the panel (or a confirmation). Never while typing in
  * a field, and not with Ctrl / Cmd / Alt held. `closePanel` is the page's own close, which also returns the focus.
  */
 export function useTrainingShortcuts(ctrl: TrainingController, closePanel: () => void): void {
@@ -17,10 +17,12 @@ export function useTrainingShortcuts(ctrl: TrainingController, closePanel: () =>
         if (e.key === 'Escape') ctrl.cancelConfirm(); // the dialogs sit on top: nothing else reacts to keys behind them
         return;
       }
-      const action = shortcutFor(e, { panelOpen: s.panel !== null, turnOpen: s.turnKey !== null });
+      const dialogOpen = s.report !== null || s.dataExport !== null || s.teachingEdit !== null || s.teachingReview !== null;
+      const action = shortcutFor(e, { panelOpen: s.panel !== null, turnOpen: s.turnKey !== null, dialogOpen });
       if (!action) return;
       e.preventDefault();
       if (action === 'toggle-hidden') ctrl.toggleHidden();
+      else if (action === 'next-draft') ctrl.goToNextDraft();
       else if (action === 'next') ctrl.step(1);
       else if (action === 'prev') ctrl.step(-1);
       else close.current();

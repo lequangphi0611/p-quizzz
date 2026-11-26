@@ -72,7 +72,7 @@ Mỗi story là một file tự đủ ngữ cảnh để một model/người im
 | [S42](S42-training-multi-day.md) | Training nhiều ngày: nhóm theo ngày (mới nhất ở trên, thu gọn) trên dòng thời gian | S35, S39, S40, S41 | ✅ |
 | [S43](S43-training-session-blocks.md) | Training: gom theo phiên Claude Code (kể cả song song) trong ngày, cờ theo phiên, đánh dấu prompt mới | S39, S41, S42 | ✅ |
 | [S44](S44-training-teaching-examples.md) | Training: xuất ví dụ prompt tốt / chưa tốt giấu tên để dạy khoá sau | S40, S43 | ✅ |
-| [S45](S45-training-example-ai-draft.md) | Training: AI điền nháp ví dụ prompt, học từ ví dụ mentor đã chốt trong buổi (chạy nền) | S26, S44 | ⏳ server xong, web + E2E còn |
+| [S45](S45-training-example-ai-draft.md) | Training: AI điền nháp ví dụ prompt, học từ ví dụ mentor đã chốt trong buổi (chạy nền) | S26, S44 | ✅ |
 
 ## Thứ tự & song song
 

@@ -1,68 +1,12 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
-import { TEACHING_COMMENT_MAX, TEACHING_LABEL_TEXT, TEACHING_LABELS, TEACHING_TEXT_MAX, TEACHING_TOPICS, TEACHING_TOPIC_TEXT, type TeachingTopic } from '../../../../shared/api/index.js';
-import { Button } from '../../../shared/ui/Button.js';
-import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog.js';
+import { TEACHING_LABEL_TEXT, TEACHING_TOPICS, TEACHING_TOPIC_TEXT } from '../../../../shared/api/index.js';
 import { ErrorMessage } from '../../../shared/ui/ErrorMessage.js';
 import { Icon } from '../../../shared/ui/Icon.js';
-import { SegmentedControl } from '../../../shared/ui/SegmentedControl.js';
-import { TextField } from '../../../shared/ui/TextField.js';
 import type { TrainingController, TrainingState } from '../application/training-controller.js';
-import { FIELD_NAME, NAME_PLACEHOLDER, editedFieldCount, highlightSegments, itemStatus, nameHits, reviewedCount, suspectedNames, teachingFormError, isDirty, type ReviewItem } from '../domain/teaching.js';
+import { FIELD_NAME, NAME_PLACEHOLDER, editedFieldCount, highlightSegments, itemStatus, nameHits, reviewedCount, suspectedNames, isDirty, type ReviewItem } from '../domain/teaching.js';
 
 const note = { display: 'flex', gap: 8, alignItems: 'flex-start', padding: '10px 12px', borderRadius: 'var(--radius-md)', font: 'var(--type-meta)' } as const;
 const hiddenBox = { padding: 16, textAlign: 'center', borderRadius: 'var(--radius-md)', background: 'var(--surface-sunken)', color: 'var(--text-meta)' } as const;
-
-/** "Ví dụ" of one prompt: label (required), topic, comment (required), a better version (optional), or drop the example. */
-export function TeachingEditDialog({ state, ctrl }: { state: TrainingState; ctrl: TrainingController }) {
-  const e = state.teachingEdit!;
-  const topicId = useId();
-  const problem = teachingFormError(e.form);
-  const ready = e.phase === 'ready';
-  return (
-    <ConfirmDialog title="Ví dụ" width={640} confirmLabel="Lưu ví dụ" cancelLabel="Đóng" busy={e.saving} confirmDisabled={!ready || problem !== ''} disabledReason={ready ? problem : undefined}
-      onConfirm={() => void ctrl.saveTeaching()} onCancel={() => ctrl.closeTeaching()}>
-      <p style={{ margin: 0, font: 'var(--type-meta)', color: 'var(--text-meta)' }}>
-        Nhãn và nhận xét là của <b>ví dụ</b>, không phải của {state.hidden ? 'bạn ấy' : e.memberName}. Bạn ấy không thấy, và không vào số liệu, cờ hay báo cáo.
-      </p>
-      <div style={{ marginTop: 12 }}>
-        {state.hidden ? <div style={hiddenBox}>Nội dung đang ẩn. Nhấn H để hiện lại.</div> : (
-          <blockquote aria-label="Prompt được chọn" style={{ margin: 0, maxHeight: 120, overflow: 'auto', padding: '8px 12px', borderRadius: 'var(--radius-md)', background: 'var(--surface-sunken)', borderLeft: '3px solid var(--brand-300, var(--brand-600))', font: '400 14px/1.5 var(--font-sans)', color: 'var(--ink-900)', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{e.prompt}</blockquote>
-        )}
-      </div>
-
-      {e.phase === 'loading' && <div role="status" style={{ marginTop: 16, color: 'var(--text-meta)' }}>Đang tải ví dụ…</div>}
-      {e.phase === 'error' && <div style={{ marginTop: 16 }}><ErrorMessage message={e.error} onRetry={() => ctrl.retryTeaching()} /></div>}
-      {ready && (
-        <div style={{ display: 'grid', gap: 14, marginTop: 16 }}>
-          <fieldset style={{ border: 0, margin: 0, padding: 0, display: 'grid', gap: 6 }}>
-            <legend style={{ padding: 0, marginBottom: 6, font: 'var(--type-label)', color: 'var(--text-title)' }}>Nhãn (bắt buộc)</legend>
-            <div>
-              <SegmentedControl ariaLabel="Nhãn" items={TEACHING_LABELS.map(l => ({ value: l, label: TEACHING_LABEL_TEXT[l], icon: l === 'good' ? 'circle-check' : 'triangle-alert' }))}
-                value={(e.form.label || null) as never} disabled={e.saving} onChange={l => ctrl.setTeachingForm({ label: l })} />
-            </div>
-          </fieldset>
-          <label htmlFor={topicId} style={{ display: 'grid', gap: 6, font: 'var(--type-label)', color: 'var(--text-title)' }}>
-            Chủ đề
-            <select id={topicId} value={e.form.topic} disabled={e.saving} onChange={ev => ctrl.setTeachingForm({ topic: ev.target.value as TeachingTopic })}
-              style={{ height: 40, padding: '0 10px', borderRadius: 'var(--radius-md)', border: '1.5px solid var(--border-strong)', background: 'var(--paper)', color: 'var(--text-title)', font: 'var(--type-body)' }}>
-              {TEACHING_TOPICS.map(t => <option key={t} value={t}>{TEACHING_TOPIC_TEXT[t]}</option>)}
-            </select>
-          </label>
-          <TextField label="Nhận xét (bắt buộc)" multiline rows={3} maxLength={TEACHING_COMMENT_MAX} value={e.form.comment} disabled={e.saving}
-            hint="Nói về cách viết prompt trong tình huống này, không nói về người viết." onChange={v => ctrl.setTeachingForm({ comment: v })} />
-          <TextField label="Phiên bản tốt hơn (tuỳ chọn)" multiline rows={3} maxLength={TEACHING_TEXT_MAX} value={e.form.betterPrompt} disabled={e.saving}
-            onChange={v => ctrl.setTeachingForm({ betterPrompt: v })} />
-        </div>
-      )}
-      {e.error && ready && <div style={{ marginTop: 12 }}><ErrorMessage message={e.error} /></div>}
-      {e.exists && ready && (
-        <div style={{ marginTop: 14 }}>
-          <Button variant="ghost" size="sm" icon="trash-2" disabled={e.saving} onClick={() => void ctrl.removeTeaching()}>Bỏ ví dụ này</Button>
-        </div>
-      )}
-    </ConfirmDialog>
-  );
-}
 
 const C = { ink: 'var(--ink-900)', meta: 'var(--text-meta)', line: 'var(--border-hairline)', soft: 'var(--ink-100)', brand: 'var(--brand-600)', ok: 'var(--correct-600)', warn: 'var(--warn-600)' } as const;
 

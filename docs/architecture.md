@@ -531,7 +531,7 @@ Contract dự kiến; story nào chạm thì chốt lại tại đây. Payload t
 - `TrainingEventRow` (dòng prompt) thêm `teachingExample: { label } | null`; `TrainingMemberRow` thêm `teachingConsent: boolean` (để khoá nút). Không thêm gì vào route member, `report.md`, zip, cờ.
 - Domain thuần `domain/training/teaching-examples.ts`: `buildTurnContext(events)` (lượt theo phiên như S43, chỉ `tool`: `✓|✗ <toolName> <toolTarget rút gọn>`), `buildTeachingExamplesFile(trainingName, examples)`, thứ tự xáo ổn định theo `event_id`. `maskSecrets` ở bước cuối.
 
-### 11.12 AI điền nháp ví dụ (S45, PRODUCT.md §7.40; chưa làm, đã có thiết kế)
+### 11.12 AI điền nháp ví dụ (S45, PRODUCT.md §7.40; xong)
 
 - Bảng `training_example_drafts (event_id PK → training_events.id cascade, status queued|running|done|failed, label?, topic?, comment?, better_prompt?, suspicious, suspicious_reason?, suspicious_quote?, sample_count?, error?, seen_at?, created_at, finished_at?)`: một nháp mỗi prompt, chạy nền. `training_teaching_examples` thêm `ai_draft` (JSON `{ label, topic, comment, betterPrompt }`, nullable) và `origin` (`mentor` | `ai_kept` | `ai_edited`, default `mentor`).
 - Route mentor (`/api/admin`, 409 khi `ended`): `POST /trainings/:id/events/:eventId/example-draft` → 202 `ExampleDraftRow` (400 `not_a_prompt`, 409 `no_teaching_consent`, 503 `ai_unavailable`); `GET` cùng đường dẫn → `ExampleDraftRow` | 404 `no_draft`; `DELETE` (idempotent); `PUT …/example-draft/seen`. `ExampleDraftRow = { eventId, status, draft: { label, topic, comment, betterPrompt, suspicious, suspiciousReason, suspiciousQuote } | null, sampleCount, error, seen, createdAt }`. `suspiciousQuote` chỉ giữ khi xuất hiện nguyên văn trong prompt (≤ 200 ký tự).
