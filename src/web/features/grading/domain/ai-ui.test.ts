@@ -40,6 +40,11 @@ describe('visibleAnswers', () => {
     expect(visibleAnswers(answers, 'todo').map(r => r.answer.answerId)).toEqual([2, 1]);
     expect(visibleAnswers(answers, 'err').map(r => r.index)).toEqual([2]);
   });
+  it('keeps a suspicious answer graded in this view at the top, without the pin, so its "Hoàn tác" does not jump away', () => {
+    const graded = answers.map(a => (a.answerId === 2 ? { ...a, manualScore: 3 } : a));
+    expect(visibleAnswers(graded, 'all').map(r => r.answer.answerId)[0]).toBe(1); // left the view: back in the shuffled order
+    expect(visibleAnswers(graded, 'all', new Set([2])).map(r => [r.answer.answerId, r.pinned])[0]).toEqual([2, false]);
+  });
 });
 
 describe('helpers', () => {
